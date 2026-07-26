@@ -24,5 +24,10 @@ GEMINI.md
 
 # Playwright MCP
 .playwright-mcp/
-/.agents
+/.pnpm-store/
+/.agents/*
+!/.agents/skills/
+/.agents/skills/*
+!/.agents/skills/mentor-engineering/
+!/.agents/skills/mentor-engineering/**
 skills-lock.json
