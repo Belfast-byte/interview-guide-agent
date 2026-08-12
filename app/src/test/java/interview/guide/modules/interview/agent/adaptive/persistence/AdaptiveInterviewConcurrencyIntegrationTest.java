@@ -3,6 +3,10 @@ package interview.guide.modules.interview.agent.adaptive.persistence;
 import interview.guide.modules.interview.agent.adaptive.core.AdaptiveInterviewHistory;
 import interview.guide.modules.interview.agent.adaptive.core.CandidateAnswer;
 import interview.guide.modules.interview.agent.adaptive.core.RespondAction;
+import interview.guide.modules.interview.agent.adaptive.planning.DimensionProposal;
+import interview.guide.modules.interview.agent.adaptive.planning.InterviewPlan;
+import interview.guide.modules.interview.agent.adaptive.planning.PlanProposal;
+import interview.guide.modules.interview.agent.adaptive.planning.PlannedInterview;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.Callable;
@@ -41,12 +45,18 @@ class AdaptiveInterviewConcurrencyIntegrationTest {
         "JD",
         "Resume",
         null,
-        6,
+        InterviewPlan.decide(
+            "concurrent-session",
+            new PlanProposal(List.of(
+                new DimensionProposal("专业基础", "缓存", 2, List.of(), null),
+                new DimensionProposal("项目经验", "取舍", 2, List.of(), null)
+            ))
+        ),
         RespondAction.ask("第一题？", "验证基础")
     );
     CountDownLatch ready = new CountDownLatch(2);
     CountDownLatch start = new CountDownLatch(1);
-    Callable<AdaptiveInterviewHistory> submission = () -> {
+    Callable<PlannedInterview> submission = () -> {
       ready.countDown();
       start.await();
       return persistenceService.recordDecision(
@@ -55,7 +65,7 @@ class AdaptiveInterviewConcurrencyIntegrationTest {
           RespondAction.ask("第二题？", "继续验证")
       );
     };
-    List<FutureTask<AdaptiveInterviewHistory>> submissions = List.of(
+    List<FutureTask<PlannedInterview>> submissions = List.of(
         new FutureTask<>(submission),
         new FutureTask<>(submission)
     );
@@ -65,7 +75,7 @@ class AdaptiveInterviewConcurrencyIntegrationTest {
     start.countDown();
     int successes = 0;
     List<Throwable> failures = new ArrayList<>();
-    for (FutureTask<AdaptiveInterviewHistory> task : submissions) {
+    for (FutureTask<PlannedInterview> task : submissions) {
       try {
         task.get(5, TimeUnit.SECONDS);
         successes++;
@@ -74,7 +84,7 @@ class AdaptiveInterviewConcurrencyIntegrationTest {
       }
     }
 
-    AdaptiveInterviewHistory history = persistenceService.get("concurrent-session");
+    AdaptiveInterviewHistory history = persistenceService.get("concurrent-session").history();
     assertThat(successes).isEqualTo(1);
     assertThat(failures).hasSize(1);
     assertThat(history.session().currentTurn()).isEqualTo(2);

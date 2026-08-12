@@ -9,9 +9,12 @@ import org.springframework.context.annotation.Configuration;
 public class AdaptiveAgentRuntimeConfiguration {
 
   @Bean
-  BoundedReActRuntime boundedReActRuntime(AgentModelGateway modelGateway) {
+  BoundedReActRuntime boundedReActRuntime(
+      AgentModelGateway modelGateway,
+      DeadlineExecutor deadlineExecutor
+  ) {
     return new BoundedReActRuntime(modelGateway, action -> {
       throw new BusinessException(ErrorCode.AI_SERVICE_ERROR, "M0 尚未启用 Agent 工具");
-    });
+    }, deadlineExecutor);
   }
 }

@@ -20,6 +20,7 @@ import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.ArgumentCaptor;
+import org.mockito.ArgumentMatchers;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.slf4j.Logger;
@@ -94,7 +95,12 @@ class SpringAiAdaptiveAgentModelGatewayTest {
         anyString(),
         any(Logger.class)
     );
-    assertThat(userPrompt.getValue()).contains("<data-boundary>", "候选人回答");
+    assertThat(userPrompt.getValue()).contains(
+        "<data-boundary>",
+        "候选人回答",
+        "专业基础",
+        "缓存与并发"
+    );
   }
 
   @Test
@@ -108,7 +114,7 @@ class SpringAiAdaptiveAgentModelGatewayTest {
 
     assertThatThrownBy(() -> gateway.nextAction(context(null)))
         .isInstanceOf(BusinessException.class)
-        .hasMessageContaining("首次响应");
+        .hasMessageContaining("规划轮次");
   }
 
   @Test
@@ -155,7 +161,7 @@ class SpringAiAdaptiveAgentModelGatewayTest {
         eq(chatClient),
         anyString(),
         anyString(),
-        org.mockito.ArgumentMatchers
+        ArgumentMatchers
             .<BeanOutputConverter<SpringAiAdaptiveAgentModelGateway.AgentStepOutput>>any(),
         eq(ErrorCode.AI_SERVICE_ERROR),
         anyString(),
@@ -172,6 +178,8 @@ class SpringAiAdaptiveAgentModelGatewayTest {
             "JD",
             "Resume",
             6,
+            "专业基础",
+            "缓存与并发",
             List.of(),
             answer
         ),

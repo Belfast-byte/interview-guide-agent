@@ -1,7 +1,7 @@
 package interview.guide.modules.interview.agent.adaptive.api;
 
-import interview.guide.modules.interview.agent.adaptive.core.AdaptiveInterviewHistory;
 import interview.guide.modules.interview.agent.adaptive.core.AdaptiveSessionStatus;
+import interview.guide.modules.interview.agent.adaptive.planning.PlannedInterview;
 import java.util.List;
 
 public record AdaptiveInterviewResponse(
@@ -11,10 +11,12 @@ public record AdaptiveInterviewResponse(
     int currentTurn,
     int maxTurns,
     String currentQuestion,
+    List<AdaptiveInterviewDimensionResponse> dimensions,
     List<AdaptiveInterviewTurnResponse> turns
 ) {
 
-  public static AdaptiveInterviewResponse from(AdaptiveInterviewHistory history) {
+  public static AdaptiveInterviewResponse from(PlannedInterview interview) {
+    var history = interview.history();
     String currentQuestion = history.session().status() == AdaptiveSessionStatus.COMPLETED
         ? null
         : history.turns().getLast().question();
@@ -25,6 +27,9 @@ public record AdaptiveInterviewResponse(
         history.session().currentTurn(),
         history.session().maxTurns(),
         currentQuestion,
+        interview.plan().dimensions().stream()
+            .map(AdaptiveInterviewDimensionResponse::from)
+            .toList(),
         history.turns().stream()
             .map(AdaptiveInterviewTurnResponse::from)
             .toList()

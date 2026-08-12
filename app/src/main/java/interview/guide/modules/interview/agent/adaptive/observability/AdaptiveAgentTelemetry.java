@@ -90,6 +90,20 @@ public class AdaptiveAgentTelemetry {
     );
   }
 
+  public void planRejected(String sessionId, int errorCode) {
+    meterRegistry.counter(
+        DECISIONS,
+        "role", "orchestrator",
+        "status", "failure",
+        "action", "PLAN"
+    ).increment();
+    log.warn(
+        "adaptive_agent_failed phase=planning sessionId={} errorCode={}",
+        sessionId,
+        errorCode
+    );
+  }
+
   private void record(
       String counterName,
       String timerName,

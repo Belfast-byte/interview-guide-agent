@@ -6,6 +6,11 @@ import interview.guide.modules.interview.agent.adaptive.core.AdaptiveSessionStat
 import interview.guide.modules.interview.agent.adaptive.core.AgentResponseType;
 import interview.guide.modules.interview.agent.adaptive.core.CandidateAnswer;
 import interview.guide.modules.interview.agent.adaptive.core.RespondAction;
+import interview.guide.modules.interview.agent.adaptive.planning.DimensionProposal;
+import interview.guide.modules.interview.agent.adaptive.planning.InterviewPlan;
+import interview.guide.modules.interview.agent.adaptive.planning.PlanProposal;
+import interview.guide.modules.interview.agent.adaptive.planning.PlannedInterview;
+import java.util.List;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -34,15 +39,16 @@ class AdaptiveInterviewPersistenceServiceTest {
         "JD",
         "Resume",
         "provider-1",
-        6,
+        plan("session-1", 3),
         RespondAction.ask("第一题？", "验证基础")
     );
 
-    AdaptiveInterviewHistory history = service.recordDecision(
+    PlannedInterview interview = service.recordDecision(
         "session-1",
         new CandidateAnswer(1, answer),
         RespondAction.ask("第二题？", "需要验证边界条件")
     );
+    AdaptiveInterviewHistory history = interview.history();
 
     assertThat(history.session().currentTurn()).isEqualTo(2);
     assertThat(history.llmProvider()).isEqualTo("provider-1");
@@ -64,20 +70,49 @@ class AdaptiveInterviewPersistenceServiceTest {
         "JD",
         "Resume",
         null,
-        1,
-        RespondAction.ask("唯一一题？", "验证基础")
+        plan("session-2", 1),
+        RespondAction.ask("第一题？", "验证基础")
     );
 
-    AdaptiveInterviewHistory history = service.recordDecision(
+    service.recordDecision(
         "session-2",
         new CandidateAnswer(1, "回答"),
-        RespondAction.ask("不应出现的下一题？", "模型希望继续")
+        RespondAction.ask("第二题？", "继续验证")
     );
+    AdaptiveInterviewHistory history = service.recordDecision(
+        "session-2",
+        new CandidateAnswer(2, "第二轮回答"),
+        RespondAction.ask("不应出现的下一题？", "模型希望继续")
+    ).history();
 
     assertThat(history.session().status()).isEqualTo(AdaptiveSessionStatus.COMPLETED);
-    assertThat(history.turns()).hasSize(1);
-    assertThat(history.turns().getFirst().responseType()).isEqualTo(AgentResponseType.FINISH);
-    assertThat(history.turns().getFirst().decisionReason()).isEqualTo("轮次预算已用尽");
+    assertThat(history.turns()).hasSize(2);
+    assertThat(history.turns().getLast().responseType()).isEqualTo(AgentResponseType.FINISH);
+    assertThat(history.turns().getLast().decisionReason()).isEqualTo("轮次预算已用尽");
+  }
+
+  @Test
+  @DisplayName("全部维度覆盖前拒绝模型提前结束")
+  void shouldRejectEarlyFinish() {
+    service.create(
+        "session-early-finish",
+        "JD",
+        "Resume",
+        null,
+        plan("session-early-finish", 2),
+        RespondAction.ask("第一题？", "验证基础")
+    );
+
+    assertThatThrownBy(() -> service.recordDecision(
+        "session-early-finish",
+        new CandidateAnswer(1, "回答"),
+        RespondAction.finish("结束", "模型建议提前结束")
+    )).isInstanceOf(BusinessException.class)
+        .hasMessageContaining("全部规划维度");
+
+    PlannedInterview interview = service.get("session-early-finish");
+    assertThat(interview.history().session().currentTurn()).isEqualTo(1);
+    assertThat(interview.history().turns().getFirst().answer()).isNull();
   }
 
   @Test
@@ -88,7 +123,7 @@ class AdaptiveInterviewPersistenceServiceTest {
         "JD",
         "Resume",
         null,
-        6,
+        plan("session-3", 3),
         RespondAction.ask("第一题？", "验证基础")
     );
 
@@ -99,8 +134,23 @@ class AdaptiveInterviewPersistenceServiceTest {
     )).isInstanceOf(BusinessException.class)
         .hasMessageContaining("轮次");
 
-    AdaptiveInterviewHistory history = service.get("session-3");
+    AdaptiveInterviewHistory history = service.get("session-3").history();
     assertThat(history.session().currentTurn()).isEqualTo(1);
     assertThat(history.turns().getFirst().answer()).isNull();
+  }
+
+  private InterviewPlan plan(String sessionId, int dimensionCount) {
+    return InterviewPlan.decide(
+        sessionId,
+        new PlanProposal(java.util.stream.IntStream.range(0, dimensionCount)
+            .mapToObj(index -> new DimensionProposal(
+                "维度-" + index,
+                "重点-" + index,
+                2,
+                List.of(),
+                null
+            ))
+            .toList())
+    );
   }
 }

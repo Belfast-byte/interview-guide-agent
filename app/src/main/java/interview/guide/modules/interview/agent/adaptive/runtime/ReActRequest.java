@@ -10,6 +10,8 @@ public record ReActRequest(
     String jd,
     String resume,
     int maxTurns,
+    String dimension,
+    String focus,
     List<AdaptiveInterviewTurn> turns,
     CandidateAnswer candidateAnswer
 ) {

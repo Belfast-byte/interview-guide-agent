@@ -9,7 +9,9 @@ import interview.guide.modules.interview.agent.adaptive.observability.AdaptiveAg
 import interview.guide.modules.interview.agent.adaptive.planning.DimensionProposal;
 import interview.guide.modules.interview.agent.adaptive.planning.PlanProposal;
 import interview.guide.modules.interview.agent.adaptive.planning.PlanningRequest;
+import interview.guide.modules.interview.agent.adaptive.runtime.DeadlineExecutor;
 import java.io.IOException;
+import java.time.Duration;
 import java.util.List;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
@@ -58,6 +60,7 @@ class SpringAiPlanningAgentTest {
         structuredOutputInvoker,
         new ObjectMapper(),
         telemetry,
+        new DeadlineExecutor(),
         new AdaptiveAgentProperties(),
         new DefaultResourceLoader()
     );
@@ -94,29 +97,6 @@ class SpringAiPlanningAgentTest {
   }
 
   @Test
-  @DisplayName("空维度规划在模型边界快速失败")
-  void shouldRejectEmptyDimensions() {
-    when(invoke()).thenReturn(new PlanProposal(List.of()));
-
-    assertThatThrownBy(() -> planningAgent.propose(request(), "provider-1"))
-        .isInstanceOf(BusinessException.class)
-        .hasMessageContaining("1 到 12");
-  }
-
-  @Test
-  @DisplayName("重复维度规划在模型边界快速失败")
-  void shouldRejectDuplicateDimensions() {
-    when(invoke()).thenReturn(new PlanProposal(List.of(
-        dimension("专业基础", "缓存"),
-        dimension(" 专业基础 ", "并发")
-    )));
-
-    assertThatThrownBy(() -> planningAgent.propose(request(), "provider-1"))
-        .isInstanceOf(BusinessException.class)
-        .hasMessageContaining("重复维度");
-  }
-
-  @Test
   @DisplayName("底层模型失败不向调用方暴露解析内容")
   void shouldSanitizeModelFailure() {
     when(invoke()).thenThrow(new BusinessException(
@@ -125,6 +105,30 @@ class SpringAiPlanningAgentTest {
     ));
 
     assertThatThrownBy(() -> planningAgent.propose(request(), "provider-1"))
+        .isInstanceOf(BusinessException.class)
+        .hasMessage("Agent 规划失败");
+  }
+
+  @Test
+  @DisplayName("规划模型超过角色 deadline 时快速失败")
+  void shouldStopAtPlannerDeadline() throws IOException {
+    when(invoke()).thenAnswer(invocation -> {
+      Thread.sleep(5_000);
+      return new PlanProposal(List.of(dimension("专业基础", "缓存")));
+    });
+    AdaptiveAgentProperties properties = new AdaptiveAgentProperties();
+    properties.setPlannerDeadline(Duration.ofMillis(30));
+    SpringAiPlanningAgent boundedAgent = new SpringAiPlanningAgent(
+        llmProviderRegistry,
+        structuredOutputInvoker,
+        new ObjectMapper(),
+        telemetry,
+        new DeadlineExecutor(),
+        properties,
+        new DefaultResourceLoader()
+    );
+
+    assertThatThrownBy(() -> boundedAgent.propose(request(), "provider-1"))
         .isInstanceOf(BusinessException.class)
         .hasMessage("Agent 规划失败");
   }

@@ -127,6 +127,8 @@ class BoundedReActRuntimeTest {
         "JD",
         "Resume",
         6,
+        "专业基础",
+        "缓存与并发",
         List.of(),
         new CandidateAnswer(1, "候选人回答")
     );

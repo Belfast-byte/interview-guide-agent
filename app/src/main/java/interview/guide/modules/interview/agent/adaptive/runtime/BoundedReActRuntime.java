@@ -9,18 +9,29 @@ import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.Map;
 import java.util.Set;
-import java.util.concurrent.Callable;
-import java.util.concurrent.ExecutionException;
-import java.util.concurrent.FutureTask;
-import java.util.concurrent.TimeUnit;
-import java.util.concurrent.TimeoutException;
-import lombok.RequiredArgsConstructor;
 
-@RequiredArgsConstructor
 public class BoundedReActRuntime {
 
   private final AgentModelGateway modelGateway;
   private final AgentToolExecutor toolExecutor;
+  private final DeadlineExecutor deadlineExecutor;
+
+  public BoundedReActRuntime(
+      AgentModelGateway modelGateway,
+      AgentToolExecutor toolExecutor
+  ) {
+    this(modelGateway, toolExecutor, new DeadlineExecutor());
+  }
+
+  public BoundedReActRuntime(
+      AgentModelGateway modelGateway,
+      AgentToolExecutor toolExecutor,
+      DeadlineExecutor deadlineExecutor
+  ) {
+    this.modelGateway = modelGateway;
+    this.toolExecutor = toolExecutor;
+    this.deadlineExecutor = deadlineExecutor;
+  }
 
   public RespondAction run(ReActRequest request, ReActBudget budget) {
     long deadlineNanos = System.nanoTime() + budget.deadline().toNanos();
@@ -29,9 +40,10 @@ public class BoundedReActRuntime {
     int toolCalls = 0;
 
     for (int step = 0; step < budget.maxSteps(); step++) {
-      AgentAction action = invokeBeforeDeadline(
+      AgentAction action = deadlineExecutor.invoke(
           () -> modelGateway.nextAction(new ReActModelContext(request, observations)),
-          deadlineNanos
+          deadlineNanos,
+          "Agent 面试执行"
       );
       if (action instanceof RespondAction respondAction) {
         return respondAction;
@@ -52,7 +64,11 @@ public class BoundedReActRuntime {
         throw new BusinessException(ErrorCode.AI_SERVICE_ERROR, "Agent 工具调用预算已用尽");
       }
 
-      String output = invokeBeforeDeadline(() -> toolExecutor.execute(toolCall), deadlineNanos);
+      String output = deadlineExecutor.invoke(
+          () -> toolExecutor.execute(toolCall),
+          deadlineNanos,
+          "Agent 面试执行"
+      );
       observations.add(new ToolObservation(
           toolCall.toolName(),
           toolCall.arguments(),
@@ -64,31 +80,5 @@ public class BoundedReActRuntime {
 
     throw new BusinessException(ErrorCode.AI_SERVICE_ERROR, "Agent 模型步预算已用尽");
   }
-
-  private <T> T invokeBeforeDeadline(Callable<T> invocation, long deadlineNanos) {
-    long remainingNanos = deadlineNanos - System.nanoTime();
-    if (remainingNanos <= 0) {
-      throw new BusinessException(ErrorCode.AI_SERVICE_TIMEOUT, "Agent 面试执行超时");
-    }
-
-    FutureTask<T> task = new FutureTask<>(invocation);
-    Thread.startVirtualThread(task);
-    try {
-      return task.get(remainingNanos, TimeUnit.NANOSECONDS);
-    } catch (TimeoutException e) {
-      task.cancel(true);
-      throw new BusinessException(ErrorCode.AI_SERVICE_TIMEOUT, "Agent 面试执行超时", e);
-    } catch (InterruptedException e) {
-      task.cancel(true);
-      Thread.currentThread().interrupt();
-      throw new BusinessException(ErrorCode.AI_SERVICE_TIMEOUT, "Agent 面试执行被中断", e);
-    } catch (ExecutionException e) {
-      if (e.getCause() instanceof BusinessException businessException) {
-        throw businessException;
-      }
-      throw new BusinessException(ErrorCode.AI_SERVICE_ERROR, "Agent 面试执行失败", e.getCause());
-    }
-  }
-
   private record ToolInvocation(String toolName, Map<String, Object> arguments) {}
 }

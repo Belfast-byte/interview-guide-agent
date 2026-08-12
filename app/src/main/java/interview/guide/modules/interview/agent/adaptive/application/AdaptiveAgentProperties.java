@@ -11,10 +11,10 @@ import org.springframework.stereotype.Component;
 public class AdaptiveAgentProperties {
 
   private boolean enabled;
-  private int maxTurns = 6;
   private int maxSteps = 4;
   private int maxToolCalls;
   private Duration deadline = Duration.ofSeconds(30);
+  private Duration plannerDeadline = Duration.ofSeconds(30);
   private String systemPromptPath =
       "classpath:prompts/adaptive-agent-interviewer-system.st";
   private String userPromptPath =

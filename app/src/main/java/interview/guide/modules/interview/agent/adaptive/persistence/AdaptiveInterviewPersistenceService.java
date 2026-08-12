@@ -8,6 +8,10 @@ import interview.guide.modules.interview.agent.adaptive.core.AgentResponseType;
 import interview.guide.modules.interview.agent.adaptive.core.CandidateAnswer;
 import interview.guide.modules.interview.agent.adaptive.core.RespondAction;
 import interview.guide.modules.interview.agent.adaptive.core.SessionTransition;
+import interview.guide.modules.interview.agent.adaptive.planning.InterviewPlan;
+import interview.guide.modules.interview.agent.adaptive.planning.PlannedDimension;
+import interview.guide.modules.interview.agent.adaptive.planning.PlannedInterview;
+import java.util.List;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -18,28 +22,37 @@ public class AdaptiveInterviewPersistenceService {
 
   private final AdaptiveAgentSessionRepository sessionRepository;
   private final AdaptiveAgentTurnRepository turnRepository;
+  private final AdaptiveAgentPlanRepository planRepository;
 
   @Transactional
-  public AdaptiveInterviewHistory create(
+  public PlannedInterview create(
       String sessionId,
       String jd,
       String resume,
       String llmProvider,
-      int maxTurns,
+      InterviewPlan plan,
       RespondAction firstAction
   ) {
     AdaptiveInterviewSession session = AdaptiveInterviewSession
-        .create(sessionId, maxTurns)
+        .create(sessionId, plan.maxTurns())
         .start();
     AdaptiveAgentSessionEntity sessionEntity = sessionRepository.save(
         new AdaptiveAgentSessionEntity(session, jd, resume, llmProvider)
     );
-    turnRepository.save(new AdaptiveAgentTurnEntity(sessionId, 1, firstAction));
-    return history(sessionEntity);
+    planRepository.saveAll(plan.dimensions().stream()
+        .map(dimension -> new AdaptiveAgentPlanEntity(sessionId, dimension))
+        .toList());
+    turnRepository.save(new AdaptiveAgentTurnEntity(
+        sessionId,
+        1,
+        plan.dimensionForTurn(1).order(),
+        firstAction
+    ));
+    return plannedInterview(sessionEntity, plan);
   }
 
   @Transactional
-  public AdaptiveInterviewHistory recordDecision(
+  public PlannedInterview recordDecision(
       String sessionId,
       CandidateAnswer answer,
       RespondAction proposedAction
@@ -49,6 +62,14 @@ public class AdaptiveInterviewPersistenceService {
             ErrorCode.INTERVIEW_SESSION_NOT_FOUND,
             "Agent 面试会话不存在"
         ));
+    List<AdaptiveAgentPlanEntity> planEntities = planRepository
+        .findBySessionIdOrderByDimensionOrder(sessionId);
+    InterviewPlan plan = toPlan(sessionId, sessionEntity.toDomain().maxTurns(), planEntities);
+    if (!plan.isLastTurn(answer.turnIndex())
+        && proposedAction.type() == AgentResponseType.FINISH) {
+      throw new BusinessException(ErrorCode.AI_SERVICE_ERROR, "全部规划维度覆盖前不能结束面试");
+    }
+    InterviewPlan updatedPlan = plan.answer(answer.turnIndex());
     SessionTransition transition = sessionEntity.toDomain().apply(answer, proposedAction);
     AdaptiveAgentTurnEntity turnEntity = turnRepository
         .findBySessionIdAndTurnIndex(sessionId, answer.turnIndex())
@@ -56,26 +77,54 @@ public class AdaptiveInterviewPersistenceService {
 
     turnEntity.complete(answer, transition.appliedAction());
     sessionEntity.apply(transition.session());
+    for (int index = 0; index < planEntities.size(); index++) {
+      planEntities.get(index).apply(updatedPlan.dimensions().get(index));
+    }
     sessionRepository.flush();
 
     if (transition.appliedAction().type() == AgentResponseType.ASK) {
       turnRepository.save(new AdaptiveAgentTurnEntity(
           sessionId,
           transition.session().currentTurn(),
+          updatedPlan.dimensionForTurn(transition.session().currentTurn()).order(),
           transition.appliedAction()
       ));
     }
-    return history(sessionEntity);
+    return plannedInterview(sessionEntity, updatedPlan);
   }
 
   @Transactional(readOnly = true)
-  public AdaptiveInterviewHistory get(String sessionId) {
+  public PlannedInterview get(String sessionId) {
     AdaptiveAgentSessionEntity sessionEntity = sessionRepository.findById(sessionId)
         .orElseThrow(() -> new BusinessException(
             ErrorCode.INTERVIEW_SESSION_NOT_FOUND,
             "Agent 面试会话不存在"
         ));
-    return history(sessionEntity);
+    InterviewPlan plan = toPlan(
+        sessionId,
+        sessionEntity.toDomain().maxTurns(),
+        planRepository.findBySessionIdOrderByDimensionOrder(sessionId)
+    );
+    return plannedInterview(sessionEntity, plan);
+  }
+
+  private PlannedInterview plannedInterview(
+      AdaptiveAgentSessionEntity sessionEntity,
+      InterviewPlan plan
+  ) {
+    return new PlannedInterview(history(sessionEntity), plan);
+  }
+
+  private InterviewPlan toPlan(
+      String sessionId,
+      int maxTurns,
+      List<AdaptiveAgentPlanEntity> entities
+  ) {
+    return new InterviewPlan(
+        sessionId,
+        maxTurns,
+        entities.stream().map(AdaptiveAgentPlanEntity::toDomain).toList()
+    );
   }
 
   private AdaptiveInterviewHistory history(AdaptiveAgentSessionEntity sessionEntity) {

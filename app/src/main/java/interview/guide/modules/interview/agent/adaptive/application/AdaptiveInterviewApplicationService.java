@@ -7,6 +7,12 @@ import interview.guide.modules.interview.agent.adaptive.core.CandidateAnswer;
 import interview.guide.modules.interview.agent.adaptive.core.RespondAction;
 import interview.guide.modules.interview.agent.adaptive.observability.AdaptiveAgentTelemetry;
 import interview.guide.modules.interview.agent.adaptive.persistence.AdaptiveInterviewPersistenceService;
+import interview.guide.modules.interview.agent.adaptive.planning.InterviewPlan;
+import interview.guide.modules.interview.agent.adaptive.planning.PlanProposal;
+import interview.guide.modules.interview.agent.adaptive.planning.PlannedDimension;
+import interview.guide.modules.interview.agent.adaptive.planning.PlannedInterview;
+import interview.guide.modules.interview.agent.adaptive.planning.PlanningAgent;
+import interview.guide.modules.interview.agent.adaptive.planning.PlanningRequest;
 import interview.guide.modules.interview.agent.adaptive.runtime.BoundedReActRuntime;
 import interview.guide.modules.interview.agent.adaptive.runtime.ReActBudget;
 import interview.guide.modules.interview.agent.adaptive.runtime.ReActRequest;
@@ -24,15 +30,30 @@ public class AdaptiveInterviewApplicationService {
   private final BoundedReActRuntime runtime;
   private final AdaptiveAgentProperties properties;
   private final AdaptiveAgentTelemetry telemetry;
+  private final PlanningAgent planningAgent;
 
-  public AdaptiveInterviewHistory create(String jd, String resume, String llmProvider) {
+  public PlannedInterview create(String jd, String resume, String llmProvider) {
     String sessionId = UUID.randomUUID().toString();
+    PlanProposal proposal = planningAgent.propose(
+        new PlanningRequest(sessionId, jd, resume),
+        llmProvider
+    );
+    InterviewPlan plan;
+    try {
+      plan = InterviewPlan.decide(sessionId, proposal);
+    } catch (BusinessException e) {
+      telemetry.planRejected(sessionId, e.getCode());
+      throw e;
+    }
+    PlannedDimension firstDimension = plan.dimensionForTurn(1);
     RespondAction firstQuestion = runDecision(new ReActRequest(
         sessionId,
         llmProvider,
         jd,
         resume,
-        properties.getMaxTurns(),
+        plan.maxTurns(),
+        firstDimension.dimension(),
+        firstDimension.focus(),
         List.of(),
         null
     ));
@@ -41,26 +62,36 @@ public class AdaptiveInterviewApplicationService {
         jd,
         resume,
         llmProvider,
-        properties.getMaxTurns(),
+        plan,
         firstQuestion
     );
   }
 
-  public AdaptiveInterviewHistory submitAnswer(
+  public PlannedInterview submitAnswer(
       String sessionId,
       CandidateAnswer answer
   ) {
-    AdaptiveInterviewHistory history = persistenceService.get(sessionId);
+    PlannedInterview interview = persistenceService.get(sessionId);
+    AdaptiveInterviewHistory history = interview.history();
     history.session().assertCanAnswer(answer);
-    RespondAction action = runDecision(new ReActRequest(
-        sessionId,
-        history.llmProvider(),
-        history.jd(),
-        history.resume(),
-        history.session().maxTurns(),
-        history.turns(),
-        answer
-    ));
+    RespondAction action;
+    if (interview.plan().isLastTurn(answer.turnIndex())) {
+      action = RespondAction.finish("面试已覆盖全部规划维度。", "规划轮次已全部完成");
+    } else {
+      PlannedDimension nextDimension = interview.plan()
+          .dimensionForTurn(answer.turnIndex() + 1);
+      action = runDecision(new ReActRequest(
+          sessionId,
+          history.llmProvider(),
+          history.jd(),
+          history.resume(),
+          history.session().maxTurns(),
+          nextDimension.dimension(),
+          nextDimension.focus(),
+          history.turns(),
+          answer
+      ));
+    }
     try {
       return persistenceService.recordDecision(sessionId, answer, action);
     } catch (OptimisticLockingFailureException e) {
@@ -69,7 +100,7 @@ public class AdaptiveInterviewApplicationService {
     }
   }
 
-  public AdaptiveInterviewHistory get(String sessionId) {
+  public PlannedInterview get(String sessionId) {
     return persistenceService.get(sessionId);
   }
 

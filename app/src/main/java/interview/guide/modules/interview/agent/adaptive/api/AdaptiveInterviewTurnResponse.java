@@ -4,6 +4,7 @@ import interview.guide.modules.interview.agent.adaptive.core.AdaptiveInterviewTu
 
 public record AdaptiveInterviewTurnResponse(
     int turnIndex,
+    Integer dimensionOrder,
     String question,
     String answer
 ) {
@@ -11,6 +12,7 @@ public record AdaptiveInterviewTurnResponse(
   static AdaptiveInterviewTurnResponse from(AdaptiveInterviewTurn turn) {
     return new AdaptiveInterviewTurnResponse(
         turn.turnIndex(),
+        turn.dimensionOrder(),
         turn.question(),
         turn.answer()
     );

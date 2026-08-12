@@ -122,6 +122,8 @@ public class SpringAiAdaptiveAgentModelGateway implements AgentModelGateway {
     values.put("resume", context.request().resume());
     values.put("currentTurn", context.request().turns().size());
     values.put("maxTurns", context.request().maxTurns());
+    values.put("targetDimension", context.request().dimension());
+    values.put("targetFocus", context.request().focus());
     values.put("turns", context.request().turns());
     values.put("candidateAnswer", context.request().candidateAnswer());
     values.put("observations", context.observations());
@@ -144,9 +146,8 @@ public class SpringAiAdaptiveAgentModelGateway implements AgentModelGateway {
         || output.reason().length() > MAX_RESPONSE_LENGTH) {
       throw new BusinessException(ErrorCode.AI_SERVICE_ERROR, "Agent 响应超过长度限制");
     }
-    if (context.request().candidateAnswer() == null
-        && output.type() != AgentResponseType.ASK) {
-      throw new BusinessException(ErrorCode.AI_SERVICE_ERROR, "Agent 首次响应必须是面试问题");
+    if (output.type() != AgentResponseType.ASK) {
+      throw new BusinessException(ErrorCode.AI_SERVICE_ERROR, "规划轮次完成前必须返回面试问题");
     }
     if (output.type() == AgentResponseType.ASK) {
       long questionMarks = output.content().chars()
