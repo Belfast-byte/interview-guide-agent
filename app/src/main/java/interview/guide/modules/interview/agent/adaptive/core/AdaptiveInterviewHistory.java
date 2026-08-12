@@ -4,5 +4,8 @@ import java.util.List;
 
 public record AdaptiveInterviewHistory(
     AdaptiveInterviewSession session,
+    String jd,
+    String resume,
+    String llmProvider,
     List<AdaptiveInterviewTurn> turns
 ) {}

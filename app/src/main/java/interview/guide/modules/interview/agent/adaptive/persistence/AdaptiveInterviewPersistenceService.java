@@ -24,15 +24,18 @@ public class AdaptiveInterviewPersistenceService {
       String sessionId,
       String jd,
       String resume,
+      String llmProvider,
       int maxTurns,
       String firstQuestion
   ) {
     AdaptiveInterviewSession session = AdaptiveInterviewSession
         .create(sessionId, maxTurns)
         .start();
-    sessionRepository.save(new AdaptiveAgentSessionEntity(session, jd, resume));
+    AdaptiveAgentSessionEntity sessionEntity = sessionRepository.save(
+        new AdaptiveAgentSessionEntity(session, jd, resume, llmProvider)
+    );
     turnRepository.save(new AdaptiveAgentTurnEntity(sessionId, 1, firstQuestion));
-    return history(session);
+    return history(sessionEntity);
   }
 
   @Transactional
@@ -53,6 +56,7 @@ public class AdaptiveInterviewPersistenceService {
 
     turnEntity.complete(answer, transition.appliedAction());
     sessionEntity.apply(transition.session());
+    sessionRepository.flush();
 
     if (transition.appliedAction().type() == AgentResponseType.ASK) {
       turnRepository.save(new AdaptiveAgentTurnEntity(
@@ -61,23 +65,26 @@ public class AdaptiveInterviewPersistenceService {
           transition.appliedAction().content()
       ));
     }
-    return history(transition.session());
+    return history(sessionEntity);
   }
 
   @Transactional(readOnly = true)
   public AdaptiveInterviewHistory get(String sessionId) {
-    AdaptiveInterviewSession session = sessionRepository.findById(sessionId)
+    AdaptiveAgentSessionEntity sessionEntity = sessionRepository.findById(sessionId)
         .orElseThrow(() -> new BusinessException(
             ErrorCode.INTERVIEW_SESSION_NOT_FOUND,
             "Agent 面试会话不存在"
-        ))
-        .toDomain();
-    return history(session);
+        ));
+    return history(sessionEntity);
   }
 
-  private AdaptiveInterviewHistory history(AdaptiveInterviewSession session) {
+  private AdaptiveInterviewHistory history(AdaptiveAgentSessionEntity sessionEntity) {
+    AdaptiveInterviewSession session = sessionEntity.toDomain();
     return new AdaptiveInterviewHistory(
         session,
+        sessionEntity.jd(),
+        sessionEntity.resume(),
+        sessionEntity.llmProvider(),
         turnRepository.findBySessionIdOrderByTurnIndex(session.id()).stream()
             .map(AdaptiveAgentTurnEntity::toDomain)
             .toList()

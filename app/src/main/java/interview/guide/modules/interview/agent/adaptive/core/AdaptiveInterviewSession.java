@@ -40,15 +40,7 @@ public record AdaptiveInterviewSession(
   }
 
   public SessionTransition apply(CandidateAnswer answer, RespondAction proposedAction) {
-    if (status == AdaptiveSessionStatus.COMPLETED) {
-      throw new BusinessException(ErrorCode.INTERVIEW_ALREADY_COMPLETED, "Agent 面试已经结束");
-    }
-    if (status != AdaptiveSessionStatus.IN_PROGRESS) {
-      throw new BusinessException(ErrorCode.BAD_REQUEST, "Agent 面试尚未开始");
-    }
-    if (answer.turnIndex() != currentTurn) {
-      throw new BusinessException(ErrorCode.BAD_REQUEST, "提交的回答轮次与当前轮次不一致");
-    }
+    assertCanAnswer(answer);
 
     RespondAction appliedAction = proposedAction;
     if (proposedAction.type() == AgentResponseType.ASK && currentTurn == maxTurns) {
@@ -66,5 +58,17 @@ public record AdaptiveInterviewSession(
         new AdaptiveInterviewSession(id, runtimeVersion, nextStatus, nextTurn, maxTurns),
         appliedAction
     );
+  }
+
+  public void assertCanAnswer(CandidateAnswer answer) {
+    if (status == AdaptiveSessionStatus.COMPLETED) {
+      throw new BusinessException(ErrorCode.INTERVIEW_ALREADY_COMPLETED, "Agent 面试已经结束");
+    }
+    if (status != AdaptiveSessionStatus.IN_PROGRESS) {
+      throw new BusinessException(ErrorCode.BAD_REQUEST, "Agent 面试尚未开始");
+    }
+    if (answer.turnIndex() != currentTurn) {
+      throw new BusinessException(ErrorCode.BAD_REQUEST, "提交的回答轮次与当前轮次不一致");
+    }
   }
 }

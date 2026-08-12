@@ -6,8 +6,10 @@ import java.util.List;
 
 public record ReActRequest(
     String sessionId,
+    String llmProvider,
     String jd,
     String resume,
+    int maxTurns,
     List<AdaptiveInterviewTurn> turns,
     CandidateAnswer candidateAnswer
 ) {

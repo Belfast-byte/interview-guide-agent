@@ -123,8 +123,10 @@ class BoundedReActRuntimeTest {
   private ReActRequest request() {
     return new ReActRequest(
         "session-1",
+        null,
         "JD",
         "Resume",
+        6,
         List.of(),
         new CandidateAnswer(1, "候选人回答")
     );

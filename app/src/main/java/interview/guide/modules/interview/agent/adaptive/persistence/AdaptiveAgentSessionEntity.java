@@ -30,6 +30,9 @@ public class AdaptiveAgentSessionEntity {
   @Column(nullable = false, columnDefinition = "TEXT")
   private String resume;
 
+  @Column(name = "llm_provider", length = 64)
+  private String llmProvider;
+
   @Enumerated(EnumType.STRING)
   @Column(nullable = false, length = 20)
   private AdaptiveSessionStatus status;
@@ -58,12 +61,14 @@ public class AdaptiveAgentSessionEntity {
   AdaptiveAgentSessionEntity(
       AdaptiveInterviewSession session,
       String jd,
-      String resume
+      String resume,
+      String llmProvider
   ) {
     this.id = session.id();
     this.runtimeVersion = session.runtimeVersion();
     this.jd = jd;
     this.resume = resume;
+    this.llmProvider = llmProvider;
     this.status = session.status();
     this.currentTurn = session.currentTurn();
     this.maxTurns = session.maxTurns();
@@ -71,6 +76,18 @@ public class AdaptiveAgentSessionEntity {
 
   AdaptiveInterviewSession toDomain() {
     return new AdaptiveInterviewSession(id, runtimeVersion, status, currentTurn, maxTurns);
+  }
+
+  String jd() {
+    return jd;
+  }
+
+  String resume() {
+    return resume;
+  }
+
+  String llmProvider() {
+    return llmProvider;
   }
 
   void apply(AdaptiveInterviewSession session) {
