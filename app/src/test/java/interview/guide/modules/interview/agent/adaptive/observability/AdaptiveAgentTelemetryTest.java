@@ -58,4 +58,24 @@ class AdaptiveAgentTelemetryTest {
     assertThat(registry.counter(AdaptiveAgentTelemetry.STATE_CONFLICTS).count())
         .isEqualTo(1);
   }
+
+  @Test
+  @DisplayName("工具指标只记录角色、工具、状态和耗时")
+  void shouldRecordToolMetrics() {
+    SimpleMeterRegistry registry = new SimpleMeterRegistry();
+    AdaptiveAgentTelemetry telemetry = new AdaptiveAgentTelemetry(registry);
+
+    telemetry.toolCallSucceeded(
+        "INTERVIEWER",
+        "question_bank_search",
+        System.nanoTime()
+    );
+
+    assertThat(registry.counter(
+        AdaptiveAgentTelemetry.TOOL_CALLS,
+        "role", "INTERVIEWER",
+        "status", "success",
+        "action", "question_bank_search"
+    ).count()).isEqualTo(1);
+  }
 }

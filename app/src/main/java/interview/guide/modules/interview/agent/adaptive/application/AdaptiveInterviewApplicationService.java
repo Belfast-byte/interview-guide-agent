@@ -3,6 +3,7 @@ package interview.guide.modules.interview.agent.adaptive.application;
 import interview.guide.common.exception.BusinessException;
 import interview.guide.common.exception.ErrorCode;
 import interview.guide.modules.interview.agent.adaptive.core.AdaptiveInterviewHistory;
+import interview.guide.modules.interview.agent.adaptive.core.AdaptiveInterviewTurn;
 import interview.guide.modules.interview.agent.adaptive.core.CandidateAnswer;
 import interview.guide.modules.interview.agent.adaptive.core.RespondAction;
 import interview.guide.modules.interview.agent.adaptive.observability.AdaptiveAgentTelemetry;
@@ -13,9 +14,11 @@ import interview.guide.modules.interview.agent.adaptive.planning.PlannedDimensio
 import interview.guide.modules.interview.agent.adaptive.planning.PlannedInterview;
 import interview.guide.modules.interview.agent.adaptive.planning.PlanningAgent;
 import interview.guide.modules.interview.agent.adaptive.planning.PlanningRequest;
+import interview.guide.modules.interview.agent.adaptive.role.AgentRole;
+import interview.guide.modules.interview.agent.adaptive.role.AgentRoleRegistry;
 import interview.guide.modules.interview.agent.adaptive.runtime.BoundedReActRuntime;
-import interview.guide.modules.interview.agent.adaptive.runtime.ReActBudget;
 import interview.guide.modules.interview.agent.adaptive.runtime.ReActRequest;
+import interview.guide.modules.interview.agent.adaptive.runtime.ReActResult;
 import java.util.List;
 import java.util.UUID;
 import lombok.RequiredArgsConstructor;
@@ -28,7 +31,7 @@ public class AdaptiveInterviewApplicationService {
 
   private final AdaptiveInterviewPersistenceService persistenceService;
   private final BoundedReActRuntime runtime;
-  private final AdaptiveAgentProperties properties;
+  private final AgentRoleRegistry roleRegistry;
   private final AdaptiveAgentTelemetry telemetry;
   private final PlanningAgent planningAgent;
 
@@ -46,14 +49,13 @@ public class AdaptiveInterviewApplicationService {
       throw e;
     }
     PlannedDimension firstDimension = plan.dimensionForTurn(1);
-    RespondAction firstQuestion = runDecision(new ReActRequest(
+    ReActResult firstDecision = runDecision(request(
         sessionId,
         llmProvider,
         jd,
         resume,
         plan.maxTurns(),
-        firstDimension.dimension(),
-        firstDimension.focus(),
+        firstDimension,
         List.of(),
         null
     ));
@@ -63,40 +65,49 @@ public class AdaptiveInterviewApplicationService {
         resume,
         llmProvider,
         plan,
-        firstQuestion
+        firstDecision.response(),
+        firstDecision.toolExecutions()
     );
   }
 
-  public PlannedInterview submitAnswer(
-      String sessionId,
-      CandidateAnswer answer
-  ) {
+  public PlannedInterview submitAnswer(String sessionId, CandidateAnswer answer) {
     PlannedInterview interview = persistenceService.get(sessionId);
     AdaptiveInterviewHistory history = interview.history();
     history.session().assertCanAnswer(answer);
-    RespondAction action;
+    ReActResult decision;
     if (interview.plan().isLastTurn(answer.turnIndex())) {
-      action = RespondAction.finish("面试已覆盖全部规划维度。", "规划轮次已全部完成");
+      decision = ReActResult.withoutTools(RespondAction.finish(
+          "面试已覆盖全部规划维度。",
+          "规划轮次已全部完成"
+      ));
     } else {
       PlannedDimension nextDimension = interview.plan()
           .dimensionForTurn(answer.turnIndex() + 1);
-      action = runDecision(new ReActRequest(
+      decision = runDecision(request(
           sessionId,
           history.llmProvider(),
           history.jd(),
           history.resume(),
           history.session().maxTurns(),
-          nextDimension.dimension(),
-          nextDimension.focus(),
+          nextDimension,
           history.turns(),
           answer
       ));
     }
     try {
-      return persistenceService.recordDecision(sessionId, answer, action);
+      return persistenceService.recordDecision(
+          sessionId,
+          answer,
+          decision.response(),
+          decision.toolExecutions()
+      );
     } catch (OptimisticLockingFailureException e) {
       telemetry.stateConflict(sessionId, answer.turnIndex());
-      throw new BusinessException(ErrorCode.BAD_REQUEST, "面试会话已被其他请求推进，请刷新后重试", e);
+      throw new BusinessException(
+          ErrorCode.BAD_REQUEST,
+          "面试会话已被其他请求推进，请刷新后重试",
+          e
+      );
     }
   }
 
@@ -104,15 +115,44 @@ public class AdaptiveInterviewApplicationService {
     return persistenceService.get(sessionId);
   }
 
-  private RespondAction runDecision(ReActRequest request) {
+  private ReActRequest request(
+      String sessionId,
+      String llmProvider,
+      String jd,
+      String resume,
+      int maxTurns,
+      PlannedDimension dimension,
+      List<AdaptiveInterviewTurn> turns,
+      CandidateAnswer candidateAnswer
+  ) {
+    return new ReActRequest(
+        sessionId,
+        AgentRole.INTERVIEWER,
+        llmProvider,
+        jd,
+        resume,
+        maxTurns,
+        dimension.dimension(),
+        dimension.focus(),
+        dimension.suggestedTools(),
+        dimension.suggestedSkill(),
+        turns,
+        candidateAnswer
+    );
+  }
+
+  private ReActResult runDecision(ReActRequest request) {
     long startedNanos = System.nanoTime();
     int inputTurn = request.candidateAnswer() == null
         ? 0
         : request.candidateAnswer().turnIndex();
     try {
-      RespondAction action = runtime.run(request, budget());
-      telemetry.decisionSucceeded(action.type(), startedNanos);
-      return action;
+      ReActResult result = runtime.run(
+          request,
+          roleRegistry.get(request.role()).budget()
+      );
+      telemetry.decisionSucceeded(result.response().type(), startedNanos);
+      return result;
     } catch (BusinessException e) {
       telemetry.decisionFailed(
           request.sessionId(),
@@ -122,13 +162,5 @@ public class AdaptiveInterviewApplicationService {
       );
       throw e;
     }
-  }
-
-  private ReActBudget budget() {
-    return new ReActBudget(
-        properties.getMaxSteps(),
-        properties.getMaxToolCalls(),
-        properties.getDeadline()
-    );
   }
 }

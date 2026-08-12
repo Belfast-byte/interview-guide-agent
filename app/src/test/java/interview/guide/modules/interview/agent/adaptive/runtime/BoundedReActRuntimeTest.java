@@ -5,6 +5,7 @@ import interview.guide.modules.interview.agent.adaptive.core.AgentAction;
 import interview.guide.modules.interview.agent.adaptive.core.CandidateAnswer;
 import interview.guide.modules.interview.agent.adaptive.core.RespondAction;
 import interview.guide.modules.interview.agent.adaptive.core.ToolCallAction;
+import interview.guide.modules.interview.agent.adaptive.role.AgentRole;
 import java.time.Duration;
 import java.util.List;
 import java.util.Map;
@@ -28,16 +29,17 @@ class BoundedReActRuntimeTest {
       RespondAction expected = RespondAction.ask("下一题？", "继续验证");
       BoundedReActRuntime runtime = new BoundedReActRuntime(
           context -> expected,
-          action -> "不应执行"
+          (request, action) -> execution(action)
       );
 
-      RespondAction actual = runtime.run(request(), budget(3, 1));
+      ReActResult actual = runtime.run(request(), budget(3, 1));
 
-      assertThat(actual).isEqualTo(expected);
+      assertThat(actual.response()).isEqualTo(expected);
+      assertThat(actual.toolExecutions()).isEmpty();
     }
 
     @Test
-    @DisplayName("工具结果作为 observation 回到下一模型步")
+    @DisplayName("工具结果作为 observation 回到下一模型步并形成审计事实")
     void shouldFeedToolObservationBackToModel() {
       AtomicInteger modelSteps = new AtomicInteger();
       AgentModelGateway model = context -> {
@@ -48,15 +50,21 @@ class BoundedReActRuntimeTest {
             "question_bank_search",
             Map.of("query", "redis"),
             true,
-            "题目-42"
+            "question:42",
+            "{\"id\":42}"
         ));
         return RespondAction.ask("Redis 失效策略有哪些取舍？", "题库已返回审核题");
       };
-      BoundedReActRuntime runtime = new BoundedReActRuntime(model, action -> "题目-42");
+      BoundedReActRuntime runtime = new BoundedReActRuntime(
+          model,
+          (request, action) -> execution(action)
+      );
 
-      RespondAction response = runtime.run(request(), budget(3, 1));
+      ReActResult result = runtime.run(request(), budget(3, 1));
 
-      assertThat(response.content()).isEqualTo("Redis 失效策略有哪些取舍？");
+      assertThat(result.response().content()).isEqualTo("Redis 失效策略有哪些取舍？");
+      assertThat(result.toolExecutions()).extracting(ToolExecution::resultId)
+          .containsExactly("question:42");
       assertThat(modelSteps).hasValue(2);
     }
 
@@ -70,17 +78,18 @@ class BoundedReActRuntimeTest {
         default -> {
           assertThat(context.observations()).hasSize(2);
           assertThat(context.observations().get(1).accepted()).isFalse();
-          yield RespondAction.ask("换一个方向。", "重复工具调用已被拒绝");
+          yield RespondAction.ask("换一个方向？", "重复工具调用已被拒绝");
         }
       };
-      BoundedReActRuntime runtime = new BoundedReActRuntime(model, action -> {
+      BoundedReActRuntime runtime = new BoundedReActRuntime(model, (request, action) -> {
         executions.incrementAndGet();
-        return "题目-42";
+        return execution(action);
       });
 
-      runtime.run(request(), budget(3, 2));
+      ReActResult result = runtime.run(request(), budget(3, 2));
 
       assertThat(executions).hasValue(1);
+      assertThat(result.toolExecutions()).hasSize(1);
     }
 
     @Test
@@ -88,12 +97,12 @@ class BoundedReActRuntimeTest {
     void shouldStopAtStepBudget() {
       BoundedReActRuntime runtime = new BoundedReActRuntime(
           context -> toolCall("question_bank_search", "redis"),
-          action -> "题目-42"
+          (request, action) -> execution(action)
       );
 
       assertThatThrownBy(() -> runtime.run(request(), budget(2, 1)))
           .isInstanceOf(BusinessException.class)
-          .hasMessageContaining("步预算");
+          .hasMessageContaining("预算");
     }
 
     @Test
@@ -109,7 +118,7 @@ class BoundedReActRuntimeTest {
             }
             return RespondAction.finish("结束", "不应返回");
           },
-          action -> "不应执行"
+          (request, action) -> execution(action)
       );
 
       assertThatThrownBy(() -> runtime.run(
@@ -123,12 +132,15 @@ class BoundedReActRuntimeTest {
   private ReActRequest request() {
     return new ReActRequest(
         "session-1",
+        AgentRole.INTERVIEWER,
         null,
         "JD",
         "Resume",
         6,
         "专业基础",
         "缓存与并发",
+        List.of("question_bank_search"),
+        null,
         List.of(),
         new CandidateAnswer(1, "候选人回答")
     );
@@ -140,5 +152,20 @@ class BoundedReActRuntimeTest {
 
   private AgentAction toolCall(String name, String query) {
     return new ToolCallAction(name, Map.of("query", query), "需要客观信息");
+  }
+
+  private ToolExecution execution(ToolCallAction action) {
+    return new ToolExecution(
+        "invocation-1",
+        action.toolName(),
+        action.reason(),
+        AgentRole.INTERVIEWER.name(),
+        2,
+        "keys=[query]",
+        "matchedQuestionIds=[42]",
+        "question:42",
+        "{\"id\":42}",
+        1
+    );
   }
 }

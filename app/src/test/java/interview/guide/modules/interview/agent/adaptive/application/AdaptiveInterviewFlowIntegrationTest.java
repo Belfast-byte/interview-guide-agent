@@ -12,6 +12,7 @@ import interview.guide.modules.interview.agent.adaptive.planning.DimensionPropos
 import interview.guide.modules.interview.agent.adaptive.planning.PlanDimensionStatus;
 import interview.guide.modules.interview.agent.adaptive.planning.PlanProposal;
 import interview.guide.modules.interview.agent.adaptive.planning.PlannedInterview;
+import interview.guide.modules.interview.agent.adaptive.role.AgentRoleRegistry;
 import interview.guide.modules.interview.agent.adaptive.runtime.BoundedReActRuntime;
 import java.util.ArrayList;
 import java.util.List;
@@ -44,12 +45,14 @@ class AdaptiveInterviewFlowIntegrationTest {
           case 1 -> RespondAction.ask("第二题？", "继续追问");
           default -> throw new AssertionError("最后一轮不应再调用模型");
         },
-        action -> "M0 不执行工具"
+        (request, action) -> {
+          throw new AssertionError("不应执行工具");
+        }
     );
     AdaptiveInterviewApplicationService service = new AdaptiveInterviewApplicationService(
         persistenceService,
         runtime,
-        new AdaptiveAgentProperties(),
+        new AgentRoleRegistry(new AdaptiveAgentProperties()),
         new AdaptiveAgentTelemetry(new SimpleMeterRegistry()),
         (request, provider) -> proposal(1)
     );
@@ -90,12 +93,14 @@ class AdaptiveInterviewFlowIntegrationTest {
               "继续考察"
           );
         },
-        action -> "M0 不执行工具"
+        (request, action) -> {
+          throw new AssertionError("不应执行工具");
+        }
     );
     AdaptiveInterviewApplicationService service = new AdaptiveInterviewApplicationService(
         persistenceService,
         runtime,
-        new AdaptiveAgentProperties(),
+        new AgentRoleRegistry(new AdaptiveAgentProperties()),
         new AdaptiveAgentTelemetry(new SimpleMeterRegistry()),
         (request, provider) -> proposal(3)
     );

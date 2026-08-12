@@ -14,6 +14,7 @@ import jakarta.persistence.PreUpdate;
 import jakarta.persistence.Table;
 import jakarta.persistence.UniqueConstraint;
 import java.time.LocalDateTime;
+import java.util.List;
 
 @Entity
 @Table(
@@ -44,6 +45,12 @@ public class AdaptiveAgentPlanEntity {
   @Column(name = "suggested_turns", nullable = false)
   private int suggestedTurns;
 
+  @Column(name = "suggested_tools", nullable = false, length = 500)
+  private String suggestedTools;
+
+  @Column(name = "suggested_skill", length = 64)
+  private String suggestedSkill;
+
   @Column(name = "allocated_turns", nullable = false)
   private int allocatedTurns;
 
@@ -73,6 +80,8 @@ public class AdaptiveAgentPlanEntity {
         dimension,
         focus,
         suggestedTurns,
+        suggestedTools.isBlank() ? List.of() : List.of(suggestedTools.split(",")),
+        suggestedSkill,
         allocatedTurns,
         completedTurns,
         status
@@ -84,6 +93,8 @@ public class AdaptiveAgentPlanEntity {
     dimension = plannedDimension.dimension();
     focus = plannedDimension.focus();
     suggestedTurns = plannedDimension.suggestedTurns();
+    suggestedTools = String.join(",", plannedDimension.suggestedTools());
+    suggestedSkill = plannedDimension.suggestedSkill();
     allocatedTurns = plannedDimension.allocatedTurns();
     completedTurns = plannedDimension.completedTurns();
     status = plannedDimension.status();

@@ -33,9 +33,10 @@ public class BoundedReActRuntime {
     this.deadlineExecutor = deadlineExecutor;
   }
 
-  public RespondAction run(ReActRequest request, ReActBudget budget) {
+  public ReActResult run(ReActRequest request, ReActBudget budget) {
     long deadlineNanos = System.nanoTime() + budget.deadline().toNanos();
     var observations = new ArrayList<ToolObservation>();
+    var toolExecutions = new ArrayList<ToolExecution>();
     Set<ToolInvocation> toolInvocations = new HashSet<>();
     int toolCalls = 0;
 
@@ -46,7 +47,7 @@ public class BoundedReActRuntime {
           "Agent 面试执行"
       );
       if (action instanceof RespondAction respondAction) {
-        return respondAction;
+        return new ReActResult(respondAction, toolExecutions);
       }
 
       ToolCallAction toolCall = (ToolCallAction) action;
@@ -56,6 +57,7 @@ public class BoundedReActRuntime {
             toolCall.toolName(),
             toolCall.arguments(),
             false,
+            null,
             "相同工具和参数已调用，本次重复调用被拒绝"
         ));
         continue;
@@ -64,21 +66,24 @@ public class BoundedReActRuntime {
         throw new BusinessException(ErrorCode.AI_SERVICE_ERROR, "Agent 工具调用预算已用尽");
       }
 
-      String output = deadlineExecutor.invoke(
-          () -> toolExecutor.execute(toolCall),
+      ToolExecution execution = deadlineExecutor.invoke(
+          () -> toolExecutor.execute(request, toolCall),
           deadlineNanos,
           "Agent 面试执行"
       );
+      toolExecutions.add(execution);
       observations.add(new ToolObservation(
           toolCall.toolName(),
           toolCall.arguments(),
           true,
-          output
+          execution.resultId(),
+          execution.output()
       ));
       toolCalls++;
     }
 
     throw new BusinessException(ErrorCode.AI_SERVICE_ERROR, "Agent 模型步预算已用尽");
   }
+
   private record ToolInvocation(String toolName, Map<String, Object> arguments) {}
 }

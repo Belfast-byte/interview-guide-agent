@@ -52,7 +52,8 @@ class AdaptiveInterviewConcurrencyIntegrationTest {
                 new DimensionProposal("项目经验", "取舍", 2, List.of(), null)
             ))
         ),
-        RespondAction.ask("第一题？", "验证基础")
+        RespondAction.ask("第一题？", "验证基础"),
+        List.of()
     );
     CountDownLatch ready = new CountDownLatch(2);
     CountDownLatch start = new CountDownLatch(1);
@@ -62,7 +63,8 @@ class AdaptiveInterviewConcurrencyIntegrationTest {
       return persistenceService.recordDecision(
           "concurrent-session",
           new CandidateAnswer(1, "并发回答"),
-          RespondAction.ask("第二题？", "继续验证")
+          RespondAction.ask("第二题？", "继续验证"),
+          List.of()
       );
     };
     List<FutureTask<PlannedInterview>> submissions = List.of(

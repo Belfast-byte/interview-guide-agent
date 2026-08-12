@@ -4,4 +4,4 @@
 {contextJson}
 </data-boundary>
 
-请返回下一步 ASK 或 FINISH 决策。
+请调用一个必要工具，或返回下一步 ASK 决策。

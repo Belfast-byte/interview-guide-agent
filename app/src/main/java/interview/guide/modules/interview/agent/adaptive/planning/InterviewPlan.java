@@ -53,6 +53,8 @@ public record InterviewPlan(
           proposed.dimension().trim(),
           proposed.focus().trim(),
           proposed.suggestedTurns(),
+          proposed.suggestedTools().stream().map(String::trim).toList(),
+          proposed.suggestedSkill() == null ? null : proposed.suggestedSkill().trim(),
           allocatedTurns[index],
           0,
           index == 0 ? PlanDimensionStatus.IN_PROGRESS : PlanDimensionStatus.PENDING
@@ -125,9 +127,20 @@ public record InterviewPlan(
       if (dimension.suggestedTools().stream().anyMatch(String::isBlank)) {
         throw new BusinessException(ErrorCode.AI_SERVICE_ERROR, "建议工具标识不能为空");
       }
+      if (dimension.suggestedTools().stream().anyMatch(tool -> !isValidIdentifier(tool))) {
+        throw new BusinessException(ErrorCode.AI_SERVICE_ERROR, "Invalid suggested tool identifier");
+      }
       if (dimension.suggestedSkill() != null && dimension.suggestedSkill().isBlank()) {
         throw new BusinessException(ErrorCode.AI_SERVICE_ERROR, "建议 Skill 标识不能为空");
       }
+      if (dimension.suggestedSkill() != null
+          && !isValidIdentifier(dimension.suggestedSkill())) {
+        throw new BusinessException(ErrorCode.AI_SERVICE_ERROR, "Invalid suggested skill identifier");
+      }
     }
+  }
+
+  private static boolean isValidIdentifier(String value) {
+    return value.trim().matches("[a-z][a-z0-9_-]{0,63}");
   }
 }

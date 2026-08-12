@@ -16,9 +16,11 @@ import interview.guide.modules.interview.agent.adaptive.planning.InterviewPlan;
 import interview.guide.modules.interview.agent.adaptive.planning.PlanProposal;
 import interview.guide.modules.interview.agent.adaptive.planning.PlannedInterview;
 import interview.guide.modules.interview.agent.adaptive.planning.PlanningAgent;
+import interview.guide.modules.interview.agent.adaptive.role.AgentRoleRegistry;
 import interview.guide.modules.interview.agent.adaptive.runtime.BoundedReActRuntime;
 import interview.guide.modules.interview.agent.adaptive.runtime.ReActBudget;
 import interview.guide.modules.interview.agent.adaptive.runtime.ReActRequest;
+import interview.guide.modules.interview.agent.adaptive.runtime.ReActResult;
 import java.util.List;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
@@ -34,6 +36,7 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.ArgumentMatchers.anyLong;
+import static org.mockito.ArgumentMatchers.anyList;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.inOrder;
@@ -65,7 +68,7 @@ class AdaptiveInterviewApplicationServiceTest {
     service = new AdaptiveInterviewApplicationService(
         persistenceService,
         runtime,
-        properties,
+        new AgentRoleRegistry(properties),
         telemetry,
         planningAgent
     );
@@ -78,14 +81,15 @@ class AdaptiveInterviewApplicationServiceTest {
     RespondAction firstQuestion = RespondAction.ask("第一题？", "验证基础");
     PlannedInterview expected = interviewAtTurn(1);
     when(runtime.run(any(ReActRequest.class), any(ReActBudget.class)))
-        .thenReturn(firstQuestion);
+        .thenReturn(ReActResult.withoutTools(firstQuestion));
     when(persistenceService.create(
         anyString(),
         anyString(),
         anyString(),
         any(),
         any(InterviewPlan.class),
-        any(RespondAction.class)
+        any(RespondAction.class),
+        anyList()
     )).thenReturn(expected);
 
     PlannedInterview actual = service.create("JD", "Resume", null);
@@ -101,7 +105,8 @@ class AdaptiveInterviewApplicationServiceTest {
         anyString(),
         any(),
         any(InterviewPlan.class),
-        any(RespondAction.class)
+        any(RespondAction.class),
+        anyList()
     );
   }
 
@@ -146,7 +151,12 @@ class AdaptiveInterviewApplicationServiceTest {
     )).isInstanceOf(BusinessException.class)
         .hasMessage("模型失败");
 
-    verify(persistenceService, never()).recordDecision(anyString(), any(), any());
+    verify(persistenceService, never()).recordDecision(
+        anyString(),
+        any(),
+        any(),
+        anyList()
+    );
     verify(telemetry).decisionFailed(eq("session-1"), eq(1), anyInt(), anyLong());
   }
 
@@ -171,8 +181,9 @@ class AdaptiveInterviewApplicationServiceTest {
     CandidateAnswer answer = new CandidateAnswer(1, "回答");
     RespondAction action = RespondAction.ask("下一题？", "继续验证");
     when(persistenceService.get("session-1")).thenReturn(interview);
-    when(runtime.run(any(ReActRequest.class), any(ReActBudget.class))).thenReturn(action);
-    when(persistenceService.recordDecision("session-1", answer, action))
+    when(runtime.run(any(ReActRequest.class), any(ReActBudget.class)))
+        .thenReturn(ReActResult.withoutTools(action));
+    when(persistenceService.recordDecision("session-1", answer, action, List.of()))
         .thenThrow(new OptimisticLockingFailureException("concurrent update"));
 
     assertThatThrownBy(() -> service.submitAnswer("session-1", answer))

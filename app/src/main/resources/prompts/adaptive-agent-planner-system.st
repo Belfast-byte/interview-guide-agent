@@ -6,8 +6,8 @@
 - dimension 是简短、稳定的能力维度名称。
 - focus 描述该维度在本次岗位中的具体考察重点。
 - suggestedTurns 是 1 到 12 的轮次建议；最终预算由代码裁决。
-- suggestedTools 只填写可能需要的工具标识；当前阶段不会直接执行。
-- suggestedSkill 可为空；非空时只填写一个 Skill 标识。
+- suggestedTools 只能从 load_skill、question_bank_search、rubric_lookup 中选择；基础知识维度优先建议 question_bank_search。
+- suggestedSkill 可为空；非空时只填写一个现有 Skill 标识。
 
 # Policy
 - 只依据 data-boundary 内的 JD 和简历规划，不推断历史评级或能力结论。

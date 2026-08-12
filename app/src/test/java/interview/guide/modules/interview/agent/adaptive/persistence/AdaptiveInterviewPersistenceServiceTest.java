@@ -9,6 +9,7 @@ import interview.guide.modules.interview.agent.adaptive.core.RespondAction;
 import interview.guide.modules.interview.agent.adaptive.planning.DimensionProposal;
 import interview.guide.modules.interview.agent.adaptive.planning.InterviewPlan;
 import interview.guide.modules.interview.agent.adaptive.planning.PlanProposal;
+import interview.guide.modules.interview.agent.adaptive.runtime.ToolExecution;
 import interview.guide.modules.interview.agent.adaptive.planning.PlannedInterview;
 import java.util.List;
 import org.junit.jupiter.api.DisplayName;
@@ -30,6 +31,80 @@ class AdaptiveInterviewPersistenceServiceTest {
   @Autowired
   private AdaptiveInterviewPersistenceService service;
 
+  @Autowired
+  private AdaptiveAgentToolCallRepository toolCallRepository;
+
+  @Test
+  @DisplayName("工具调用摘要、角色、轮次和稳定结果 ID 与问题事实一起落库")
+  void shouldPersistToolCallAuditWithQuestionFact() {
+    ToolExecution execution = new ToolExecution(
+        "a".repeat(64),
+        "question_bank_search",
+        "读取审核题",
+        "INTERVIEWER",
+        1,
+        "keys=[query]",
+        "matchedQuestionIds=[42]",
+        "question:42",
+        "{\"stableId\":\"question:42\"}",
+        8
+    );
+
+    service.create(
+        "session-tool-audit",
+        "JD",
+        "Resume",
+        null,
+        plan("session-tool-audit", 1),
+        RespondAction.ask("第一题？", "使用审核题"),
+        List.of(execution)
+    );
+
+    AdaptiveAgentToolCallEntity audit = toolCallRepository
+        .findBySessionIdOrderByTurnIndexAscIdAsc("session-tool-audit")
+        .getFirst();
+    assertThat(audit.invocationId()).isEqualTo("a".repeat(64));
+    assertThat(audit.role()).isEqualTo("INTERVIEWER");
+    assertThat(audit.turnIndex()).isEqualTo(1);
+    assertThat(audit.toolName()).isEqualTo("question_bank_search");
+    assertThat(audit.reason()).isEqualTo("读取审核题");
+    assertThat(audit.inputSummary()).isEqualTo("keys=[query]");
+    assertThat(audit.outputSummary()).isEqualTo("matchedQuestionIds=[42]");
+    assertThat(audit.resultId()).isEqualTo("question:42");
+  }
+
+  @Test
+  @DisplayName("规划建议的工具与 Skill 经重读后保持不变")
+  void shouldPersistPlannedToolsAndSkill() {
+    InterviewPlan plan = InterviewPlan.decide(
+        "session-plan-tools",
+        new PlanProposal(List.of(new DimensionProposal(
+            "专业基础",
+            "缓存",
+            2,
+            List.of("question_bank_search", "rubric_lookup"),
+            "java-backend"
+        )))
+    );
+
+    service.create(
+        "session-plan-tools",
+        "JD",
+        "Resume",
+        null,
+        plan,
+        RespondAction.ask("第一题？", "验证基础"),
+        List.of()
+    );
+
+    assertThat(service.get("session-plan-tools").plan().dimensions().getFirst())
+        .satisfies(dimension -> {
+          assertThat(dimension.suggestedTools())
+              .containsExactly("question_bank_search", "rubric_lookup");
+          assertThat(dimension.suggestedSkill()).isEqualTo("java-backend");
+        });
+  }
+
   @Test
   @DisplayName("回答原文、决策摘要和下一题在同一事实历史中完整保存")
   void shouldPersistFullTurnAndNextQuestion() {
@@ -40,13 +115,15 @@ class AdaptiveInterviewPersistenceServiceTest {
         "Resume",
         "provider-1",
         plan("session-1", 3),
-        RespondAction.ask("第一题？", "验证基础")
+        RespondAction.ask("第一题？", "验证基础"),
+        List.of()
     );
 
     PlannedInterview interview = service.recordDecision(
         "session-1",
         new CandidateAnswer(1, answer),
-        RespondAction.ask("第二题？", "需要验证边界条件")
+        RespondAction.ask("第二题？", "需要验证边界条件"),
+        List.of()
     );
     AdaptiveInterviewHistory history = interview.history();
 
@@ -71,18 +148,21 @@ class AdaptiveInterviewPersistenceServiceTest {
         "Resume",
         null,
         plan("session-2", 1),
-        RespondAction.ask("第一题？", "验证基础")
+        RespondAction.ask("第一题？", "验证基础"),
+        List.of()
     );
 
     service.recordDecision(
         "session-2",
         new CandidateAnswer(1, "回答"),
-        RespondAction.ask("第二题？", "继续验证")
+        RespondAction.ask("第二题？", "继续验证"),
+        List.of()
     );
     AdaptiveInterviewHistory history = service.recordDecision(
         "session-2",
         new CandidateAnswer(2, "第二轮回答"),
-        RespondAction.ask("不应出现的下一题？", "模型希望继续")
+        RespondAction.ask("不应出现的下一题？", "模型希望继续"),
+        List.of()
     ).history();
 
     assertThat(history.session().status()).isEqualTo(AdaptiveSessionStatus.COMPLETED);
@@ -100,13 +180,15 @@ class AdaptiveInterviewPersistenceServiceTest {
         "Resume",
         null,
         plan("session-early-finish", 2),
-        RespondAction.ask("第一题？", "验证基础")
+        RespondAction.ask("第一题？", "验证基础"),
+        List.of()
     );
 
     assertThatThrownBy(() -> service.recordDecision(
         "session-early-finish",
         new CandidateAnswer(1, "回答"),
-        RespondAction.finish("结束", "模型建议提前结束")
+        RespondAction.finish("结束", "模型建议提前结束"),
+        List.of()
     )).isInstanceOf(BusinessException.class)
         .hasMessageContaining("全部规划维度");
 
@@ -124,13 +206,15 @@ class AdaptiveInterviewPersistenceServiceTest {
         "Resume",
         null,
         plan("session-3", 3),
-        RespondAction.ask("第一题？", "验证基础")
+        RespondAction.ask("第一题？", "验证基础"),
+        List.of()
     );
 
     assertThatThrownBy(() -> service.recordDecision(
         "session-3",
         new CandidateAnswer(2, "错误轮次的回答"),
-        RespondAction.ask("下一题？", "继续")
+        RespondAction.ask("下一题？", "继续"),
+        List.of()
     )).isInstanceOf(BusinessException.class)
         .hasMessageContaining("轮次");
 

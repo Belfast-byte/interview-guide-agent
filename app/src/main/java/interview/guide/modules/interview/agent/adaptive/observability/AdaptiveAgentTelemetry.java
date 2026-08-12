@@ -17,6 +17,8 @@ public class AdaptiveAgentTelemetry {
   static final String DECISIONS = "app.interview.adaptive.decisions";
   static final String DECISION_DURATION = "app.interview.adaptive.decision.duration";
   static final String STATE_CONFLICTS = "app.interview.adaptive.state.conflicts";
+  static final String TOOL_CALLS = "app.interview.adaptive.tool.calls";
+  static final String TOOL_DURATION = "app.interview.adaptive.tool.duration";
 
   private final MeterRegistry meterRegistry;
 
@@ -101,6 +103,31 @@ public class AdaptiveAgentTelemetry {
         "adaptive_agent_failed phase=planning sessionId={} errorCode={}",
         sessionId,
         errorCode
+    );
+  }
+
+  public void toolCallSucceeded(String role, String toolName, long startedNanos) {
+    record(TOOL_CALLS, TOOL_DURATION, role, "success", toolName, startedNanos);
+  }
+
+  public void toolCallFailed(
+      String role,
+      String toolName,
+      String sessionId,
+      int turnIndex,
+      int errorCode,
+      long startedNanos
+  ) {
+    record(TOOL_CALLS, TOOL_DURATION, role, "failure", toolName, startedNanos);
+    log.warn(
+        "adaptive_agent_failed phase=tool role={} tool={} sessionId={} turnIndex={} "
+            + "errorCode={} durationMs={}",
+        role,
+        toolName,
+        sessionId,
+        turnIndex,
+        errorCode,
+        elapsedMillis(startedNanos)
     );
   }
 

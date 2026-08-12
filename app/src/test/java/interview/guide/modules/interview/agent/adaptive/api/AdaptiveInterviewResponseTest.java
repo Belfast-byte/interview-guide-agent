@@ -50,6 +50,8 @@ class AdaptiveInterviewResponseTest {
                 "专业基础",
                 "缓存与并发",
                 2,
+                List.of(),
+                null,
                 2,
                 0,
                 PlanDimensionStatus.IN_PROGRESS

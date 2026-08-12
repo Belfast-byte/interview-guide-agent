@@ -11,6 +11,7 @@ import interview.guide.modules.interview.agent.adaptive.core.SessionTransition;
 import interview.guide.modules.interview.agent.adaptive.planning.InterviewPlan;
 import interview.guide.modules.interview.agent.adaptive.planning.PlannedDimension;
 import interview.guide.modules.interview.agent.adaptive.planning.PlannedInterview;
+import interview.guide.modules.interview.agent.adaptive.runtime.ToolExecution;
 import java.util.List;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
@@ -23,6 +24,7 @@ public class AdaptiveInterviewPersistenceService {
   private final AdaptiveAgentSessionRepository sessionRepository;
   private final AdaptiveAgentTurnRepository turnRepository;
   private final AdaptiveAgentPlanRepository planRepository;
+  private final AdaptiveAgentToolCallRepository toolCallRepository;
 
   @Transactional
   public PlannedInterview create(
@@ -31,7 +33,8 @@ public class AdaptiveInterviewPersistenceService {
       String resume,
       String llmProvider,
       InterviewPlan plan,
-      RespondAction firstAction
+      RespondAction firstAction,
+      List<ToolExecution> toolExecutions
   ) {
     AdaptiveInterviewSession session = AdaptiveInterviewSession
         .create(sessionId, plan.maxTurns())
@@ -48,6 +51,7 @@ public class AdaptiveInterviewPersistenceService {
         plan.dimensionForTurn(1).order(),
         firstAction
     ));
+    saveToolExecutions(sessionId, toolExecutions);
     return plannedInterview(sessionEntity, plan);
   }
 
@@ -55,7 +59,8 @@ public class AdaptiveInterviewPersistenceService {
   public PlannedInterview recordDecision(
       String sessionId,
       CandidateAnswer answer,
-      RespondAction proposedAction
+      RespondAction proposedAction,
+      List<ToolExecution> toolExecutions
   ) {
     AdaptiveAgentSessionEntity sessionEntity = sessionRepository.findById(sessionId)
         .orElseThrow(() -> new BusinessException(
@@ -90,6 +95,7 @@ public class AdaptiveInterviewPersistenceService {
           transition.appliedAction()
       ));
     }
+    saveToolExecutions(sessionId, toolExecutions);
     return plannedInterview(sessionEntity, updatedPlan);
   }
 
@@ -113,6 +119,15 @@ public class AdaptiveInterviewPersistenceService {
       InterviewPlan plan
   ) {
     return new PlannedInterview(history(sessionEntity), plan);
+  }
+
+  private void saveToolExecutions(
+      String sessionId,
+      List<ToolExecution> toolExecutions
+  ) {
+    toolCallRepository.saveAll(toolExecutions.stream()
+        .map(execution -> new AdaptiveAgentToolCallEntity(sessionId, execution))
+        .toList());
   }
 
   private InterviewPlan toPlan(
