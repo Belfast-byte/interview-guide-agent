@@ -29,7 +29,14 @@ class AdaptiveInterviewPersistenceServiceTest {
   @DisplayName("回答原文、决策摘要和下一题在同一事实历史中完整保存")
   void shouldPersistFullTurnAndNextQuestion() {
     String answer = "候选人的完整回答。".repeat(2000);
-    service.create("session-1", "JD", "Resume", "provider-1", 6, "第一题？");
+    service.create(
+        "session-1",
+        "JD",
+        "Resume",
+        "provider-1",
+        6,
+        RespondAction.ask("第一题？", "验证基础")
+    );
 
     AdaptiveInterviewHistory history = service.recordDecision(
         "session-1",
@@ -40,6 +47,9 @@ class AdaptiveInterviewPersistenceServiceTest {
     assertThat(history.session().currentTurn()).isEqualTo(2);
     assertThat(history.llmProvider()).isEqualTo("provider-1");
     assertThat(history.turns()).hasSize(2);
+    assertThat(history.turns().getFirst().questionReason()).isEqualTo("验证基础");
+    assertThat(history.turns().getLast().questionReason())
+        .isEqualTo("需要验证边界条件");
     assertThat(history.turns().getFirst().answer()).isEqualTo(answer);
     assertThat(history.turns().getFirst().responseType()).isEqualTo(AgentResponseType.ASK);
     assertThat(history.turns().getFirst().decisionReason()).isEqualTo("需要验证边界条件");
@@ -49,7 +59,14 @@ class AdaptiveInterviewPersistenceServiceTest {
   @Test
   @DisplayName("轮次预算覆盖模型建议后只保存结束裁决")
   void shouldPersistBudgetDecision() {
-    service.create("session-2", "JD", "Resume", null, 1, "唯一一题？");
+    service.create(
+        "session-2",
+        "JD",
+        "Resume",
+        null,
+        1,
+        RespondAction.ask("唯一一题？", "验证基础")
+    );
 
     AdaptiveInterviewHistory history = service.recordDecision(
         "session-2",
@@ -66,7 +83,14 @@ class AdaptiveInterviewPersistenceServiceTest {
   @Test
   @DisplayName("过期回答失败时不写入轮次事实")
   void shouldNotPersistStaleAnswer() {
-    service.create("session-3", "JD", "Resume", null, 6, "第一题？");
+    service.create(
+        "session-3",
+        "JD",
+        "Resume",
+        null,
+        6,
+        RespondAction.ask("第一题？", "验证基础")
+    );
 
     assertThatThrownBy(() -> service.recordDecision(
         "session-3",

@@ -26,7 +26,7 @@ public class AdaptiveInterviewPersistenceService {
       String resume,
       String llmProvider,
       int maxTurns,
-      String firstQuestion
+      RespondAction firstAction
   ) {
     AdaptiveInterviewSession session = AdaptiveInterviewSession
         .create(sessionId, maxTurns)
@@ -34,7 +34,7 @@ public class AdaptiveInterviewPersistenceService {
     AdaptiveAgentSessionEntity sessionEntity = sessionRepository.save(
         new AdaptiveAgentSessionEntity(session, jd, resume, llmProvider)
     );
-    turnRepository.save(new AdaptiveAgentTurnEntity(sessionId, 1, firstQuestion));
+    turnRepository.save(new AdaptiveAgentTurnEntity(sessionId, 1, firstAction));
     return history(sessionEntity);
   }
 
@@ -62,7 +62,7 @@ public class AdaptiveInterviewPersistenceService {
       turnRepository.save(new AdaptiveAgentTurnEntity(
           sessionId,
           transition.session().currentTurn(),
-          transition.appliedAction().content()
+          transition.appliedAction()
       ));
     }
     return history(sessionEntity);

@@ -8,13 +8,14 @@ import interview.guide.modules.interview.agent.adaptive.application.AdaptiveAgen
 import interview.guide.modules.interview.agent.adaptive.core.AgentAction;
 import interview.guide.modules.interview.agent.adaptive.core.AgentResponseType;
 import interview.guide.modules.interview.agent.adaptive.core.RespondAction;
+import interview.guide.modules.interview.agent.adaptive.observability.AdaptiveAgentTelemetry;
 import interview.guide.modules.interview.agent.adaptive.runtime.AgentModelGateway;
 import interview.guide.modules.interview.agent.adaptive.runtime.ReActModelContext;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.util.LinkedHashMap;
 import java.util.Map;
-import lombok.extern.slf4j.Slf4j;
+import org.slf4j.helpers.NOPLogger;
 import org.springframework.ai.chat.client.ChatClient;
 import org.springframework.ai.chat.prompt.PromptTemplate;
 import org.springframework.ai.converter.BeanOutputConverter;
@@ -23,7 +24,6 @@ import org.springframework.stereotype.Component;
 import tools.jackson.core.JacksonException;
 import tools.jackson.databind.ObjectMapper;
 
-@Slf4j
 @Component
 public class SpringAiAdaptiveAgentModelGateway implements AgentModelGateway {
 
@@ -32,6 +32,7 @@ public class SpringAiAdaptiveAgentModelGateway implements AgentModelGateway {
   private final LlmProviderRegistry llmProviderRegistry;
   private final StructuredOutputInvoker structuredOutputInvoker;
   private final ObjectMapper objectMapper;
+  private final AdaptiveAgentTelemetry telemetry;
   private final PromptTemplate systemPromptTemplate;
   private final PromptTemplate userPromptTemplate;
   private final BeanOutputConverter<AgentStepOutput> outputConverter;
@@ -40,12 +41,14 @@ public class SpringAiAdaptiveAgentModelGateway implements AgentModelGateway {
       LlmProviderRegistry llmProviderRegistry,
       StructuredOutputInvoker structuredOutputInvoker,
       ObjectMapper objectMapper,
+      AdaptiveAgentTelemetry telemetry,
       AdaptiveAgentProperties properties,
       ResourceLoader resourceLoader
   ) throws IOException {
     this.llmProviderRegistry = llmProviderRegistry;
     this.structuredOutputInvoker = structuredOutputInvoker;
     this.objectMapper = objectMapper;
+    this.telemetry = telemetry;
     this.systemPromptTemplate = new PromptTemplate(
         resourceLoader.getResource(properties.getSystemPromptPath())
             .getContentAsString(StandardCharsets.UTF_8)
@@ -59,25 +62,56 @@ public class SpringAiAdaptiveAgentModelGateway implements AgentModelGateway {
 
   @Override
   public AgentAction nextAction(ReActModelContext context) {
-    String contextJson = serializeContext(context);
-    String systemPrompt = systemPromptTemplate.render()
-        + "\n\n"
-        + outputConverter.getFormat();
-    String userPrompt = userPromptTemplate.render(Map.of("contextJson", contextJson));
-    ChatClient chatClient = llmProviderRegistry.getChatClientOrDefault(
-        context.request().llmProvider()
-    );
-    AgentStepOutput output = structuredOutputInvoker.invoke(
-        chatClient,
-        systemPrompt,
-        userPrompt,
-        outputConverter,
-        ErrorCode.AI_SERVICE_ERROR,
-        "Agent 面试决策失败：",
-        "自适应 Agent 面试决策",
-        log
-    );
-    return validateAndMap(output, context);
+    long startedNanos = System.nanoTime();
+    AgentStepOutput output;
+    try {
+      String contextJson = serializeContext(context);
+      String systemPrompt = systemPromptTemplate.render()
+          + "\n\n"
+          + outputConverter.getFormat();
+      String userPrompt = userPromptTemplate.render(Map.of("contextJson", contextJson));
+      ChatClient chatClient = llmProviderRegistry.getChatClientOrDefault(
+          context.request().llmProvider()
+      );
+      output = structuredOutputInvoker.invoke(
+          chatClient,
+          systemPrompt,
+          userPrompt,
+          outputConverter,
+          ErrorCode.AI_SERVICE_ERROR,
+          "Agent 面试决策失败：",
+          "adaptive_agent_interview_decision",
+          NOPLogger.NOP_LOGGER
+      );
+    } catch (BusinessException e) {
+      telemetry.modelCallFailed(
+          context.request().sessionId(),
+          inputTurn(context),
+          e.getCode(),
+          startedNanos
+      );
+      throw new BusinessException(ErrorCode.AI_SERVICE_ERROR, "Agent 面试决策失败", e);
+    }
+
+    try {
+      RespondAction action = validateAndMap(output, context);
+      telemetry.modelCallSucceeded(action.type(), startedNanos);
+      return action;
+    } catch (BusinessException e) {
+      telemetry.modelCallFailed(
+          context.request().sessionId(),
+          inputTurn(context),
+          e.getCode(),
+          startedNanos
+      );
+      throw e;
+    }
+  }
+
+  private int inputTurn(ReActModelContext context) {
+    return context.request().candidateAnswer() == null
+        ? 0
+        : context.request().candidateAnswer().turnIndex();
   }
 
   private String serializeContext(ReActModelContext context) {

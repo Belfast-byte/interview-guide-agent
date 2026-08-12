@@ -29,6 +29,7 @@ class AdaptiveInterviewResponseTest {
         List.of(new AdaptiveInterviewTurn(
             1,
             "第一题？",
+            "验证基础",
             null,
             null,
             null,

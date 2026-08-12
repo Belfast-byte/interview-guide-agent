@@ -39,6 +39,9 @@ public class AdaptiveAgentTurnEntity {
   @Column(nullable = false, columnDefinition = "TEXT")
   private String question;
 
+  @Column(name = "question_reason", length = 500)
+  private String questionReason;
+
   @Column(columnDefinition = "TEXT")
   private String answer;
 
@@ -60,10 +63,11 @@ public class AdaptiveAgentTurnEntity {
 
   protected AdaptiveAgentTurnEntity() {}
 
-  AdaptiveAgentTurnEntity(String sessionId, int turnIndex, String question) {
+  AdaptiveAgentTurnEntity(String sessionId, int turnIndex, RespondAction questionAction) {
     this.sessionId = sessionId;
     this.turnIndex = turnIndex;
-    this.question = question;
+    this.question = questionAction.content();
+    this.questionReason = questionAction.reason();
   }
 
   void complete(CandidateAnswer candidateAnswer, RespondAction action) {
@@ -78,6 +82,7 @@ public class AdaptiveAgentTurnEntity {
     return new AdaptiveInterviewTurn(
         turnIndex,
         question,
+        questionReason,
         answer,
         responseType,
         responseContent,

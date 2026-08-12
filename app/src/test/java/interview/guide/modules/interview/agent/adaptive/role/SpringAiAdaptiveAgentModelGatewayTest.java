@@ -1,5 +1,6 @@
 package interview.guide.modules.interview.agent.adaptive.role;
 
+import io.micrometer.core.instrument.simple.SimpleMeterRegistry;
 import interview.guide.common.ai.LlmProviderRegistry;
 import interview.guide.common.ai.StructuredOutputInvoker;
 import interview.guide.common.exception.BusinessException;
@@ -9,6 +10,7 @@ import interview.guide.modules.interview.agent.adaptive.core.AgentAction;
 import interview.guide.modules.interview.agent.adaptive.core.AgentResponseType;
 import interview.guide.modules.interview.agent.adaptive.core.CandidateAnswer;
 import interview.guide.modules.interview.agent.adaptive.core.RespondAction;
+import interview.guide.modules.interview.agent.adaptive.observability.AdaptiveAgentTelemetry;
 import interview.guide.modules.interview.agent.adaptive.runtime.ReActModelContext;
 import interview.guide.modules.interview.agent.adaptive.runtime.ReActRequest;
 import java.io.IOException;
@@ -23,6 +25,8 @@ import org.mockito.junit.jupiter.MockitoExtension;
 import org.slf4j.Logger;
 import org.springframework.ai.chat.client.ChatClient;
 import org.springframework.ai.converter.BeanOutputConverter;
+import org.springframework.boot.test.system.CapturedOutput;
+import org.springframework.boot.test.system.OutputCaptureExtension;
 import org.springframework.core.io.DefaultResourceLoader;
 import tools.jackson.databind.ObjectMapper;
 
@@ -34,7 +38,7 @@ import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
-@ExtendWith(MockitoExtension.class)
+@ExtendWith({MockitoExtension.class, OutputCaptureExtension.class})
 class SpringAiAdaptiveAgentModelGatewayTest {
 
   @Mock
@@ -46,6 +50,9 @@ class SpringAiAdaptiveAgentModelGatewayTest {
   @Mock
   private ChatClient chatClient;
 
+  @Mock
+  private AdaptiveAgentTelemetry telemetry;
+
   private SpringAiAdaptiveAgentModelGateway gateway;
 
   @BeforeEach
@@ -54,6 +61,7 @@ class SpringAiAdaptiveAgentModelGatewayTest {
         llmProviderRegistry,
         structuredOutputInvoker,
         new ObjectMapper(),
+        telemetry,
         new AdaptiveAgentProperties(),
         new DefaultResourceLoader()
     );
@@ -115,6 +123,31 @@ class SpringAiAdaptiveAgentModelGatewayTest {
     assertThatThrownBy(() -> gateway.nextAction(context(new CandidateAnswer(1, "回答"))))
         .isInstanceOf(BusinessException.class)
         .hasMessageContaining("一个单行问题");
+  }
+
+  @Test
+  @DisplayName("模型失败日志不包含候选人回答原文")
+  void shouldNotLogCandidateAnswerWhenModelFails(CapturedOutput output) throws IOException {
+    String sensitiveAnswer = "SENSITIVE-CANDIDATE-ANSWER-7F3A";
+    when(invoke()).thenThrow(new BusinessException(
+        ErrorCode.AI_SERVICE_ERROR,
+        "解析失败：" + sensitiveAnswer
+    ));
+    SpringAiAdaptiveAgentModelGateway observableGateway =
+        new SpringAiAdaptiveAgentModelGateway(
+            llmProviderRegistry,
+            structuredOutputInvoker,
+            new ObjectMapper(),
+            new AdaptiveAgentTelemetry(new SimpleMeterRegistry()),
+            new AdaptiveAgentProperties(),
+            new DefaultResourceLoader()
+        );
+
+    assertThatThrownBy(() -> observableGateway.nextAction(
+        context(new CandidateAnswer(1, sensitiveAnswer))
+    )).isInstanceOf(BusinessException.class)
+        .hasMessage("Agent 面试决策失败");
+    assertThat(output).doesNotContain(sensitiveAnswer);
   }
 
   private SpringAiAdaptiveAgentModelGateway.AgentStepOutput invoke() {
