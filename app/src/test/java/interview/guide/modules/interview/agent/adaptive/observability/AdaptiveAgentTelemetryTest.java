@@ -15,11 +15,13 @@ class AdaptiveAgentTelemetryTest {
     SimpleMeterRegistry registry = new SimpleMeterRegistry();
     AdaptiveAgentTelemetry telemetry = new AdaptiveAgentTelemetry(registry);
 
-    telemetry.modelCallSucceeded(AgentResponseType.ASK, System.nanoTime());
+    telemetry.modelCallSucceeded("interviewer", AgentResponseType.ASK.name(), System.nanoTime());
     telemetry.decisionSucceeded(AgentResponseType.ASK, System.nanoTime());
 
     assertThat(registry.counter(
         AdaptiveAgentTelemetry.MODEL_CALLS,
+        "role",
+        "interviewer",
         "status",
         "success",
         "action",
@@ -27,6 +29,8 @@ class AdaptiveAgentTelemetryTest {
     ).count()).isEqualTo(1);
     assertThat(registry.timer(
         AdaptiveAgentTelemetry.MODEL_DURATION,
+        "role",
+        "interviewer",
         "status",
         "success",
         "action",
@@ -34,6 +38,8 @@ class AdaptiveAgentTelemetryTest {
     ).count()).isEqualTo(1);
     assertThat(registry.counter(
         AdaptiveAgentTelemetry.DECISIONS,
+        "role",
+        "orchestrator",
         "status",
         "success",
         "action",

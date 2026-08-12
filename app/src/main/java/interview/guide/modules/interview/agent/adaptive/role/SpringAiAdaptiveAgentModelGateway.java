@@ -85,6 +85,7 @@ public class SpringAiAdaptiveAgentModelGateway implements AgentModelGateway {
       );
     } catch (BusinessException e) {
       telemetry.modelCallFailed(
+          "interviewer",
           context.request().sessionId(),
           inputTurn(context),
           e.getCode(),
@@ -95,10 +96,11 @@ public class SpringAiAdaptiveAgentModelGateway implements AgentModelGateway {
 
     try {
       RespondAction action = validateAndMap(output, context);
-      telemetry.modelCallSucceeded(action.type(), startedNanos);
+      telemetry.modelCallSucceeded("interviewer", action.type().name(), startedNanos);
       return action;
     } catch (BusinessException e) {
       telemetry.modelCallFailed(
+          "interviewer",
           context.request().sessionId(),
           inputTurn(context),
           e.getCode(),

@@ -20,19 +20,26 @@ public class AdaptiveAgentTelemetry {
 
   private final MeterRegistry meterRegistry;
 
-  public void modelCallSucceeded(AgentResponseType action, long startedNanos) {
-    record(MODEL_CALLS, MODEL_DURATION, "success", action.name(), startedNanos);
+  public void modelCallSucceeded(
+      String role,
+      String action,
+      long startedNanos
+  ) {
+    record(MODEL_CALLS, MODEL_DURATION, role, "success", action, startedNanos);
   }
 
   public void modelCallFailed(
+      String role,
       String sessionId,
       int inputTurn,
       int errorCode,
       long startedNanos
   ) {
-    record(MODEL_CALLS, MODEL_DURATION, "failure", "none", startedNanos);
+    record(MODEL_CALLS, MODEL_DURATION, role, "failure", "none", startedNanos);
     log.warn(
-        "adaptive_agent_failed phase=model sessionId={} inputTurn={} errorCode={} durationMs={}",
+        "adaptive_agent_failed phase=model role={} sessionId={} inputTurn={} "
+            + "errorCode={} durationMs={}",
+        role,
         sessionId,
         inputTurn,
         errorCode,
@@ -41,7 +48,14 @@ public class AdaptiveAgentTelemetry {
   }
 
   public void decisionSucceeded(AgentResponseType action, long startedNanos) {
-    record(DECISIONS, DECISION_DURATION, "success", action.name(), startedNanos);
+    record(
+        DECISIONS,
+        DECISION_DURATION,
+        "orchestrator",
+        "success",
+        action.name(),
+        startedNanos
+    );
   }
 
   public void decisionFailed(
@@ -50,7 +64,14 @@ public class AdaptiveAgentTelemetry {
       int errorCode,
       long startedNanos
   ) {
-    record(DECISIONS, DECISION_DURATION, "failure", "none", startedNanos);
+    record(
+        DECISIONS,
+        DECISION_DURATION,
+        "orchestrator",
+        "failure",
+        "none",
+        startedNanos
+    );
     log.warn(
         "adaptive_agent_failed phase=runtime sessionId={} inputTurn={} errorCode={} durationMs={}",
         sessionId,
@@ -72,12 +93,29 @@ public class AdaptiveAgentTelemetry {
   private void record(
       String counterName,
       String timerName,
+      String role,
       String status,
       String action,
       long startedNanos
   ) {
-    meterRegistry.counter(counterName, "status", status, "action", action).increment();
-    meterRegistry.timer(timerName, "status", status, "action", action)
+    meterRegistry.counter(
+        counterName,
+        "role",
+        role,
+        "status",
+        status,
+        "action",
+        action
+    ).increment();
+    meterRegistry.timer(
+        timerName,
+        "role",
+        role,
+        "status",
+        status,
+        "action",
+        action
+    )
         .record(System.nanoTime() - startedNanos, TimeUnit.NANOSECONDS);
   }
 

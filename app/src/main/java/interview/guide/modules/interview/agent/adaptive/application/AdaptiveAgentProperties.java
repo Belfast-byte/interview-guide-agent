@@ -19,4 +19,8 @@ public class AdaptiveAgentProperties {
       "classpath:prompts/adaptive-agent-interviewer-system.st";
   private String userPromptPath =
       "classpath:prompts/adaptive-agent-interviewer-user.st";
+  private String plannerSystemPromptPath =
+      "classpath:prompts/adaptive-agent-planner-system.st";
+  private String plannerUserPromptPath =
+      "classpath:prompts/adaptive-agent-planner-user.st";
 }
