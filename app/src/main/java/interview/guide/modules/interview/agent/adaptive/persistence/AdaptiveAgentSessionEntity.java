@@ -78,6 +78,10 @@ public class AdaptiveAgentSessionEntity {
     return new AdaptiveInterviewSession(id, runtimeVersion, status, currentTurn, maxTurns);
   }
 
+  String id() {
+    return id;
+  }
+
   String jd() {
     return jd;
   }

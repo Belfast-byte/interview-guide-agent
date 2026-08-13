@@ -5,6 +5,7 @@ import interview.guide.modules.interview.agent.adaptive.core.AdaptiveInterviewHi
 import interview.guide.modules.interview.agent.adaptive.core.AdaptiveSessionStatus;
 import interview.guide.modules.interview.agent.adaptive.core.AgentResponseType;
 import interview.guide.modules.interview.agent.adaptive.core.CandidateAnswer;
+import interview.guide.modules.interview.agent.adaptive.core.DimensionBrief;
 import interview.guide.modules.interview.agent.adaptive.core.RespondAction;
 import interview.guide.modules.interview.agent.adaptive.planning.DimensionProposal;
 import interview.guide.modules.interview.agent.adaptive.planning.InterviewPlan;
@@ -106,6 +107,41 @@ class AdaptiveInterviewPersistenceServiceTest {
   }
 
   @Test
+  @DisplayName("维度小结与回答和下一题在同一事务中保存并可重读")
+  void shouldPersistDimensionBriefWithDecision() {
+    service.create(
+        "session-brief",
+        "JD",
+        "Resume",
+        null,
+        plan("session-brief", 2),
+        RespondAction.ask("第一题？", "验证基础"),
+        List.of()
+    );
+    DimensionBrief brief = new DimensionBrief(
+        "session-brief",
+        0,
+        "维度-0",
+        "重点-0",
+        "讨论了缓存一致性的方案与取舍",
+        List.of(1)
+    );
+
+    PlannedInterview updated = service.recordDecision(
+        "session-brief",
+        new CandidateAnswer(1, "完整回答"),
+        RespondAction.ask("第二题？", "继续验证"),
+        List.of(),
+        brief
+    );
+
+    assertThat(updated.dimensionBriefs()).containsExactly(brief);
+    assertThat(service.get("session-brief").dimensionBriefs()).containsExactly(brief);
+    assertThat(service.get("session-brief").history().turns().getFirst().answer())
+        .isEqualTo("完整回答");
+  }
+
+  @Test
   @DisplayName("回答原文、决策摘要和下一题在同一事实历史中完整保存")
   void shouldPersistFullTurnAndNextQuestion() {
     String answer = "候选人的完整回答。".repeat(2000);
@@ -123,7 +159,8 @@ class AdaptiveInterviewPersistenceServiceTest {
         "session-1",
         new CandidateAnswer(1, answer),
         RespondAction.ask("第二题？", "需要验证边界条件"),
-        List.of()
+        List.of(),
+        null
     );
     AdaptiveInterviewHistory history = interview.history();
 
@@ -156,13 +193,15 @@ class AdaptiveInterviewPersistenceServiceTest {
         "session-2",
         new CandidateAnswer(1, "回答"),
         RespondAction.ask("第二题？", "继续验证"),
-        List.of()
+        List.of(),
+        null
     );
     AdaptiveInterviewHistory history = service.recordDecision(
         "session-2",
         new CandidateAnswer(2, "第二轮回答"),
         RespondAction.ask("不应出现的下一题？", "模型希望继续"),
-        List.of()
+        List.of(),
+        null
     ).history();
 
     assertThat(history.session().status()).isEqualTo(AdaptiveSessionStatus.COMPLETED);
@@ -188,7 +227,8 @@ class AdaptiveInterviewPersistenceServiceTest {
         "session-early-finish",
         new CandidateAnswer(1, "回答"),
         RespondAction.finish("结束", "模型建议提前结束"),
-        List.of()
+        List.of(),
+        null
     )).isInstanceOf(BusinessException.class)
         .hasMessageContaining("全部规划维度");
 
@@ -214,7 +254,8 @@ class AdaptiveInterviewPersistenceServiceTest {
         "session-3",
         new CandidateAnswer(2, "错误轮次的回答"),
         RespondAction.ask("下一题？", "继续"),
-        List.of()
+        List.of(),
+        null
     )).isInstanceOf(BusinessException.class)
         .hasMessageContaining("轮次");
 

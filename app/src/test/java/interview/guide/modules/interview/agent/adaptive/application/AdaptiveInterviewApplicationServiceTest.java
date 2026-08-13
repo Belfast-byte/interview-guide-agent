@@ -10,6 +10,7 @@ import interview.guide.modules.interview.agent.adaptive.core.AgentResponseType;
 import interview.guide.modules.interview.agent.adaptive.core.CandidateAnswer;
 import interview.guide.modules.interview.agent.adaptive.core.RespondAction;
 import interview.guide.modules.interview.agent.adaptive.memory.ContextAssembler;
+import interview.guide.modules.interview.agent.adaptive.memory.DimensionBriefService;
 import interview.guide.modules.interview.agent.adaptive.persistence.AdaptiveInterviewPersistenceService;
 import interview.guide.modules.interview.agent.adaptive.observability.AdaptiveAgentTelemetry;
 import interview.guide.modules.interview.agent.adaptive.planning.DimensionProposal;
@@ -40,6 +41,7 @@ import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.ArgumentMatchers.anyList;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.ArgumentMatchers.nullable;
 import static org.mockito.Mockito.inOrder;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
@@ -61,6 +63,9 @@ class AdaptiveInterviewApplicationServiceTest {
   @Mock
   private PlanningAgent planningAgent;
 
+  @Mock
+  private DimensionBriefService dimensionBriefService;
+
   private AdaptiveInterviewApplicationService service;
 
   @BeforeEach
@@ -72,7 +77,8 @@ class AdaptiveInterviewApplicationServiceTest {
         new AgentRoleRegistry(properties),
         telemetry,
         planningAgent,
-        new ContextAssembler()
+        new ContextAssembler(),
+        dimensionBriefService
     );
   }
 
@@ -157,9 +163,38 @@ class AdaptiveInterviewApplicationServiceTest {
         anyString(),
         any(),
         any(),
-        anyList()
+        anyList(),
+        any()
     );
     verify(telemetry).decisionFailed(eq("session-1"), eq(1), anyInt(), anyLong());
+  }
+
+  @Test
+  @DisplayName("维度小结失败时不调用下一维度面试官也不推进状态")
+  void shouldNotAdvanceWhenDimensionBriefFails() {
+    PlannedInterview interview = interviewAtTurn(2);
+    CandidateAnswer answer = new CandidateAnswer(2, "第二轮回答");
+    when(persistenceService.get("session-1")).thenReturn(interview);
+    when(dimensionBriefService.summarize(
+        eq("session-1"),
+        any(),
+        anyList(),
+        eq(answer),
+        nullable(String.class)
+    )).thenThrow(new BusinessException(ErrorCode.AI_SERVICE_ERROR, "维度小结生成失败"));
+
+    assertThatThrownBy(() -> service.submitAnswer("session-1", answer))
+        .isInstanceOf(BusinessException.class)
+        .hasMessage("维度小结生成失败");
+
+    verifyNoInteractions(runtime);
+    verify(persistenceService, never()).recordDecision(
+        anyString(),
+        any(),
+        any(),
+        anyList(),
+        any()
+    );
   }
 
   @Test
@@ -185,7 +220,7 @@ class AdaptiveInterviewApplicationServiceTest {
     when(persistenceService.get("session-1")).thenReturn(interview);
     when(runtime.run(any(ReActRequest.class), any(ReActBudget.class)))
         .thenReturn(ReActResult.withoutTools(action));
-    when(persistenceService.recordDecision("session-1", answer, action, List.of()))
+    when(persistenceService.recordDecision("session-1", answer, action, List.of(), null))
         .thenThrow(new OptimisticLockingFailureException("concurrent update"));
 
     assertThatThrownBy(() -> service.submitAnswer("session-1", answer))
@@ -241,7 +276,8 @@ class AdaptiveInterviewApplicationServiceTest {
     }
     return new PlannedInterview(
         new AdaptiveInterviewHistory(session, "JD", "Resume", null, turns),
-        plan
+        plan,
+        List.of()
     );
   }
 

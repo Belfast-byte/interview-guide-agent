@@ -3,6 +3,7 @@ package interview.guide.modules.interview.agent.adaptive.memory;
 import interview.guide.modules.interview.agent.adaptive.core.AdaptiveInterviewTurn;
 import interview.guide.modules.interview.agent.adaptive.core.AgentResponseType;
 import interview.guide.modules.interview.agent.adaptive.core.CandidateAnswer;
+import interview.guide.modules.interview.agent.adaptive.core.DimensionBrief;
 import interview.guide.modules.interview.agent.adaptive.core.InterviewerContext;
 import interview.guide.modules.interview.agent.adaptive.core.PlannerContext;
 import java.util.List;
@@ -40,7 +41,8 @@ class ContextAssemblerTest {
         List.of("question_bank_search"),
         null,
         List.of(previousDimension, currentDimension),
-        answer
+        answer,
+        List.of()
     );
 
     assertThat(context.currentDimensionTurns()).containsExactly(currentDimension);
@@ -52,6 +54,14 @@ class ContextAssemblerTest {
   @DisplayName("切换维度时不把上一维度回答泄漏给新面试官")
   void shouldExcludePreviousDimensionAnswerAfterDimensionSwitch() {
     AdaptiveInterviewTurn answeredTurn = turn(1, 0, "专业基础问题", null);
+    DimensionBrief completedBrief = new DimensionBrief(
+        "session-1",
+        0,
+        "专业基础",
+        "缓存",
+        "讨论了缓存一致性的方案与取舍",
+        List.of(1)
+    );
 
     InterviewerContext context = assembler.interviewer(
         "JD",
@@ -63,11 +73,13 @@ class ContextAssemblerTest {
         List.of(),
         null,
         List.of(answeredTurn),
-        new CandidateAnswer(1, "包含敏感锚定内容的上一维度回答")
+        new CandidateAnswer(1, "包含敏感锚定内容的上一维度回答"),
+        List.of(completedBrief)
     );
 
     assertThat(context.currentDimensionTurns()).isEmpty();
     assertThat(context.currentDimensionAnswer()).isNull();
+    assertThat(context.completedDimensionBriefs()).containsExactly(completedBrief);
   }
 
   private AdaptiveInterviewTurn turn(

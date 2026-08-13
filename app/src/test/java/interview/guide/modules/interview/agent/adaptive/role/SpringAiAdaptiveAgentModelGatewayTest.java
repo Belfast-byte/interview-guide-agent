@@ -207,7 +207,8 @@ class SpringAiAdaptiveAgentModelGatewayTest {
                 List.of("question_bank_search"),
                 null,
                 List.of(),
-                answer
+                answer,
+                List.of()
             )
         ),
         List.of()

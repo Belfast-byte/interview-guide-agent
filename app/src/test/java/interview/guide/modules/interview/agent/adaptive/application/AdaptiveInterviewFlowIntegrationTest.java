@@ -7,6 +7,8 @@ import interview.guide.modules.interview.agent.adaptive.core.AgentResponseType;
 import interview.guide.modules.interview.agent.adaptive.core.CandidateAnswer;
 import interview.guide.modules.interview.agent.adaptive.core.RespondAction;
 import interview.guide.modules.interview.agent.adaptive.memory.ContextAssembler;
+import interview.guide.modules.interview.agent.adaptive.memory.DimensionBriefProposal;
+import interview.guide.modules.interview.agent.adaptive.memory.DimensionBriefService;
 import interview.guide.modules.interview.agent.adaptive.persistence.AdaptiveInterviewPersistenceService;
 import interview.guide.modules.interview.agent.adaptive.observability.AdaptiveAgentTelemetry;
 import interview.guide.modules.interview.agent.adaptive.planning.DimensionProposal;
@@ -56,7 +58,8 @@ class AdaptiveInterviewFlowIntegrationTest {
         new AgentRoleRegistry(new AdaptiveAgentProperties()),
         new AdaptiveAgentTelemetry(new SimpleMeterRegistry()),
         (request, provider) -> proposal(1),
-        new ContextAssembler()
+        new ContextAssembler(),
+        briefService()
     );
 
     PlannedInterview created = service.create("JD", "Resume", null);
@@ -88,11 +91,15 @@ class AdaptiveInterviewFlowIntegrationTest {
     AtomicInteger modelCalls = new AtomicInteger();
     List<String> questionDimensions = new ArrayList<>();
     List<Integer> visibleHistorySizes = new ArrayList<>();
+    List<Integer> visibleBriefCounts = new ArrayList<>();
     BoundedReActRuntime runtime = new BoundedReActRuntime(
         context -> {
           questionDimensions.add(context.request().dimension());
           visibleHistorySizes.add(
               context.request().interviewerContext().currentDimensionTurns().size()
+          );
+          visibleBriefCounts.add(
+              context.request().interviewerContext().completedDimensionBriefs().size()
           );
           return RespondAction.ask(
               "第 " + (modelCalls.incrementAndGet()) + " 题？",
@@ -109,7 +116,8 @@ class AdaptiveInterviewFlowIntegrationTest {
         new AgentRoleRegistry(new AdaptiveAgentProperties()),
         new AdaptiveAgentTelemetry(new SimpleMeterRegistry()),
         (request, provider) -> proposal(3),
-        new ContextAssembler()
+        new ContextAssembler(),
+        briefService()
     );
 
     PlannedInterview interview = service.create("JD", "Resume", null);
@@ -138,6 +146,11 @@ class AdaptiveInterviewFlowIntegrationTest {
         "维度-2"
     );
     assertThat(visibleHistorySizes).containsExactly(0, 1, 0, 1, 0, 1);
+    assertThat(visibleBriefCounts).containsExactly(0, 0, 1, 1, 2, 2);
+    assertThat(interview.dimensionBriefs()).hasSize(3);
+    assertThat(interview.dimensionBriefs())
+        .flatExtracting(brief -> brief.turnIndexes())
+        .containsExactly(1, 2, 3, 4, 5, 6);
     assertThat(modelCalls).hasValue(6);
   }
 
@@ -151,5 +164,12 @@ class AdaptiveInterviewFlowIntegrationTest {
             null
         ))
         .toList());
+  }
+
+  private DimensionBriefService briefService() {
+    return new DimensionBriefService((request, provider) -> new DimensionBriefProposal(
+        "已讨论当前维度的方案与取舍",
+        request.turns().stream().map(turn -> turn.turnIndex()).toList()
+    ));
   }
 }

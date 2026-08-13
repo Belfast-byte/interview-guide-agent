@@ -5,8 +5,10 @@ import interview.guide.common.exception.ErrorCode;
 import interview.guide.modules.interview.agent.adaptive.core.AdaptiveInterviewHistory;
 import interview.guide.modules.interview.agent.adaptive.core.AdaptiveInterviewTurn;
 import interview.guide.modules.interview.agent.adaptive.core.CandidateAnswer;
+import interview.guide.modules.interview.agent.adaptive.core.DimensionBrief;
 import interview.guide.modules.interview.agent.adaptive.core.RespondAction;
 import interview.guide.modules.interview.agent.adaptive.memory.ContextAssembler;
+import interview.guide.modules.interview.agent.adaptive.memory.DimensionBriefService;
 import interview.guide.modules.interview.agent.adaptive.observability.AdaptiveAgentTelemetry;
 import interview.guide.modules.interview.agent.adaptive.persistence.AdaptiveInterviewPersistenceService;
 import interview.guide.modules.interview.agent.adaptive.planning.InterviewPlan;
@@ -22,6 +24,7 @@ import interview.guide.modules.interview.agent.adaptive.runtime.ReActRequest;
 import interview.guide.modules.interview.agent.adaptive.runtime.ReActResult;
 import java.util.List;
 import java.util.UUID;
+import java.util.stream.Stream;
 import lombok.RequiredArgsConstructor;
 import org.springframework.dao.OptimisticLockingFailureException;
 import org.springframework.stereotype.Service;
@@ -36,6 +39,7 @@ public class AdaptiveInterviewApplicationService {
   private final AdaptiveAgentTelemetry telemetry;
   private final PlanningAgent planningAgent;
   private final ContextAssembler contextAssembler;
+  private final DimensionBriefService dimensionBriefService;
 
   public PlannedInterview create(String jd, String resume, String llmProvider) {
     String sessionId = UUID.randomUUID().toString();
@@ -59,7 +63,8 @@ public class AdaptiveInterviewApplicationService {
         plan.maxTurns(),
         firstDimension,
         List.of(),
-        null
+        null,
+        List.of()
     ));
     return persistenceService.create(
         sessionId,
@@ -76,6 +81,16 @@ public class AdaptiveInterviewApplicationService {
     PlannedInterview interview = persistenceService.get(sessionId);
     AdaptiveInterviewHistory history = interview.history();
     history.session().assertCanAnswer(answer);
+    PlannedDimension currentDimension = interview.plan().dimensionForTurn(answer.turnIndex());
+    DimensionBrief dimensionBrief = completesDimension(currentDimension)
+        ? dimensionBriefService.summarize(
+            sessionId,
+            currentDimension,
+            history.turns(),
+            answer,
+            history.llmProvider()
+        )
+        : null;
     ReActResult decision;
     if (interview.plan().isLastTurn(answer.turnIndex())) {
       decision = ReActResult.withoutTools(RespondAction.finish(
@@ -93,7 +108,8 @@ public class AdaptiveInterviewApplicationService {
           history.session().maxTurns(),
           nextDimension,
           history.turns(),
-          answer
+          answer,
+          briefsForNextDecision(interview.dimensionBriefs(), dimensionBrief)
       ));
     }
     try {
@@ -101,7 +117,8 @@ public class AdaptiveInterviewApplicationService {
           sessionId,
           answer,
           decision.response(),
-          decision.toolExecutions()
+          decision.toolExecutions(),
+          dimensionBrief
       );
     } catch (OptimisticLockingFailureException e) {
       telemetry.stateConflict(sessionId, answer.turnIndex());
@@ -125,7 +142,8 @@ public class AdaptiveInterviewApplicationService {
       int maxTurns,
       PlannedDimension dimension,
       List<AdaptiveInterviewTurn> turns,
-      CandidateAnswer candidateAnswer
+      CandidateAnswer candidateAnswer,
+      List<DimensionBrief> dimensionBriefs
   ) {
     return new ReActRequest(
         sessionId,
@@ -141,9 +159,25 @@ public class AdaptiveInterviewApplicationService {
             dimension.suggestedTools(),
             dimension.suggestedSkill(),
             turns,
-            candidateAnswer
+            candidateAnswer,
+            dimensionBriefs
         )
     );
+  }
+
+  private boolean completesDimension(PlannedDimension dimension) {
+    return dimension.completedTurns() + 1 == dimension.allocatedTurns();
+  }
+
+  private List<DimensionBrief> briefsForNextDecision(
+      List<DimensionBrief> persistedBriefs,
+      DimensionBrief newBrief
+  ) {
+    if (newBrief == null) {
+      return persistedBriefs;
+    }
+    return Stream.concat(persistedBriefs.stream(), Stream.of(newBrief))
+        .toList();
   }
 
   private ReActResult runDecision(ReActRequest request) {

@@ -13,11 +13,14 @@ public record InterviewerContext(
     List<String> suggestedTools,
     String suggestedSkill,
     List<AdaptiveInterviewTurn> currentDimensionTurns,
-    CandidateAnswer currentDimensionAnswer
+    CandidateAnswer currentDimensionAnswer,
+    List<DimensionBrief> completedDimensionBriefs
 ) {
 
   public InterviewerContext {
     suggestedTools = List.copyOf(suggestedTools);
     currentDimensionTurns = List.copyOf(currentDimensionTurns);
+    completedDimensionBriefs = List.copyOf(completedDimensionBriefs);
   }
+
 }

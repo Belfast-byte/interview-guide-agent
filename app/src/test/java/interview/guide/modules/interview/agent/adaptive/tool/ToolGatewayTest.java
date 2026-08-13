@@ -110,7 +110,8 @@ class ToolGatewayTest {
             List.of("question_bank_search"),
             null,
             List.of(),
-            null
+            null,
+            List.of()
         )
     );
   }

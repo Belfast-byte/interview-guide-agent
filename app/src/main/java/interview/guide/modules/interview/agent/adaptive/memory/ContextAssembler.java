@@ -2,6 +2,7 @@ package interview.guide.modules.interview.agent.adaptive.memory;
 
 import interview.guide.modules.interview.agent.adaptive.core.AdaptiveInterviewTurn;
 import interview.guide.modules.interview.agent.adaptive.core.CandidateAnswer;
+import interview.guide.modules.interview.agent.adaptive.core.DimensionBrief;
 import interview.guide.modules.interview.agent.adaptive.core.InterviewerContext;
 import interview.guide.modules.interview.agent.adaptive.core.PlannerContext;
 import java.util.List;
@@ -24,7 +25,8 @@ public class ContextAssembler {
       List<String> suggestedTools,
       String suggestedSkill,
       List<AdaptiveInterviewTurn> turns,
-      CandidateAnswer candidateAnswer
+      CandidateAnswer candidateAnswer,
+      List<DimensionBrief> dimensionBriefs
   ) {
     List<AdaptiveInterviewTurn> currentDimensionTurns = turns.stream()
         .filter(turn -> turn.dimensionOrder() == targetDimensionOrder)
@@ -45,7 +47,10 @@ public class ContextAssembler {
         suggestedTools,
         suggestedSkill,
         currentDimensionTurns,
-        currentDimensionAnswer
+        currentDimensionAnswer,
+        dimensionBriefs.stream()
+            .filter(brief -> brief.dimensionOrder() != targetDimensionOrder)
+            .toList()
     );
   }
 }

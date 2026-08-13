@@ -6,6 +6,7 @@ import interview.guide.modules.interview.agent.adaptive.core.AdaptiveInterviewHi
 import interview.guide.modules.interview.agent.adaptive.core.AdaptiveInterviewSession;
 import interview.guide.modules.interview.agent.adaptive.core.AgentResponseType;
 import interview.guide.modules.interview.agent.adaptive.core.CandidateAnswer;
+import interview.guide.modules.interview.agent.adaptive.core.DimensionBrief;
 import interview.guide.modules.interview.agent.adaptive.core.RespondAction;
 import interview.guide.modules.interview.agent.adaptive.core.SessionTransition;
 import interview.guide.modules.interview.agent.adaptive.planning.InterviewPlan;
@@ -25,6 +26,7 @@ public class AdaptiveInterviewPersistenceService {
   private final AdaptiveAgentTurnRepository turnRepository;
   private final AdaptiveAgentPlanRepository planRepository;
   private final AdaptiveAgentToolCallRepository toolCallRepository;
+  private final AdaptiveDimensionBriefRepository dimensionBriefRepository;
 
   @Transactional
   public PlannedInterview create(
@@ -60,7 +62,8 @@ public class AdaptiveInterviewPersistenceService {
       String sessionId,
       CandidateAnswer answer,
       RespondAction proposedAction,
-      List<ToolExecution> toolExecutions
+      List<ToolExecution> toolExecutions,
+      DimensionBrief dimensionBrief
   ) {
     AdaptiveAgentSessionEntity sessionEntity = sessionRepository.findById(sessionId)
         .orElseThrow(() -> new BusinessException(
@@ -96,6 +99,9 @@ public class AdaptiveInterviewPersistenceService {
       ));
     }
     saveToolExecutions(sessionId, toolExecutions);
+    if (dimensionBrief != null) {
+      dimensionBriefRepository.save(new AdaptiveDimensionBriefEntity(dimensionBrief));
+    }
     return plannedInterview(sessionEntity, updatedPlan);
   }
 
@@ -118,7 +124,15 @@ public class AdaptiveInterviewPersistenceService {
       AdaptiveAgentSessionEntity sessionEntity,
       InterviewPlan plan
   ) {
-    return new PlannedInterview(history(sessionEntity), plan);
+    return new PlannedInterview(
+        history(sessionEntity),
+        plan,
+        dimensionBriefRepository
+            .findBySessionIdOrderByDimensionOrder(sessionEntity.id())
+            .stream()
+            .map(AdaptiveDimensionBriefEntity::toDomain)
+            .toList()
+    );
   }
 
   private void saveToolExecutions(

@@ -56,7 +56,8 @@ class AdaptiveInterviewResponseTest {
                 0,
                 PlanDimensionStatus.IN_PROGRESS
             )
-        ))
+        )),
+        List.of()
     );
 
     AdaptiveInterviewResponse response = AdaptiveInterviewResponse.from(interview);

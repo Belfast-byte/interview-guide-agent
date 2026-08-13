@@ -64,7 +64,8 @@ class AdaptiveInterviewConcurrencyIntegrationTest {
           "concurrent-session",
           new CandidateAnswer(1, "并发回答"),
           RespondAction.ask("第二题？", "继续验证"),
-          List.of()
+          List.of(),
+          null
       );
     };
     List<FutureTask<PlannedInterview>> submissions = List.of(

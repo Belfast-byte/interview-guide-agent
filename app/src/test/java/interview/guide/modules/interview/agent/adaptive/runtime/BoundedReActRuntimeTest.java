@@ -146,7 +146,8 @@ class BoundedReActRuntimeTest {
             List.of("question_bank_search"),
             null,
             List.of(),
-            new CandidateAnswer(1, "候选人回答")
+            new CandidateAnswer(1, "候选人回答"),
+            List.of()
         )
     );
   }
