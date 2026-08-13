@@ -35,31 +35,6 @@ class LocalQuestionToolsIntegrationTest {
   }
 
   @Test
-  @DisplayName("题库工具只返回启用题并携带稳定题目 ID")
-  void shouldReturnOnlyActiveQuestionsWithStableIds() {
-    KnowledgeBaseEntity knowledgeBase = knowledgeBaseRepository.save(knowledgeBase());
-    KnowledgeBaseQuestionEntity active = question(
-        knowledgeBase,
-        "Redis 缓存雪崩如何治理？",
-        KnowledgeBaseQuestionStatus.ACTIVE
-    );
-    KnowledgeBaseQuestionEntity draft = question(
-        knowledgeBase,
-        "Redis 缓存穿透如何治理？",
-        KnowledgeBaseQuestionStatus.DRAFT
-    );
-    questionRepository.save(active);
-    questionRepository.save(draft);
-    QuestionBankSearchTool tool = new QuestionBankSearchTool(questionRepository, properties);
-
-    ToolResult result = tool.execute(Map.of("query", "Redis"));
-
-    assertThat(result.summary()).contains(active.getId().toString());
-    assertThat(result.summary()).doesNotContain(draft.getId().toString());
-    assertThat(result.value().toString()).contains("question:" + active.getId());
-  }
-
-  @Test
   @DisplayName("量规工具只按维度返回已审核题的局部量规")
   void shouldReturnReviewedRubricFragmentsByDimension() {
     KnowledgeBaseEntity knowledgeBase = knowledgeBaseRepository.save(knowledgeBase());

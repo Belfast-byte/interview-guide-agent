@@ -18,20 +18,6 @@ public interface KnowledgeBaseQuestionRepository extends JpaRepository<Knowledge
       Long knowledgeBaseId, KnowledgeBaseQuestionStatus status);
 
   @Query("select q from KnowledgeBaseQuestionEntity q "
-      + "where q.status = :status "
-      + "and (:difficulty is null or q.difficulty = :difficulty) "
-      + "and (lower(q.question) like lower(concat('%', :query, '%')) "
-      + "or lower(coalesce(q.topicSummary, '')) like lower(concat('%', :query, '%')) "
-      + "or lower(coalesce(q.category, '')) like lower(concat('%', :query, '%'))) "
-      + "order by q.updatedAt desc, q.id asc")
-  List<KnowledgeBaseQuestionEntity> searchActiveQuestions(
-      @Param("status") KnowledgeBaseQuestionStatus status,
-      @Param("query") String query,
-      @Param("difficulty") String difficulty,
-      Pageable pageable
-  );
-
-  @Query("select q from KnowledgeBaseQuestionEntity q "
       + "where q.status = :status and q.scoringRubric is not null "
       + "and q.scoringRubric <> '' "
       + "and (lower(coalesce(q.category, '')) like lower(concat('%', :dimension, '%')) "

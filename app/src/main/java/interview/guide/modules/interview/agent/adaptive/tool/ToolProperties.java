@@ -1,5 +1,7 @@
 package interview.guide.modules.interview.agent.adaptive.tool;
 
+import jakarta.validation.constraints.DecimalMax;
+import jakarta.validation.constraints.DecimalMin;
 import jakarta.validation.constraints.Max;
 import jakarta.validation.constraints.Min;
 import lombok.Data;
@@ -19,4 +21,12 @@ public class ToolProperties {
   @Min(1)
   @Max(20)
   private int questionBankLimit = 5;
+
+  @Min(1)
+  @Max(20)
+  private int questionIndexBatchSize = 10;
+
+  @DecimalMin("0.0")
+  @DecimalMax("1.0")
+  private double questionBankMinScore = 0.3;
 }
