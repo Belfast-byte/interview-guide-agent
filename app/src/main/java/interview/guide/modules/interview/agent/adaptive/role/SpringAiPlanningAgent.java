@@ -103,10 +103,7 @@ public class SpringAiPlanningAgent implements PlanningAgent {
 
   private String serializeInput(PlanningRequest request) {
     try {
-      return objectMapper.writeValueAsString(Map.of(
-          "jd", request.jd(),
-          "resume", request.resume()
-      ));
+      return objectMapper.writeValueAsString(request.context());
     } catch (JacksonException e) {
       throw new BusinessException(ErrorCode.AI_SERVICE_ERROR, "规划上下文序列化失败", e);
     }

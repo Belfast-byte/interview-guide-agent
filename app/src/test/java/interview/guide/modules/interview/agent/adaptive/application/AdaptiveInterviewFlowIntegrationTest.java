@@ -6,6 +6,7 @@ import interview.guide.modules.interview.agent.adaptive.core.AdaptiveSessionStat
 import interview.guide.modules.interview.agent.adaptive.core.AgentResponseType;
 import interview.guide.modules.interview.agent.adaptive.core.CandidateAnswer;
 import interview.guide.modules.interview.agent.adaptive.core.RespondAction;
+import interview.guide.modules.interview.agent.adaptive.memory.ContextAssembler;
 import interview.guide.modules.interview.agent.adaptive.persistence.AdaptiveInterviewPersistenceService;
 import interview.guide.modules.interview.agent.adaptive.observability.AdaptiveAgentTelemetry;
 import interview.guide.modules.interview.agent.adaptive.planning.DimensionProposal;
@@ -54,7 +55,8 @@ class AdaptiveInterviewFlowIntegrationTest {
         runtime,
         new AgentRoleRegistry(new AdaptiveAgentProperties()),
         new AdaptiveAgentTelemetry(new SimpleMeterRegistry()),
-        (request, provider) -> proposal(1)
+        (request, provider) -> proposal(1),
+        new ContextAssembler()
     );
 
     PlannedInterview created = service.create("JD", "Resume", null);
@@ -85,9 +87,13 @@ class AdaptiveInterviewFlowIntegrationTest {
   void shouldCompleteAtSixTurnBudget() {
     AtomicInteger modelCalls = new AtomicInteger();
     List<String> questionDimensions = new ArrayList<>();
+    List<Integer> visibleHistorySizes = new ArrayList<>();
     BoundedReActRuntime runtime = new BoundedReActRuntime(
         context -> {
           questionDimensions.add(context.request().dimension());
+          visibleHistorySizes.add(
+              context.request().interviewerContext().currentDimensionTurns().size()
+          );
           return RespondAction.ask(
               "第 " + (modelCalls.incrementAndGet()) + " 题？",
               "继续考察"
@@ -102,7 +108,8 @@ class AdaptiveInterviewFlowIntegrationTest {
         runtime,
         new AgentRoleRegistry(new AdaptiveAgentProperties()),
         new AdaptiveAgentTelemetry(new SimpleMeterRegistry()),
-        (request, provider) -> proposal(3)
+        (request, provider) -> proposal(3),
+        new ContextAssembler()
     );
 
     PlannedInterview interview = service.create("JD", "Resume", null);
@@ -130,6 +137,7 @@ class AdaptiveInterviewFlowIntegrationTest {
         "维度-2",
         "维度-2"
     );
+    assertThat(visibleHistorySizes).containsExactly(0, 1, 0, 1, 0, 1);
     assertThat(modelCalls).hasValue(6);
   }
 

@@ -14,7 +14,6 @@ import interview.guide.modules.interview.agent.adaptive.runtime.ReActModelContex
 import interview.guide.modules.interview.agent.adaptive.tool.ToolGateway;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
-import java.util.LinkedHashMap;
 import java.util.Map;
 import org.springframework.ai.chat.client.ChatClient;
 import org.springframework.ai.chat.messages.AssistantMessage;
@@ -181,26 +180,15 @@ public class SpringAiAdaptiveAgentModelGateway implements AgentModelGateway {
   }
 
   private int inputTurn(ReActModelContext context) {
-    return context.request().candidateAnswer() == null
-        ? 0
-        : context.request().candidateAnswer().turnIndex();
+    return context.request().inputTurnIndex();
   }
 
   private String serializeContext(ReActModelContext context) {
-    Map<String, Object> values = new LinkedHashMap<>();
-    values.put("jd", context.request().jd());
-    values.put("resume", context.request().resume());
-    values.put("currentTurn", context.request().turns().size());
-    values.put("maxTurns", context.request().maxTurns());
-    values.put("targetDimension", context.request().dimension());
-    values.put("targetFocus", context.request().focus());
-    values.put("suggestedTools", context.request().suggestedTools());
-    values.put("suggestedSkill", context.request().suggestedSkill());
-    values.put("turns", context.request().turns());
-    values.put("candidateAnswer", context.request().candidateAnswer());
-    values.put("observations", context.observations());
     try {
-      return objectMapper.writeValueAsString(values);
+      return objectMapper.writeValueAsString(Map.of(
+          "interviewContext", context.request().interviewerContext(),
+          "observations", context.observations()
+      ));
     } catch (JacksonException e) {
       throw new BusinessException(
           ErrorCode.AI_SERVICE_ERROR,

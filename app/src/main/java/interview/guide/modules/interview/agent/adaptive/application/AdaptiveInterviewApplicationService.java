@@ -6,6 +6,7 @@ import interview.guide.modules.interview.agent.adaptive.core.AdaptiveInterviewHi
 import interview.guide.modules.interview.agent.adaptive.core.AdaptiveInterviewTurn;
 import interview.guide.modules.interview.agent.adaptive.core.CandidateAnswer;
 import interview.guide.modules.interview.agent.adaptive.core.RespondAction;
+import interview.guide.modules.interview.agent.adaptive.memory.ContextAssembler;
 import interview.guide.modules.interview.agent.adaptive.observability.AdaptiveAgentTelemetry;
 import interview.guide.modules.interview.agent.adaptive.persistence.AdaptiveInterviewPersistenceService;
 import interview.guide.modules.interview.agent.adaptive.planning.InterviewPlan;
@@ -34,11 +35,12 @@ public class AdaptiveInterviewApplicationService {
   private final AgentRoleRegistry roleRegistry;
   private final AdaptiveAgentTelemetry telemetry;
   private final PlanningAgent planningAgent;
+  private final ContextAssembler contextAssembler;
 
   public PlannedInterview create(String jd, String resume, String llmProvider) {
     String sessionId = UUID.randomUUID().toString();
     PlanProposal proposal = planningAgent.propose(
-        new PlanningRequest(sessionId, jd, resume),
+        new PlanningRequest(sessionId, contextAssembler.planner(jd, resume)),
         llmProvider
     );
     InterviewPlan plan;
@@ -129,23 +131,24 @@ public class AdaptiveInterviewApplicationService {
         sessionId,
         AgentRole.INTERVIEWER,
         llmProvider,
-        jd,
-        resume,
-        maxTurns,
-        dimension.dimension(),
-        dimension.focus(),
-        dimension.suggestedTools(),
-        dimension.suggestedSkill(),
-        turns,
-        candidateAnswer
+        contextAssembler.interviewer(
+            jd,
+            resume,
+            maxTurns,
+            dimension.order(),
+            dimension.dimension(),
+            dimension.focus(),
+            dimension.suggestedTools(),
+            dimension.suggestedSkill(),
+            turns,
+            candidateAnswer
+        )
     );
   }
 
   private ReActResult runDecision(ReActRequest request) {
     long startedNanos = System.nanoTime();
-    int inputTurn = request.candidateAnswer() == null
-        ? 0
-        : request.candidateAnswer().turnIndex();
+    int inputTurn = request.inputTurnIndex();
     try {
       ReActResult result = runtime.run(
           request,

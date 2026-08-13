@@ -7,6 +7,7 @@ import interview.guide.common.exception.ErrorCode;
 import interview.guide.modules.interview.agent.adaptive.application.AdaptiveAgentProperties;
 import interview.guide.modules.interview.agent.adaptive.core.AgentAction;
 import interview.guide.modules.interview.agent.adaptive.core.CandidateAnswer;
+import interview.guide.modules.interview.agent.adaptive.core.InterviewerContext;
 import interview.guide.modules.interview.agent.adaptive.core.RespondAction;
 import interview.guide.modules.interview.agent.adaptive.core.ToolCallAction;
 import interview.guide.modules.interview.agent.adaptive.observability.AdaptiveAgentTelemetry;
@@ -195,15 +196,19 @@ class SpringAiAdaptiveAgentModelGatewayTest {
             "session-1",
             AgentRole.INTERVIEWER,
             "provider-1",
-            "JD",
-            "Resume",
-            6,
-            "专业基础",
-            "缓存与并发",
-            List.of("question_bank_search"),
-            null,
-            List.of(),
-            answer
+            new InterviewerContext(
+                "JD",
+                "Resume",
+                answer == null ? 0 : 1,
+                6,
+                0,
+                "专业基础",
+                "缓存与并发",
+                List.of("question_bank_search"),
+                null,
+                List.of(),
+                answer
+            )
         ),
         List.of()
     );

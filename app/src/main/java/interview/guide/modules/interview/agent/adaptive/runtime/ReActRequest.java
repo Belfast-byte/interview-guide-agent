@@ -1,31 +1,28 @@
 package interview.guide.modules.interview.agent.adaptive.runtime;
 
-import interview.guide.modules.interview.agent.adaptive.core.AdaptiveInterviewTurn;
-import interview.guide.modules.interview.agent.adaptive.core.CandidateAnswer;
+import interview.guide.modules.interview.agent.adaptive.core.InterviewerContext;
 import interview.guide.modules.interview.agent.adaptive.role.AgentRole;
-import java.util.List;
 
 public record ReActRequest(
     String sessionId,
     AgentRole role,
     String llmProvider,
-    String jd,
-    String resume,
-    int maxTurns,
-    String dimension,
-    String focus,
-    List<String> suggestedTools,
-    String suggestedSkill,
-    List<AdaptiveInterviewTurn> turns,
-    CandidateAnswer candidateAnswer
+    InterviewerContext interviewerContext
 ) {
 
-  public ReActRequest {
-    suggestedTools = List.copyOf(suggestedTools);
-    turns = List.copyOf(turns);
+  public String dimension() {
+    return interviewerContext.targetDimension();
+  }
+
+  public String suggestedSkill() {
+    return interviewerContext.suggestedSkill();
+  }
+
+  public int inputTurnIndex() {
+    return interviewerContext.currentTurn();
   }
 
   public int targetTurnIndex() {
-    return turns.size() + 1;
+    return interviewerContext.currentTurn() + 1;
   }
 }

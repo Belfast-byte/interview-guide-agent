@@ -3,6 +3,7 @@ package interview.guide.modules.interview.agent.adaptive.runtime;
 import interview.guide.common.exception.BusinessException;
 import interview.guide.modules.interview.agent.adaptive.core.AgentAction;
 import interview.guide.modules.interview.agent.adaptive.core.CandidateAnswer;
+import interview.guide.modules.interview.agent.adaptive.core.InterviewerContext;
 import interview.guide.modules.interview.agent.adaptive.core.RespondAction;
 import interview.guide.modules.interview.agent.adaptive.core.ToolCallAction;
 import interview.guide.modules.interview.agent.adaptive.role.AgentRole;
@@ -134,15 +135,19 @@ class BoundedReActRuntimeTest {
         "session-1",
         AgentRole.INTERVIEWER,
         null,
-        "JD",
-        "Resume",
-        6,
-        "专业基础",
-        "缓存与并发",
-        List.of("question_bank_search"),
-        null,
-        List.of(),
-        new CandidateAnswer(1, "候选人回答")
+        new InterviewerContext(
+            "JD",
+            "Resume",
+            1,
+            6,
+            0,
+            "专业基础",
+            "缓存与并发",
+            List.of("question_bank_search"),
+            null,
+            List.of(),
+            new CandidateAnswer(1, "候选人回答")
+        )
     );
   }
 

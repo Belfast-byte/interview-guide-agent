@@ -2,6 +2,7 @@ package interview.guide.modules.interview.agent.adaptive.tool;
 
 import interview.guide.common.exception.BusinessException;
 import interview.guide.modules.interview.agent.adaptive.application.AdaptiveAgentProperties;
+import interview.guide.modules.interview.agent.adaptive.core.InterviewerContext;
 import interview.guide.modules.interview.agent.adaptive.core.ToolCallAction;
 import interview.guide.modules.interview.agent.adaptive.observability.AdaptiveAgentTelemetry;
 import io.micrometer.core.instrument.simple.SimpleMeterRegistry;
@@ -98,15 +99,19 @@ class ToolGatewayTest {
         "session-1",
         role,
         null,
-        "JD",
-        "Resume",
-        6,
-        "专业基础",
-        "缓存",
-        List.of("question_bank_search"),
-        null,
-        List.of(),
-        null
+        new InterviewerContext(
+            "JD",
+            "Resume",
+            0,
+            6,
+            0,
+            "专业基础",
+            "缓存",
+            List.of("question_bank_search"),
+            null,
+            List.of(),
+            null
+        )
     );
   }
 

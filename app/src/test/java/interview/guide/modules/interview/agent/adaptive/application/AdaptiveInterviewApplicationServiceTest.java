@@ -9,6 +9,7 @@ import interview.guide.modules.interview.agent.adaptive.core.AdaptiveSessionStat
 import interview.guide.modules.interview.agent.adaptive.core.AgentResponseType;
 import interview.guide.modules.interview.agent.adaptive.core.CandidateAnswer;
 import interview.guide.modules.interview.agent.adaptive.core.RespondAction;
+import interview.guide.modules.interview.agent.adaptive.memory.ContextAssembler;
 import interview.guide.modules.interview.agent.adaptive.persistence.AdaptiveInterviewPersistenceService;
 import interview.guide.modules.interview.agent.adaptive.observability.AdaptiveAgentTelemetry;
 import interview.guide.modules.interview.agent.adaptive.planning.DimensionProposal;
@@ -70,7 +71,8 @@ class AdaptiveInterviewApplicationServiceTest {
         runtime,
         new AgentRoleRegistry(properties),
         telemetry,
-        planningAgent
+        planningAgent,
+        new ContextAssembler()
     );
   }
 

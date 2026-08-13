@@ -1,5 +1,6 @@
 package interview.guide.modules.interview.agent.adaptive.planning;
 
+import interview.guide.modules.interview.agent.adaptive.core.PlannerContext;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
@@ -16,7 +17,10 @@ class PlanningContractTest {
   void shouldKeepPlanningContextIndependentFromAssessment() {
     assertThat(Arrays.stream(PlanningRequest.class.getRecordComponents())
         .map(component -> component.getName()))
-        .containsExactly("sessionId", "jd", "resume");
+        .containsExactly("sessionId", "context");
+    assertThat(Arrays.stream(PlannerContext.class.getRecordComponents())
+        .map(component -> component.getName()))
+        .containsExactly("jd", "resume");
   }
 
   @Test

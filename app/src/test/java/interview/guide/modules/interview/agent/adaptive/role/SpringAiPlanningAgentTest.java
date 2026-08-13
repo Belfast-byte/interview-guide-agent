@@ -5,6 +5,7 @@ import interview.guide.common.ai.StructuredOutputInvoker;
 import interview.guide.common.exception.BusinessException;
 import interview.guide.common.exception.ErrorCode;
 import interview.guide.modules.interview.agent.adaptive.application.AdaptiveAgentProperties;
+import interview.guide.modules.interview.agent.adaptive.core.PlannerContext;
 import interview.guide.modules.interview.agent.adaptive.observability.AdaptiveAgentTelemetry;
 import interview.guide.modules.interview.agent.adaptive.planning.DimensionProposal;
 import interview.guide.modules.interview.agent.adaptive.planning.PlanProposal;
@@ -149,8 +150,10 @@ class SpringAiPlanningAgentTest {
   private PlanningRequest request() {
     return new PlanningRequest(
         "session-1",
-        "后端工程师，要求 Java 和 Redis",
-        "候选人项目经历"
+        new PlannerContext(
+            "后端工程师，要求 Java 和 Redis",
+            "候选人项目经历"
+        )
     );
   }
 
