@@ -77,7 +77,10 @@ public class SpringAiDimensionBriefGenerator implements DimensionBriefGenerator 
           serialize(request)
       ));
       inputTokenBudget.verify("memory_summarizer", systemPrompt, userPrompt);
-      ChatClient chatClient = llmProviderRegistry.getChatClientOrDefault(llmProvider);
+      ChatClient chatClient = telemetry.observeTokenUsage(
+          llmProviderRegistry.getChatClientOrDefault(llmProvider),
+          "memory_summarizer"
+      );
       DimensionBriefProposal proposal = deadlineExecutor.invoke(
           () -> structuredOutputInvoker.invoke(
               chatClient,

@@ -4,6 +4,7 @@ import io.micrometer.core.instrument.simple.SimpleMeterRegistry;
 import interview.guide.modules.interview.agent.adaptive.core.AgentResponseType;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
+import org.springframework.ai.chat.metadata.DefaultUsage;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
@@ -45,6 +46,31 @@ class AdaptiveAgentTelemetryTest {
         "action",
         "ASK"
     ).count()).isEqualTo(1);
+  }
+
+  @Test
+  @DisplayName("记录模型实际使用的输入、输出和总 Token")
+  void shouldRecordActualModelTokenUsage() {
+    SimpleMeterRegistry registry = new SimpleMeterRegistry();
+    AdaptiveAgentTelemetry telemetry = new AdaptiveAgentTelemetry(registry);
+
+    telemetry.modelTokens("planner", new DefaultUsage(13, 5, 18));
+
+    assertThat(registry.summary(
+        AdaptiveAgentTelemetry.MODEL_PROMPT_TOKENS,
+        "role",
+        "planner"
+    ).totalAmount()).isEqualTo(13);
+    assertThat(registry.summary(
+        AdaptiveAgentTelemetry.MODEL_COMPLETION_TOKENS,
+        "role",
+        "planner"
+    ).totalAmount()).isEqualTo(5);
+    assertThat(registry.summary(
+        AdaptiveAgentTelemetry.MODEL_TOTAL_TOKENS,
+        "role",
+        "planner"
+    ).totalAmount()).isEqualTo(18);
   }
 
   @Test

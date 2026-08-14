@@ -6,6 +6,12 @@ import interview.guide.modules.interview.agent.adaptive.mcp.McpQuestionBankFailu
 import java.util.concurrent.TimeUnit;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.ai.chat.client.ChatClient;
+import org.springframework.ai.chat.client.ChatClientRequest;
+import org.springframework.ai.chat.client.ChatClientResponse;
+import org.springframework.ai.chat.client.advisor.api.CallAdvisor;
+import org.springframework.ai.chat.client.advisor.api.CallAdvisorChain;
+import org.springframework.ai.chat.metadata.Usage;
 import org.springframework.stereotype.Component;
 
 @Slf4j
@@ -17,6 +23,12 @@ public class AdaptiveAgentTelemetry {
   static final String MODEL_DURATION = "app.interview.adaptive.model.duration";
   static final String MODEL_INPUT_TOKENS =
       "app.interview.adaptive.model.input.tokens";
+  static final String MODEL_PROMPT_TOKENS =
+      "app.interview.adaptive.model.prompt.tokens";
+  static final String MODEL_COMPLETION_TOKENS =
+      "app.interview.adaptive.model.completion.tokens";
+  static final String MODEL_TOTAL_TOKENS =
+      "app.interview.adaptive.model.total.tokens";
   static final String DECISIONS = "app.interview.adaptive.decisions";
   static final String DECISION_DURATION = "app.interview.adaptive.decision.duration";
   static final String STATE_CONFLICTS = "app.interview.adaptive.state.conflicts";
@@ -56,6 +68,21 @@ public class AdaptiveAgentTelemetry {
 
   public void inputTokens(String role, int tokens) {
     meterRegistry.summary(MODEL_INPUT_TOKENS, "role", role).record(tokens);
+  }
+
+  public ChatClient observeTokenUsage(ChatClient chatClient, String role) {
+    return chatClient.mutate()
+        .defaultAdvisors(new TokenUsageAdvisor(role, this))
+        .build();
+  }
+
+  void modelTokens(String role, Usage usage) {
+    meterRegistry.summary(MODEL_PROMPT_TOKENS, "role", role)
+        .record(usage.getPromptTokens());
+    meterRegistry.summary(MODEL_COMPLETION_TOKENS, "role", role)
+        .record(usage.getCompletionTokens());
+    meterRegistry.summary(MODEL_TOTAL_TOKENS, "role", role)
+        .record(usage.getTotalTokens());
   }
 
   public void decisionSucceeded(AgentResponseType action, long startedNanos) {
@@ -180,5 +207,31 @@ public class AdaptiveAgentTelemetry {
 
   private long elapsedMillis(long startedNanos) {
     return TimeUnit.NANOSECONDS.toMillis(System.nanoTime() - startedNanos);
+  }
+
+  private record TokenUsageAdvisor(
+      String role,
+      AdaptiveAgentTelemetry telemetry
+  ) implements CallAdvisor {
+
+    @Override
+    public ChatClientResponse adviseCall(
+        ChatClientRequest request,
+        CallAdvisorChain chain
+    ) {
+      ChatClientResponse response = chain.nextCall(request);
+      telemetry.modelTokens(role, response.chatResponse().getMetadata().getUsage());
+      return response;
+    }
+
+    @Override
+    public String getName() {
+      return "adaptive-token-usage-" + role;
+    }
+
+    @Override
+    public int getOrder() {
+      return 0;
+    }
   }
 }

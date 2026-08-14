@@ -40,6 +40,9 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.Mockito.doReturn;
+import static org.mockito.Mockito.lenient;
+import static org.mockito.Mockito.spy;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
@@ -83,6 +86,8 @@ class SpringAiAdaptiveAgentModelGatewayTest {
         new DefaultResourceLoader()
     );
     when(llmProviderRegistry.getPlainChatClient("provider-1")).thenReturn(chatClient);
+    lenient().when(telemetry.observeTokenUsage(chatClient, "interviewer"))
+        .thenReturn(chatClient);
     when(chatClient.prompt()).thenReturn(requestSpec);
     when(requestSpec.system(anyString())).thenReturn(requestSpec);
     when(requestSpec.user(anyString())).thenReturn(requestSpec);
@@ -235,11 +240,16 @@ class SpringAiAdaptiveAgentModelGatewayTest {
         "解析失败：" + sensitiveAnswer
     ));
     AdaptiveAgentProperties properties = new AdaptiveAgentProperties();
+    AdaptiveAgentTelemetry observableTelemetry = spy(
+        new AdaptiveAgentTelemetry(new SimpleMeterRegistry())
+    );
+    doReturn(chatClient).when(observableTelemetry)
+        .observeTokenUsage(chatClient, "interviewer");
     SpringAiAdaptiveAgentModelGateway observableGateway =
         new SpringAiAdaptiveAgentModelGateway(
             llmProviderRegistry,
             new ObjectMapper(),
-            new AdaptiveAgentTelemetry(new SimpleMeterRegistry()),
+            observableTelemetry,
             inputTokenBudget,
             new AgentRoleRegistry(properties),
             toolGateway,

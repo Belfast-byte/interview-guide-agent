@@ -64,6 +64,8 @@ class SpringAiAssessmentProposalGeneratorTest {
     );
     when(llmProviderRegistry.getChatClientOrDefault("provider-1"))
         .thenReturn(chatClient);
+    when(telemetry.observeTokenUsage(chatClient, "depth_assessor"))
+        .thenReturn(chatClient);
   }
 
   @Test

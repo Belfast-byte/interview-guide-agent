@@ -78,7 +78,10 @@ public class SpringAiAssessmentProposalGenerator
           serialize(request.context())
       ));
       inputTokenBudget.verify("depth_assessor", systemPrompt, userPrompt);
-      ChatClient chatClient = llmProviderRegistry.getChatClientOrDefault(llmProvider);
+      ChatClient chatClient = telemetry.observeTokenUsage(
+          llmProviderRegistry.getChatClientOrDefault(llmProvider),
+          "depth_assessor"
+      );
       AssessmentProposal proposal = deadlineExecutor.invoke(
           () -> structuredOutputInvoker.invoke(
               chatClient,

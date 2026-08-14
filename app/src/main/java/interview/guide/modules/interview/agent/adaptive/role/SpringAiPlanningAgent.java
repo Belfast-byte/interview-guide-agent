@@ -76,7 +76,10 @@ public class SpringAiPlanningAgent implements PlanningAgent {
           + outputConverter.getFormat();
       String userPrompt = userPromptTemplate.render(Map.of("inputJson", inputJson));
       inputTokenBudget.verify("planner", systemPrompt, userPrompt);
-      ChatClient chatClient = llmProviderRegistry.getChatClientOrDefault(llmProvider);
+      ChatClient chatClient = telemetry.observeTokenUsage(
+          llmProviderRegistry.getChatClientOrDefault(llmProvider),
+          "planner"
+      );
       proposal = deadlineExecutor.invoke(
           () -> structuredOutputInvoker.invoke(
               chatClient,
