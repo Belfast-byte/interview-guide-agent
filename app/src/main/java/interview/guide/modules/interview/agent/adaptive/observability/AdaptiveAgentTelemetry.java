@@ -2,6 +2,7 @@ package interview.guide.modules.interview.agent.adaptive.observability;
 
 import io.micrometer.core.instrument.MeterRegistry;
 import interview.guide.modules.interview.agent.adaptive.core.AgentResponseType;
+import interview.guide.modules.interview.agent.adaptive.mcp.McpQuestionBankFailureReason;
 import java.util.concurrent.TimeUnit;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -19,6 +20,8 @@ public class AdaptiveAgentTelemetry {
   static final String STATE_CONFLICTS = "app.interview.adaptive.state.conflicts";
   static final String TOOL_CALLS = "app.interview.adaptive.tool.calls";
   static final String TOOL_DURATION = "app.interview.adaptive.tool.duration";
+  static final String MCP_QUESTION_BANK_FALLBACKS =
+      "app.interview.adaptive.mcp.question-bank.fallbacks";
 
   private final MeterRegistry meterRegistry;
 
@@ -129,6 +132,15 @@ public class AdaptiveAgentTelemetry {
         errorCode,
         elapsedMillis(startedNanos)
     );
+  }
+
+  public void mcpQuestionBankFallback(McpQuestionBankFailureReason reason) {
+    meterRegistry.counter(
+        MCP_QUESTION_BANK_FALLBACKS,
+        "reason",
+        reason.name()
+    ).increment();
+    log.warn("adaptive_agent_mcp_fallback source=question_bank reason={}", reason);
   }
 
   private void record(

@@ -1,6 +1,5 @@
 package interview.guide.modules.interview.agent.adaptive.tool;
 
-import interview.guide.modules.interview.agent.adaptive.tool.QuestionBankSemanticSearch.QuestionResult;
 import java.util.List;
 import java.util.Map;
 import org.springframework.ai.tool.ToolCallback;
@@ -12,11 +11,11 @@ public class QuestionBankSearchTool implements AdaptiveAgentTool {
 
   public static final String NAME = "question_bank_search";
 
-  private final QuestionBankSemanticSearch semanticSearch;
+  private final QuestionBankSearchSource searchSource;
   private final ToolCallback callback;
 
-  public QuestionBankSearchTool(QuestionBankSemanticSearch semanticSearch) {
-    this.semanticSearch = semanticSearch;
+  public QuestionBankSearchTool(QuestionBankSearchSource searchSource) {
+    this.searchSource = searchSource;
     this.callback = FunctionToolCallback
         .builder(NAME, (QuestionSearchInput input) -> unsupportedDirectCall())
         .description("Semantically search active reviewed interview questions")
@@ -38,16 +37,16 @@ public class QuestionBankSearchTool implements AdaptiveAgentTool {
   public ToolResult execute(Map<String, Object> arguments) {
     String query = ToolArguments.requiredString(arguments, "query", 200);
     String difficulty = ToolArguments.optionalString(arguments, "difficulty", 16);
-    List<QuestionResult> questions = semanticSearch.search(query, difficulty);
+    List<QuestionBankQuestion> questions = searchSource.search(query, difficulty);
     String resultId = "question-search:" + questions.stream()
-        .map(QuestionResult::id)
+        .map(QuestionBankQuestion::id)
         .map(String::valueOf)
         .reduce((left, right) -> left + "," + right)
         .orElse("empty");
     return new ToolResult(
         resultId,
         questions,
-        "matchedQuestionIds=" + questions.stream().map(QuestionResult::id).toList()
+        "matchedQuestionIds=" + questions.stream().map(QuestionBankQuestion::id).toList()
     );
   }
 

@@ -13,15 +13,16 @@ import org.springframework.ai.vectorstore.SearchRequest;
 import org.springframework.ai.vectorstore.VectorStore;
 import org.springframework.stereotype.Component;
 
-@Component
+@Component("localQuestionBankSearchSource")
 @RequiredArgsConstructor
-class QuestionBankSemanticSearch {
+class QuestionBankSemanticSearch implements QuestionBankSearchSource {
 
   private final VectorStore vectorStore;
   private final KnowledgeBaseQuestionRepository questionRepository;
   private final ToolProperties properties;
 
-  List<QuestionResult> search(String query, String difficulty) {
+  @Override
+  public List<QuestionBankQuestion> search(String query, String difficulty) {
     List<Document> hits = vectorStore.similaritySearch(SearchRequest.builder()
         .query(query)
         .topK(properties.getQuestionBankLimit() * 3)
@@ -50,8 +51,8 @@ class QuestionBankSemanticSearch {
         .toList();
   }
 
-  private QuestionResult toResult(KnowledgeBaseQuestionEntity question) {
-    return new QuestionResult(
+  private QuestionBankQuestion toResult(KnowledgeBaseQuestionEntity question) {
+    return new QuestionBankQuestion(
         "question:" + question.getId(),
         question.getId(),
         question.getCategory(),
@@ -60,11 +61,4 @@ class QuestionBankSemanticSearch {
     );
   }
 
-  record QuestionResult(
-      String stableId,
-      Long id,
-      String category,
-      String difficulty,
-      String question
-  ) {}
 }
