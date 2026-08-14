@@ -77,6 +77,10 @@ public class AdaptiveAgentToolCallEntity {
     return invocationId;
   }
 
+  Long id() {
+    return id;
+  }
+
   String sessionId() {
     return sessionId;
   }

@@ -1,6 +1,10 @@
 package interview.guide.modules.interview.agent.adaptive.application;
 
 import io.micrometer.core.instrument.simple.SimpleMeterRegistry;
+import interview.guide.modules.interview.agent.adaptive.assessment.AssessmentEvidenceValidator;
+import interview.guide.modules.interview.agent.adaptive.assessment.AssessmentProposal;
+import interview.guide.modules.interview.agent.adaptive.assessment.DepthAssessmentAgent;
+import interview.guide.modules.interview.agent.adaptive.assessment.DepthLevel;
 import interview.guide.modules.interview.agent.adaptive.core.AdaptiveInterviewHistory;
 import interview.guide.modules.interview.agent.adaptive.core.AdaptiveSessionStatus;
 import interview.guide.modules.interview.agent.adaptive.core.AgentResponseType;
@@ -71,7 +75,9 @@ class AdaptiveInterviewFlowIntegrationTest {
         briefService(),
         candidateMemoryService,
         mock(PlanningTaxonomy.class),
-        claimService()
+        claimService(),
+        assessmentAgent(),
+        evidenceValidator()
     );
 
     PlannedInterview created = service.create("candidate-1", "JD", "Resume", null);
@@ -135,7 +141,9 @@ class AdaptiveInterviewFlowIntegrationTest {
         briefService(),
         candidateMemoryService,
         mock(PlanningTaxonomy.class),
-        claimService()
+        claimService(),
+        assessmentAgent(),
+        evidenceValidator()
     );
 
     PlannedInterview interview = service.create("candidate-1", "JD", "Resume", null);
@@ -196,5 +204,21 @@ class AdaptiveInterviewFlowIntegrationTest {
     return new CandidateClaimExtractionService(
         (request, provider) -> new CandidateClaimsProposal(List.of())
     );
+  }
+
+  private DepthAssessmentAgent assessmentAgent() {
+    return new DepthAssessmentAgent((request, provider) -> new AssessmentProposal(
+        DepthLevel.L2,
+        0.8,
+        "描述了实际应用",
+        false,
+        List.of(request.context().answer())
+    ));
+  }
+
+  private AssessmentEvidenceValidator evidenceValidator() {
+    return new AssessmentEvidenceValidator((sessionId, turnIndex, resultIds) -> {
+      throw new AssertionError("纯文本引用不应查询工具结果");
+    });
   }
 }

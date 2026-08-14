@@ -1,5 +1,9 @@
 package interview.guide.modules.interview.agent.adaptive.persistence;
 
+import interview.guide.modules.interview.agent.adaptive.assessment.AssessmentDecision;
+import interview.guide.modules.interview.agent.adaptive.assessment.DepthLevel;
+import interview.guide.modules.interview.agent.adaptive.assessment.EvidenceType;
+import interview.guide.modules.interview.agent.adaptive.assessment.ValidatedAssessmentEvidence;
 import interview.guide.modules.interview.agent.adaptive.core.AdaptiveInterviewHistory;
 import interview.guide.modules.interview.agent.adaptive.core.CandidateAnswer;
 import interview.guide.modules.interview.agent.adaptive.core.RespondAction;
@@ -71,7 +75,21 @@ class AdaptiveInterviewConcurrencyIntegrationTest {
           RespondAction.ask("第二题？", "继续验证"),
           List.of(),
           null,
-          List.of()
+          List.of(),
+          new AssessmentDecision(
+              "concurrent-session",
+              1,
+              DepthLevel.L2,
+              0.8,
+              "描述了实际应用",
+              false,
+              List.of("并发回答")
+          ),
+          List.of(new ValidatedAssessmentEvidence(
+              EvidenceType.QUOTE,
+              "并发回答",
+              null
+          ))
       );
     };
     List<FutureTask<PlannedInterview>> submissions = List.of(

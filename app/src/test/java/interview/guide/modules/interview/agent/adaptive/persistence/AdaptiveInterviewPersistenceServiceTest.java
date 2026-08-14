@@ -1,6 +1,10 @@
 package interview.guide.modules.interview.agent.adaptive.persistence;
 
 import interview.guide.common.exception.BusinessException;
+import interview.guide.modules.interview.agent.adaptive.assessment.AssessmentDecision;
+import interview.guide.modules.interview.agent.adaptive.assessment.DepthLevel;
+import interview.guide.modules.interview.agent.adaptive.assessment.EvidenceType;
+import interview.guide.modules.interview.agent.adaptive.assessment.ValidatedAssessmentEvidence;
 import interview.guide.modules.interview.agent.adaptive.core.AdaptiveInterviewHistory;
 import interview.guide.modules.interview.agent.adaptive.core.AdaptiveSessionStatus;
 import interview.guide.modules.interview.agent.adaptive.core.AgentResponseType;
@@ -41,6 +45,12 @@ class AdaptiveInterviewPersistenceServiceTest {
 
   @Autowired
   private CandidateMemoryService candidateMemoryService;
+
+  @Autowired
+  private AdaptiveAgentAssessmentRepository assessmentRepository;
+
+  @Autowired
+  private AdaptiveAgentEvidenceRepository evidenceRepository;
 
   @Test
   @DisplayName("租户会话只能由所属租户读取且旧 REST 不可旁路")
@@ -85,7 +95,9 @@ class AdaptiveInterviewPersistenceServiceTest {
         RespondAction.ask("第二题？", "核验项目"),
         List.of(),
         null,
-        List.of()
+        List.of(),
+        assessment("session-claim", 1),
+        evidences()
     );
     CandidateClaim claim = new CandidateClaim(
         CandidateClaimType.PROJECT_EXPERIENCE,
@@ -100,7 +112,9 @@ class AdaptiveInterviewPersistenceServiceTest {
         RespondAction.finish("完成", "规划完成"),
         List.of(),
         null,
-        List.of(claim)
+        List.of(claim),
+        assessment("session-claim", 2),
+        evidences()
     );
 
     assertThat(candidateMemoryService.unverifiedClaims("candidate-claim"))
@@ -214,7 +228,9 @@ class AdaptiveInterviewPersistenceServiceTest {
         RespondAction.ask("第二题？", "继续验证"),
         List.of(),
         brief,
-        List.of()
+        List.of(),
+        assessment("session-brief", 1),
+        evidences()
     );
 
     assertThat(updated.dimensionBriefs()).containsExactly(brief);
@@ -244,7 +260,9 @@ class AdaptiveInterviewPersistenceServiceTest {
         RespondAction.ask("第二题？", "需要验证边界条件"),
         List.of(),
         null,
-        List.of()
+        List.of(),
+        assessment("session-1", 1),
+        evidences()
     );
     AdaptiveInterviewHistory history = interview.history();
 
@@ -258,6 +276,8 @@ class AdaptiveInterviewPersistenceServiceTest {
     assertThat(history.turns().getFirst().responseType()).isEqualTo(AgentResponseType.ASK);
     assertThat(history.turns().getFirst().decisionReason()).isEqualTo("需要验证边界条件");
     assertThat(history.turns().get(1).question()).isEqualTo("第二题？");
+    assertThat(assessmentRepository.count()).isOne();
+    assertThat(evidenceRepository.count()).isOne();
   }
 
   @Test
@@ -280,7 +300,9 @@ class AdaptiveInterviewPersistenceServiceTest {
         RespondAction.ask("第二题？", "继续验证"),
         List.of(),
         null,
-        List.of()
+        List.of(),
+        assessment("session-2", 1),
+        evidences()
     );
     AdaptiveInterviewHistory history = service.recordDecision(
         "session-2",
@@ -288,7 +310,9 @@ class AdaptiveInterviewPersistenceServiceTest {
         RespondAction.ask("不应出现的下一题？", "模型希望继续"),
         List.of(),
         null,
-        List.of()
+        List.of(),
+        assessment("session-2", 2),
+        evidences()
     ).history();
 
     assertThat(history.session().status()).isEqualTo(AdaptiveSessionStatus.COMPLETED);
@@ -317,7 +341,9 @@ class AdaptiveInterviewPersistenceServiceTest {
         RespondAction.finish("结束", "模型建议提前结束"),
         List.of(),
         null,
-        List.of()
+        List.of(),
+        assessment("session-early-finish", 1),
+        evidences()
     )).isInstanceOf(BusinessException.class)
         .hasMessageContaining("全部规划维度");
 
@@ -346,13 +372,35 @@ class AdaptiveInterviewPersistenceServiceTest {
         RespondAction.ask("下一题？", "继续"),
         List.of(),
         null,
-        List.of()
+        List.of(),
+        assessment("session-3", 2),
+        evidences()
     )).isInstanceOf(BusinessException.class)
         .hasMessageContaining("轮次");
 
     AdaptiveInterviewHistory history = service.get("session-3").history();
     assertThat(history.session().currentTurn()).isEqualTo(1);
     assertThat(history.turns().getFirst().answer()).isNull();
+  }
+
+  private AssessmentDecision assessment(String sessionId, int turnIndex) {
+    return new AssessmentDecision(
+        sessionId,
+        turnIndex,
+        DepthLevel.L2,
+        0.8,
+        "描述了实际应用",
+        false,
+        List.of("可追溯引用")
+    );
+  }
+
+  private List<ValidatedAssessmentEvidence> evidences() {
+    return List.of(new ValidatedAssessmentEvidence(
+        EvidenceType.QUOTE,
+        "可追溯引用",
+        null
+    ));
   }
 
   private InterviewPlan plan(String sessionId, int dimensionCount) {

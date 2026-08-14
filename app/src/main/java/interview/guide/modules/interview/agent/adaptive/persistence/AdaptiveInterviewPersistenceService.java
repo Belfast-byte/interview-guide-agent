@@ -2,6 +2,8 @@ package interview.guide.modules.interview.agent.adaptive.persistence;
 
 import interview.guide.common.exception.BusinessException;
 import interview.guide.common.exception.ErrorCode;
+import interview.guide.modules.interview.agent.adaptive.assessment.AssessmentDecision;
+import interview.guide.modules.interview.agent.adaptive.assessment.ValidatedAssessmentEvidence;
 import interview.guide.modules.interview.agent.adaptive.core.AdaptiveInterviewHistory;
 import interview.guide.modules.interview.agent.adaptive.core.AdaptiveInterviewSession;
 import interview.guide.modules.interview.agent.adaptive.core.AgentResponseType;
@@ -31,6 +33,8 @@ public class AdaptiveInterviewPersistenceService {
   private final AdaptiveDimensionBriefRepository dimensionBriefRepository;
   private final CandidateMemoryTopicRepository candidateMemoryTopicRepository;
   private final CandidateMemoryClaimRepository candidateMemoryClaimRepository;
+  private final AdaptiveAgentAssessmentRepository assessmentRepository;
+  private final AdaptiveAgentEvidenceRepository evidenceRepository;
 
   @Transactional
   public PlannedInterview create(
@@ -106,7 +110,9 @@ public class AdaptiveInterviewPersistenceService {
       RespondAction proposedAction,
       List<ToolExecution> toolExecutions,
       DimensionBrief dimensionBrief,
-      List<CandidateClaim> candidateClaims
+      List<CandidateClaim> candidateClaims,
+      AssessmentDecision assessmentDecision,
+      List<ValidatedAssessmentEvidence> assessmentEvidences
   ) {
     AdaptiveAgentSessionEntity sessionEntity = sessionRepository
         .findByIdAndTenantIdIsNull(sessionId)
@@ -161,6 +167,17 @@ public class AdaptiveInterviewPersistenceService {
             sessionEntity.candidateId(),
             sessionId,
             claim
+        ))
+        .toList());
+    AdaptiveAgentAssessmentEntity assessment = assessmentRepository.save(
+        new AdaptiveAgentAssessmentEntity(answeredDimension.order(), assessmentDecision)
+    );
+    evidenceRepository.saveAll(assessmentEvidences.stream()
+        .map(evidence -> new AdaptiveAgentEvidenceEntity(
+            assessment,
+            sessionId,
+            answer.turnIndex(),
+            evidence
         ))
         .toList());
     return plannedInterview(sessionEntity, updatedPlan);

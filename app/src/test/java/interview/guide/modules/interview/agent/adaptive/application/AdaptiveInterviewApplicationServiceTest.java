@@ -2,6 +2,10 @@ package interview.guide.modules.interview.agent.adaptive.application;
 
 import interview.guide.common.exception.BusinessException;
 import interview.guide.common.exception.ErrorCode;
+import interview.guide.modules.interview.agent.adaptive.assessment.AssessmentEvidenceValidator;
+import interview.guide.modules.interview.agent.adaptive.assessment.AssessmentProposal;
+import interview.guide.modules.interview.agent.adaptive.assessment.DepthAssessmentAgent;
+import interview.guide.modules.interview.agent.adaptive.assessment.DepthLevel;
 import interview.guide.modules.interview.agent.adaptive.core.AdaptiveInterviewHistory;
 import interview.guide.modules.interview.agent.adaptive.core.AdaptiveInterviewSession;
 import interview.guide.modules.interview.agent.adaptive.core.AdaptiveInterviewTurn;
@@ -50,6 +54,7 @@ import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.ArgumentMatchers.anyList;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.ArgumentMatchers.isNull;
 import static org.mockito.ArgumentMatchers.nullable;
 import static org.mockito.Mockito.inOrder;
 import static org.mockito.Mockito.never;
@@ -88,8 +93,14 @@ class AdaptiveInterviewApplicationServiceTest {
 
   @BeforeEach
   void setUp() {
+    service = serviceWithAssessmentAgent(assessmentAgent());
+  }
+
+  private AdaptiveInterviewApplicationService serviceWithAssessmentAgent(
+      DepthAssessmentAgent assessmentAgent
+  ) {
     AdaptiveAgentProperties properties = new AdaptiveAgentProperties();
-    service = new AdaptiveInterviewApplicationService(
+    return new AdaptiveInterviewApplicationService(
         persistenceService,
         runtime,
         new AgentRoleRegistry(properties),
@@ -99,7 +110,9 @@ class AdaptiveInterviewApplicationServiceTest {
         dimensionBriefService,
         candidateMemoryService,
         planningTaxonomy,
-        candidateClaimExtractionService
+        candidateClaimExtractionService,
+        assessmentAgent,
+        evidenceValidator()
     );
   }
 
@@ -214,9 +227,40 @@ class AdaptiveInterviewApplicationServiceTest {
         any(),
         anyList(),
         any(),
+        anyList(),
+        any(),
         anyList()
     );
     verify(telemetry).decisionFailed(eq("session-1"), eq(1), anyInt(), anyLong());
+  }
+
+  @Test
+  @DisplayName("评估模型失败时不调用面试官也不推进状态")
+  void shouldNotAdvanceWhenAssessmentFails() {
+    AdaptiveInterviewApplicationService failingService = serviceWithAssessmentAgent(
+        new DepthAssessmentAgent((request, provider) -> {
+          throw new BusinessException(ErrorCode.AI_SERVICE_ERROR, "评估失败");
+        })
+    );
+    when(persistenceService.get("session-1")).thenReturn(interviewAtTurn(1));
+
+    assertThatThrownBy(() -> failingService.submitAnswer(
+        "session-1",
+        new CandidateAnswer(1, "回答")
+    )).isInstanceOf(BusinessException.class)
+        .hasMessage("评估失败");
+
+    verifyNoInteractions(runtime);
+    verify(persistenceService, never()).recordDecision(
+        anyString(),
+        any(),
+        any(),
+        anyList(),
+        any(),
+        anyList(),
+        any(),
+        anyList()
+    );
   }
 
   @Test
@@ -241,6 +285,8 @@ class AdaptiveInterviewApplicationServiceTest {
     verify(persistenceService, never()).recordDecision(
         anyString(),
         any(),
+        any(),
+        anyList(),
         any(),
         anyList(),
         any(),
@@ -274,6 +320,8 @@ class AdaptiveInterviewApplicationServiceTest {
         any(),
         anyList(),
         any(),
+        anyList(),
+        any(),
         anyList()
     );
   }
@@ -302,7 +350,8 @@ class AdaptiveInterviewApplicationServiceTest {
     when(runtime.run(any(ReActRequest.class), any(ReActBudget.class)))
         .thenReturn(ReActResult.withoutTools(action));
     when(persistenceService.recordDecision(
-        "session-1", answer, action, List.of(), null, List.of()
+        eq("session-1"), eq(answer), eq(action), eq(List.of()),
+        isNull(), eq(List.of()), any(), anyList()
     ))
         .thenThrow(new OptimisticLockingFailureException("concurrent update"));
 
@@ -322,12 +371,29 @@ class AdaptiveInterviewApplicationServiceTest {
     when(runtime.run(any(ReActRequest.class), any(ReActBudget.class)))
         .thenReturn(ReActResult.withoutTools(action));
     when(persistenceService.recordDecision(
-        "session-1", answer, action, List.of(), null, List.of()
+        eq("session-1"), eq(answer), eq(action), eq(List.of()),
+        isNull(), eq(List.of()), any(), anyList()
     )).thenReturn(interview);
 
     service.submitAnswer("session-1", answer);
 
     verifyNoInteractions(candidateMemoryService);
+  }
+
+  private DepthAssessmentAgent assessmentAgent() {
+    return new DepthAssessmentAgent((request, provider) -> new AssessmentProposal(
+        DepthLevel.L2,
+        0.8,
+        "描述了实际应用",
+        false,
+        List.of(request.context().answer())
+    ));
+  }
+
+  private AssessmentEvidenceValidator evidenceValidator() {
+    return new AssessmentEvidenceValidator((sessionId, turnIndex, resultIds) -> {
+      throw new AssertionError("纯文本引用不应查询工具结果");
+    });
   }
 
   private PlannedInterview interviewAtTurn(int currentTurn) {

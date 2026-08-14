@@ -2,6 +2,13 @@ package interview.guide.modules.interview.agent.adaptive.application;
 
 import interview.guide.common.exception.BusinessException;
 import interview.guide.common.exception.ErrorCode;
+import interview.guide.modules.interview.agent.adaptive.assessment.AssessmentContext;
+import interview.guide.modules.interview.agent.adaptive.assessment.AssessmentDecision;
+import interview.guide.modules.interview.agent.adaptive.assessment.AssessmentEvidenceCandidate;
+import interview.guide.modules.interview.agent.adaptive.assessment.AssessmentEvidenceValidator;
+import interview.guide.modules.interview.agent.adaptive.assessment.AssessmentRequest;
+import interview.guide.modules.interview.agent.adaptive.assessment.DepthAssessmentAgent;
+import interview.guide.modules.interview.agent.adaptive.assessment.ValidatedAssessmentEvidence;
 import interview.guide.modules.interview.agent.adaptive.core.AdaptiveInterviewHistory;
 import interview.guide.modules.interview.agent.adaptive.core.AdaptiveInterviewTurn;
 import interview.guide.modules.interview.agent.adaptive.core.CandidateAnswer;
@@ -47,6 +54,8 @@ public class AdaptiveInterviewApplicationService {
   private final CandidateMemoryService candidateMemoryService;
   private final PlanningTaxonomy planningTaxonomy;
   private final CandidateClaimExtractionService candidateClaimExtractionService;
+  private final DepthAssessmentAgent assessmentAgent;
+  private final AssessmentEvidenceValidator assessmentEvidenceValidator;
 
   public PlannedInterview create(
       String candidateId,
@@ -139,6 +148,28 @@ public class AdaptiveInterviewApplicationService {
     AdaptiveInterviewHistory history = interview.history();
     history.session().assertCanAnswer(answer);
     PlannedDimension currentDimension = interview.plan().dimensionForTurn(answer.turnIndex());
+    AssessmentDecision assessment = assessmentAgent.assess(
+        new AssessmentRequest(
+            sessionId,
+            answer.turnIndex(),
+            AssessmentContext.currentAnswer(
+                currentDimension.dimension(),
+                currentDimension.focus(),
+                history.turns().getLast().question(),
+                answer.content()
+            )
+        ),
+        history.llmProvider()
+    );
+    List<ValidatedAssessmentEvidence> assessmentEvidences =
+        assessmentEvidenceValidator.validate(
+            sessionId,
+            answer.turnIndex(),
+            answer.content(),
+            assessment.evidenceQuotes().stream()
+                .map(AssessmentEvidenceCandidate::quote)
+                .toList()
+        );
     boolean dimensionCompleted = completesDimension(currentDimension);
     DimensionBrief dimensionBrief = dimensionCompleted
         ? dimensionBriefService.summarize(
@@ -187,7 +218,9 @@ public class AdaptiveInterviewApplicationService {
           decision.response(),
           decision.toolExecutions(),
           dimensionBrief,
-          candidateClaims
+          candidateClaims,
+          assessment,
+          assessmentEvidences
       );
     } catch (OptimisticLockingFailureException e) {
       telemetry.stateConflict(sessionId, answer.turnIndex());

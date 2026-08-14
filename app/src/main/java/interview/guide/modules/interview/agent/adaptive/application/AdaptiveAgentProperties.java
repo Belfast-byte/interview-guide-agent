@@ -17,6 +17,7 @@ public class AdaptiveAgentProperties {
   private Duration plannerDeadline = Duration.ofSeconds(30);
   private Duration briefDeadline = Duration.ofSeconds(20);
   private Duration claimDeadline = Duration.ofSeconds(20);
+  private Duration assessmentDeadline = Duration.ofSeconds(20);
   private String systemPromptPath =
       "classpath:prompts/adaptive-agent-interviewer-system.st";
   private String userPromptPath =
@@ -33,4 +34,8 @@ public class AdaptiveAgentProperties {
       "classpath:prompts/adaptive-agent-claim-extraction-system.st";
   private String claimUserPromptPath =
       "classpath:prompts/adaptive-agent-claim-extraction-user.st";
+  private String assessmentSystemPromptPath =
+      "classpath:prompts/adaptive-agent-assessment-system.st";
+  private String assessmentUserPromptPath =
+      "classpath:prompts/adaptive-agent-assessment-user.st";
 }
