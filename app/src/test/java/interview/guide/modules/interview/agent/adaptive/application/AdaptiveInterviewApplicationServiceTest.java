@@ -312,6 +312,24 @@ class AdaptiveInterviewApplicationServiceTest {
     verify(telemetry).stateConflict("session-1", 1);
   }
 
+  @Test
+  @DisplayName("推进当前面试时不读取候选人长期记忆")
+  void shouldNotReadLongTermMemoryDuringCurrentInterview() {
+    PlannedInterview interview = interviewAtTurn(1);
+    CandidateAnswer answer = new CandidateAnswer(1, "相同质量的回答");
+    RespondAction action = RespondAction.ask("下一题？", "继续验证");
+    when(persistenceService.get("session-1")).thenReturn(interview);
+    when(runtime.run(any(ReActRequest.class), any(ReActBudget.class)))
+        .thenReturn(ReActResult.withoutTools(action));
+    when(persistenceService.recordDecision(
+        "session-1", answer, action, List.of(), null, List.of()
+    )).thenReturn(interview);
+
+    service.submitAnswer("session-1", answer);
+
+    verifyNoInteractions(candidateMemoryService);
+  }
+
   private PlannedInterview interviewAtTurn(int currentTurn) {
     AdaptiveInterviewSession session = new AdaptiveInterviewSession(
         "session-1",
