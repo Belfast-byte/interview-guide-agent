@@ -1,6 +1,6 @@
 import {Link, Outlet, useLocation, useNavigate} from 'react-router-dom';
 import {motion} from 'framer-motion';
-import {BookOpen, Calendar, ChevronRight, Database, FileStack, MessageSquare, Moon, Settings, Sparkles, Sun, Users,} from 'lucide-react';
+import {BookOpen, BrainCircuit, Calendar, ChevronRight, Database, FileStack, Menu, MessageSquare, Moon, Settings, Sparkles, Sun, Users, X,} from 'lucide-react';
 import {useTheme} from '../hooks/useTheme';
 import {useState} from 'react';
 import UnifiedInterviewModal, {UnifiedInterviewConfig} from './UnifiedInterviewModal';
@@ -24,6 +24,7 @@ export default function Layout() {
   const currentPath = location.pathname;
   const {theme, toggleTheme} = useTheme();
   const navigate = useNavigate();
+  const [mobileNavigationOpen, setMobileNavigationOpen] = useState(false);
   const [interviewModalPreset, setInterviewModalPreset] = useState<{
     defaultMode: 'text' | 'voice';
     defaultResumeId?: number;
@@ -87,6 +88,7 @@ export default function Layout() {
       items: [
         { id: 'resumes', path: '/history', label: '简历管理', icon: FileStack, description: '管理简历，AI 分析' },
         { id: 'interview-hub', path: '/interview-hub', label: '模拟面试', icon: Sparkles, description: '文字/语音面试练习' },
+        { id: 'adaptive-interview', path: '/adaptive-interview', label: '自适应面试', icon: BrainCircuit, description: '多维追问与证据报告' },
         { id: 'interviews', path: '/interviews', label: '面试记录', icon: Users, description: '查看面试历史' },
         { id: 'interview-schedule', path: '/interview-schedule', label: '面试日程', icon: Calendar, description: '管理面试安排' },
       ],
@@ -132,8 +134,26 @@ export default function Layout() {
 
   return (
     <div className="flex min-h-screen bg-gradient-to-br from-slate-50 to-indigo-50 dark:from-slate-900 dark:to-slate-800">
+      <button
+        type="button"
+        onClick={() => setMobileNavigationOpen(true)}
+        className="fixed left-4 top-4 z-40 flex h-11 w-11 items-center justify-center rounded-xl border border-slate-200 bg-white/95 text-slate-700 shadow-lg backdrop-blur lg:hidden dark:border-slate-700 dark:bg-slate-900/95 dark:text-slate-200"
+        aria-label="打开导航"
+      >
+        <Menu className="h-5 w-5" />
+      </button>
+
+      {mobileNavigationOpen && (
+        <button
+          type="button"
+          onClick={() => setMobileNavigationOpen(false)}
+          className="fixed inset-0 z-40 bg-slate-950/45 backdrop-blur-sm lg:hidden"
+          aria-label="关闭导航"
+        />
+      )}
+
       {/* 左侧边栏 */}
-      <aside className="w-64 bg-white dark:bg-slate-900 border-r border-slate-100 dark:border-slate-700 fixed h-screen left-0 top-0 z-50 flex flex-col">
+      <aside className={`${mobileNavigationOpen ? 'flex' : 'hidden'} w-64 bg-white dark:bg-slate-900 border-r border-slate-100 dark:border-slate-700 fixed h-screen left-0 top-0 z-50 flex-col lg:flex`}>
         {/* Logo */}
         <div className="p-6 border-b border-slate-100 dark:border-slate-700 flex items-center justify-between">
           <Link to="/history" className="flex items-center gap-3">
@@ -145,6 +165,14 @@ export default function Layout() {
               <span className="text-xs text-slate-400 dark:text-slate-500">智能面试助手</span>
             </div>
           </Link>
+          <button
+            type="button"
+            onClick={() => setMobileNavigationOpen(false)}
+            className="flex h-9 w-9 items-center justify-center rounded-lg text-slate-400 hover:bg-slate-100 hover:text-slate-700 lg:hidden dark:hover:bg-slate-800 dark:hover:text-white"
+            aria-label="关闭导航"
+          >
+            <X className="h-5 w-5" />
+          </button>
         </div>
 
         {/* 主题切换按钮 */}
@@ -185,6 +213,7 @@ export default function Layout() {
                       <Link
                         key={item.id}
                         to={item.path}
+                        onClick={() => setMobileNavigationOpen(false)}
                         className={`group relative flex items-center gap-3 px-3 py-2.5 rounded-xl transition-all duration-200
                           ${active
                             ? 'bg-primary-50 dark:bg-primary-900/30 text-primary-600 dark:text-primary-400'
@@ -229,7 +258,7 @@ export default function Layout() {
       </aside>
 
       {/* 主内容区 */}
-      <main className="flex-1 ml-64 p-10 min-h-screen overflow-y-auto">
+      <main className="min-h-screen flex-1 overflow-y-auto p-4 pt-20 sm:p-6 sm:pt-20 lg:ml-64 lg:p-10">
         <motion.div
           key={currentPath}
           initial={{ opacity: 0, y: 20 }}
