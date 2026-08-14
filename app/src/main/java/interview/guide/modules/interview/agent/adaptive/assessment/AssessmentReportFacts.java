@@ -7,5 +7,6 @@ public record AssessmentReportFacts(
     String sessionId,
     String candidateId,
     AdaptiveSessionStatus status,
-    List<AssessmentReportDimensionFacts> dimensions
+    List<AssessmentReportDimensionFacts> dimensions,
+    List<PracticeRecommendation> practiceRecommendations
 ) {}

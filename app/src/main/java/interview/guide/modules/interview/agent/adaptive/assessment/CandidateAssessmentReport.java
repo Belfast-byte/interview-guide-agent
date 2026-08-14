@@ -5,5 +5,6 @@ import java.util.List;
 public record CandidateAssessmentReport(
     String sessionId,
     List<ReportDimensionConclusion> dimensions,
-    List<CandidateWeakPoint> weakPoints
+    List<CandidateWeakPoint> weakPoints,
+    List<PracticeRecommendation> practiceRecommendations
 ) {}

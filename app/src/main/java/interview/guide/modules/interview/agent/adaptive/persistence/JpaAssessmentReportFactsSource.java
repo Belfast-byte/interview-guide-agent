@@ -25,6 +25,7 @@ public class JpaAssessmentReportFactsSource
   private final AdaptiveAgentAssessmentRepository assessmentRepository;
   private final AdaptiveAgentEvidenceRepository evidenceRepository;
   private final AdaptiveAgentToolCallRepository toolCallRepository;
+  private final PracticeRecordRepository practiceRecordRepository;
 
   public JpaAssessmentReportFactsSource(
       AdaptiveAgentSessionRepository sessionRepository,
@@ -32,7 +33,8 @@ public class JpaAssessmentReportFactsSource
       AdaptiveAgentTurnRepository turnRepository,
       AdaptiveAgentAssessmentRepository assessmentRepository,
       AdaptiveAgentEvidenceRepository evidenceRepository,
-      AdaptiveAgentToolCallRepository toolCallRepository
+      AdaptiveAgentToolCallRepository toolCallRepository,
+      PracticeRecordRepository practiceRecordRepository
   ) {
     this.sessionRepository = sessionRepository;
     this.planRepository = planRepository;
@@ -40,6 +42,7 @@ public class JpaAssessmentReportFactsSource
     this.assessmentRepository = assessmentRepository;
     this.evidenceRepository = evidenceRepository;
     this.toolCallRepository = toolCallRepository;
+    this.practiceRecordRepository = practiceRecordRepository;
   }
 
   @Override
@@ -110,7 +113,11 @@ public class JpaAssessmentReportFactsSource
         session.id(),
         session.candidateId(),
         session.status(),
-        dimensions
+        dimensions,
+        practiceRecordRepository
+            .findBySourceSessionIdOrderByDimensionOrder(session.id()).stream()
+            .map(PracticeRecordEntity::toDomain)
+            .toList()
     );
   }
 

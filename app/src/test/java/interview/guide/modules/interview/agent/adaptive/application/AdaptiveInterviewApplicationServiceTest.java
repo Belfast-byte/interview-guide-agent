@@ -5,6 +5,9 @@ import interview.guide.common.exception.ErrorCode;
 import interview.guide.modules.interview.agent.adaptive.assessment.AssessmentEvidenceValidator;
 import interview.guide.modules.interview.agent.adaptive.assessment.AssessmentProposal;
 import interview.guide.modules.interview.agent.adaptive.assessment.DepthAssessmentAgent;
+import interview.guide.modules.interview.agent.adaptive.assessment.PracticeRecommendationService;
+import interview.guide.modules.interview.agent.adaptive.assessment.PracticeRecommendation;
+import interview.guide.modules.interview.agent.adaptive.assessment.PracticeStatus;
 import interview.guide.modules.interview.agent.adaptive.assessment.DepthLevel;
 import interview.guide.modules.interview.agent.adaptive.core.AdaptiveInterviewHistory;
 import interview.guide.modules.interview.agent.adaptive.core.AdaptiveInterviewSession;
@@ -89,6 +92,9 @@ class AdaptiveInterviewApplicationServiceTest {
   @Mock
   private CandidateClaimExtractionService candidateClaimExtractionService;
 
+  @Mock
+  private PracticeRecommendationService practiceRecommendationService;
+
   private AdaptiveInterviewApplicationService service;
 
   @BeforeEach
@@ -112,7 +118,8 @@ class AdaptiveInterviewApplicationServiceTest {
         planningTaxonomy,
         candidateClaimExtractionService,
         assessmentAgent,
-        evidenceValidator()
+        evidenceValidator(),
+        practiceRecommendationService
     );
   }
 
@@ -229,6 +236,7 @@ class AdaptiveInterviewApplicationServiceTest {
         any(),
         anyList(),
         any(),
+        anyList(),
         anyList()
     );
     verify(telemetry).decisionFailed(eq("session-1"), eq(1), anyInt(), anyLong());
@@ -259,6 +267,7 @@ class AdaptiveInterviewApplicationServiceTest {
         any(),
         anyList(),
         any(),
+        anyList(),
         anyList()
     );
   }
@@ -290,6 +299,7 @@ class AdaptiveInterviewApplicationServiceTest {
         any(),
         anyList(),
         any(),
+        anyList(),
         anyList()
     );
   }
@@ -322,6 +332,7 @@ class AdaptiveInterviewApplicationServiceTest {
         any(),
         anyList(),
         any(),
+        anyList(),
         anyList()
     );
   }
@@ -351,7 +362,7 @@ class AdaptiveInterviewApplicationServiceTest {
         .thenReturn(ReActResult.withoutTools(action));
     when(persistenceService.recordDecision(
         eq("session-1"), eq(answer), eq(action), eq(List.of()),
-        isNull(), eq(List.of()), any(), anyList()
+        isNull(), eq(List.of()), any(), anyList(), eq(List.of())
     ))
         .thenThrow(new OptimisticLockingFailureException("concurrent update"));
 
@@ -372,12 +383,87 @@ class AdaptiveInterviewApplicationServiceTest {
         .thenReturn(ReActResult.withoutTools(action));
     when(persistenceService.recordDecision(
         eq("session-1"), eq(answer), eq(action), eq(List.of()),
-        isNull(), eq(List.of()), any(), anyList()
+        isNull(), eq(List.of()), any(), anyList(), eq(List.of())
     )).thenReturn(interview);
 
     service.submitAnswer("session-1", answer);
 
     verifyNoInteractions(candidateMemoryService);
+  }
+
+  @Test
+  @DisplayName("最后一轮在事务外生成练习并交给最终裁决一起落库")
+  void shouldPersistPracticeRecommendationsWithFinalDecision() {
+    PlannedInterview interview = interviewAtTurn(6);
+    CandidateAnswer answer = new CandidateAnswer(6, "最终回答");
+    PracticeRecommendation recommendation = new PracticeRecommendation(
+        2,
+        "系统设计",
+        DepthLevel.L2,
+        "question:99",
+        "MEDIUM",
+        "新的练习题？",
+        PracticeStatus.PENDING
+    );
+    when(persistenceService.get("session-1")).thenReturn(interview);
+    when(practiceRecommendationService.recommend(
+        eq("session-1"),
+        any(),
+        any()
+    )).thenReturn(List.of(recommendation));
+    when(persistenceService.recordDecision(
+        eq("session-1"),
+        eq(answer),
+        any(),
+        eq(List.of()),
+        isNull(),
+        eq(List.of()),
+        any(),
+        anyList(),
+        eq(List.of(recommendation))
+    )).thenReturn(interview);
+
+    service.submitAnswer("session-1", answer);
+
+    verify(practiceRecommendationService).recommend(
+        eq("session-1"),
+        any(),
+        any()
+    );
+    verifyNoInteractions(runtime);
+  }
+
+  @Test
+  @DisplayName("练习检索失败时快速失败且不完成面试")
+  void shouldNotAdvanceWhenPracticeRecommendationFails() {
+    PlannedInterview interview = interviewAtTurn(6);
+    CandidateAnswer answer = new CandidateAnswer(6, "最终回答");
+    when(persistenceService.get("session-1")).thenReturn(interview);
+    when(practiceRecommendationService.recommend(
+        eq("session-1"),
+        any(),
+        any()
+    )).thenThrow(new BusinessException(
+        ErrorCode.AI_SERVICE_ERROR,
+        "练习检索失败"
+    ));
+
+    assertThatThrownBy(() -> service.submitAnswer("session-1", answer))
+        .isInstanceOf(BusinessException.class)
+        .hasMessage("练习检索失败");
+
+    verify(persistenceService, never()).recordDecision(
+        anyString(),
+        any(),
+        any(),
+        anyList(),
+        any(),
+        anyList(),
+        any(),
+        anyList(),
+        anyList()
+    );
+    verifyNoInteractions(runtime);
   }
 
   private DepthAssessmentAgent assessmentAgent() {

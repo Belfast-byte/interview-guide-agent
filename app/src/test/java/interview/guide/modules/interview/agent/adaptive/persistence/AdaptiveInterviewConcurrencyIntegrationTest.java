@@ -89,7 +89,8 @@ class AdaptiveInterviewConcurrencyIntegrationTest {
               EvidenceType.QUOTE,
               "并发回答",
               null
-          ))
+          )),
+          List.of()
       );
     };
     List<FutureTask<PlannedInterview>> submissions = List.of(

@@ -3,6 +3,7 @@ package interview.guide.modules.interview.agent.adaptive.persistence;
 import interview.guide.common.exception.BusinessException;
 import interview.guide.common.exception.ErrorCode;
 import interview.guide.modules.interview.agent.adaptive.assessment.AssessmentDecision;
+import interview.guide.modules.interview.agent.adaptive.assessment.PracticeRecommendation;
 import interview.guide.modules.interview.agent.adaptive.assessment.ValidatedAssessmentEvidence;
 import interview.guide.modules.interview.agent.adaptive.core.AdaptiveInterviewHistory;
 import interview.guide.modules.interview.agent.adaptive.core.AdaptiveInterviewSession;
@@ -35,6 +36,7 @@ public class AdaptiveInterviewPersistenceService {
   private final CandidateMemoryClaimRepository candidateMemoryClaimRepository;
   private final AdaptiveAgentAssessmentRepository assessmentRepository;
   private final AdaptiveAgentEvidenceRepository evidenceRepository;
+  private final PracticeRecordRepository practiceRecordRepository;
 
   @Transactional
   public PlannedInterview create(
@@ -112,7 +114,8 @@ public class AdaptiveInterviewPersistenceService {
       DimensionBrief dimensionBrief,
       List<CandidateClaim> candidateClaims,
       AssessmentDecision assessmentDecision,
-      List<ValidatedAssessmentEvidence> assessmentEvidences
+      List<ValidatedAssessmentEvidence> assessmentEvidences,
+      List<PracticeRecommendation> practiceRecommendations
   ) {
     AdaptiveAgentSessionEntity sessionEntity = sessionRepository
         .findByIdAndTenantIdIsNull(sessionId)
@@ -178,6 +181,12 @@ public class AdaptiveInterviewPersistenceService {
             sessionId,
             answer.turnIndex(),
             evidence
+        ))
+        .toList());
+    practiceRecordRepository.saveAll(practiceRecommendations.stream()
+        .map(recommendation -> new PracticeRecordEntity(
+            sessionEntity,
+            recommendation
         ))
         .toList());
     return plannedInterview(sessionEntity, updatedPlan);

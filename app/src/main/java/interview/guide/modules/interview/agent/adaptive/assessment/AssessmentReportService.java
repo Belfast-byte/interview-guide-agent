@@ -29,7 +29,8 @@ public class AssessmentReportService {
     return new CandidateAssessmentReport(
         facts.sessionId(),
         conclusions,
-        weakPoints(conclusions)
+        weakPoints(conclusions),
+        facts.practiceRecommendations()
     );
   }
 

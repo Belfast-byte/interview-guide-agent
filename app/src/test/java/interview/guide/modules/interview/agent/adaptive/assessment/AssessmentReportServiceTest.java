@@ -67,7 +67,8 @@ class AssessmentReportServiceTest {
         "session-1",
         "candidate-1",
         AdaptiveSessionStatus.IN_PROGRESS,
-        completedFacts().dimensions()
+        completedFacts().dimensions(),
+        List.of()
     );
     AssessmentReportService service = new AssessmentReportService(
         new StubFactsSource(facts)
@@ -103,7 +104,8 @@ class AssessmentReportServiceTest {
                 "定位过程",
                 List.of(assessment(3, DepthLevel.L1, "复述了步骤", "先看日志"))
             )
-        )
+        ),
+        List.of()
     );
   }
 

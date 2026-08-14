@@ -8,6 +8,8 @@ import interview.guide.modules.interview.agent.adaptive.assessment.AssessmentEvi
 import interview.guide.modules.interview.agent.adaptive.assessment.AssessmentEvidenceValidator;
 import interview.guide.modules.interview.agent.adaptive.assessment.AssessmentRequest;
 import interview.guide.modules.interview.agent.adaptive.assessment.DepthAssessmentAgent;
+import interview.guide.modules.interview.agent.adaptive.assessment.PracticeRecommendation;
+import interview.guide.modules.interview.agent.adaptive.assessment.PracticeRecommendationService;
 import interview.guide.modules.interview.agent.adaptive.assessment.ValidatedAssessmentEvidence;
 import interview.guide.modules.interview.agent.adaptive.core.AdaptiveInterviewHistory;
 import interview.guide.modules.interview.agent.adaptive.core.AdaptiveInterviewTurn;
@@ -56,6 +58,7 @@ public class AdaptiveInterviewApplicationService {
   private final CandidateClaimExtractionService candidateClaimExtractionService;
   private final DepthAssessmentAgent assessmentAgent;
   private final AssessmentEvidenceValidator assessmentEvidenceValidator;
+  private final PracticeRecommendationService practiceRecommendationService;
 
   public PlannedInterview create(
       String candidateId,
@@ -190,8 +193,16 @@ public class AdaptiveInterviewApplicationService {
             history.llmProvider()
         )
         : List.of();
+    boolean lastTurn = interview.plan().isLastTurn(answer.turnIndex());
+    List<PracticeRecommendation> practiceRecommendations = lastTurn
+        ? practiceRecommendationService.recommend(
+            sessionId,
+            currentDimension,
+            assessment
+        )
+        : List.of();
     ReActResult decision;
-    if (interview.plan().isLastTurn(answer.turnIndex())) {
+    if (lastTurn) {
       decision = ReActResult.withoutTools(RespondAction.finish(
           "面试已覆盖全部规划维度。",
           "规划轮次已全部完成"
@@ -220,7 +231,8 @@ public class AdaptiveInterviewApplicationService {
           dimensionBrief,
           candidateClaims,
           assessment,
-          assessmentEvidences
+          assessmentEvidences,
+          practiceRecommendations
       );
     } catch (OptimisticLockingFailureException e) {
       telemetry.stateConflict(sessionId, answer.turnIndex());

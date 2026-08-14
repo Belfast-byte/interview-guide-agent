@@ -6,6 +6,8 @@ import interview.guide.modules.interview.agent.adaptive.assessment.AssessmentRep
 import interview.guide.modules.interview.agent.adaptive.assessment.CandidateAssessmentReport;
 import interview.guide.modules.interview.agent.adaptive.assessment.DepthLevel;
 import interview.guide.modules.interview.agent.adaptive.assessment.EvidenceType;
+import interview.guide.modules.interview.agent.adaptive.assessment.PracticeRecommendation;
+import interview.guide.modules.interview.agent.adaptive.assessment.PracticeStatus;
 import interview.guide.modules.interview.agent.adaptive.assessment.ValidatedAssessmentEvidence;
 import interview.guide.modules.interview.agent.adaptive.core.AdaptiveInterviewHistory;
 import interview.guide.modules.interview.agent.adaptive.core.AdaptiveSessionStatus;
@@ -126,7 +128,8 @@ class AdaptiveInterviewPersistenceServiceTest {
             EvidenceType.QUOTE,
             "第一轮原始回答",
             null
-        ))
+        )),
+        List.of()
     );
     service.recordDecision(
         sessionId,
@@ -155,6 +158,15 @@ class AdaptiveInterviewPersistenceServiceTest {
             EvidenceType.QUOTE,
             "成本与一致性权衡",
             null
+        )),
+        List.of(new PracticeRecommendation(
+            0,
+            "维度-0",
+            DepthLevel.L3,
+            "question:99",
+            "MEDIUM",
+            "另一道同难度练习题？",
+            PracticeStatus.PENDING
         ))
     );
 
@@ -165,6 +177,17 @@ class AdaptiveInterviewPersistenceServiceTest {
     assertThat(report.dimensions().getFirst().evidences().getFirst().quote())
         .isEqualTo("成本与一致性权衡");
     assertThat(report.toString()).doesNotContain("这是与原文不同的转述");
+    assertThat(report.practiceRecommendations()).containsExactly(
+        new PracticeRecommendation(
+            0,
+            "维度-0",
+            DepthLevel.L3,
+            "question:99",
+            "MEDIUM",
+            "另一道同难度练习题？",
+            PracticeStatus.PENDING
+        )
+    );
   }
 
   @Test
@@ -212,7 +235,8 @@ class AdaptiveInterviewPersistenceServiceTest {
         null,
         List.of(),
         assessment("session-claim", 1),
-        evidences()
+        evidences(),
+        List.of()
     );
     CandidateClaim claim = new CandidateClaim(
         CandidateClaimType.PROJECT_EXPERIENCE,
@@ -229,7 +253,8 @@ class AdaptiveInterviewPersistenceServiceTest {
         null,
         List.of(claim),
         assessment("session-claim", 2),
-        evidences()
+        evidences(),
+        List.of()
     );
 
     assertThat(candidateMemoryService.unverifiedClaims("candidate-claim"))
@@ -345,7 +370,8 @@ class AdaptiveInterviewPersistenceServiceTest {
         brief,
         List.of(),
         assessment("session-brief", 1),
-        evidences()
+        evidences(),
+        List.of()
     );
 
     assertThat(updated.dimensionBriefs()).containsExactly(brief);
@@ -377,7 +403,8 @@ class AdaptiveInterviewPersistenceServiceTest {
         null,
         List.of(),
         assessment("session-1", 1),
-        evidences()
+        evidences(),
+        List.of()
     );
     AdaptiveInterviewHistory history = interview.history();
 
@@ -417,7 +444,8 @@ class AdaptiveInterviewPersistenceServiceTest {
         null,
         List.of(),
         assessment("session-2", 1),
-        evidences()
+        evidences(),
+        List.of()
     );
     AdaptiveInterviewHistory history = service.recordDecision(
         "session-2",
@@ -427,7 +455,8 @@ class AdaptiveInterviewPersistenceServiceTest {
         null,
         List.of(),
         assessment("session-2", 2),
-        evidences()
+        evidences(),
+        List.of()
     ).history();
 
     assertThat(history.session().status()).isEqualTo(AdaptiveSessionStatus.COMPLETED);
@@ -458,7 +487,8 @@ class AdaptiveInterviewPersistenceServiceTest {
         null,
         List.of(),
         assessment("session-early-finish", 1),
-        evidences()
+        evidences(),
+        List.of()
     )).isInstanceOf(BusinessException.class)
         .hasMessageContaining("全部规划维度");
 
@@ -489,7 +519,8 @@ class AdaptiveInterviewPersistenceServiceTest {
         null,
         List.of(),
         assessment("session-3", 2),
-        evidences()
+        evidences(),
+        List.of()
     )).isInstanceOf(BusinessException.class)
         .hasMessageContaining("轮次");
 

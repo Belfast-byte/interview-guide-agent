@@ -5,6 +5,7 @@ import interview.guide.modules.interview.agent.adaptive.assessment.AssessmentEvi
 import interview.guide.modules.interview.agent.adaptive.assessment.AssessmentProposal;
 import interview.guide.modules.interview.agent.adaptive.assessment.DepthAssessmentAgent;
 import interview.guide.modules.interview.agent.adaptive.assessment.DepthLevel;
+import interview.guide.modules.interview.agent.adaptive.assessment.PracticeRecommendationService;
 import interview.guide.modules.interview.agent.adaptive.core.AdaptiveInterviewHistory;
 import interview.guide.modules.interview.agent.adaptive.core.AdaptiveSessionStatus;
 import interview.guide.modules.interview.agent.adaptive.core.AgentResponseType;
@@ -77,7 +78,8 @@ class AdaptiveInterviewFlowIntegrationTest {
         mock(PlanningTaxonomy.class),
         claimService(),
         assessmentAgent(),
-        evidenceValidator()
+        evidenceValidator(),
+        mock(PracticeRecommendationService.class)
     );
 
     PlannedInterview created = service.create("candidate-1", "JD", "Resume", null);
@@ -143,7 +145,8 @@ class AdaptiveInterviewFlowIntegrationTest {
         mock(PlanningTaxonomy.class),
         claimService(),
         assessmentAgent(),
-        evidenceValidator()
+        evidenceValidator(),
+        mock(PracticeRecommendationService.class)
     );
 
     PlannedInterview interview = service.create("candidate-1", "JD", "Resume", null);
