@@ -67,4 +67,24 @@ public class AdaptiveAgentEvidenceEntity {
   void prePersist() {
     createdAt = LocalDateTime.now();
   }
+
+  AdaptiveAgentAssessmentEntity assessment() {
+    return assessment;
+  }
+
+  EvidenceType evidenceType() {
+    return evidenceType;
+  }
+
+  int sourceTurnIndex() {
+    return sourceTurnIndex;
+  }
+
+  String quoteText() {
+    return quoteText;
+  }
+
+  Long toolCallId() {
+    return toolCallId;
+  }
 }

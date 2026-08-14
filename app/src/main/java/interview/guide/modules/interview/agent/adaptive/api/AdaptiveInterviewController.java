@@ -3,6 +3,8 @@ package interview.guide.modules.interview.agent.adaptive.api;
 import interview.guide.common.annotation.RateLimit;
 import interview.guide.common.result.Result;
 import interview.guide.modules.interview.agent.adaptive.application.AdaptiveInterviewApplicationService;
+import interview.guide.modules.interview.agent.adaptive.assessment.AssessmentReportService;
+import interview.guide.modules.interview.agent.adaptive.assessment.CandidateAssessmentReport;
 import interview.guide.modules.interview.agent.adaptive.core.CandidateAnswer;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
@@ -25,6 +27,7 @@ import org.springframework.web.bind.annotation.RestController;
 public class AdaptiveInterviewController {
 
   private final AdaptiveInterviewApplicationService applicationService;
+  private final AssessmentReportService reportService;
 
   @PostMapping
   @RateLimit(dimension = RateLimit.Dimension.GLOBAL, count = 5)
@@ -60,5 +63,12 @@ public class AdaptiveInterviewController {
   @GetMapping("/{sessionId}")
   public Result<AdaptiveInterviewResponse> get(@PathVariable String sessionId) {
     return Result.success(AdaptiveInterviewResponse.from(applicationService.get(sessionId)));
+  }
+
+  @GetMapping("/{sessionId}/report")
+  public Result<CandidateAssessmentReport> getReport(
+      @PathVariable String sessionId
+  ) {
+    return Result.success(reportService.candidateReport(sessionId));
   }
 }

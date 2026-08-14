@@ -73,4 +73,28 @@ public class AdaptiveAgentAssessmentEntity {
   void prePersist() {
     createdAt = LocalDateTime.now();
   }
+
+  Long id() {
+    return id;
+  }
+
+  int turnIndex() {
+    return turnIndex;
+  }
+
+  int dimensionOrder() {
+    return dimensionOrder;
+  }
+
+  DepthLevel depthLevel() {
+    return depthLevel;
+  }
+
+  double confidence() {
+    return confidence.doubleValue();
+  }
+
+  String rationaleSummary() {
+    return rationaleSummary;
+  }
 }

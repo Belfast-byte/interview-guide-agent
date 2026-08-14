@@ -3,6 +3,8 @@ package interview.guide.modules.interview.agent.adaptive.mcp;
 import interview.guide.common.exception.BusinessException;
 import interview.guide.common.exception.ErrorCode;
 import interview.guide.modules.interview.agent.adaptive.application.AdaptiveInterviewApplicationService;
+import interview.guide.modules.interview.agent.adaptive.assessment.AssessmentReportService;
+import interview.guide.modules.interview.agent.adaptive.assessment.EnterpriseAssessmentReport;
 import interview.guide.modules.interview.agent.adaptive.planning.PlannedInterview;
 import java.util.List;
 import lombok.RequiredArgsConstructor;
@@ -24,8 +26,10 @@ public class AdaptiveInterviewMcpTools {
   private static final String CREATE_TOOL = "interview.create";
   private static final String STATUS_TOOL = "interview.get_status";
   private static final String DIMENSIONS_TOOL = "interview.list_dimensions";
+  private static final String REPORT_TOOL = "interview.get_report";
 
   private final AdaptiveInterviewApplicationService applicationService;
+  private final AssessmentReportService reportService;
   private final AdaptiveMcpAuditService auditService;
 
   @McpTool(
@@ -108,6 +112,45 @@ public class AdaptiveInterviewMcpTools {
     return interview.plan().dimensions().stream()
         .map(McpInterviewDimensionResponse::from)
         .toList();
+  }
+
+  @McpTool(
+      name = REPORT_TOOL,
+      description = "Get the evidence report for a completed tenant interview"
+  )
+  public EnterpriseAssessmentReport getReport(
+      McpSyncRequestContext context,
+      @McpToolParam(description = "Interview session identifier") String sessionId
+  ) {
+    McpTenantPrincipal principal = requireScope(
+        context,
+        REPORT_TOOL,
+        McpInterviewScope.INTERVIEW_READ
+    );
+    try {
+      EnterpriseAssessmentReport report = reportService.enterpriseReport(
+          principal.tenantId(),
+          sessionId
+      );
+      auditService.record(
+          principal,
+          REPORT_TOOL,
+          sessionId,
+          McpAuditOutcome.SUCCEEDED
+      );
+      return report;
+    } catch (BusinessException e) {
+      if (!ErrorCode.INTERVIEW_SESSION_NOT_FOUND.getCode().equals(e.getCode())) {
+        throw e;
+      }
+      auditService.record(
+          principal,
+          REPORT_TOOL,
+          sessionId,
+          McpAuditOutcome.NOT_FOUND
+      );
+      throw e;
+    }
   }
 
   private PlannedInterview findInterview(

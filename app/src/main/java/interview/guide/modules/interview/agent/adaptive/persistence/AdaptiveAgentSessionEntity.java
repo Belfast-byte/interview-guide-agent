@@ -112,6 +112,10 @@ public class AdaptiveAgentSessionEntity {
     return llmProvider;
   }
 
+  AdaptiveSessionStatus status() {
+    return status;
+  }
+
   void apply(AdaptiveInterviewSession session) {
     status = session.status();
     currentTurn = session.currentTurn();

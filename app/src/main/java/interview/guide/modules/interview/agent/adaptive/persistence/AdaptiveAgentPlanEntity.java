@@ -116,4 +116,16 @@ public class AdaptiveAgentPlanEntity {
   void preUpdate() {
     updatedAt = LocalDateTime.now();
   }
+
+  int dimensionOrder() {
+    return dimensionOrder;
+  }
+
+  String dimension() {
+    return dimension;
+  }
+
+  String focus() {
+    return focus;
+  }
 }

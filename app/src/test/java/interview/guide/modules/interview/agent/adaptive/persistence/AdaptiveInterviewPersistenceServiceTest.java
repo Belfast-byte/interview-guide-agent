@@ -2,6 +2,8 @@ package interview.guide.modules.interview.agent.adaptive.persistence;
 
 import interview.guide.common.exception.BusinessException;
 import interview.guide.modules.interview.agent.adaptive.assessment.AssessmentDecision;
+import interview.guide.modules.interview.agent.adaptive.assessment.AssessmentReportService;
+import interview.guide.modules.interview.agent.adaptive.assessment.CandidateAssessmentReport;
 import interview.guide.modules.interview.agent.adaptive.assessment.DepthLevel;
 import interview.guide.modules.interview.agent.adaptive.assessment.EvidenceType;
 import interview.guide.modules.interview.agent.adaptive.assessment.ValidatedAssessmentEvidence;
@@ -34,7 +36,12 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
     "spring.flyway.enabled=false",
     "spring.jpa.hibernate.ddl-auto=create-drop"
 })
-@Import({AdaptiveInterviewPersistenceService.class, CandidateMemoryService.class})
+@Import({
+    AdaptiveInterviewPersistenceService.class,
+    CandidateMemoryService.class,
+    JpaAssessmentReportFactsSource.class,
+    AssessmentReportService.class
+})
 class AdaptiveInterviewPersistenceServiceTest {
 
   @Autowired
@@ -51,6 +58,84 @@ class AdaptiveInterviewPersistenceServiceTest {
 
   @Autowired
   private AdaptiveAgentEvidenceRepository evidenceRepository;
+
+  @Autowired
+  private AssessmentReportService reportService;
+
+  @Test
+  @DisplayName("报告只回放原始轮次而不读取维度小结转述")
+  void shouldBuildReportFromOriginalTurns() {
+    String sessionId = "session-report";
+    service.create(
+        sessionId,
+        "candidate-report",
+        "JD",
+        "Resume",
+        null,
+        plan(sessionId, 1),
+        RespondAction.ask("第一题？", "验证基础"),
+        List.of()
+    );
+    service.recordDecision(
+        sessionId,
+        new CandidateAnswer(1, "第一轮原始回答"),
+        RespondAction.ask("如何权衡？", "继续深入"),
+        List.of(),
+        null,
+        List.of(),
+        new AssessmentDecision(
+            sessionId,
+            1,
+            DepthLevel.L1,
+            0.7,
+            "复述了概念",
+            false,
+            List.of("第一轮原始回答")
+        ),
+        List.of(new ValidatedAssessmentEvidence(
+            EvidenceType.QUOTE,
+            "第一轮原始回答",
+            null
+        ))
+    );
+    service.recordDecision(
+        sessionId,
+        new CandidateAnswer(2, "第二轮原始回答包含成本与一致性权衡"),
+        RespondAction.finish("面试完成", "规划覆盖完成"),
+        List.of(),
+        new DimensionBrief(
+            sessionId,
+            0,
+            "维度-0",
+            "重点-0",
+            "这是与原文不同的转述，不得进入报告",
+            List.of(1, 2)
+        ),
+        List.of(),
+        new AssessmentDecision(
+            sessionId,
+            2,
+            DepthLevel.L3,
+            0.9,
+            "展示了权衡分析",
+            true,
+            List.of("成本与一致性权衡")
+        ),
+        List.of(new ValidatedAssessmentEvidence(
+            EvidenceType.QUOTE,
+            "成本与一致性权衡",
+            null
+        ))
+    );
+
+    CandidateAssessmentReport report = reportService.candidateReport(sessionId);
+
+    assertThat(report.dimensions().getFirst().evidences().getFirst().answer())
+        .isEqualTo("第二轮原始回答包含成本与一致性权衡");
+    assertThat(report.dimensions().getFirst().evidences().getFirst().quote())
+        .isEqualTo("成本与一致性权衡");
+    assertThat(report.toString()).doesNotContain("这是与原文不同的转述");
+  }
 
   @Test
   @DisplayName("租户会话只能由所属租户读取且旧 REST 不可旁路")

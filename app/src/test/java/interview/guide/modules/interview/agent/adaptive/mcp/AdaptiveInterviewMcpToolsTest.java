@@ -3,6 +3,8 @@ package interview.guide.modules.interview.agent.adaptive.mcp;
 import interview.guide.common.exception.BusinessException;
 import interview.guide.common.exception.ErrorCode;
 import interview.guide.modules.interview.agent.adaptive.application.AdaptiveInterviewApplicationService;
+import interview.guide.modules.interview.agent.adaptive.assessment.AssessmentReportService;
+import interview.guide.modules.interview.agent.adaptive.assessment.EnterpriseAssessmentReport;
 import io.modelcontextprotocol.common.McpTransportContext;
 import java.util.List;
 import java.util.Set;
@@ -31,6 +33,9 @@ class AdaptiveInterviewMcpToolsTest {
   private AdaptiveMcpAuditService auditService;
 
   @Mock
+  private AssessmentReportService reportService;
+
+  @Mock
   private McpSyncRequestContext context;
 
   @Mock
@@ -40,18 +45,23 @@ class AdaptiveInterviewMcpToolsTest {
 
   @BeforeEach
   void setUp() {
-    tools = new AdaptiveInterviewMcpTools(applicationService, auditService);
+    tools = new AdaptiveInterviewMcpTools(
+        applicationService,
+        reportService,
+        auditService
+    );
   }
 
   @Test
-  @DisplayName("Spring AI 扫描出文档约定的三个 MCP 工具")
+  @DisplayName("Spring AI 扫描出评估阶段启用的四个 MCP 工具")
   void shouldExposeDocumentedTools() {
     assertThat(new SyncMcpToolProvider(List.of(tools)).getToolSpecifications())
         .extracting(specification -> specification.tool().name())
         .containsExactlyInAnyOrder(
             "interview.create",
             "interview.get_status",
-            "interview.list_dimensions"
+            "interview.list_dimensions",
+            "interview.get_report"
         );
   }
 
@@ -99,6 +109,32 @@ class AdaptiveInterviewMcpToolsTest {
         "interview.get_status",
         "session-b",
         McpAuditOutcome.NOT_FOUND
+    );
+  }
+
+  @Test
+  @DisplayName("报告工具只按凭证租户读取并记录成功审计")
+  void shouldGetReportForCredentialTenant() {
+    when(context.transportContext()).thenReturn(transportContext);
+    McpTenantPrincipal principal = principal(Set.of(McpInterviewScope.INTERVIEW_READ));
+    when(transportContext.get(McpTenantTransportConfiguration.PRINCIPAL_KEY))
+        .thenReturn(principal);
+    EnterpriseAssessmentReport report = new EnterpriseAssessmentReport(
+        "session-a",
+        "candidate-a",
+        List.of(),
+        "AI 初筛建议，不构成录用决定"
+    );
+    when(reportService.enterpriseReport("tenant-a", "session-a"))
+        .thenReturn(report);
+
+    assertThat(tools.getReport(context, "session-a")).isSameAs(report);
+
+    verify(auditService).record(
+        principal,
+        "interview.get_report",
+        "session-a",
+        McpAuditOutcome.SUCCEEDED
     );
   }
 

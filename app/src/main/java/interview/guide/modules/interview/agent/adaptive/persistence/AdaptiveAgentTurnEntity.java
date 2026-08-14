@@ -104,4 +104,16 @@ public class AdaptiveAgentTurnEntity {
   void prePersist() {
     createdAt = LocalDateTime.now();
   }
+
+  int turnIndex() {
+    return turnIndex;
+  }
+
+  String question() {
+    return question;
+  }
+
+  String answer() {
+    return answer;
+  }
 }
