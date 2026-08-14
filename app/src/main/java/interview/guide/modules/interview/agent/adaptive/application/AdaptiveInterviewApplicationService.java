@@ -8,6 +8,7 @@ import interview.guide.modules.interview.agent.adaptive.assessment.AssessmentEvi
 import interview.guide.modules.interview.agent.adaptive.assessment.AssessmentEvidenceValidator;
 import interview.guide.modules.interview.agent.adaptive.assessment.AssessmentRequest;
 import interview.guide.modules.interview.agent.adaptive.assessment.DepthAssessmentAgent;
+import interview.guide.modules.interview.agent.adaptive.assessment.DepthLevel;
 import interview.guide.modules.interview.agent.adaptive.assessment.PracticeRecommendation;
 import interview.guide.modules.interview.agent.adaptive.assessment.PracticeRecommendationService;
 import interview.guide.modules.interview.agent.adaptive.assessment.ValidatedAssessmentEvidence;
@@ -36,6 +37,7 @@ import interview.guide.modules.interview.agent.adaptive.runtime.BoundedReActRunt
 import interview.guide.modules.interview.agent.adaptive.runtime.ReActRequest;
 import interview.guide.modules.interview.agent.adaptive.runtime.ReActResult;
 import java.util.List;
+import java.util.Optional;
 import java.util.UUID;
 import java.util.stream.Stream;
 import lombok.RequiredArgsConstructor;
@@ -222,6 +224,12 @@ public class AdaptiveInterviewApplicationService {
           briefsForNextDecision(interview.dimensionBriefs(), dimensionBrief)
       ));
     }
+    Optional<DepthLevel> previousDepth = currentDimension.completedTurns() == 0
+        ? Optional.empty()
+        : Optional.of(persistenceService.latestAssessmentDepth(
+            sessionId,
+            currentDimension.order()
+        ));
     try {
       PlannedInterview updated = persistenceService.recordDecision(
           sessionId,
@@ -239,6 +247,11 @@ public class AdaptiveInterviewApplicationService {
           assessment.depthLevel(),
           assessmentEvidences.size()
       );
+      previousDepth.ifPresent(depthLevel -> telemetry.followUpAssessed(
+          currentDimension.dimension(),
+          depthLevel,
+          assessment.depthLevel()
+      ));
       return updated;
     } catch (OptimisticLockingFailureException e) {
       telemetry.stateConflict(sessionId, answer.turnIndex());

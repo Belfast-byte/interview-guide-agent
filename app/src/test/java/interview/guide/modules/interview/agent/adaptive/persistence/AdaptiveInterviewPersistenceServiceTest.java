@@ -418,8 +418,31 @@ class AdaptiveInterviewPersistenceServiceTest {
     assertThat(history.turns().getFirst().responseType()).isEqualTo(AgentResponseType.ASK);
     assertThat(history.turns().getFirst().decisionReason()).isEqualTo("需要验证边界条件");
     assertThat(history.turns().get(1).question()).isEqualTo("第二题？");
+    assertThat(service.latestAssessmentDepth("session-1", 0))
+        .isEqualTo(DepthLevel.L2);
     assertThat(assessmentRepository.count()).isOne();
     assertThat(evidenceRepository.count()).isOne();
+  }
+
+  @Test
+  @DisplayName("追问缺少上一轮评估事实时快速失败")
+  void shouldFailFastWhenPreviousAssessmentIsMissing() {
+    service.create(
+        "session-without-assessment",
+        "candidate-1",
+        "JD",
+        "Resume",
+        "provider-1",
+        plan("session-without-assessment", 3),
+        RespondAction.ask("第一题？", "验证基础"),
+        List.of()
+    );
+
+    assertThatThrownBy(() -> service.latestAssessmentDepth(
+        "session-without-assessment",
+        0
+    )).isInstanceOf(BusinessException.class)
+        .hasMessage("追问缺少上一轮评估事实");
   }
 
   @Test

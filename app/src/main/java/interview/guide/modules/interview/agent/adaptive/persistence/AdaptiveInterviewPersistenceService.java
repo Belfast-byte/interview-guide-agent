@@ -3,6 +3,7 @@ package interview.guide.modules.interview.agent.adaptive.persistence;
 import interview.guide.common.exception.BusinessException;
 import interview.guide.common.exception.ErrorCode;
 import interview.guide.modules.interview.agent.adaptive.assessment.AssessmentDecision;
+import interview.guide.modules.interview.agent.adaptive.assessment.DepthLevel;
 import interview.guide.modules.interview.agent.adaptive.assessment.PracticeRecommendation;
 import interview.guide.modules.interview.agent.adaptive.assessment.ValidatedAssessmentEvidence;
 import interview.guide.modules.interview.agent.adaptive.core.AdaptiveInterviewHistory;
@@ -37,6 +38,20 @@ public class AdaptiveInterviewPersistenceService {
   private final AdaptiveAgentAssessmentRepository assessmentRepository;
   private final AdaptiveAgentEvidenceRepository evidenceRepository;
   private final PracticeRecordRepository practiceRecordRepository;
+
+  @Transactional(readOnly = true)
+  public DepthLevel latestAssessmentDepth(String sessionId, int dimensionOrder) {
+    return assessmentRepository
+        .findTopBySessionIdAndDimensionOrderOrderByTurnIndexDesc(
+            sessionId,
+            dimensionOrder
+        )
+        .orElseThrow(() -> new BusinessException(
+            ErrorCode.AI_SERVICE_ERROR,
+            "追问缺少上一轮评估事实"
+        ))
+        .depthLevel();
+  }
 
   @Transactional
   public PlannedInterview create(

@@ -413,6 +413,8 @@ class AdaptiveInterviewApplicationServiceTest {
         any(),
         any()
     )).thenReturn(List.of(recommendation));
+    when(persistenceService.latestAssessmentDepth("session-1", 2))
+        .thenReturn(DepthLevel.L1);
     when(persistenceService.recordDecision(
         eq("session-1"),
         eq(answer),
@@ -431,6 +433,11 @@ class AdaptiveInterviewApplicationServiceTest {
         eq("session-1"),
         any(),
         any()
+    );
+    verify(telemetry).followUpAssessed(
+        "系统设计",
+        DepthLevel.L1,
+        DepthLevel.L2
     );
     verifyNoInteractions(runtime);
   }

@@ -99,6 +99,27 @@ class AdaptiveAgentTelemetryTest {
   }
 
   @Test
+  @DisplayName("按深度是否提升记录追问收益")
+  void shouldRecordFollowUpYield() {
+    SimpleMeterRegistry registry = new SimpleMeterRegistry();
+    AdaptiveAgentTelemetry telemetry = new AdaptiveAgentTelemetry(registry);
+
+    telemetry.followUpAssessed("专业基础", DepthLevel.L1, DepthLevel.L3);
+    telemetry.followUpAssessed("专业基础", DepthLevel.L3, DepthLevel.L3);
+
+    assertThat(registry.counter(
+        AdaptiveAgentTelemetry.ASSESSMENT_FOLLOW_UPS,
+        "dimension", "专业基础",
+        "outcome", "improved"
+    ).count()).isEqualTo(1);
+    assertThat(registry.counter(
+        AdaptiveAgentTelemetry.ASSESSMENT_FOLLOW_UPS,
+        "dimension", "专业基础",
+        "outcome", "not_improved"
+    ).count()).isEqualTo(1);
+  }
+
+  @Test
   @DisplayName("状态冲突有独立计数器")
   void shouldRecordStateConflict() {
     SimpleMeterRegistry registry = new SimpleMeterRegistry();

@@ -40,6 +40,8 @@ public class AdaptiveAgentTelemetry {
   static final String ASSESSMENTS = "app.interview.adaptive.assessments";
   static final String ASSESSMENT_EVIDENCES =
       "app.interview.adaptive.assessment.evidences";
+  static final String ASSESSMENT_FOLLOW_UPS =
+      "app.interview.adaptive.assessment.follow-ups";
 
   private final MeterRegistry meterRegistry;
 
@@ -128,6 +130,20 @@ public class AdaptiveAgentTelemetry {
         "dimension", dimension,
         "depth", depthLevel.name()
     ).record(evidenceCount);
+  }
+
+  public void followUpAssessed(
+      String dimension,
+      DepthLevel previous,
+      DepthLevel current
+  ) {
+    meterRegistry.counter(
+        ASSESSMENT_FOLLOW_UPS,
+        "dimension", dimension,
+        "outcome", current.ordinal() > previous.ordinal()
+            ? "improved"
+            : "not_improved"
+    ).increment();
   }
 
   public void decisionFailed(
