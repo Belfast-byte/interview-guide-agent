@@ -223,7 +223,7 @@ public class AdaptiveInterviewApplicationService {
       ));
     }
     try {
-      return persistenceService.recordDecision(
+      PlannedInterview updated = persistenceService.recordDecision(
           sessionId,
           answer,
           decision.response(),
@@ -234,6 +234,12 @@ public class AdaptiveInterviewApplicationService {
           assessmentEvidences,
           practiceRecommendations
       );
+      telemetry.assessmentRecorded(
+          currentDimension.dimension(),
+          assessment.depthLevel(),
+          assessmentEvidences.size()
+      );
+      return updated;
     } catch (OptimisticLockingFailureException e) {
       telemetry.stateConflict(sessionId, answer.turnIndex());
       throw new BusinessException(

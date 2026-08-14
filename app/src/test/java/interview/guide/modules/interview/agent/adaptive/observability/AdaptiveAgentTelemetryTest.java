@@ -1,6 +1,7 @@
 package interview.guide.modules.interview.agent.adaptive.observability;
 
 import io.micrometer.core.instrument.simple.SimpleMeterRegistry;
+import interview.guide.modules.interview.agent.adaptive.assessment.DepthLevel;
 import interview.guide.modules.interview.agent.adaptive.core.AgentResponseType;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -75,6 +76,26 @@ class AdaptiveAgentTelemetryTest {
         "role",
         "planner"
     ).totalAmount()).isEqualTo(18);
+  }
+
+  @Test
+  @DisplayName("按维度和深度记录已持久化评估及有效证据数量")
+  void shouldRecordAssessmentMetrics() {
+    SimpleMeterRegistry registry = new SimpleMeterRegistry();
+    AdaptiveAgentTelemetry telemetry = new AdaptiveAgentTelemetry(registry);
+
+    telemetry.assessmentRecorded("专业基础", DepthLevel.L3, 2);
+
+    assertThat(registry.counter(
+        AdaptiveAgentTelemetry.ASSESSMENTS,
+        "dimension", "专业基础",
+        "depth", "L3"
+    ).count()).isEqualTo(1);
+    assertThat(registry.summary(
+        AdaptiveAgentTelemetry.ASSESSMENT_EVIDENCES,
+        "dimension", "专业基础",
+        "depth", "L3"
+    ).totalAmount()).isEqualTo(2);
   }
 
   @Test

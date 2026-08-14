@@ -1,6 +1,7 @@
 package interview.guide.modules.interview.agent.adaptive.observability;
 
 import io.micrometer.core.instrument.MeterRegistry;
+import interview.guide.modules.interview.agent.adaptive.assessment.DepthLevel;
 import interview.guide.modules.interview.agent.adaptive.core.AgentResponseType;
 import interview.guide.modules.interview.agent.adaptive.mcp.McpQuestionBankFailureReason;
 import java.util.concurrent.TimeUnit;
@@ -36,6 +37,9 @@ public class AdaptiveAgentTelemetry {
   static final String TOOL_DURATION = "app.interview.adaptive.tool.duration";
   static final String MCP_QUESTION_BANK_FALLBACKS =
       "app.interview.adaptive.mcp.question-bank.fallbacks";
+  static final String ASSESSMENTS = "app.interview.adaptive.assessments";
+  static final String ASSESSMENT_EVIDENCES =
+      "app.interview.adaptive.assessment.evidences";
 
   private final MeterRegistry meterRegistry;
 
@@ -107,6 +111,23 @@ public class AdaptiveAgentTelemetry {
         action.name(),
         startedNanos
     );
+  }
+
+  public void assessmentRecorded(
+      String dimension,
+      DepthLevel depthLevel,
+      int evidenceCount
+  ) {
+    meterRegistry.counter(
+        ASSESSMENTS,
+        "dimension", dimension,
+        "depth", depthLevel.name()
+    ).increment();
+    meterRegistry.summary(
+        ASSESSMENT_EVIDENCES,
+        "dimension", dimension,
+        "depth", depthLevel.name()
+    ).record(evidenceCount);
   }
 
   public void decisionFailed(

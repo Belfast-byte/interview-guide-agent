@@ -370,6 +370,7 @@ class AdaptiveInterviewApplicationServiceTest {
         .isInstanceOf(BusinessException.class)
         .hasMessageContaining("刷新");
     verify(telemetry).stateConflict("session-1", 1);
+    verify(telemetry, never()).assessmentRecorded(anyString(), any(), anyInt());
   }
 
   @Test
@@ -389,6 +390,7 @@ class AdaptiveInterviewApplicationServiceTest {
     service.submitAnswer("session-1", answer);
 
     verifyNoInteractions(candidateMemoryService);
+    verify(telemetry).assessmentRecorded("专业基础", DepthLevel.L2, 1);
   }
 
   @Test
