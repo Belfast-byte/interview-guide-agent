@@ -67,7 +67,11 @@ class SpringAiDimensionBriefGeneratorTest {
     );
     when(llmProviderRegistry.getChatClientOrDefault("provider-1"))
         .thenReturn(chatClient);
-    when(telemetry.observeTokenUsage(chatClient, "memory_summarizer"))
+    when(telemetry.observeTokenUsage(
+        chatClient,
+        "memory_summarizer",
+        "session-1"
+    ))
         .thenReturn(chatClient);
   }
 

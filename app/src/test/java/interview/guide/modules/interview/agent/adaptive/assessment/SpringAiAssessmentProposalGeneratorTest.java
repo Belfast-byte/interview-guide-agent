@@ -27,6 +27,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
@@ -64,7 +65,11 @@ class SpringAiAssessmentProposalGeneratorTest {
     );
     when(llmProviderRegistry.getChatClientOrDefault("provider-1"))
         .thenReturn(chatClient);
-    when(telemetry.observeTokenUsage(chatClient, "depth_assessor"))
+    when(telemetry.observeTokenUsage(
+        eq(chatClient),
+        eq("depth_assessor"),
+        anyString()
+    ))
         .thenReturn(chatClient);
   }
 
@@ -99,6 +104,38 @@ class SpringAiAssessmentProposalGeneratorTest {
         .doesNotContain("private-session-id");
   }
 
+  @Test
+  @DisplayName("相同回答在不同会话和轮次下生成一致的评估输入")
+  void shouldBuildSameAssessmentInputAcrossSessions() {
+    AssessmentProposal expected = new AssessmentProposal(
+        DepthLevel.L3,
+        0.8,
+        "说明了权衡",
+        false,
+        List.of("重要数据使用版本号")
+    );
+    when(invoke()).thenReturn(expected);
+
+    generator.generate(request("session-with-high-history", 8), "provider-1");
+    generator.generate(request("session-with-low-history", 3), "provider-1");
+
+    ArgumentCaptor<String> userPrompts = ArgumentCaptor.forClass(String.class);
+    verify(structuredOutputInvoker, times(2)).invoke(
+        eq(chatClient),
+        anyString(),
+        userPrompts.capture(),
+        any(),
+        eq(ErrorCode.AI_SERVICE_ERROR),
+        anyString(),
+        eq("adaptive_depth_assessment"),
+        any(Logger.class)
+    );
+    assertThat(userPrompts.getAllValues())
+        .hasSize(2)
+        .allSatisfy(prompt -> assertThat(prompt)
+            .isEqualTo(userPrompts.getAllValues().getFirst()));
+  }
+
   private AssessmentProposal invoke() {
     return structuredOutputInvoker.invoke(
         eq(chatClient),
@@ -113,9 +150,13 @@ class SpringAiAssessmentProposalGeneratorTest {
   }
 
   private AssessmentRequest request() {
+    return request("private-session-id", 1);
+  }
+
+  private AssessmentRequest request(String sessionId, int turnIndex) {
     return new AssessmentRequest(
-        "private-session-id",
-        1,
+        sessionId,
+        turnIndex,
         AssessmentContext.currentAnswer(
             "专业基础",
             "缓存一致性",

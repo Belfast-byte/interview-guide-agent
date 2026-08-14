@@ -54,7 +54,11 @@ class AdaptiveAgentTelemetryTest {
     SimpleMeterRegistry registry = new SimpleMeterRegistry();
     AdaptiveAgentTelemetry telemetry = new AdaptiveAgentTelemetry(registry);
 
-    telemetry.modelTokens("planner", new DefaultUsage(13, 5, 18));
+    telemetry.modelTokens(
+        "planner",
+        "session-1",
+        new DefaultUsage(13, 5, 18)
+    );
 
     assertThat(registry.summary(
         AdaptiveAgentTelemetry.MODEL_PROMPT_TOKENS,

@@ -86,7 +86,11 @@ class SpringAiAdaptiveAgentModelGatewayTest {
         new DefaultResourceLoader()
     );
     when(llmProviderRegistry.getPlainChatClient("provider-1")).thenReturn(chatClient);
-    lenient().when(telemetry.observeTokenUsage(chatClient, "interviewer"))
+    lenient().when(telemetry.observeTokenUsage(
+        chatClient,
+        "interviewer",
+        "session-1"
+    ))
         .thenReturn(chatClient);
     when(chatClient.prompt()).thenReturn(requestSpec);
     when(requestSpec.system(anyString())).thenReturn(requestSpec);
@@ -244,7 +248,7 @@ class SpringAiAdaptiveAgentModelGatewayTest {
         new AdaptiveAgentTelemetry(new SimpleMeterRegistry())
     );
     doReturn(chatClient).when(observableTelemetry)
-        .observeTokenUsage(chatClient, "interviewer");
+        .observeTokenUsage(chatClient, "interviewer", "session-1");
     SpringAiAdaptiveAgentModelGateway observableGateway =
         new SpringAiAdaptiveAgentModelGateway(
             llmProviderRegistry,

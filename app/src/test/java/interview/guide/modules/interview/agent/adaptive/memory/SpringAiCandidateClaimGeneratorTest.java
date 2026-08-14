@@ -121,7 +121,11 @@ class SpringAiCandidateClaimGeneratorTest {
 
   private SpringAiCandidateClaimGenerator generator(AdaptiveAgentProperties properties)
       throws IOException {
-    when(telemetry.observeTokenUsage(chatClient, "memory_claim_extractor"))
+    when(telemetry.observeTokenUsage(
+        chatClient,
+        "memory_claim_extractor",
+        "session-1"
+    ))
         .thenReturn(chatClient);
     return new SpringAiCandidateClaimGenerator(
         llmProviderRegistry,

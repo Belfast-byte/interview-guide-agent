@@ -72,7 +72,7 @@ class SpringAiPlanningAgentTest {
     );
     when(llmProviderRegistry.getChatClientOrDefault("provider-1"))
         .thenReturn(chatClient);
-    when(telemetry.observeTokenUsage(chatClient, "planner"))
+    when(telemetry.observeTokenUsage(chatClient, "planner", "session-1"))
         .thenReturn(chatClient);
   }
 

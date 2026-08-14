@@ -126,7 +126,8 @@ public class SpringAiAdaptiveAgentModelGateway implements AgentModelGateway {
     inputTokenBudget.verify("interviewer", systemPrompt, userPrompt);
     ChatClient chatClient = telemetry.observeTokenUsage(
         llmProviderRegistry.getPlainChatClient(context.request().llmProvider()),
-        "interviewer"
+        "interviewer",
+        context.request().sessionId()
     );
     return chatClient.prompt()
         .system(systemPrompt)

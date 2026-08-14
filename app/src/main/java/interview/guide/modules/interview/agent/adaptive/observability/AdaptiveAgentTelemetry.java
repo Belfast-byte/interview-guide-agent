@@ -70,19 +70,32 @@ public class AdaptiveAgentTelemetry {
     meterRegistry.summary(MODEL_INPUT_TOKENS, "role", role).record(tokens);
   }
 
-  public ChatClient observeTokenUsage(ChatClient chatClient, String role) {
+  public ChatClient observeTokenUsage(
+      ChatClient chatClient,
+      String role,
+      String sessionId
+  ) {
     return chatClient.mutate()
-        .defaultAdvisors(new TokenUsageAdvisor(role, this))
+        .defaultAdvisors(new TokenUsageAdvisor(role, sessionId, this))
         .build();
   }
 
-  void modelTokens(String role, Usage usage) {
+  void modelTokens(String role, String sessionId, Usage usage) {
     meterRegistry.summary(MODEL_PROMPT_TOKENS, "role", role)
         .record(usage.getPromptTokens());
     meterRegistry.summary(MODEL_COMPLETION_TOKENS, "role", role)
         .record(usage.getCompletionTokens());
     meterRegistry.summary(MODEL_TOTAL_TOKENS, "role", role)
         .record(usage.getTotalTokens());
+    log.info(
+        "adaptive_agent_model_usage role={} sessionId={} promptTokens={} "
+            + "completionTokens={} totalTokens={}",
+        role,
+        sessionId,
+        usage.getPromptTokens(),
+        usage.getCompletionTokens(),
+        usage.getTotalTokens()
+    );
   }
 
   public void decisionSucceeded(AgentResponseType action, long startedNanos) {
@@ -211,6 +224,7 @@ public class AdaptiveAgentTelemetry {
 
   private record TokenUsageAdvisor(
       String role,
+      String sessionId,
       AdaptiveAgentTelemetry telemetry
   ) implements CallAdvisor {
 
@@ -220,7 +234,11 @@ public class AdaptiveAgentTelemetry {
         CallAdvisorChain chain
     ) {
       ChatClientResponse response = chain.nextCall(request);
-      telemetry.modelTokens(role, response.chatResponse().getMetadata().getUsage());
+      telemetry.modelTokens(
+          role,
+          sessionId,
+          response.chatResponse().getMetadata().getUsage()
+      );
       return response;
     }
 

@@ -79,7 +79,8 @@ public class SpringAiCandidateClaimGenerator implements CandidateClaimGenerator 
       inputTokenBudget.verify("memory_claim_extractor", systemPrompt, userPrompt);
       ChatClient chatClient = telemetry.observeTokenUsage(
           llmProviderRegistry.getChatClientOrDefault(llmProvider),
-          "memory_claim_extractor"
+          "memory_claim_extractor",
+          request.sessionId()
       );
       CandidateClaimsProposal proposal = deadlineExecutor.invoke(
           () -> structuredOutputInvoker.invoke(
