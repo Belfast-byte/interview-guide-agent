@@ -10,6 +10,7 @@ import interview.guide.modules.interview.agent.adaptive.core.DimensionBrief;
 import interview.guide.modules.interview.agent.adaptive.core.RespondAction;
 import interview.guide.modules.interview.agent.adaptive.core.SessionTransition;
 import interview.guide.modules.interview.agent.adaptive.planning.InterviewPlan;
+import interview.guide.modules.interview.agent.adaptive.planning.PlanDimensionStatus;
 import interview.guide.modules.interview.agent.adaptive.planning.PlannedDimension;
 import interview.guide.modules.interview.agent.adaptive.planning.PlannedInterview;
 import interview.guide.modules.interview.agent.adaptive.runtime.ToolExecution;
@@ -27,10 +28,12 @@ public class AdaptiveInterviewPersistenceService {
   private final AdaptiveAgentPlanRepository planRepository;
   private final AdaptiveAgentToolCallRepository toolCallRepository;
   private final AdaptiveDimensionBriefRepository dimensionBriefRepository;
+  private final CandidateMemoryTopicRepository candidateMemoryTopicRepository;
 
   @Transactional
   public PlannedInterview create(
       String sessionId,
+      String candidateId,
       String jd,
       String resume,
       String llmProvider,
@@ -42,7 +45,7 @@ public class AdaptiveInterviewPersistenceService {
         .create(sessionId, plan.maxTurns())
         .start();
     AdaptiveAgentSessionEntity sessionEntity = sessionRepository.save(
-        new AdaptiveAgentSessionEntity(session, jd, resume, llmProvider)
+        new AdaptiveAgentSessionEntity(session, candidateId, jd, resume, llmProvider)
     );
     planRepository.saveAll(plan.dimensions().stream()
         .map(dimension -> new AdaptiveAgentPlanEntity(sessionId, dimension))
@@ -78,6 +81,7 @@ public class AdaptiveInterviewPersistenceService {
       throw new BusinessException(ErrorCode.AI_SERVICE_ERROR, "全部规划维度覆盖前不能结束面试");
     }
     InterviewPlan updatedPlan = plan.answer(answer.turnIndex());
+    PlannedDimension answeredDimension = updatedPlan.dimensionForTurn(answer.turnIndex());
     SessionTransition transition = sessionEntity.toDomain().apply(answer, proposedAction);
     AdaptiveAgentTurnEntity turnEntity = turnRepository
         .findBySessionIdAndTurnIndex(sessionId, answer.turnIndex())
@@ -101,6 +105,13 @@ public class AdaptiveInterviewPersistenceService {
     saveToolExecutions(sessionId, toolExecutions);
     if (dimensionBrief != null) {
       dimensionBriefRepository.save(new AdaptiveDimensionBriefEntity(dimensionBrief));
+    }
+    if (answeredDimension.status() == PlanDimensionStatus.COMPLETED) {
+      candidateMemoryTopicRepository.save(new CandidateMemoryTopicEntity(
+          sessionEntity.candidateId(),
+          sessionId,
+          answeredDimension
+      ));
     }
     return plannedInterview(sessionEntity, updatedPlan);
   }
@@ -160,6 +171,7 @@ public class AdaptiveInterviewPersistenceService {
     AdaptiveInterviewSession session = sessionEntity.toDomain();
     return new AdaptiveInterviewHistory(
         session,
+        sessionEntity.candidateId(),
         sessionEntity.jd(),
         sessionEntity.resume(),
         sessionEntity.llmProvider(),

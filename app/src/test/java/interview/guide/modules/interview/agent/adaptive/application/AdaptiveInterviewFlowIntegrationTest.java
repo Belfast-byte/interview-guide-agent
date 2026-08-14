@@ -5,8 +5,10 @@ import interview.guide.modules.interview.agent.adaptive.core.AdaptiveInterviewHi
 import interview.guide.modules.interview.agent.adaptive.core.AdaptiveSessionStatus;
 import interview.guide.modules.interview.agent.adaptive.core.AgentResponseType;
 import interview.guide.modules.interview.agent.adaptive.core.CandidateAnswer;
+import interview.guide.modules.interview.agent.adaptive.core.CoveredTopic;
 import interview.guide.modules.interview.agent.adaptive.core.RespondAction;
 import interview.guide.modules.interview.agent.adaptive.memory.ContextAssembler;
+import interview.guide.modules.interview.agent.adaptive.memory.CandidateMemoryService;
 import interview.guide.modules.interview.agent.adaptive.memory.DimensionBriefProposal;
 import interview.guide.modules.interview.agent.adaptive.memory.DimensionBriefService;
 import interview.guide.modules.interview.agent.adaptive.persistence.AdaptiveInterviewPersistenceService;
@@ -15,6 +17,7 @@ import interview.guide.modules.interview.agent.adaptive.planning.DimensionPropos
 import interview.guide.modules.interview.agent.adaptive.planning.PlanDimensionStatus;
 import interview.guide.modules.interview.agent.adaptive.planning.PlanProposal;
 import interview.guide.modules.interview.agent.adaptive.planning.PlannedInterview;
+import interview.guide.modules.interview.agent.adaptive.planning.PlanningTaxonomy;
 import interview.guide.modules.interview.agent.adaptive.role.AgentRoleRegistry;
 import interview.guide.modules.interview.agent.adaptive.runtime.BoundedReActRuntime;
 import java.util.ArrayList;
@@ -27,16 +30,20 @@ import org.springframework.boot.data.jpa.test.autoconfigure.DataJpaTest;
 import org.springframework.context.annotation.Import;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.mockito.Mockito.mock;
 
 @DataJpaTest(properties = {
     "spring.flyway.enabled=false",
     "spring.jpa.hibernate.ddl-auto=create-drop"
 })
-@Import(AdaptiveInterviewPersistenceService.class)
+@Import({AdaptiveInterviewPersistenceService.class, CandidateMemoryService.class})
 class AdaptiveInterviewFlowIntegrationTest {
 
   @Autowired
   private AdaptiveInterviewPersistenceService persistenceService;
+
+  @Autowired
+  private CandidateMemoryService candidateMemoryService;
 
   @Test
   @DisplayName("两轮 Agent 面试从首题到结束的事实链完整可重读")
@@ -59,10 +66,12 @@ class AdaptiveInterviewFlowIntegrationTest {
         new AdaptiveAgentTelemetry(new SimpleMeterRegistry()),
         (request, provider) -> proposal(1),
         new ContextAssembler(),
-        briefService()
+        briefService(),
+        candidateMemoryService,
+        mock(PlanningTaxonomy.class)
     );
 
-    PlannedInterview created = service.create("JD", "Resume", null);
+    PlannedInterview created = service.create("candidate-1", "JD", "Resume", null);
     PlannedInterview secondTurn = service.submitAnswer(
         created.history().session().id(),
         new CandidateAnswer(1, "第一轮完整回答")
@@ -83,6 +92,9 @@ class AdaptiveInterviewFlowIntegrationTest {
         .isEqualTo(PlanDimensionStatus.COMPLETED);
     assertThat(persistenceService.get(created.history().session().id()))
         .isEqualTo(completed);
+    assertThat(candidateMemoryService.coveredTopics("candidate-1"))
+        .containsExactly(new CoveredTopic("java-backend", "FOCUS_0"));
+    assertThat(candidateMemoryService.coveredTopics("candidate-2")).isEmpty();
   }
 
   @Test
@@ -117,10 +129,12 @@ class AdaptiveInterviewFlowIntegrationTest {
         new AdaptiveAgentTelemetry(new SimpleMeterRegistry()),
         (request, provider) -> proposal(3),
         new ContextAssembler(),
-        briefService()
+        briefService(),
+        candidateMemoryService,
+        mock(PlanningTaxonomy.class)
     );
 
-    PlannedInterview interview = service.create("JD", "Resume", null);
+    PlannedInterview interview = service.create("candidate-1", "JD", "Resume", null);
     for (int turn = 1; turn <= 6; turn++) {
       interview = service.submitAnswer(
           interview.history().session().id(),
@@ -159,9 +173,10 @@ class AdaptiveInterviewFlowIntegrationTest {
         .mapToObj(index -> new DimensionProposal(
             "维度-" + index,
             "重点-" + index,
+            "FOCUS_" + index,
             2,
             List.of(),
-            null
+            "java-backend"
         ))
         .toList());
   }

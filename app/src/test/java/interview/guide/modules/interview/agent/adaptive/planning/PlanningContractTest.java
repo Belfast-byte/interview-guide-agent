@@ -20,7 +20,7 @@ class PlanningContractTest {
         .containsExactly("sessionId", "context");
     assertThat(Arrays.stream(PlannerContext.class.getRecordComponents())
         .map(component -> component.getName()))
-        .containsExactly("jd", "resume");
+        .containsExactly("jd", "resume", "coveredTopics", "skillCatalog");
   }
 
   @Test
@@ -48,9 +48,10 @@ class PlanningContractTest {
     DimensionProposal dimension = new DimensionProposal(
         "专业基础",
         "缓存与并发",
+        "REDIS",
         2,
         tools,
-        "backend-interviewer"
+        "java-backend"
     );
     tools.clear();
 
@@ -60,6 +61,6 @@ class PlanningContractTest {
   }
 
   private DimensionProposal dimension(String name, String focus) {
-    return new DimensionProposal(name, focus, 2, List.of(), null);
+    return new DimensionProposal(name, focus, "JAVA", 2, List.of(), "java-backend");
   }
 }

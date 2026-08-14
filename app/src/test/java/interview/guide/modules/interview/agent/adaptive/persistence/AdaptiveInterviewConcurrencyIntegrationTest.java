@@ -42,14 +42,19 @@ class AdaptiveInterviewConcurrencyIntegrationTest {
       throws InterruptedException, TimeoutException {
     persistenceService.create(
         "concurrent-session",
+        "candidate-1",
         "JD",
         "Resume",
         null,
         InterviewPlan.decide(
             "concurrent-session",
             new PlanProposal(List.of(
-                new DimensionProposal("专业基础", "缓存", 2, List.of(), null),
-                new DimensionProposal("项目经验", "取舍", 2, List.of(), null)
+                new DimensionProposal(
+                    "专业基础", "缓存", "REDIS", 2, List.of(), "java-backend"
+                ),
+                new DimensionProposal(
+                    "项目经验", "取舍", "PROJECT", 2, List.of(), "java-backend"
+                )
             ))
         ),
         RespondAction.ask("第一题？", "验证基础"),

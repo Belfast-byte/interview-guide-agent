@@ -27,6 +27,7 @@ class AdaptiveInterviewResponseTest {
             1,
             6
         ),
+        "candidate-1",
         "JD",
         "Resume",
         null,
@@ -49,9 +50,10 @@ class AdaptiveInterviewResponseTest {
                 0,
                 "专业基础",
                 "缓存与并发",
+                "REDIS",
                 2,
                 List.of(),
-                null,
+                "java-backend",
                 2,
                 0,
                 PlanDimensionStatus.IN_PROGRESS

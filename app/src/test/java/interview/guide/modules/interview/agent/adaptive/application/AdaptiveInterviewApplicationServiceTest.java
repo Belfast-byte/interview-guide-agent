@@ -8,8 +8,11 @@ import interview.guide.modules.interview.agent.adaptive.core.AdaptiveInterviewTu
 import interview.guide.modules.interview.agent.adaptive.core.AdaptiveSessionStatus;
 import interview.guide.modules.interview.agent.adaptive.core.AgentResponseType;
 import interview.guide.modules.interview.agent.adaptive.core.CandidateAnswer;
+import interview.guide.modules.interview.agent.adaptive.core.CoveredTopic;
+import interview.guide.modules.interview.agent.adaptive.core.PlanningSkill;
 import interview.guide.modules.interview.agent.adaptive.core.RespondAction;
 import interview.guide.modules.interview.agent.adaptive.memory.ContextAssembler;
+import interview.guide.modules.interview.agent.adaptive.memory.CandidateMemoryService;
 import interview.guide.modules.interview.agent.adaptive.memory.DimensionBriefService;
 import interview.guide.modules.interview.agent.adaptive.persistence.AdaptiveInterviewPersistenceService;
 import interview.guide.modules.interview.agent.adaptive.observability.AdaptiveAgentTelemetry;
@@ -18,6 +21,8 @@ import interview.guide.modules.interview.agent.adaptive.planning.InterviewPlan;
 import interview.guide.modules.interview.agent.adaptive.planning.PlanProposal;
 import interview.guide.modules.interview.agent.adaptive.planning.PlannedInterview;
 import interview.guide.modules.interview.agent.adaptive.planning.PlanningAgent;
+import interview.guide.modules.interview.agent.adaptive.planning.PlanningRequest;
+import interview.guide.modules.interview.agent.adaptive.planning.PlanningTaxonomy;
 import interview.guide.modules.interview.agent.adaptive.role.AgentRoleRegistry;
 import interview.guide.modules.interview.agent.adaptive.runtime.BoundedReActRuntime;
 import interview.guide.modules.interview.agent.adaptive.runtime.ReActBudget;
@@ -29,6 +34,7 @@ import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InOrder;
+import org.mockito.ArgumentCaptor;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.dao.OptimisticLockingFailureException;
@@ -66,6 +72,12 @@ class AdaptiveInterviewApplicationServiceTest {
   @Mock
   private DimensionBriefService dimensionBriefService;
 
+  @Mock
+  private CandidateMemoryService candidateMemoryService;
+
+  @Mock
+  private PlanningTaxonomy planningTaxonomy;
+
   private AdaptiveInterviewApplicationService service;
 
   @BeforeEach
@@ -78,13 +90,23 @@ class AdaptiveInterviewApplicationServiceTest {
         telemetry,
         planningAgent,
         new ContextAssembler(),
-        dimensionBriefService
+        dimensionBriefService,
+        candidateMemoryService,
+        planningTaxonomy
     );
   }
 
   @Test
   @DisplayName("创建会话时先在事务外生成首题再写入事实")
   void shouldCallModelBeforeCreatingSession() {
+    CoveredTopic coveredTopic = new CoveredTopic("java-backend", "REDIS");
+    PlanningSkill planningSkill = new PlanningSkill(
+        "java-backend",
+        List.of("JAVA", "REDIS", "PROJECT")
+    );
+    when(candidateMemoryService.coveredTopics("candidate-1"))
+        .thenReturn(List.of(coveredTopic));
+    when(planningTaxonomy.catalog()).thenReturn(List.of(planningSkill));
     when(planningAgent.propose(any(), any())).thenReturn(proposal());
     RespondAction firstQuestion = RespondAction.ask("第一题？", "验证基础");
     PlannedInterview expected = interviewAtTurn(1);
@@ -94,20 +116,31 @@ class AdaptiveInterviewApplicationServiceTest {
         anyString(),
         anyString(),
         anyString(),
+        anyString(),
         any(),
         any(InterviewPlan.class),
         any(RespondAction.class),
         anyList()
     )).thenReturn(expected);
 
-    PlannedInterview actual = service.create("JD", "Resume", null);
+    PlannedInterview actual = service.create("candidate-1", "JD", "Resume", null);
 
     assertThat(actual).isSameAs(expected);
+    ArgumentCaptor<PlanningRequest> planningRequest = ArgumentCaptor.forClass(
+        PlanningRequest.class
+    );
+    verify(planningAgent).propose(planningRequest.capture(), any());
+    assertThat(planningRequest.getValue().context().coveredTopics())
+        .containsExactly(coveredTopic);
+    assertThat(planningRequest.getValue().context().skillCatalog())
+        .containsExactly(planningSkill);
+    verify(planningTaxonomy).validate(any(InterviewPlan.class));
     verify(telemetry).decisionSucceeded(eq(AgentResponseType.ASK), anyLong());
     InOrder order = inOrder(planningAgent, runtime, persistenceService);
     order.verify(planningAgent).propose(any(), any());
     order.verify(runtime).run(any(ReActRequest.class), any(ReActBudget.class));
     order.verify(persistenceService).create(
+        anyString(),
         anyString(),
         anyString(),
         anyString(),
@@ -126,7 +159,7 @@ class AdaptiveInterviewApplicationServiceTest {
         "规划失败"
     ));
 
-    assertThatThrownBy(() -> service.create("JD", "Resume", null))
+    assertThatThrownBy(() -> service.create("candidate-1", "JD", "Resume", null))
         .isInstanceOf(BusinessException.class)
         .hasMessage("规划失败");
 
@@ -138,7 +171,7 @@ class AdaptiveInterviewApplicationServiceTest {
   void shouldRejectInvalidPlanBeforeCreatingSession() {
     when(planningAgent.propose(any(), any())).thenReturn(new PlanProposal(List.of()));
 
-    assertThatThrownBy(() -> service.create("JD", "Resume", null))
+    assertThatThrownBy(() -> service.create("candidate-1", "JD", "Resume", null))
         .isInstanceOf(BusinessException.class)
         .hasMessageContaining("1 到 12");
 
@@ -275,7 +308,7 @@ class AdaptiveInterviewApplicationServiceTest {
       plan = plan.answer(turn);
     }
     return new PlannedInterview(
-        new AdaptiveInterviewHistory(session, "JD", "Resume", null, turns),
+        new AdaptiveInterviewHistory(session, "candidate-1", "JD", "Resume", null, turns),
         plan,
         List.of()
     );
@@ -283,9 +316,9 @@ class AdaptiveInterviewApplicationServiceTest {
 
   private PlanProposal proposal() {
     return new PlanProposal(List.of(
-        new DimensionProposal("专业基础", "缓存与并发", 2, List.of(), null),
-        new DimensionProposal("项目经验", "架构取舍", 2, List.of(), null),
-        new DimensionProposal("系统设计", "扩展边界", 2, List.of(), null)
+        new DimensionProposal("专业基础", "缓存与并发", "JAVA", 2, List.of(), "java-backend"),
+        new DimensionProposal("项目经验", "架构取舍", "PROJECT", 2, List.of(), "java-backend"),
+        new DimensionProposal("系统设计", "扩展边界", "DISTRIBUTED", 2, List.of(), "system-design")
     ));
   }
 }

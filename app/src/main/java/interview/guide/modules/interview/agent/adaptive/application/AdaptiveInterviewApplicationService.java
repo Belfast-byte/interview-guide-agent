@@ -8,6 +8,7 @@ import interview.guide.modules.interview.agent.adaptive.core.CandidateAnswer;
 import interview.guide.modules.interview.agent.adaptive.core.DimensionBrief;
 import interview.guide.modules.interview.agent.adaptive.core.RespondAction;
 import interview.guide.modules.interview.agent.adaptive.memory.ContextAssembler;
+import interview.guide.modules.interview.agent.adaptive.memory.CandidateMemoryService;
 import interview.guide.modules.interview.agent.adaptive.memory.DimensionBriefService;
 import interview.guide.modules.interview.agent.adaptive.observability.AdaptiveAgentTelemetry;
 import interview.guide.modules.interview.agent.adaptive.persistence.AdaptiveInterviewPersistenceService;
@@ -17,6 +18,7 @@ import interview.guide.modules.interview.agent.adaptive.planning.PlannedDimensio
 import interview.guide.modules.interview.agent.adaptive.planning.PlannedInterview;
 import interview.guide.modules.interview.agent.adaptive.planning.PlanningAgent;
 import interview.guide.modules.interview.agent.adaptive.planning.PlanningRequest;
+import interview.guide.modules.interview.agent.adaptive.planning.PlanningTaxonomy;
 import interview.guide.modules.interview.agent.adaptive.role.AgentRole;
 import interview.guide.modules.interview.agent.adaptive.role.AgentRoleRegistry;
 import interview.guide.modules.interview.agent.adaptive.runtime.BoundedReActRuntime;
@@ -40,16 +42,29 @@ public class AdaptiveInterviewApplicationService {
   private final PlanningAgent planningAgent;
   private final ContextAssembler contextAssembler;
   private final DimensionBriefService dimensionBriefService;
+  private final CandidateMemoryService candidateMemoryService;
+  private final PlanningTaxonomy planningTaxonomy;
 
-  public PlannedInterview create(String jd, String resume, String llmProvider) {
+  public PlannedInterview create(
+      String candidateId,
+      String jd,
+      String resume,
+      String llmProvider
+  ) {
     String sessionId = UUID.randomUUID().toString();
     PlanProposal proposal = planningAgent.propose(
-        new PlanningRequest(sessionId, contextAssembler.planner(jd, resume)),
+        new PlanningRequest(sessionId, contextAssembler.planner(
+            jd,
+            resume,
+            candidateMemoryService.coveredTopics(candidateId),
+            planningTaxonomy.catalog()
+        )),
         llmProvider
     );
     InterviewPlan plan;
     try {
       plan = InterviewPlan.decide(sessionId, proposal);
+      planningTaxonomy.validate(plan);
     } catch (BusinessException e) {
       telemetry.planRejected(sessionId, e.getCode());
       throw e;
@@ -68,6 +83,7 @@ public class AdaptiveInterviewApplicationService {
     ));
     return persistenceService.create(
         sessionId,
+        candidateId,
         jd,
         resume,
         llmProvider,

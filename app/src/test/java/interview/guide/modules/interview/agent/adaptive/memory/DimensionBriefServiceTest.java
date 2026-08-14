@@ -79,9 +79,10 @@ class DimensionBriefServiceTest {
         0,
         "专业基础",
         "缓存一致性",
+        "REDIS",
         2,
         List.of(),
-        null,
+        "java-backend",
         2,
         1,
         PlanDimensionStatus.IN_PROGRESS

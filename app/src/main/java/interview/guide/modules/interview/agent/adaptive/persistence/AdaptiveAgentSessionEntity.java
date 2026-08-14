@@ -24,6 +24,9 @@ public class AdaptiveAgentSessionEntity {
   @Column(name = "runtime_version", nullable = false, length = 32)
   private String runtimeVersion;
 
+  @Column(name = "candidate_id", nullable = false, length = 64)
+  private String candidateId;
+
   @Column(nullable = false, columnDefinition = "TEXT")
   private String jd;
 
@@ -60,12 +63,14 @@ public class AdaptiveAgentSessionEntity {
 
   AdaptiveAgentSessionEntity(
       AdaptiveInterviewSession session,
+      String candidateId,
       String jd,
       String resume,
       String llmProvider
   ) {
     this.id = session.id();
     this.runtimeVersion = session.runtimeVersion();
+    this.candidateId = candidateId;
     this.jd = jd;
     this.resume = resume;
     this.llmProvider = llmProvider;
@@ -84,6 +89,10 @@ public class AdaptiveAgentSessionEntity {
 
   String jd() {
     return jd;
+  }
+
+  String candidateId() {
+    return candidateId;
   }
 
   String resume() {

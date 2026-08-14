@@ -2,17 +2,24 @@ package interview.guide.modules.interview.agent.adaptive.memory;
 
 import interview.guide.modules.interview.agent.adaptive.core.AdaptiveInterviewTurn;
 import interview.guide.modules.interview.agent.adaptive.core.CandidateAnswer;
+import interview.guide.modules.interview.agent.adaptive.core.CoveredTopic;
 import interview.guide.modules.interview.agent.adaptive.core.DimensionBrief;
 import interview.guide.modules.interview.agent.adaptive.core.InterviewerContext;
 import interview.guide.modules.interview.agent.adaptive.core.PlannerContext;
+import interview.guide.modules.interview.agent.adaptive.core.PlanningSkill;
 import java.util.List;
 import org.springframework.stereotype.Component;
 
 @Component
 public class ContextAssembler {
 
-  public PlannerContext planner(String jd, String resume) {
-    return new PlannerContext(jd, resume);
+  public PlannerContext planner(
+      String jd,
+      String resume,
+      List<CoveredTopic> coveredTopics,
+      List<PlanningSkill> skillCatalog
+  ) {
+    return new PlannerContext(jd, resume, coveredTopics, skillCatalog);
   }
 
   public InterviewerContext interviewer(

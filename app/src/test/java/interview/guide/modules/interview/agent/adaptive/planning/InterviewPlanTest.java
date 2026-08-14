@@ -45,9 +45,15 @@ class InterviewPlanTest {
       InterviewPlan plan = InterviewPlan.decide(
           "session-1",
           new PlanProposal(List.of(
-              new DimensionProposal("核心项目", "架构取舍", 12, List.of(), null),
-              new DimensionProposal("专业基础", "并发", 1, List.of(), null),
-              new DimensionProposal("协作", "复盘", 1, List.of(), null)
+              new DimensionProposal(
+                  "核心项目", "架构取舍", "PROJECT", 12, List.of(), "java-backend"
+              ),
+              new DimensionProposal(
+                  "专业基础", "并发", "JAVA", 1, List.of(), "java-backend"
+              ),
+              new DimensionProposal(
+                  "协作", "复盘", "TEAMWORK", 1, List.of(), "java-backend"
+              )
           ))
       );
 
@@ -107,6 +113,6 @@ class InterviewPlanTest {
   }
 
   private DimensionProposal dimension(String name) {
-    return new DimensionProposal(name, name + "重点", 12, List.of(), null);
+    return new DimensionProposal(name, name + "重点", "JAVA", 12, List.of(), "java-backend");
   }
 }

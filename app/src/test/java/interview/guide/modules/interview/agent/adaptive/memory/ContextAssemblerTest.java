@@ -3,9 +3,11 @@ package interview.guide.modules.interview.agent.adaptive.memory;
 import interview.guide.modules.interview.agent.adaptive.core.AdaptiveInterviewTurn;
 import interview.guide.modules.interview.agent.adaptive.core.AgentResponseType;
 import interview.guide.modules.interview.agent.adaptive.core.CandidateAnswer;
+import interview.guide.modules.interview.agent.adaptive.core.CoveredTopic;
 import interview.guide.modules.interview.agent.adaptive.core.DimensionBrief;
 import interview.guide.modules.interview.agent.adaptive.core.InterviewerContext;
 import interview.guide.modules.interview.agent.adaptive.core.PlannerContext;
+import interview.guide.modules.interview.agent.adaptive.core.PlanningSkill;
 import java.util.List;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -17,11 +19,16 @@ class ContextAssemblerTest {
   private final ContextAssembler assembler = new ContextAssembler();
 
   @Test
-  @DisplayName("规划上下文只包含职位描述和简历")
-  void shouldExposeOnlyPlanningInputsToPlanner() {
-    PlannerContext context = assembler.planner("JD", "Resume");
+  @DisplayName("规划上下文包含职位事实、稳定技能目录和已覆盖主题")
+  void shouldExposeGovernedPlanningInputsToPlanner() {
+    List<CoveredTopic> topics = List.of(new CoveredTopic("java-backend", "REDIS"));
+    List<PlanningSkill> skills = List.of(new PlanningSkill(
+        "java-backend",
+        List.of("JAVA", "REDIS")
+    ));
+    PlannerContext context = assembler.planner("JD", "Resume", topics, skills);
 
-    assertThat(context).isEqualTo(new PlannerContext("JD", "Resume"));
+    assertThat(context).isEqualTo(new PlannerContext("JD", "Resume", topics, skills));
   }
 
   @Test

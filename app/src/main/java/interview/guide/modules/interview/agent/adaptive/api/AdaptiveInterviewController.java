@@ -33,7 +33,12 @@ public class AdaptiveInterviewController {
       @Valid @RequestBody CreateAdaptiveInterviewRequest request
   ) {
     return Result.success(AdaptiveInterviewResponse.from(
-        applicationService.create(request.jd(), request.resume(), request.llmProvider())
+        applicationService.create(
+            request.candidateId(),
+            request.jd(),
+            request.resume(),
+            request.llmProvider()
+        )
     ));
   }
 

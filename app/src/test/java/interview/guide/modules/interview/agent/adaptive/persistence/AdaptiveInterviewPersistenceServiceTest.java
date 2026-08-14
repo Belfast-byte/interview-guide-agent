@@ -53,6 +53,7 @@ class AdaptiveInterviewPersistenceServiceTest {
 
     service.create(
         "session-tool-audit",
+        "candidate-1",
         "JD",
         "Resume",
         null,
@@ -82,6 +83,7 @@ class AdaptiveInterviewPersistenceServiceTest {
         new PlanProposal(List.of(new DimensionProposal(
             "专业基础",
             "缓存",
+            "REDIS",
             2,
             List.of("question_bank_search", "rubric_lookup"),
             "java-backend"
@@ -90,6 +92,7 @@ class AdaptiveInterviewPersistenceServiceTest {
 
     service.create(
         "session-plan-tools",
+        "candidate-1",
         "JD",
         "Resume",
         null,
@@ -111,6 +114,7 @@ class AdaptiveInterviewPersistenceServiceTest {
   void shouldPersistDimensionBriefWithDecision() {
     service.create(
         "session-brief",
+        "candidate-1",
         "JD",
         "Resume",
         null,
@@ -147,6 +151,7 @@ class AdaptiveInterviewPersistenceServiceTest {
     String answer = "候选人的完整回答。".repeat(2000);
     service.create(
         "session-1",
+        "candidate-1",
         "JD",
         "Resume",
         "provider-1",
@@ -181,6 +186,7 @@ class AdaptiveInterviewPersistenceServiceTest {
   void shouldPersistBudgetDecision() {
     service.create(
         "session-2",
+        "candidate-1",
         "JD",
         "Resume",
         null,
@@ -215,6 +221,7 @@ class AdaptiveInterviewPersistenceServiceTest {
   void shouldRejectEarlyFinish() {
     service.create(
         "session-early-finish",
+        "candidate-1",
         "JD",
         "Resume",
         null,
@@ -242,6 +249,7 @@ class AdaptiveInterviewPersistenceServiceTest {
   void shouldNotPersistStaleAnswer() {
     service.create(
         "session-3",
+        "candidate-1",
         "JD",
         "Resume",
         null,
@@ -271,9 +279,10 @@ class AdaptiveInterviewPersistenceServiceTest {
             .mapToObj(index -> new DimensionProposal(
                 "维度-" + index,
                 "重点-" + index,
+                "FOCUS_" + index,
                 2,
                 List.of(),
-                null
+                "java-backend"
             ))
             .toList())
     );

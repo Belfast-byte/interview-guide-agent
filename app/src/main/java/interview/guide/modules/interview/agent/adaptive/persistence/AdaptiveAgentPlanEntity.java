@@ -42,6 +42,9 @@ public class AdaptiveAgentPlanEntity {
   @Column(nullable = false, length = 500)
   private String focus;
 
+  @Column(name = "focus_id", nullable = false, length = 64)
+  private String focusId;
+
   @Column(name = "suggested_turns", nullable = false)
   private int suggestedTurns;
 
@@ -79,6 +82,7 @@ public class AdaptiveAgentPlanEntity {
         dimensionOrder,
         dimension,
         focus,
+        focusId,
         suggestedTurns,
         suggestedTools.isBlank() ? List.of() : List.of(suggestedTools.split(",")),
         suggestedSkill,
@@ -92,6 +96,7 @@ public class AdaptiveAgentPlanEntity {
     dimensionOrder = plannedDimension.order();
     dimension = plannedDimension.dimension();
     focus = plannedDimension.focus();
+    focusId = plannedDimension.focusId();
     suggestedTurns = plannedDimension.suggestedTurns();
     suggestedTools = String.join(",", plannedDimension.suggestedTools());
     suggestedSkill = plannedDimension.suggestedSkill();

@@ -52,6 +52,7 @@ public record InterviewPlan(
           index,
           proposed.dimension().trim(),
           proposed.focus().trim(),
+          proposed.focusId().trim(),
           proposed.suggestedTurns(),
           proposed.suggestedTools().stream().map(String::trim).toList(),
           proposed.suggestedSkill() == null ? null : proposed.suggestedSkill().trim(),
@@ -109,7 +110,9 @@ public record InterviewPlan(
       if (dimension.dimension() == null
           || dimension.dimension().isBlank()
           || dimension.focus() == null
-          || dimension.focus().isBlank()) {
+          || dimension.focus().isBlank()
+          || dimension.focusId() == null
+          || dimension.focusId().isBlank()) {
         throw new BusinessException(ErrorCode.AI_SERVICE_ERROR, "规划维度和考察重点不能为空");
       }
       if (dimension.dimension().trim().length() > MAX_DIMENSION_LENGTH
@@ -130,12 +133,14 @@ public record InterviewPlan(
       if (dimension.suggestedTools().stream().anyMatch(tool -> !isValidIdentifier(tool))) {
         throw new BusinessException(ErrorCode.AI_SERVICE_ERROR, "Invalid suggested tool identifier");
       }
-      if (dimension.suggestedSkill() != null && dimension.suggestedSkill().isBlank()) {
+      if (dimension.suggestedSkill() == null || dimension.suggestedSkill().isBlank()) {
         throw new BusinessException(ErrorCode.AI_SERVICE_ERROR, "建议 Skill 标识不能为空");
       }
-      if (dimension.suggestedSkill() != null
-          && !isValidIdentifier(dimension.suggestedSkill())) {
+      if (!isValidIdentifier(dimension.suggestedSkill())) {
         throw new BusinessException(ErrorCode.AI_SERVICE_ERROR, "Invalid suggested skill identifier");
+      }
+      if (!isValidIdentifier(dimension.focusId().toLowerCase(Locale.ROOT))) {
+        throw new BusinessException(ErrorCode.AI_SERVICE_ERROR, "Invalid focus identifier");
       }
     }
   }

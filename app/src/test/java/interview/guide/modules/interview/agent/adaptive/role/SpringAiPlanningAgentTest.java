@@ -93,7 +93,13 @@ class SpringAiPlanningAgentTest {
         any(Logger.class)
     );
     assertThat(userPrompt.getValue())
-        .contains("<data-boundary>", "后端工程师", "候选人项目经历");
+        .contains(
+            "<data-boundary>",
+            "后端工程师",
+            "候选人项目经历",
+            "coveredTopics",
+            "skillCatalog"
+        );
     verify(telemetry).modelCallSucceeded(eq("planner"), eq("PLAN"), anyLong());
   }
 
@@ -152,12 +158,14 @@ class SpringAiPlanningAgentTest {
         "session-1",
         new PlannerContext(
             "后端工程师，要求 Java 和 Redis",
-            "候选人项目经历"
+            "候选人项目经历",
+            List.of(),
+            List.of()
         )
     );
   }
 
   private DimensionProposal dimension(String name, String focus) {
-    return new DimensionProposal(name, focus, 2, List.of(), null);
+    return new DimensionProposal(name, focus, "JAVA", 2, List.of(), "java-backend");
   }
 }

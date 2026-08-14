@@ -4,6 +4,7 @@ import java.util.List;
 
 public record AdaptiveInterviewHistory(
     AdaptiveInterviewSession session,
+    String candidateId,
     String jd,
     String resume,
     String llmProvider,
