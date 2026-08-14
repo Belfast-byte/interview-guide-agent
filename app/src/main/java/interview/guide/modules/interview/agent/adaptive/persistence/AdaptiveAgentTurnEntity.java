@@ -109,6 +109,10 @@ public class AdaptiveAgentTurnEntity {
     return turnIndex;
   }
 
+  int dimensionOrder() {
+    return dimensionOrder;
+  }
+
   String question() {
     return question;
   }
