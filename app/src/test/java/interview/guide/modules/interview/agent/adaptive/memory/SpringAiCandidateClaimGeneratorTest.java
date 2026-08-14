@@ -8,6 +8,7 @@ import interview.guide.modules.interview.agent.adaptive.application.AdaptiveAgen
 import interview.guide.modules.interview.agent.adaptive.core.CandidateClaimType;
 import interview.guide.modules.interview.agent.adaptive.core.PlanningSkill;
 import interview.guide.modules.interview.agent.adaptive.observability.AdaptiveAgentTelemetry;
+import interview.guide.modules.interview.agent.adaptive.observability.AdaptiveInputTokenBudget;
 import interview.guide.modules.interview.agent.adaptive.runtime.DeadlineExecutor;
 import java.io.IOException;
 import java.time.Duration;
@@ -46,6 +47,9 @@ class SpringAiCandidateClaimGeneratorTest {
 
   @Mock
   private AdaptiveAgentTelemetry telemetry;
+
+  @Mock
+  private AdaptiveInputTokenBudget inputTokenBudget;
 
   @Mock
   private ChatClient chatClient;
@@ -122,6 +126,7 @@ class SpringAiCandidateClaimGeneratorTest {
         structuredOutputInvoker,
         new ObjectMapper(),
         telemetry,
+        inputTokenBudget,
         new DeadlineExecutor(),
         properties,
         new DefaultResourceLoader()

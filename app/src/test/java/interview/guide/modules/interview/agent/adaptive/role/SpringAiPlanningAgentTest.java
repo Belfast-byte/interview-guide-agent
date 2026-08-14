@@ -7,6 +7,7 @@ import interview.guide.common.exception.ErrorCode;
 import interview.guide.modules.interview.agent.adaptive.application.AdaptiveAgentProperties;
 import interview.guide.modules.interview.agent.adaptive.core.PlannerContext;
 import interview.guide.modules.interview.agent.adaptive.observability.AdaptiveAgentTelemetry;
+import interview.guide.modules.interview.agent.adaptive.observability.AdaptiveInputTokenBudget;
 import interview.guide.modules.interview.agent.adaptive.planning.DimensionProposal;
 import interview.guide.modules.interview.agent.adaptive.planning.PlanProposal;
 import interview.guide.modules.interview.agent.adaptive.planning.PlanningRequest;
@@ -50,6 +51,9 @@ class SpringAiPlanningAgentTest {
   private AdaptiveAgentTelemetry telemetry;
 
   @Mock
+  private AdaptiveInputTokenBudget inputTokenBudget;
+
+  @Mock
   private ChatClient chatClient;
 
   private SpringAiPlanningAgent planningAgent;
@@ -61,6 +65,7 @@ class SpringAiPlanningAgentTest {
         structuredOutputInvoker,
         new ObjectMapper(),
         telemetry,
+        inputTokenBudget,
         new DeadlineExecutor(),
         new AdaptiveAgentProperties(),
         new DefaultResourceLoader()
@@ -131,6 +136,7 @@ class SpringAiPlanningAgentTest {
         structuredOutputInvoker,
         new ObjectMapper(),
         telemetry,
+        inputTokenBudget,
         new DeadlineExecutor(),
         properties,
         new DefaultResourceLoader()

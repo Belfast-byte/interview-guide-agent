@@ -15,6 +15,8 @@ public class AdaptiveAgentTelemetry {
 
   static final String MODEL_CALLS = "app.interview.adaptive.model.calls";
   static final String MODEL_DURATION = "app.interview.adaptive.model.duration";
+  static final String MODEL_INPUT_TOKENS =
+      "app.interview.adaptive.model.input.tokens";
   static final String DECISIONS = "app.interview.adaptive.decisions";
   static final String DECISION_DURATION = "app.interview.adaptive.decision.duration";
   static final String STATE_CONFLICTS = "app.interview.adaptive.state.conflicts";
@@ -50,6 +52,10 @@ public class AdaptiveAgentTelemetry {
         errorCode,
         elapsedMillis(startedNanos)
     );
+  }
+
+  public void inputTokens(String role, int tokens) {
+    meterRegistry.summary(MODEL_INPUT_TOKENS, "role", role).record(tokens);
   }
 
   public void decisionSucceeded(AgentResponseType action, long startedNanos) {

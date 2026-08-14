@@ -6,6 +6,7 @@ import interview.guide.common.exception.BusinessException;
 import interview.guide.common.exception.ErrorCode;
 import interview.guide.modules.interview.agent.adaptive.application.AdaptiveAgentProperties;
 import interview.guide.modules.interview.agent.adaptive.observability.AdaptiveAgentTelemetry;
+import interview.guide.modules.interview.agent.adaptive.observability.AdaptiveInputTokenBudget;
 import interview.guide.modules.interview.agent.adaptive.runtime.DeadlineExecutor;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
@@ -27,6 +28,7 @@ public class SpringAiAssessmentProposalGenerator
   private final StructuredOutputInvoker structuredOutputInvoker;
   private final ObjectMapper objectMapper;
   private final AdaptiveAgentTelemetry telemetry;
+  private final AdaptiveInputTokenBudget inputTokenBudget;
   private final DeadlineExecutor deadlineExecutor;
   private final AdaptiveAgentProperties properties;
   private final PromptTemplate systemPromptTemplate;
@@ -38,6 +40,7 @@ public class SpringAiAssessmentProposalGenerator
       StructuredOutputInvoker structuredOutputInvoker,
       ObjectMapper objectMapper,
       AdaptiveAgentTelemetry telemetry,
+      AdaptiveInputTokenBudget inputTokenBudget,
       DeadlineExecutor deadlineExecutor,
       AdaptiveAgentProperties properties,
       ResourceLoader resourceLoader
@@ -46,6 +49,7 @@ public class SpringAiAssessmentProposalGenerator
     this.structuredOutputInvoker = structuredOutputInvoker;
     this.objectMapper = objectMapper;
     this.telemetry = telemetry;
+    this.inputTokenBudget = inputTokenBudget;
     this.deadlineExecutor = deadlineExecutor;
     this.properties = properties;
     this.systemPromptTemplate = new PromptTemplate(
@@ -73,6 +77,7 @@ public class SpringAiAssessmentProposalGenerator
           "contextJson",
           serialize(request.context())
       ));
+      inputTokenBudget.verify("depth_assessor", systemPrompt, userPrompt);
       ChatClient chatClient = llmProviderRegistry.getChatClientOrDefault(llmProvider);
       AssessmentProposal proposal = deadlineExecutor.invoke(
           () -> structuredOutputInvoker.invoke(

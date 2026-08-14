@@ -6,6 +6,7 @@ import interview.guide.common.exception.BusinessException;
 import interview.guide.common.exception.ErrorCode;
 import interview.guide.modules.interview.agent.adaptive.application.AdaptiveAgentProperties;
 import interview.guide.modules.interview.agent.adaptive.observability.AdaptiveAgentTelemetry;
+import interview.guide.modules.interview.agent.adaptive.observability.AdaptiveInputTokenBudget;
 import interview.guide.modules.interview.agent.adaptive.planning.PlanProposal;
 import interview.guide.modules.interview.agent.adaptive.planning.PlanningAgent;
 import interview.guide.modules.interview.agent.adaptive.planning.PlanningRequest;
@@ -29,6 +30,7 @@ public class SpringAiPlanningAgent implements PlanningAgent {
   private final StructuredOutputInvoker structuredOutputInvoker;
   private final ObjectMapper objectMapper;
   private final AdaptiveAgentTelemetry telemetry;
+  private final AdaptiveInputTokenBudget inputTokenBudget;
   private final DeadlineExecutor deadlineExecutor;
   private final AdaptiveAgentProperties properties;
   private final PromptTemplate systemPromptTemplate;
@@ -40,6 +42,7 @@ public class SpringAiPlanningAgent implements PlanningAgent {
       StructuredOutputInvoker structuredOutputInvoker,
       ObjectMapper objectMapper,
       AdaptiveAgentTelemetry telemetry,
+      AdaptiveInputTokenBudget inputTokenBudget,
       DeadlineExecutor deadlineExecutor,
       AdaptiveAgentProperties properties,
       ResourceLoader resourceLoader
@@ -48,6 +51,7 @@ public class SpringAiPlanningAgent implements PlanningAgent {
     this.structuredOutputInvoker = structuredOutputInvoker;
     this.objectMapper = objectMapper;
     this.telemetry = telemetry;
+    this.inputTokenBudget = inputTokenBudget;
     this.deadlineExecutor = deadlineExecutor;
     this.properties = properties;
     this.systemPromptTemplate = new PromptTemplate(
@@ -71,6 +75,7 @@ public class SpringAiPlanningAgent implements PlanningAgent {
           + "\n\n"
           + outputConverter.getFormat();
       String userPrompt = userPromptTemplate.render(Map.of("inputJson", inputJson));
+      inputTokenBudget.verify("planner", systemPrompt, userPrompt);
       ChatClient chatClient = llmProviderRegistry.getChatClientOrDefault(llmProvider);
       proposal = deadlineExecutor.invoke(
           () -> structuredOutputInvoker.invoke(

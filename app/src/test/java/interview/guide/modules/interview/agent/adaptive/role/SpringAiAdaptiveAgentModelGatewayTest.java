@@ -12,6 +12,7 @@ import interview.guide.modules.interview.agent.adaptive.core.QuestionProvenance;
 import interview.guide.modules.interview.agent.adaptive.core.RespondAction;
 import interview.guide.modules.interview.agent.adaptive.core.ToolCallAction;
 import interview.guide.modules.interview.agent.adaptive.observability.AdaptiveAgentTelemetry;
+import interview.guide.modules.interview.agent.adaptive.observability.AdaptiveInputTokenBudget;
 import interview.guide.modules.interview.agent.adaptive.runtime.ReActModelContext;
 import interview.guide.modules.interview.agent.adaptive.runtime.ReActRequest;
 import interview.guide.modules.interview.agent.adaptive.runtime.ToolObservation;
@@ -61,6 +62,9 @@ class SpringAiAdaptiveAgentModelGatewayTest {
   private AdaptiveAgentTelemetry telemetry;
 
   @Mock
+  private AdaptiveInputTokenBudget inputTokenBudget;
+
+  @Mock
   private ToolGateway toolGateway;
 
   private SpringAiAdaptiveAgentModelGateway gateway;
@@ -72,6 +76,7 @@ class SpringAiAdaptiveAgentModelGatewayTest {
         llmProviderRegistry,
         new ObjectMapper(),
         telemetry,
+        inputTokenBudget,
         new AgentRoleRegistry(properties),
         toolGateway,
         properties,
@@ -235,6 +240,7 @@ class SpringAiAdaptiveAgentModelGatewayTest {
             llmProviderRegistry,
             new ObjectMapper(),
             new AdaptiveAgentTelemetry(new SimpleMeterRegistry()),
+            inputTokenBudget,
             new AgentRoleRegistry(properties),
             toolGateway,
             properties,

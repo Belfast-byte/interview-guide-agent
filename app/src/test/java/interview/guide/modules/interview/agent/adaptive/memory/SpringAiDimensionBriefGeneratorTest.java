@@ -6,6 +6,7 @@ import interview.guide.common.exception.BusinessException;
 import interview.guide.common.exception.ErrorCode;
 import interview.guide.modules.interview.agent.adaptive.application.AdaptiveAgentProperties;
 import interview.guide.modules.interview.agent.adaptive.observability.AdaptiveAgentTelemetry;
+import interview.guide.modules.interview.agent.adaptive.observability.AdaptiveInputTokenBudget;
 import interview.guide.modules.interview.agent.adaptive.runtime.DeadlineExecutor;
 import java.io.IOException;
 import java.util.List;
@@ -45,6 +46,9 @@ class SpringAiDimensionBriefGeneratorTest {
   private AdaptiveAgentTelemetry telemetry;
 
   @Mock
+  private AdaptiveInputTokenBudget inputTokenBudget;
+
+  @Mock
   private ChatClient chatClient;
 
   private SpringAiDimensionBriefGenerator generator;
@@ -56,6 +60,7 @@ class SpringAiDimensionBriefGeneratorTest {
         structuredOutputInvoker,
         new ObjectMapper(),
         telemetry,
+        inputTokenBudget,
         new DeadlineExecutor(),
         new AdaptiveAgentProperties(),
         new DefaultResourceLoader()

@@ -10,6 +10,7 @@ import interview.guide.modules.interview.agent.adaptive.core.QuestionProvenance;
 import interview.guide.modules.interview.agent.adaptive.core.RespondAction;
 import interview.guide.modules.interview.agent.adaptive.core.ToolCallAction;
 import interview.guide.modules.interview.agent.adaptive.observability.AdaptiveAgentTelemetry;
+import interview.guide.modules.interview.agent.adaptive.observability.AdaptiveInputTokenBudget;
 import interview.guide.modules.interview.agent.adaptive.runtime.AgentModelGateway;
 import interview.guide.modules.interview.agent.adaptive.runtime.ReActModelContext;
 import interview.guide.modules.interview.agent.adaptive.runtime.ToolObservation;
@@ -44,6 +45,7 @@ public class SpringAiAdaptiveAgentModelGateway implements AgentModelGateway {
   private final LlmProviderRegistry llmProviderRegistry;
   private final ObjectMapper objectMapper;
   private final AdaptiveAgentTelemetry telemetry;
+  private final AdaptiveInputTokenBudget inputTokenBudget;
   private final AgentRoleRegistry roleRegistry;
   private final ToolGateway toolGateway;
   private final PromptTemplate systemPromptTemplate;
@@ -54,6 +56,7 @@ public class SpringAiAdaptiveAgentModelGateway implements AgentModelGateway {
       LlmProviderRegistry llmProviderRegistry,
       ObjectMapper objectMapper,
       AdaptiveAgentTelemetry telemetry,
+      AdaptiveInputTokenBudget inputTokenBudget,
       AgentRoleRegistry roleRegistry,
       ToolGateway toolGateway,
       AdaptiveAgentProperties properties,
@@ -62,6 +65,7 @@ public class SpringAiAdaptiveAgentModelGateway implements AgentModelGateway {
     this.llmProviderRegistry = llmProviderRegistry;
     this.objectMapper = objectMapper;
     this.telemetry = telemetry;
+    this.inputTokenBudget = inputTokenBudget;
     this.roleRegistry = roleRegistry;
     this.toolGateway = toolGateway;
     this.systemPromptTemplate = new PromptTemplate(
@@ -119,6 +123,7 @@ public class SpringAiAdaptiveAgentModelGateway implements AgentModelGateway {
         "contextJson",
         serializeContext(context)
     ));
+    inputTokenBudget.verify("interviewer", systemPrompt, userPrompt);
     ChatClient chatClient = llmProviderRegistry.getPlainChatClient(
         context.request().llmProvider()
     );
