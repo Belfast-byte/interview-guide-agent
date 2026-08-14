@@ -80,6 +80,11 @@ spring:
   
   # Spring AI 配置（chat + embedding 统一由 app.ai.providers 驱动，不使用自动配置）
   ai:
+    mcp:
+      server:
+        enabled: ${APP_INTERVIEW_ADAPTIVE_AGENT_ENABLED:false}
+        name: adaptive-interview-platform
+        version: 1.0.0
     # 禁用自动重试机制，让异常立即返回
     retry:
       max-attempts: 1  # 不重试，失败立即返回

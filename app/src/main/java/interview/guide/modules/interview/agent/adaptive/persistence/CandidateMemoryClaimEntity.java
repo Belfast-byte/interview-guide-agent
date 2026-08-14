@@ -38,6 +38,9 @@ public class CandidateMemoryClaimEntity {
   @Column(name = "candidate_id", nullable = false, length = 64)
   private String candidateId;
 
+  @Column(name = "tenant_id", length = 64)
+  private String tenantId;
+
   @Enumerated(EnumType.STRING)
   @Column(name = "claim_type", nullable = false, length = 30)
   private CandidateClaimType claimType;
@@ -64,10 +67,12 @@ public class CandidateMemoryClaimEntity {
   protected CandidateMemoryClaimEntity() {}
 
   CandidateMemoryClaimEntity(
+      String tenantId,
       String candidateId,
       String sessionId,
       CandidateClaim claim
   ) {
+    this.tenantId = tenantId;
     this.candidateId = candidateId;
     this.claimType = claim.type();
     this.skillId = claim.skillId();

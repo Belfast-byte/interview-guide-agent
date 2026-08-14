@@ -43,6 +43,30 @@ class AdaptiveInterviewPersistenceServiceTest {
   private CandidateMemoryService candidateMemoryService;
 
   @Test
+  @DisplayName("租户会话只能由所属租户读取且旧 REST 不可旁路")
+  void shouldIsolateTenantSession() {
+    service.createForTenant(
+        "tenant-b",
+        "tenant-session",
+        "candidate-1",
+        "JD",
+        "Resume",
+        null,
+        plan("tenant-session", 1),
+        RespondAction.ask("第一题？", "验证基础"),
+        List.of()
+    );
+
+    assertThat(service.getForTenant("tenant-b", "tenant-session"))
+        .extracting(interview -> interview.history().session().id())
+        .isEqualTo("tenant-session");
+    assertThatThrownBy(() -> service.getForTenant("tenant-a", "tenant-session"))
+        .hasFieldOrPropertyWithValue("code", 3001);
+    assertThatThrownBy(() -> service.get("tenant-session"))
+        .hasFieldOrPropertyWithValue("code", 3001);
+  }
+
+  @Test
   @DisplayName("未验证声明与来源回答在维度完成事务中一起落库")
   void shouldPersistUnverifiedClaimWithSourceTurn() {
     service.create(

@@ -54,13 +54,37 @@ public class AdaptiveInterviewApplicationService {
       String resume,
       String llmProvider
   ) {
+    return create(null, candidateId, jd, resume, llmProvider);
+  }
+
+  public PlannedInterview createForTenant(
+      String tenantId,
+      String candidateId,
+      String jd,
+      String resume,
+      String llmProvider
+  ) {
+    return create(tenantId, candidateId, jd, resume, llmProvider);
+  }
+
+  private PlannedInterview create(
+      String tenantId,
+      String candidateId,
+      String jd,
+      String resume,
+      String llmProvider
+  ) {
     String sessionId = UUID.randomUUID().toString();
     PlanProposal proposal = planningAgent.propose(
         new PlanningRequest(sessionId, contextAssembler.planner(
             jd,
             resume,
-            candidateMemoryService.coveredTopics(candidateId),
-            candidateMemoryService.unverifiedClaims(candidateId),
+            tenantId == null
+                ? candidateMemoryService.coveredTopics(candidateId)
+                : candidateMemoryService.coveredTopics(tenantId, candidateId),
+            tenantId == null
+                ? candidateMemoryService.unverifiedClaims(candidateId)
+                : candidateMemoryService.unverifiedClaims(tenantId, candidateId),
             planningTaxonomy.catalog()
         )),
         llmProvider
@@ -85,7 +109,20 @@ public class AdaptiveInterviewApplicationService {
         null,
         List.of()
     ));
-    return persistenceService.create(
+    if (tenantId == null) {
+      return persistenceService.create(
+          sessionId,
+          candidateId,
+          jd,
+          resume,
+          llmProvider,
+          plan,
+          firstDecision.response(),
+          firstDecision.toolExecutions()
+      );
+    }
+    return persistenceService.createForTenant(
+        tenantId,
         sessionId,
         candidateId,
         jd,
@@ -164,6 +201,10 @@ public class AdaptiveInterviewApplicationService {
 
   public PlannedInterview get(String sessionId) {
     return persistenceService.get(sessionId);
+  }
+
+  public PlannedInterview getForTenant(String tenantId, String sessionId) {
+    return persistenceService.getForTenant(tenantId, sessionId);
   }
 
   private ReActRequest request(

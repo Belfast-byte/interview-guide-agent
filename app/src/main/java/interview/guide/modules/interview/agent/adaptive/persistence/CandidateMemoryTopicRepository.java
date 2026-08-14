@@ -6,5 +6,12 @@ import org.springframework.data.jpa.repository.JpaRepository;
 public interface CandidateMemoryTopicRepository
     extends JpaRepository<CandidateMemoryTopicEntity, Long> {
 
-  List<CandidateMemoryTopicEntity> findByCandidateIdOrderByObservedAtDesc(String candidateId);
+  List<CandidateMemoryTopicEntity> findByTenantIdAndCandidateIdOrderByObservedAtDesc(
+      String tenantId,
+      String candidateId
+  );
+
+  List<CandidateMemoryTopicEntity> findByTenantIdIsNullAndCandidateIdOrderByObservedAtDesc(
+      String candidateId
+  );
 }

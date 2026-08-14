@@ -29,6 +29,9 @@ public class CandidateMemoryTopicEntity {
   @Column(name = "candidate_id", nullable = false, length = 64)
   private String candidateId;
 
+  @Column(name = "tenant_id", length = 64)
+  private String tenantId;
+
   @Column(name = "skill_id", nullable = false, length = 64)
   private String skillId;
 
@@ -47,10 +50,12 @@ public class CandidateMemoryTopicEntity {
   protected CandidateMemoryTopicEntity() {}
 
   CandidateMemoryTopicEntity(
+      String tenantId,
       String candidateId,
       String sessionId,
       PlannedDimension dimension
   ) {
+    this.tenantId = tenantId;
     this.candidateId = candidateId;
     this.skillId = dimension.suggestedSkill();
     this.focusId = dimension.focusId();

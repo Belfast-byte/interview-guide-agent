@@ -43,11 +43,48 @@ public class AdaptiveInterviewPersistenceService {
       RespondAction firstAction,
       List<ToolExecution> toolExecutions
   ) {
+    return createInterview(
+        null, sessionId, candidateId, jd, resume, llmProvider,
+        plan, firstAction, toolExecutions
+    );
+  }
+
+  @Transactional
+  public PlannedInterview createForTenant(
+      String tenantId,
+      String sessionId,
+      String candidateId,
+      String jd,
+      String resume,
+      String llmProvider,
+      InterviewPlan plan,
+      RespondAction firstAction,
+      List<ToolExecution> toolExecutions
+  ) {
+    return createInterview(
+        tenantId, sessionId, candidateId, jd, resume, llmProvider,
+        plan, firstAction, toolExecutions
+    );
+  }
+
+  private PlannedInterview createInterview(
+      String tenantId,
+      String sessionId,
+      String candidateId,
+      String jd,
+      String resume,
+      String llmProvider,
+      InterviewPlan plan,
+      RespondAction firstAction,
+      List<ToolExecution> toolExecutions
+  ) {
     AdaptiveInterviewSession session = AdaptiveInterviewSession
         .create(sessionId, plan.maxTurns())
         .start();
     AdaptiveAgentSessionEntity sessionEntity = sessionRepository.save(
-        new AdaptiveAgentSessionEntity(session, candidateId, jd, resume, llmProvider)
+        new AdaptiveAgentSessionEntity(
+            session, tenantId, candidateId, jd, resume, llmProvider
+        )
     );
     planRepository.saveAll(plan.dimensions().stream()
         .map(dimension -> new AdaptiveAgentPlanEntity(sessionId, dimension))
@@ -71,7 +108,8 @@ public class AdaptiveInterviewPersistenceService {
       DimensionBrief dimensionBrief,
       List<CandidateClaim> candidateClaims
   ) {
-    AdaptiveAgentSessionEntity sessionEntity = sessionRepository.findById(sessionId)
+    AdaptiveAgentSessionEntity sessionEntity = sessionRepository
+        .findByIdAndTenantIdIsNull(sessionId)
         .orElseThrow(() -> new BusinessException(
             ErrorCode.INTERVIEW_SESSION_NOT_FOUND,
             "Agent 面试会话不存在"
@@ -111,6 +149,7 @@ public class AdaptiveInterviewPersistenceService {
     }
     if (answeredDimension.status() == PlanDimensionStatus.COMPLETED) {
       candidateMemoryTopicRepository.save(new CandidateMemoryTopicEntity(
+          sessionEntity.tenantId(),
           sessionEntity.candidateId(),
           sessionId,
           answeredDimension
@@ -118,6 +157,7 @@ public class AdaptiveInterviewPersistenceService {
     }
     candidateMemoryClaimRepository.saveAll(candidateClaims.stream()
         .map(claim -> new CandidateMemoryClaimEntity(
+            sessionEntity.tenantId(),
             sessionEntity.candidateId(),
             sessionId,
             claim
@@ -128,7 +168,24 @@ public class AdaptiveInterviewPersistenceService {
 
   @Transactional(readOnly = true)
   public PlannedInterview get(String sessionId) {
-    AdaptiveAgentSessionEntity sessionEntity = sessionRepository.findById(sessionId)
+    AdaptiveAgentSessionEntity sessionEntity = sessionRepository
+        .findByIdAndTenantIdIsNull(sessionId)
+        .orElseThrow(() -> new BusinessException(
+            ErrorCode.INTERVIEW_SESSION_NOT_FOUND,
+            "Agent 面试会话不存在"
+        ));
+    InterviewPlan plan = toPlan(
+        sessionId,
+        sessionEntity.toDomain().maxTurns(),
+        planRepository.findBySessionIdOrderByDimensionOrder(sessionId)
+    );
+    return plannedInterview(sessionEntity, plan);
+  }
+
+  @Transactional(readOnly = true)
+  public PlannedInterview getForTenant(String tenantId, String sessionId) {
+    AdaptiveAgentSessionEntity sessionEntity = sessionRepository
+        .findByIdAndTenantId(sessionId, tenantId)
         .orElseThrow(() -> new BusinessException(
             ErrorCode.INTERVIEW_SESSION_NOT_FOUND,
             "Agent 面试会话不存在"

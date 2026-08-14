@@ -20,7 +20,19 @@ public class CandidateMemoryService {
 
   @Transactional(readOnly = true)
   public List<CoveredTopic> coveredTopics(String candidateId) {
-    return topicRepository.findByCandidateIdOrderByObservedAtDesc(candidateId).stream()
+    return topicRepository
+        .findByTenantIdIsNullAndCandidateIdOrderByObservedAtDesc(candidateId)
+        .stream()
+        .map(CandidateMemoryTopicEntity::toDomain)
+        .distinct()
+        .toList();
+  }
+
+  @Transactional(readOnly = true)
+  public List<CoveredTopic> coveredTopics(String tenantId, String candidateId) {
+    return topicRepository
+        .findByTenantIdAndCandidateIdOrderByObservedAtDesc(tenantId, candidateId)
+        .stream()
         .map(CandidateMemoryTopicEntity::toDomain)
         .distinct()
         .toList();
@@ -28,7 +40,19 @@ public class CandidateMemoryService {
 
   @Transactional(readOnly = true)
   public List<UnverifiedClaim> unverifiedClaims(String candidateId) {
-    return claimRepository.findByCandidateIdOrderByObservedAtDesc(candidateId).stream()
+    return claimRepository
+        .findByTenantIdIsNullAndCandidateIdOrderByObservedAtDesc(candidateId)
+        .stream()
+        .map(CandidateMemoryClaimEntity::toDomain)
+        .distinct()
+        .toList();
+  }
+
+  @Transactional(readOnly = true)
+  public List<UnverifiedClaim> unverifiedClaims(String tenantId, String candidateId) {
+    return claimRepository
+        .findByTenantIdAndCandidateIdOrderByObservedAtDesc(tenantId, candidateId)
+        .stream()
         .map(CandidateMemoryClaimEntity::toDomain)
         .distinct()
         .toList();
