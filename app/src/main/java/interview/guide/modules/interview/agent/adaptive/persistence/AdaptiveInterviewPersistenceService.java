@@ -9,6 +9,7 @@ import interview.guide.modules.interview.agent.adaptive.core.CandidateAnswer;
 import interview.guide.modules.interview.agent.adaptive.core.DimensionBrief;
 import interview.guide.modules.interview.agent.adaptive.core.RespondAction;
 import interview.guide.modules.interview.agent.adaptive.core.SessionTransition;
+import interview.guide.modules.interview.agent.adaptive.memory.CandidateClaim;
 import interview.guide.modules.interview.agent.adaptive.planning.InterviewPlan;
 import interview.guide.modules.interview.agent.adaptive.planning.PlanDimensionStatus;
 import interview.guide.modules.interview.agent.adaptive.planning.PlannedDimension;
@@ -29,6 +30,7 @@ public class AdaptiveInterviewPersistenceService {
   private final AdaptiveAgentToolCallRepository toolCallRepository;
   private final AdaptiveDimensionBriefRepository dimensionBriefRepository;
   private final CandidateMemoryTopicRepository candidateMemoryTopicRepository;
+  private final CandidateMemoryClaimRepository candidateMemoryClaimRepository;
 
   @Transactional
   public PlannedInterview create(
@@ -66,7 +68,8 @@ public class AdaptiveInterviewPersistenceService {
       CandidateAnswer answer,
       RespondAction proposedAction,
       List<ToolExecution> toolExecutions,
-      DimensionBrief dimensionBrief
+      DimensionBrief dimensionBrief,
+      List<CandidateClaim> candidateClaims
   ) {
     AdaptiveAgentSessionEntity sessionEntity = sessionRepository.findById(sessionId)
         .orElseThrow(() -> new BusinessException(
@@ -113,6 +116,13 @@ public class AdaptiveInterviewPersistenceService {
           answeredDimension
       ));
     }
+    candidateMemoryClaimRepository.saveAll(candidateClaims.stream()
+        .map(claim -> new CandidateMemoryClaimEntity(
+            sessionEntity.candidateId(),
+            sessionId,
+            claim
+        ))
+        .toList());
     return plannedInterview(sessionEntity, updatedPlan);
   }
 

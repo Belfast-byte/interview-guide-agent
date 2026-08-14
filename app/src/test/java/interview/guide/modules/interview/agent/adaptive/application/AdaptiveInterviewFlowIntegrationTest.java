@@ -9,6 +9,8 @@ import interview.guide.modules.interview.agent.adaptive.core.CoveredTopic;
 import interview.guide.modules.interview.agent.adaptive.core.RespondAction;
 import interview.guide.modules.interview.agent.adaptive.memory.ContextAssembler;
 import interview.guide.modules.interview.agent.adaptive.memory.CandidateMemoryService;
+import interview.guide.modules.interview.agent.adaptive.memory.CandidateClaimExtractionService;
+import interview.guide.modules.interview.agent.adaptive.memory.CandidateClaimsProposal;
 import interview.guide.modules.interview.agent.adaptive.memory.DimensionBriefProposal;
 import interview.guide.modules.interview.agent.adaptive.memory.DimensionBriefService;
 import interview.guide.modules.interview.agent.adaptive.persistence.AdaptiveInterviewPersistenceService;
@@ -68,7 +70,8 @@ class AdaptiveInterviewFlowIntegrationTest {
         new ContextAssembler(),
         briefService(),
         candidateMemoryService,
-        mock(PlanningTaxonomy.class)
+        mock(PlanningTaxonomy.class),
+        claimService()
     );
 
     PlannedInterview created = service.create("candidate-1", "JD", "Resume", null);
@@ -131,7 +134,8 @@ class AdaptiveInterviewFlowIntegrationTest {
         new ContextAssembler(),
         briefService(),
         candidateMemoryService,
-        mock(PlanningTaxonomy.class)
+        mock(PlanningTaxonomy.class),
+        claimService()
     );
 
     PlannedInterview interview = service.create("candidate-1", "JD", "Resume", null);
@@ -186,5 +190,11 @@ class AdaptiveInterviewFlowIntegrationTest {
         "已讨论当前维度的方案与取舍",
         request.turns().stream().map(turn -> turn.turnIndex()).toList()
     ));
+  }
+
+  private CandidateClaimExtractionService claimService() {
+    return new CandidateClaimExtractionService(
+        (request, provider) -> new CandidateClaimsProposal(List.of())
+    );
   }
 }

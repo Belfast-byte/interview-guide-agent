@@ -9,10 +9,13 @@ import interview.guide.modules.interview.agent.adaptive.core.AdaptiveSessionStat
 import interview.guide.modules.interview.agent.adaptive.core.AgentResponseType;
 import interview.guide.modules.interview.agent.adaptive.core.CandidateAnswer;
 import interview.guide.modules.interview.agent.adaptive.core.CoveredTopic;
+import interview.guide.modules.interview.agent.adaptive.core.CandidateClaimType;
 import interview.guide.modules.interview.agent.adaptive.core.PlanningSkill;
+import interview.guide.modules.interview.agent.adaptive.core.UnverifiedClaim;
 import interview.guide.modules.interview.agent.adaptive.core.RespondAction;
 import interview.guide.modules.interview.agent.adaptive.memory.ContextAssembler;
 import interview.guide.modules.interview.agent.adaptive.memory.CandidateMemoryService;
+import interview.guide.modules.interview.agent.adaptive.memory.CandidateClaimExtractionService;
 import interview.guide.modules.interview.agent.adaptive.memory.DimensionBriefService;
 import interview.guide.modules.interview.agent.adaptive.persistence.AdaptiveInterviewPersistenceService;
 import interview.guide.modules.interview.agent.adaptive.observability.AdaptiveAgentTelemetry;
@@ -78,6 +81,9 @@ class AdaptiveInterviewApplicationServiceTest {
   @Mock
   private PlanningTaxonomy planningTaxonomy;
 
+  @Mock
+  private CandidateClaimExtractionService candidateClaimExtractionService;
+
   private AdaptiveInterviewApplicationService service;
 
   @BeforeEach
@@ -92,7 +98,8 @@ class AdaptiveInterviewApplicationServiceTest {
         new ContextAssembler(),
         dimensionBriefService,
         candidateMemoryService,
-        planningTaxonomy
+        planningTaxonomy,
+        candidateClaimExtractionService
     );
   }
 
@@ -100,12 +107,19 @@ class AdaptiveInterviewApplicationServiceTest {
   @DisplayName("创建会话时先在事务外生成首题再写入事实")
   void shouldCallModelBeforeCreatingSession() {
     CoveredTopic coveredTopic = new CoveredTopic("java-backend", "REDIS");
+    UnverifiedClaim unverifiedClaim = new UnverifiedClaim(
+        CandidateClaimType.PROJECT_EXPERIENCE,
+        "java-backend",
+        "PROJECT"
+    );
     PlanningSkill planningSkill = new PlanningSkill(
         "java-backend",
         List.of("JAVA", "REDIS", "PROJECT")
     );
     when(candidateMemoryService.coveredTopics("candidate-1"))
         .thenReturn(List.of(coveredTopic));
+    when(candidateMemoryService.unverifiedClaims("candidate-1"))
+        .thenReturn(List.of(unverifiedClaim));
     when(planningTaxonomy.catalog()).thenReturn(List.of(planningSkill));
     when(planningAgent.propose(any(), any())).thenReturn(proposal());
     RespondAction firstQuestion = RespondAction.ask("第一题？", "验证基础");
@@ -134,6 +148,8 @@ class AdaptiveInterviewApplicationServiceTest {
         .containsExactly(coveredTopic);
     assertThat(planningRequest.getValue().context().skillCatalog())
         .containsExactly(planningSkill);
+    assertThat(planningRequest.getValue().context().unverifiedClaims())
+        .containsExactly(unverifiedClaim);
     verify(planningTaxonomy).validate(any(InterviewPlan.class));
     verify(telemetry).decisionSucceeded(eq(AgentResponseType.ASK), anyLong());
     InOrder order = inOrder(planningAgent, runtime, persistenceService);
@@ -197,7 +213,8 @@ class AdaptiveInterviewApplicationServiceTest {
         any(),
         any(),
         anyList(),
-        any()
+        any(),
+        anyList()
     );
     verify(telemetry).decisionFailed(eq("session-1"), eq(1), anyInt(), anyLong());
   }
@@ -226,7 +243,38 @@ class AdaptiveInterviewApplicationServiceTest {
         any(),
         any(),
         anyList(),
-        any()
+        any(),
+        anyList()
+    );
+  }
+
+  @Test
+  @DisplayName("声明抽取失败时不调用下一维度面试官也不推进状态")
+  void shouldNotAdvanceWhenClaimExtractionFails() {
+    PlannedInterview interview = interviewAtTurn(2);
+    CandidateAnswer answer = new CandidateAnswer(2, "第二轮回答");
+    when(persistenceService.get("session-1")).thenReturn(interview);
+    when(candidateClaimExtractionService.extract(
+        eq("session-1"),
+        any(),
+        anyList(),
+        eq(answer),
+        anyList(),
+        nullable(String.class)
+    )).thenThrow(new BusinessException(ErrorCode.AI_SERVICE_ERROR, "候选人声明抽取失败"));
+
+    assertThatThrownBy(() -> service.submitAnswer("session-1", answer))
+        .isInstanceOf(BusinessException.class)
+        .hasMessage("候选人声明抽取失败");
+
+    verifyNoInteractions(runtime);
+    verify(persistenceService, never()).recordDecision(
+        anyString(),
+        any(),
+        any(),
+        anyList(),
+        any(),
+        anyList()
     );
   }
 
@@ -253,7 +301,9 @@ class AdaptiveInterviewApplicationServiceTest {
     when(persistenceService.get("session-1")).thenReturn(interview);
     when(runtime.run(any(ReActRequest.class), any(ReActBudget.class)))
         .thenReturn(ReActResult.withoutTools(action));
-    when(persistenceService.recordDecision("session-1", answer, action, List.of(), null))
+    when(persistenceService.recordDecision(
+        "session-1", answer, action, List.of(), null, List.of()
+    ))
         .thenThrow(new OptimisticLockingFailureException("concurrent update"));
 
     assertThatThrownBy(() -> service.submitAnswer("session-1", answer))

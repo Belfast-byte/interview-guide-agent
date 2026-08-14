@@ -9,6 +9,8 @@ import interview.guide.modules.interview.agent.adaptive.core.DimensionBrief;
 import interview.guide.modules.interview.agent.adaptive.core.RespondAction;
 import interview.guide.modules.interview.agent.adaptive.memory.ContextAssembler;
 import interview.guide.modules.interview.agent.adaptive.memory.CandidateMemoryService;
+import interview.guide.modules.interview.agent.adaptive.memory.CandidateClaim;
+import interview.guide.modules.interview.agent.adaptive.memory.CandidateClaimExtractionService;
 import interview.guide.modules.interview.agent.adaptive.memory.DimensionBriefService;
 import interview.guide.modules.interview.agent.adaptive.observability.AdaptiveAgentTelemetry;
 import interview.guide.modules.interview.agent.adaptive.persistence.AdaptiveInterviewPersistenceService;
@@ -44,6 +46,7 @@ public class AdaptiveInterviewApplicationService {
   private final DimensionBriefService dimensionBriefService;
   private final CandidateMemoryService candidateMemoryService;
   private final PlanningTaxonomy planningTaxonomy;
+  private final CandidateClaimExtractionService candidateClaimExtractionService;
 
   public PlannedInterview create(
       String candidateId,
@@ -57,6 +60,7 @@ public class AdaptiveInterviewApplicationService {
             jd,
             resume,
             candidateMemoryService.coveredTopics(candidateId),
+            candidateMemoryService.unverifiedClaims(candidateId),
             planningTaxonomy.catalog()
         )),
         llmProvider
@@ -98,7 +102,8 @@ public class AdaptiveInterviewApplicationService {
     AdaptiveInterviewHistory history = interview.history();
     history.session().assertCanAnswer(answer);
     PlannedDimension currentDimension = interview.plan().dimensionForTurn(answer.turnIndex());
-    DimensionBrief dimensionBrief = completesDimension(currentDimension)
+    boolean dimensionCompleted = completesDimension(currentDimension);
+    DimensionBrief dimensionBrief = dimensionCompleted
         ? dimensionBriefService.summarize(
             sessionId,
             currentDimension,
@@ -107,6 +112,16 @@ public class AdaptiveInterviewApplicationService {
             history.llmProvider()
         )
         : null;
+    List<CandidateClaim> candidateClaims = dimensionCompleted
+        ? candidateClaimExtractionService.extract(
+            sessionId,
+            currentDimension,
+            history.turns(),
+            answer,
+            planningTaxonomy.catalog(),
+            history.llmProvider()
+        )
+        : List.of();
     ReActResult decision;
     if (interview.plan().isLastTurn(answer.turnIndex())) {
       decision = ReActResult.withoutTools(RespondAction.finish(
@@ -134,7 +149,8 @@ public class AdaptiveInterviewApplicationService {
           answer,
           decision.response(),
           decision.toolExecutions(),
-          dimensionBrief
+          dimensionBrief,
+          candidateClaims
       );
     } catch (OptimisticLockingFailureException e) {
       telemetry.stateConflict(sessionId, answer.turnIndex());

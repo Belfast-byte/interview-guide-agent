@@ -20,7 +20,9 @@ class PlanningContractTest {
         .containsExactly("sessionId", "context");
     assertThat(Arrays.stream(PlannerContext.class.getRecordComponents())
         .map(component -> component.getName()))
-        .containsExactly("jd", "resume", "coveredTopics", "skillCatalog");
+        .containsExactly(
+            "jd", "resume", "coveredTopics", "unverifiedClaims", "skillCatalog"
+        );
   }
 
   @Test

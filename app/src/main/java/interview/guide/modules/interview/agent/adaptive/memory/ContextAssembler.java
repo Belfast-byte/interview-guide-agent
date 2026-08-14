@@ -7,6 +7,7 @@ import interview.guide.modules.interview.agent.adaptive.core.DimensionBrief;
 import interview.guide.modules.interview.agent.adaptive.core.InterviewerContext;
 import interview.guide.modules.interview.agent.adaptive.core.PlannerContext;
 import interview.guide.modules.interview.agent.adaptive.core.PlanningSkill;
+import interview.guide.modules.interview.agent.adaptive.core.UnverifiedClaim;
 import java.util.List;
 import org.springframework.stereotype.Component;
 
@@ -17,9 +18,10 @@ public class ContextAssembler {
       String jd,
       String resume,
       List<CoveredTopic> coveredTopics,
+      List<UnverifiedClaim> unverifiedClaims,
       List<PlanningSkill> skillCatalog
   ) {
-    return new PlannerContext(jd, resume, coveredTopics, skillCatalog);
+    return new PlannerContext(jd, resume, coveredTopics, unverifiedClaims, skillCatalog);
   }
 
   public InterviewerContext interviewer(

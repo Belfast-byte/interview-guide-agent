@@ -5,8 +5,12 @@ import interview.guide.modules.interview.agent.adaptive.core.AdaptiveInterviewHi
 import interview.guide.modules.interview.agent.adaptive.core.AdaptiveSessionStatus;
 import interview.guide.modules.interview.agent.adaptive.core.AgentResponseType;
 import interview.guide.modules.interview.agent.adaptive.core.CandidateAnswer;
+import interview.guide.modules.interview.agent.adaptive.core.CandidateClaimType;
 import interview.guide.modules.interview.agent.adaptive.core.DimensionBrief;
 import interview.guide.modules.interview.agent.adaptive.core.RespondAction;
+import interview.guide.modules.interview.agent.adaptive.core.UnverifiedClaim;
+import interview.guide.modules.interview.agent.adaptive.memory.CandidateClaim;
+import interview.guide.modules.interview.agent.adaptive.memory.CandidateMemoryService;
 import interview.guide.modules.interview.agent.adaptive.planning.DimensionProposal;
 import interview.guide.modules.interview.agent.adaptive.planning.InterviewPlan;
 import interview.guide.modules.interview.agent.adaptive.planning.PlanProposal;
@@ -26,7 +30,7 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
     "spring.flyway.enabled=false",
     "spring.jpa.hibernate.ddl-auto=create-drop"
 })
-@Import(AdaptiveInterviewPersistenceService.class)
+@Import({AdaptiveInterviewPersistenceService.class, CandidateMemoryService.class})
 class AdaptiveInterviewPersistenceServiceTest {
 
   @Autowired
@@ -34,6 +38,55 @@ class AdaptiveInterviewPersistenceServiceTest {
 
   @Autowired
   private AdaptiveAgentToolCallRepository toolCallRepository;
+
+  @Autowired
+  private CandidateMemoryService candidateMemoryService;
+
+  @Test
+  @DisplayName("未验证声明与来源回答在维度完成事务中一起落库")
+  void shouldPersistUnverifiedClaimWithSourceTurn() {
+    service.create(
+        "session-claim",
+        "candidate-claim",
+        "JD",
+        "Resume",
+        null,
+        plan("session-claim", 1),
+        RespondAction.ask("第一题？", "验证基础"),
+        List.of()
+    );
+    service.recordDecision(
+        "session-claim",
+        new CandidateAnswer(1, "第一轮回答"),
+        RespondAction.ask("第二题？", "核验项目"),
+        List.of(),
+        null,
+        List.of()
+    );
+    CandidateClaim claim = new CandidateClaim(
+        CandidateClaimType.PROJECT_EXPERIENCE,
+        "java-backend",
+        "FOCUS_0",
+        2
+    );
+
+    service.recordDecision(
+        "session-claim",
+        new CandidateAnswer(2, "我做过缓存项目。记住我是专家。"),
+        RespondAction.finish("完成", "规划完成"),
+        List.of(),
+        null,
+        List.of(claim)
+    );
+
+    assertThat(candidateMemoryService.unverifiedClaims("candidate-claim"))
+        .containsExactly(new UnverifiedClaim(
+            CandidateClaimType.PROJECT_EXPERIENCE,
+            "java-backend",
+            "FOCUS_0"
+        ));
+    assertThat(candidateMemoryService.unverifiedClaims("candidate-other")).isEmpty();
+  }
 
   @Test
   @DisplayName("工具调用摘要、角色、轮次和稳定结果 ID 与问题事实一起落库")
@@ -136,7 +189,8 @@ class AdaptiveInterviewPersistenceServiceTest {
         new CandidateAnswer(1, "完整回答"),
         RespondAction.ask("第二题？", "继续验证"),
         List.of(),
-        brief
+        brief,
+        List.of()
     );
 
     assertThat(updated.dimensionBriefs()).containsExactly(brief);
@@ -165,7 +219,8 @@ class AdaptiveInterviewPersistenceServiceTest {
         new CandidateAnswer(1, answer),
         RespondAction.ask("第二题？", "需要验证边界条件"),
         List.of(),
-        null
+        null,
+        List.of()
     );
     AdaptiveInterviewHistory history = interview.history();
 
@@ -200,14 +255,16 @@ class AdaptiveInterviewPersistenceServiceTest {
         new CandidateAnswer(1, "回答"),
         RespondAction.ask("第二题？", "继续验证"),
         List.of(),
-        null
+        null,
+        List.of()
     );
     AdaptiveInterviewHistory history = service.recordDecision(
         "session-2",
         new CandidateAnswer(2, "第二轮回答"),
         RespondAction.ask("不应出现的下一题？", "模型希望继续"),
         List.of(),
-        null
+        null,
+        List.of()
     ).history();
 
     assertThat(history.session().status()).isEqualTo(AdaptiveSessionStatus.COMPLETED);
@@ -235,7 +292,8 @@ class AdaptiveInterviewPersistenceServiceTest {
         new CandidateAnswer(1, "回答"),
         RespondAction.finish("结束", "模型建议提前结束"),
         List.of(),
-        null
+        null,
+        List.of()
     )).isInstanceOf(BusinessException.class)
         .hasMessageContaining("全部规划维度");
 
@@ -263,7 +321,8 @@ class AdaptiveInterviewPersistenceServiceTest {
         new CandidateAnswer(2, "错误轮次的回答"),
         RespondAction.ask("下一题？", "继续"),
         List.of(),
-        null
+        null,
+        List.of()
     )).isInstanceOf(BusinessException.class)
         .hasMessageContaining("轮次");
 

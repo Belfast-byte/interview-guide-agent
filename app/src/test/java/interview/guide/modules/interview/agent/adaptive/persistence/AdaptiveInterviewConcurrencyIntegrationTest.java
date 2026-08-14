@@ -70,7 +70,8 @@ class AdaptiveInterviewConcurrencyIntegrationTest {
           new CandidateAnswer(1, "并发回答"),
           RespondAction.ask("第二题？", "继续验证"),
           List.of(),
-          null
+          null,
+          List.of()
       );
     };
     List<FutureTask<PlannedInterview>> submissions = List.of(

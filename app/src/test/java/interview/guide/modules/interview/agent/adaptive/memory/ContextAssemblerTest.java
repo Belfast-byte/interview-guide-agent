@@ -8,6 +8,8 @@ import interview.guide.modules.interview.agent.adaptive.core.DimensionBrief;
 import interview.guide.modules.interview.agent.adaptive.core.InterviewerContext;
 import interview.guide.modules.interview.agent.adaptive.core.PlannerContext;
 import interview.guide.modules.interview.agent.adaptive.core.PlanningSkill;
+import interview.guide.modules.interview.agent.adaptive.core.UnverifiedClaim;
+import interview.guide.modules.interview.agent.adaptive.core.CandidateClaimType;
 import java.util.List;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -26,9 +28,16 @@ class ContextAssemblerTest {
         "java-backend",
         List.of("JAVA", "REDIS")
     ));
-    PlannerContext context = assembler.planner("JD", "Resume", topics, skills);
+    List<UnverifiedClaim> claims = List.of(new UnverifiedClaim(
+        CandidateClaimType.PROJECT_EXPERIENCE,
+        "java-backend",
+        "REDIS"
+    ));
+    PlannerContext context = assembler.planner("JD", "Resume", topics, claims, skills);
 
-    assertThat(context).isEqualTo(new PlannerContext("JD", "Resume", topics, skills));
+    assertThat(context).isEqualTo(new PlannerContext(
+        "JD", "Resume", topics, claims, skills
+    ));
   }
 
   @Test
