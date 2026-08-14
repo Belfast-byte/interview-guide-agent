@@ -8,11 +8,13 @@ import interview.guide.modules.interview.agent.adaptive.application.AdaptiveAgen
 import interview.guide.modules.interview.agent.adaptive.core.AgentAction;
 import interview.guide.modules.interview.agent.adaptive.core.CandidateAnswer;
 import interview.guide.modules.interview.agent.adaptive.core.InterviewerContext;
+import interview.guide.modules.interview.agent.adaptive.core.QuestionProvenance;
 import interview.guide.modules.interview.agent.adaptive.core.RespondAction;
 import interview.guide.modules.interview.agent.adaptive.core.ToolCallAction;
 import interview.guide.modules.interview.agent.adaptive.observability.AdaptiveAgentTelemetry;
 import interview.guide.modules.interview.agent.adaptive.runtime.ReActModelContext;
 import interview.guide.modules.interview.agent.adaptive.runtime.ReActRequest;
+import interview.guide.modules.interview.agent.adaptive.runtime.ToolObservation;
 import interview.guide.modules.interview.agent.adaptive.tool.ToolGateway;
 import java.io.IOException;
 import java.util.List;
@@ -131,6 +133,70 @@ class SpringAiAdaptiveAgentModelGatewayTest {
   }
 
   @Test
+  @DisplayName("审核题来源必须与已接受的题库结果逐字段一致")
+  void shouldAcceptVerifiedQuestionProvenance() {
+    respondWith("""
+        {
+          "type":"ASK",
+          "content":"Redis 为什么需要过期策略？",
+          "reason":"采用审核题",
+          "sourceQuestionId":"question:42",
+          "sourceDifficulty":"MEDIUM"
+        }
+        """);
+    ReActModelContext context = context(
+        null,
+        List.of(new ToolObservation(
+            "question_bank_search",
+            Map.of("query", "Redis"),
+            true,
+            "question-search:42",
+            """
+                [{"stableId":"question:42","id":42,"category":"Redis",\
+                "difficulty":"MEDIUM","question":"Redis 为什么需要过期策略？"}]
+                """
+        ))
+    );
+
+    assertThat(gateway.nextAction(context)).isEqualTo(RespondAction.ask(
+        "Redis 为什么需要过期策略？",
+        "采用审核题",
+        new QuestionProvenance("question:42", "MEDIUM")
+    ));
+  }
+
+  @Test
+  @DisplayName("模型伪造或改写题库来源时快速失败")
+  void shouldRejectUnverifiedQuestionProvenance() {
+    respondWith("""
+        {
+          "type":"ASK",
+          "content":"被改写的问题？",
+          "reason":"声称采用审核题",
+          "sourceQuestionId":"question:42",
+          "sourceDifficulty":"MEDIUM"
+        }
+        """);
+    ReActModelContext context = context(
+        null,
+        List.of(new ToolObservation(
+            "question_bank_search",
+            Map.of("query", "Redis"),
+            true,
+            "question-search:42",
+            """
+                [{"stableId":"question:42","id":42,"category":"Redis",\
+                "difficulty":"MEDIUM","question":"原始审核问题？"}]
+                """
+        ))
+    );
+
+    assertThatThrownBy(() -> gateway.nextAction(context))
+        .isInstanceOf(BusinessException.class)
+        .hasMessageContaining("does not match");
+  }
+
+  @Test
   @DisplayName("首次调用返回结束动作时快速失败")
   void shouldRejectFinishAsFirstAction() {
     respondWith("""
@@ -191,6 +257,13 @@ class SpringAiAdaptiveAgentModelGatewayTest {
   }
 
   private ReActModelContext context(CandidateAnswer answer) {
+    return context(answer, List.of());
+  }
+
+  private ReActModelContext context(
+      CandidateAnswer answer,
+      List<ToolObservation> observations
+  ) {
     return new ReActModelContext(
         new ReActRequest(
             "session-1",
@@ -211,7 +284,7 @@ class SpringAiAdaptiveAgentModelGatewayTest {
                 List.of()
             )
         ),
-        List.of()
+        observations
     );
   }
 }

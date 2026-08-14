@@ -6,14 +6,19 @@ import interview.guide.common.exception.ErrorCode;
 import interview.guide.modules.interview.agent.adaptive.application.AdaptiveAgentProperties;
 import interview.guide.modules.interview.agent.adaptive.core.AgentAction;
 import interview.guide.modules.interview.agent.adaptive.core.AgentResponseType;
+import interview.guide.modules.interview.agent.adaptive.core.QuestionProvenance;
 import interview.guide.modules.interview.agent.adaptive.core.RespondAction;
 import interview.guide.modules.interview.agent.adaptive.core.ToolCallAction;
 import interview.guide.modules.interview.agent.adaptive.observability.AdaptiveAgentTelemetry;
 import interview.guide.modules.interview.agent.adaptive.runtime.AgentModelGateway;
 import interview.guide.modules.interview.agent.adaptive.runtime.ReActModelContext;
+import interview.guide.modules.interview.agent.adaptive.runtime.ToolObservation;
+import interview.guide.modules.interview.agent.adaptive.tool.QuestionBankQuestion;
+import interview.guide.modules.interview.agent.adaptive.tool.QuestionBankSearchTool;
 import interview.guide.modules.interview.agent.adaptive.tool.ToolGateway;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
+import java.util.List;
 import java.util.Map;
 import org.springframework.ai.chat.client.ChatClient;
 import org.springframework.ai.chat.messages.AssistantMessage;
@@ -33,6 +38,8 @@ public class SpringAiAdaptiveAgentModelGateway implements AgentModelGateway {
   private static final int MAX_RESPONSE_LENGTH = 500;
   private static final TypeReference<Map<String, Object>> TOOL_ARGUMENTS_TYPE =
       new TypeReference<>() {};
+  private static final TypeReference<List<QuestionBankQuestion>>
+      QUESTION_RESULTS_TYPE = new TypeReference<>() {};
 
   private final LlmProviderRegistry llmProviderRegistry;
   private final ObjectMapper objectMapper;
@@ -157,7 +164,7 @@ public class SpringAiAdaptiveAgentModelGateway implements AgentModelGateway {
       );
     }
     AgentStepOutput output = outputConverter.convert(message.getText());
-    return validateAndMap(output);
+    return validateAndMap(output, context);
   }
 
   private Map<String, Object> readArguments(String arguments) {
@@ -198,7 +205,10 @@ public class SpringAiAdaptiveAgentModelGateway implements AgentModelGateway {
     }
   }
 
-  private RespondAction validateAndMap(AgentStepOutput output) {
+  private RespondAction validateAndMap(
+      AgentStepOutput output,
+      ReActModelContext context
+  ) {
     if (output.type() == null
         || output.content() == null
         || output.content().isBlank()
@@ -227,12 +237,58 @@ public class SpringAiAdaptiveAgentModelGateway implements AgentModelGateway {
           "Agent must return exactly one single-line question"
       );
     }
-    return RespondAction.ask(output.content(), output.reason());
+    if (output.sourceQuestionId() == null
+        && output.sourceDifficulty() == null) {
+      return RespondAction.ask(output.content(), output.reason());
+    }
+    if (output.sourceQuestionId() == null
+        || output.sourceDifficulty() == null) {
+      throw new BusinessException(
+          ErrorCode.AI_SERVICE_ERROR,
+          "Question provenance is incomplete"
+      );
+    }
+    QuestionBankQuestion sourceQuestion = context.observations().stream()
+        .filter(ToolObservation::accepted)
+        .filter(observation -> QuestionBankSearchTool.NAME.equals(
+            observation.toolName()
+        ))
+        .flatMap(observation -> readQuestions(observation.output()).stream())
+        .filter(question -> question.stableId().equals(output.sourceQuestionId()))
+        .filter(question -> question.difficulty().equals(output.sourceDifficulty()))
+        .filter(question -> question.question().equals(output.content()))
+        .findFirst()
+        .orElseThrow(() -> new BusinessException(
+            ErrorCode.AI_SERVICE_ERROR,
+            "Question provenance does not match an accepted tool result"
+        ));
+    return RespondAction.ask(
+        output.content(),
+        output.reason(),
+        new QuestionProvenance(
+            sourceQuestion.stableId(),
+            sourceQuestion.difficulty()
+        )
+    );
+  }
+
+  private List<QuestionBankQuestion> readQuestions(String output) {
+    try {
+      return objectMapper.readValue(output, QUESTION_RESULTS_TYPE);
+    } catch (JacksonException e) {
+      throw new BusinessException(
+          ErrorCode.AI_SERVICE_ERROR,
+          "Question bank result is invalid",
+          e
+      );
+    }
   }
 
   record AgentStepOutput(
       AgentResponseType type,
       String content,
-      String reason
+      String reason,
+      String sourceQuestionId,
+      String sourceDifficulty
   ) {}
 }

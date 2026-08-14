@@ -13,6 +13,7 @@ import interview.guide.modules.interview.agent.adaptive.core.AgentResponseType;
 import interview.guide.modules.interview.agent.adaptive.core.CandidateAnswer;
 import interview.guide.modules.interview.agent.adaptive.core.CandidateClaimType;
 import interview.guide.modules.interview.agent.adaptive.core.DimensionBrief;
+import interview.guide.modules.interview.agent.adaptive.core.QuestionProvenance;
 import interview.guide.modules.interview.agent.adaptive.core.RespondAction;
 import interview.guide.modules.interview.agent.adaptive.core.UnverifiedClaim;
 import interview.guide.modules.interview.agent.adaptive.memory.CandidateClaim;
@@ -60,7 +61,36 @@ class AdaptiveInterviewPersistenceServiceTest {
   private AdaptiveAgentEvidenceRepository evidenceRepository;
 
   @Autowired
+  private AdaptiveAgentTurnRepository turnRepository;
+
+  @Autowired
   private AssessmentReportService reportService;
+
+  @Test
+  @DisplayName("审核题稳定 ID 与难度随问题轮次一起落库")
+  void shouldPersistQuestionProvenance() {
+    String sessionId = "session-question-source";
+    service.create(
+        sessionId,
+        "candidate-source",
+        "JD",
+        "Resume",
+        null,
+        plan(sessionId, 1),
+        RespondAction.ask(
+            "审核题？",
+            "题库检索",
+            new QuestionProvenance("question:42", "MEDIUM")
+        ),
+        List.of()
+    );
+
+    AdaptiveAgentTurnEntity turn = turnRepository
+        .findBySessionIdAndTurnIndex(sessionId, 1)
+        .orElseThrow();
+    assertThat(turn.questionSourceId()).isEqualTo("question:42");
+    assertThat(turn.questionDifficulty()).isEqualTo("MEDIUM");
+  }
 
   @Test
   @DisplayName("报告只回放原始轮次而不读取维度小结转述")

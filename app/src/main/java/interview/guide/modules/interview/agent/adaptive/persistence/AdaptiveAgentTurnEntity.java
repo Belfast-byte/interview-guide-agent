@@ -45,6 +45,12 @@ public class AdaptiveAgentTurnEntity {
   @Column(name = "question_reason", length = 500)
   private String questionReason;
 
+  @Column(name = "question_source_id", length = 128)
+  private String questionSourceId;
+
+  @Column(name = "question_difficulty", length = 16)
+  private String questionDifficulty;
+
   @Column(columnDefinition = "TEXT")
   private String answer;
 
@@ -77,6 +83,10 @@ public class AdaptiveAgentTurnEntity {
     this.dimensionOrder = dimensionOrder;
     this.question = questionAction.content();
     this.questionReason = questionAction.reason();
+    if (questionAction.questionProvenance() != null) {
+      this.questionSourceId = questionAction.questionProvenance().stableId();
+      this.questionDifficulty = questionAction.questionProvenance().difficulty();
+    }
   }
 
   void complete(CandidateAnswer candidateAnswer, RespondAction action) {
@@ -119,5 +129,13 @@ public class AdaptiveAgentTurnEntity {
 
   String answer() {
     return answer;
+  }
+
+  String questionSourceId() {
+    return questionSourceId;
+  }
+
+  String questionDifficulty() {
+    return questionDifficulty;
   }
 }
