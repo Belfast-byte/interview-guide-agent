@@ -6,6 +6,7 @@ import type {
   SubmitAdaptiveAnswerRequest,
   SubmitAlgorithmCodeRequest,
   SandboxExecution,
+  PublicAlgorithmProblem,
   ToolResultFollowUp,
 } from '../types/adaptiveInterview';
 
@@ -58,6 +59,12 @@ export const adaptiveInterviewApi = {
     return request.get<SandboxExecution>(
       `${BASE_PATH}/${sessionId}/algorithm/submissions/latest`,
       { params: { turnIndex } },
+    );
+  },
+
+  selectProblemVariant(sessionId: string, problemId: string): Promise<PublicAlgorithmProblem> {
+    return request.get<PublicAlgorithmProblem>(
+      `${BASE_PATH}/${sessionId}/algorithm/problems/${encodeURIComponent(problemId)}/variant`,
     );
   },
 

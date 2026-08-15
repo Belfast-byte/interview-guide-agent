@@ -27,6 +27,7 @@ import type {
   AdaptiveInterviewDimension,
   AdaptiveInterviewSession,
   SandboxExecution,
+  PublicAlgorithmProblem,
   SandboxLanguage,
   SandboxRunMode,
   ToolResultFollowUp,
@@ -57,6 +58,8 @@ export default function AdaptiveInterviewPage() {
   const [error, setError] = useState('');
   const [reportError, setReportError] = useState('');
   const [problemId, setProblemId] = useState('');
+  const [problem, setProblem] = useState<PublicAlgorithmProblem | null>(null);
+  const [problemLoading, setProblemLoading] = useState(false);
   const [language, setLanguage] = useState<SandboxLanguage>('JAVA');
   const [runMode, setRunMode] = useState<SandboxRunMode>('SAMPLE');
   const [source, setSource] = useState('');
@@ -235,6 +238,27 @@ export default function AdaptiveInterviewPage() {
     }
   };
 
+  const loadProblemVariant = async (activeSession: AdaptiveInterviewSession) => {
+    if (!problemId.trim()) {
+      setJudgeError('请先填写一个题目标识作为变体组入口。');
+      return;
+    }
+    setProblemLoading(true);
+    setJudgeError('');
+    try {
+      const selected = await adaptiveInterviewApi.selectProblemVariant(
+        activeSession.sessionId,
+        problemId.trim(),
+      );
+      setProblem(selected);
+      setProblemId(selected.id);
+    } catch (requestError) {
+      setJudgeError(getErrorMessage(requestError));
+    } finally {
+      setProblemLoading(false);
+    }
+  };
+
   const startNew = () => {
     setSession(null);
     setReport(null);
@@ -359,13 +383,19 @@ export default function AdaptiveInterviewPage() {
           {session.status === 'IN_PROGRESS' && algorithmActive && (
             <AlgorithmWorkbench
               problemId={problemId}
+              problem={problem}
+              problemLoading={problemLoading}
               language={language}
               runMode={runMode}
               source={source}
               submission={submission}
               judging={judging}
               error={judgeError}
-              onProblemIdChange={setProblemId}
+              onProblemIdChange={value => {
+                setProblemId(value);
+                setProblem(null);
+              }}
+              onLoadProblem={() => void loadProblemVariant(session)}
               onLanguageChange={setLanguage}
               onRunModeChange={setRunMode}
               onSourceChange={setSource}
@@ -426,6 +456,8 @@ export default function AdaptiveInterviewPage() {
 
 interface AlgorithmWorkbenchProps {
   problemId: string;
+  problem: PublicAlgorithmProblem | null;
+  problemLoading: boolean;
   language: SandboxLanguage;
   runMode: SandboxRunMode;
   source: string;
@@ -433,6 +465,7 @@ interface AlgorithmWorkbenchProps {
   judging: boolean;
   error: string;
   onProblemIdChange: (value: string) => void;
+  onLoadProblem: () => void;
   onLanguageChange: (value: SandboxLanguage) => void;
   onRunModeChange: (value: SandboxRunMode) => void;
   onSourceChange: (value: string) => void;
@@ -476,6 +509,8 @@ function AlgorithmWorkbench(props: AlgorithmWorkbenchProps) {
         </div>
         <div className="space-y-4">
           <label className="block"><span className="mb-2 block text-xs font-medium text-slate-300">题目标识</span><input value={props.problemId} onChange={event => props.onProblemIdChange(event.target.value)} placeholder="例如 two-sum" className="w-full rounded-lg border border-slate-700 bg-slate-900 px-3 py-2.5 font-mono text-xs outline-none focus:border-cyan-400" /></label>
+          <button type="button" onClick={props.onLoadProblem} disabled={props.problemLoading || !props.problemId.trim()} className="flex w-full items-center justify-center gap-2 rounded-lg border border-cyan-400/40 bg-cyan-400/10 px-3 py-2.5 text-xs font-semibold text-cyan-200 transition hover:bg-cyan-400/15 disabled:opacity-50">{props.problemLoading ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <RefreshCw className="h-3.5 w-3.5" />}载入未考察变体</button>
+          {props.problem && <div className="rounded-lg border border-slate-700 bg-slate-900 p-3"><div className="flex items-center justify-between gap-2"><p className="text-xs font-semibold text-slate-100">{props.problem.title}</p><span className="font-mono text-[10px] text-cyan-300">{props.problem.difficulty}</span></div><p className="mt-2 whitespace-pre-wrap text-xs leading-5 text-slate-400">{props.problem.statement}</p><pre className="mt-3 overflow-x-auto rounded bg-slate-950 p-2 text-[10px] leading-4 text-slate-500">{props.problem.sampleCases}</pre></div>}
           <label className="block"><span className="mb-2 block text-xs font-medium text-slate-300">语言</span><select value={props.language} onChange={event => props.onLanguageChange(event.target.value as SandboxLanguage)} className="w-full rounded-lg border border-slate-700 bg-slate-900 px-3 py-2.5 text-xs outline-none focus:border-cyan-400"><option value="JAVA">Java</option><option value="PYTHON">Python</option><option value="CPP">C++</option></select></label>
           <div><span className="mb-2 block text-xs font-medium text-slate-300">运行范围</span><div className="grid grid-cols-2 gap-2">{(['SAMPLE', 'FULL'] as const).map(mode => <button key={mode} type="button" onClick={() => props.onRunModeChange(mode)} className={`rounded-lg border px-3 py-2 text-xs font-semibold ${props.runMode === mode ? 'border-cyan-400 bg-cyan-400/10 text-cyan-200' : 'border-slate-700 text-slate-400'}`}>{mode === 'SAMPLE' ? '公开样例' : '完整判题'}</button>)}</div></div>
           {props.submission && <JudgeResult execution={props.submission} />}

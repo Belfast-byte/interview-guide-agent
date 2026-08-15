@@ -39,6 +39,22 @@ public class AlgorithmPersistenceService {
         .toDomain();
   }
 
+  @Transactional(readOnly = true)
+  public List<AlgorithmProblem> findVariants(
+      String variantGroup,
+      AlgorithmDifficulty difficulty
+  ) {
+    return problemRepository.findByVariantGroupAndDifficultyOrderById(
+        variantGroup,
+        difficulty
+    ).stream().map(AlgorithmProblemEntity::toDomain).toList();
+  }
+
+  @Transactional(readOnly = true)
+  public List<String> attemptedProblemIds(String sessionId) {
+    return executionRepository.findDistinctProblemIdsBySessionId(sessionId);
+  }
+
   @Transactional
   public SandboxExecution createPending(CreateSandboxExecution command) {
     long turnId = sessionFacts.lockCurrentTurn(command.sessionId(), command.turnIndex());

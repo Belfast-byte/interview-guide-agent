@@ -6,12 +6,17 @@ import java.util.List;
 import java.time.LocalDateTime;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Lock;
+import org.springframework.data.jpa.repository.Query;
 
 interface SandboxExecutionRepository extends JpaRepository<SandboxExecutionEntity, String> {
 
   long countBySessionId(String sessionId);
 
   long countByStatus(SandboxExecutionStatus status);
+
+  @Query("select distinct execution.problemId from SandboxExecutionEntity execution "
+      + "where execution.sessionId = :sessionId")
+  List<String> findDistinctProblemIdsBySessionId(String sessionId);
 
   Optional<SandboxExecutionEntity> findTopBySessionIdOrderBySubmissionSeqDesc(String sessionId);
 

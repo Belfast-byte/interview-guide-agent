@@ -66,6 +66,15 @@ export type SandboxRunMode = 'SAMPLE' | 'FULL';
 export type SandboxExecutionStatus = 'PENDING' | 'RUNNING' | 'DONE' | 'TIMEOUT_QUEUED';
 export type SandboxVerdict = 'AC' | 'WA' | 'CE' | 'TLE' | 'MLE' | 'RE' | 'IE';
 
+export interface PublicAlgorithmProblem {
+  id: string;
+  title: string;
+  statement: string;
+  difficulty: 'EASY' | 'MEDIUM' | 'HARD';
+  tags: string;
+  sampleCases: string;
+}
+
 export interface SubmitAlgorithmCodeRequest {
   turnIndex: number;
   problemId: string;

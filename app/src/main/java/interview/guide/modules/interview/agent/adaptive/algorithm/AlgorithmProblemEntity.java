@@ -43,6 +43,9 @@ class AlgorithmProblemEntity {
   @Column(name = "memory_limit_kb", nullable = false)
   private int memoryLimitKb;
 
+  @Column(name = "variant_group", nullable = false, length = 64)
+  private String variantGroup;
+
   @Column(name = "created_at", nullable = false)
   private LocalDateTime createdAt;
 
@@ -61,6 +64,7 @@ class AlgorithmProblemEntity {
     hiddenCasesRef = problem.hiddenCasesRef();
     timeLimitMs = problem.timeLimitMs();
     memoryLimitKb = problem.memoryLimitKb();
+    variantGroup = problem.variantGroup();
   }
 
   AlgorithmProblem toDomain() {
@@ -73,7 +77,8 @@ class AlgorithmProblemEntity {
         sampleCasesRef,
         hiddenCasesRef,
         timeLimitMs,
-        memoryLimitKb
+        memoryLimitKb,
+        variantGroup
     );
   }
 

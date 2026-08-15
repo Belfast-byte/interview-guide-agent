@@ -35,6 +35,14 @@ public class AlgorithmInterviewController {
     return Result.success(problemService.getPublicProblem(problemId));
   }
 
+  @GetMapping("/{sessionId}/algorithm/problems/{problemId}/variant")
+  public Result<PublicAlgorithmProblem> selectProblemVariant(
+      @PathVariable String sessionId,
+      @PathVariable String problemId
+  ) {
+    return Result.success(problemService.selectPublicVariant(sessionId, problemId));
+  }
+
   @PostMapping("/{sessionId}/algorithm/submissions")
   @RateLimit(dimension = RateLimit.Dimension.GLOBAL, count = 20)
   @RateLimit(dimension = RateLimit.Dimension.IP, count = 5)

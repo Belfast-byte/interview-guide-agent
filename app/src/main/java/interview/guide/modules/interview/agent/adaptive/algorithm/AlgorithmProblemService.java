@@ -11,9 +11,17 @@ public class AlgorithmProblemService {
 
   private final AlgorithmPersistenceService persistenceService;
   private final FileStorageService fileStorageService;
+  private final AlgorithmProblemSelectionService selectionService;
 
   public PublicAlgorithmProblem getPublicProblem(String problemId) {
-    AlgorithmProblem problem = persistenceService.getProblem(problemId);
+    return toPublicProblem(persistenceService.getProblem(problemId));
+  }
+
+  public PublicAlgorithmProblem selectPublicVariant(String sessionId, String problemId) {
+    return toPublicProblem(selectionService.selectVariant(sessionId, problemId));
+  }
+
+  private PublicAlgorithmProblem toPublicProblem(AlgorithmProblem problem) {
     String sampleCases = new String(
         fileStorageService.downloadFile(problem.sampleCasesRef()),
         StandardCharsets.UTF_8
