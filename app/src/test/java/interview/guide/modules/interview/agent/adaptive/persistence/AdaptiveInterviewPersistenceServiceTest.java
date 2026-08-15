@@ -14,6 +14,8 @@ import interview.guide.modules.interview.agent.adaptive.core.AdaptiveSessionStat
 import interview.guide.modules.interview.agent.adaptive.core.AgentResponseType;
 import interview.guide.modules.interview.agent.adaptive.core.CandidateAnswer;
 import interview.guide.modules.interview.agent.adaptive.core.CandidateClaimType;
+import interview.guide.modules.interview.agent.adaptive.core.CodeFactUsage;
+import interview.guide.modules.interview.agent.adaptive.core.CodeQuestionProvenance;
 import interview.guide.modules.interview.agent.adaptive.core.DimensionBrief;
 import interview.guide.modules.interview.agent.adaptive.core.QuestionProvenance;
 import interview.guide.modules.interview.agent.adaptive.core.RespondAction;
@@ -96,6 +98,37 @@ class AdaptiveInterviewPersistenceServiceTest {
         .orElseThrow();
     assertThat(turn.questionSourceId()).isEqualTo("question:42");
     assertThat(turn.questionDifficulty()).isEqualTo("MEDIUM");
+  }
+
+  @Test
+  @DisplayName("项目问题的代码事实来源与锚点随轮次落库")
+  void shouldPersistCodeQuestionProvenance() {
+    String sessionId = "session-code-source";
+    service.create(
+        sessionId,
+        "candidate-source",
+        "JD",
+        "Resume",
+        null,
+        plan(sessionId, 1),
+        RespondAction.askFromCode(
+            "这个缓存实现有哪些并发边界？",
+            "基于项目代码场景",
+            new CodeQuestionProvenance(
+                "scenario-1",
+                "order/OrderCache.java:42",
+                CodeFactUsage.QUESTION_SOURCE
+            )
+        ),
+        List.of()
+    );
+
+    AdaptiveAgentTurnEntity turn = turnRepository
+        .findBySessionIdAndTurnIndex(sessionId, 1)
+        .orElseThrow();
+    assertThat(turn.codeSourceId()).isEqualTo("scenario-1");
+    assertThat(turn.codeAnchor()).isEqualTo("order/OrderCache.java:42");
+    assertThat(turn.codeFactUsage()).isEqualTo(CodeFactUsage.QUESTION_SOURCE);
   }
 
   @Test

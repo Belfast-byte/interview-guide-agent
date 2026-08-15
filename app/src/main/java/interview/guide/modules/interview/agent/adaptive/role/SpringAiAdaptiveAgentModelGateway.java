@@ -6,6 +6,9 @@ import interview.guide.common.exception.ErrorCode;
 import interview.guide.modules.interview.agent.adaptive.application.AdaptiveAgentProperties;
 import interview.guide.modules.interview.agent.adaptive.core.AgentAction;
 import interview.guide.modules.interview.agent.adaptive.core.AgentResponseType;
+import interview.guide.modules.interview.agent.adaptive.core.CodeFactUsage;
+import interview.guide.modules.interview.agent.adaptive.core.CodeQuestionProvenance;
+import interview.guide.modules.interview.agent.adaptive.core.ProjectInterviewContext;
 import interview.guide.modules.interview.agent.adaptive.core.QuestionProvenance;
 import interview.guide.modules.interview.agent.adaptive.core.RespondAction;
 import interview.guide.modules.interview.agent.adaptive.core.ToolCallAction;
@@ -20,6 +23,7 @@ import interview.guide.modules.interview.agent.adaptive.tool.ToolGateway;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.util.List;
+import java.util.stream.Stream;
 import java.util.Map;
 import org.springframework.ai.chat.client.ChatClient;
 import org.springframework.ai.chat.messages.AssistantMessage;
@@ -95,7 +99,13 @@ public class SpringAiAdaptiveAgentModelGateway implements AgentModelGateway {
     }
 
     try {
-      AgentAction action = mapResponse(response, context);
+      AgentAction action;
+      try {
+        action = mapResponse(response, context);
+      } catch (CodeQuestionProvenanceException e) {
+        ReActModelContext retryContext = withCodeProvenanceRejection(context, e.getMessage());
+        action = mapResponse(callModel(retryContext), retryContext);
+      }
       telemetry.modelCallSucceeded(
           "interviewer",
           action instanceof RespondAction respond ? respond.type().name() : "TOOL_CALL",
@@ -113,6 +123,23 @@ public class SpringAiAdaptiveAgentModelGateway implements AgentModelGateway {
           e
       );
     }
+  }
+
+  private ReActModelContext withCodeProvenanceRejection(
+      ReActModelContext context,
+      String reason
+  ) {
+    ToolObservation rejection = new ToolObservation(
+        "code_provenance_validation",
+        Map.of(),
+        false,
+        null,
+        reason + "; choose an exact sourceId and anchor from project context"
+    );
+    return new ReActModelContext(
+        context.request(),
+        Stream.concat(context.observations().stream(), Stream.of(rejection)).toList()
+    );
   }
 
   private ChatResponse callModel(ReActModelContext context) {
@@ -244,12 +271,20 @@ public class SpringAiAdaptiveAgentModelGateway implements AgentModelGateway {
           "Agent must return exactly one single-line question"
       );
     }
+    CodeQuestionProvenance codeProvenance = codeProvenance(output, context);
     if (output.sourceQuestionId() == null
         && output.sourceDifficulty() == null) {
-      return RespondAction.ask(output.content(), output.reason());
+      return codeProvenance == null
+          ? RespondAction.ask(output.content(), output.reason())
+          : RespondAction.askFromCode(
+              output.content(),
+              output.reason(),
+              codeProvenance
+          );
     }
     if (output.sourceQuestionId() == null
-        || output.sourceDifficulty() == null) {
+        || output.sourceDifficulty() == null
+        || codeProvenance != null) {
       throw new BusinessException(
           ErrorCode.AI_SERVICE_ERROR,
           "Question provenance is incomplete"
@@ -279,6 +314,43 @@ public class SpringAiAdaptiveAgentModelGateway implements AgentModelGateway {
     );
   }
 
+  private CodeQuestionProvenance codeProvenance(
+      AgentStepOutput output,
+      ReActModelContext context
+  ) {
+    if (output.codeSourceId() == null
+        && output.codeAnchor() == null
+        && output.codeFactUsage() == null) {
+      return null;
+    }
+    if (output.codeSourceId() == null
+        || output.codeAnchor() == null
+        || output.codeFactUsage() == null
+        || context.request().interviewerContext().project() == null) {
+      throw new CodeQuestionProvenanceException("Code question provenance is incomplete");
+    }
+    ProjectInterviewContext project = context.request().interviewerContext().project();
+    boolean matched = switch (output.codeFactUsage()) {
+      case QUESTION_SOURCE -> project.scenarios().stream()
+          .anyMatch(scenario -> scenario.scenarioId().equals(output.codeSourceId())
+              && scenario.anchor().equals(output.codeAnchor()));
+      case CLAIM_VERIFICATION -> project.claims().stream()
+          .filter(claim -> claim.claimId().equals(output.codeSourceId()))
+          .flatMap(claim -> claim.codeFacts().stream())
+          .anyMatch(fact -> output.codeAnchor().equals(fact.anchor()));
+    };
+    if (!matched) {
+      throw new CodeQuestionProvenanceException(
+          "Code question provenance does not match an accepted analysis artifact"
+      );
+    }
+    return new CodeQuestionProvenance(
+        output.codeSourceId(),
+        output.codeAnchor(),
+        output.codeFactUsage()
+    );
+  }
+
   private List<QuestionBankQuestion> readQuestions(String output) {
     try {
       return objectMapper.readValue(output, QUESTION_RESULTS_TYPE);
@@ -296,6 +368,16 @@ public class SpringAiAdaptiveAgentModelGateway implements AgentModelGateway {
       String content,
       String reason,
       String sourceQuestionId,
-      String sourceDifficulty
+      String sourceDifficulty,
+      String codeSourceId,
+      String codeAnchor,
+      CodeFactUsage codeFactUsage
   ) {}
+
+  private static final class CodeQuestionProvenanceException extends BusinessException {
+
+    private CodeQuestionProvenanceException(String message) {
+      super(ErrorCode.AI_SERVICE_ERROR, message);
+    }
+  }
 }

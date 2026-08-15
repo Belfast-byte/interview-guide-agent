@@ -3,6 +3,7 @@ package interview.guide.modules.interview.agent.adaptive.persistence;
 import interview.guide.modules.interview.agent.adaptive.core.AdaptiveInterviewTurn;
 import interview.guide.modules.interview.agent.adaptive.core.AgentResponseType;
 import interview.guide.modules.interview.agent.adaptive.core.CandidateAnswer;
+import interview.guide.modules.interview.agent.adaptive.core.CodeFactUsage;
 import interview.guide.modules.interview.agent.adaptive.core.RespondAction;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
@@ -51,6 +52,16 @@ public class AdaptiveAgentTurnEntity {
   @Column(name = "question_difficulty", length = 16)
   private String questionDifficulty;
 
+  @Column(name = "code_source_id", length = 128)
+  private String codeSourceId;
+
+  @Column(name = "code_anchor", length = 500)
+  private String codeAnchor;
+
+  @Enumerated(EnumType.STRING)
+  @Column(name = "code_fact_usage", length = 24)
+  private CodeFactUsage codeFactUsage;
+
   @Column(columnDefinition = "TEXT")
   private String answer;
 
@@ -86,6 +97,11 @@ public class AdaptiveAgentTurnEntity {
     if (questionAction.questionProvenance() != null) {
       this.questionSourceId = questionAction.questionProvenance().stableId();
       this.questionDifficulty = questionAction.questionProvenance().difficulty();
+    }
+    if (questionAction.codeProvenance() != null) {
+      this.codeSourceId = questionAction.codeProvenance().sourceId();
+      this.codeAnchor = questionAction.codeProvenance().anchor();
+      this.codeFactUsage = questionAction.codeProvenance().usage();
     }
   }
 
@@ -141,5 +157,17 @@ public class AdaptiveAgentTurnEntity {
 
   String questionDifficulty() {
     return questionDifficulty;
+  }
+
+  String codeSourceId() {
+    return codeSourceId;
+  }
+
+  String codeAnchor() {
+    return codeAnchor;
+  }
+
+  CodeFactUsage codeFactUsage() {
+    return codeFactUsage;
   }
 }

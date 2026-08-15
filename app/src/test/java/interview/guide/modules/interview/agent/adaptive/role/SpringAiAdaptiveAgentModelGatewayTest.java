@@ -7,7 +7,10 @@ import interview.guide.common.exception.ErrorCode;
 import interview.guide.modules.interview.agent.adaptive.application.AdaptiveAgentProperties;
 import interview.guide.modules.interview.agent.adaptive.core.AgentAction;
 import interview.guide.modules.interview.agent.adaptive.core.CandidateAnswer;
+import interview.guide.modules.interview.agent.adaptive.core.CodeFactUsage;
+import interview.guide.modules.interview.agent.adaptive.core.CodeQuestionProvenance;
 import interview.guide.modules.interview.agent.adaptive.core.InterviewerContext;
+import interview.guide.modules.interview.agent.adaptive.core.ProjectInterviewContext;
 import interview.guide.modules.interview.agent.adaptive.core.QuestionProvenance;
 import interview.guide.modules.interview.agent.adaptive.core.RespondAction;
 import interview.guide.modules.interview.agent.adaptive.core.ToolCallAction;
@@ -43,6 +46,7 @@ import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.lenient;
 import static org.mockito.Mockito.spy;
+import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
@@ -211,6 +215,74 @@ class SpringAiAdaptiveAgentModelGatewayTest {
   }
 
   @Test
+  @DisplayName("项目问题来源必须匹配已校验的场景锚点")
+  void shouldAcceptVerifiedCodeQuestionProvenance() {
+    respondWith("""
+        {
+          "type":"ASK",
+          "content":"这个缓存失效实现在哪些并发条件下会失效？",
+          "reason":"基于真实代码场景追问",
+          "codeSourceId":"scenario-1",
+          "codeAnchor":"order/OrderCache.java:42",
+          "codeFactUsage":"QUESTION_SOURCE"
+        }
+        """);
+
+    assertThat(gateway.nextAction(contextWithProject())).isEqualTo(
+        RespondAction.askFromCode(
+            "这个缓存失效实现在哪些并发条件下会失效？",
+            "基于真实代码场景追问",
+            new CodeQuestionProvenance(
+                "scenario-1",
+                "order/OrderCache.java:42",
+                CodeFactUsage.QUESTION_SOURCE
+            )
+        )
+    );
+  }
+
+  @Test
+  @DisplayName("项目问题伪造代码行号时注入拒绝原因并重新出题")
+  void shouldRegenerateQuestionAfterInventedCodeAnchor() {
+    String invalid = """
+        {
+          "type":"ASK",
+          "content":"这个缓存实现为什么这样设计？",
+          "reason":"基于代码追问",
+          "codeSourceId":"scenario-1",
+          "codeAnchor":"invented/File.java:99",
+          "codeFactUsage":"QUESTION_SOURCE"
+        }
+        """;
+    String corrected = """
+        {
+          "type":"ASK",
+          "content":"这个缓存实现为什么这样设计？",
+          "reason":"基于代码追问",
+          "codeSourceId":"scenario-1",
+          "codeAnchor":"order/OrderCache.java:42",
+          "codeFactUsage":"QUESTION_SOURCE"
+        }
+        """;
+    when(responseSpec.chatResponse()).thenReturn(
+        response(new AssistantMessage(invalid)),
+        response(new AssistantMessage(corrected))
+    );
+
+    assertThat(gateway.nextAction(contextWithProject()))
+        .isEqualTo(RespondAction.askFromCode(
+            "这个缓存实现为什么这样设计？",
+            "基于代码追问",
+            new CodeQuestionProvenance(
+                "scenario-1",
+                "order/OrderCache.java:42",
+                CodeFactUsage.QUESTION_SOURCE
+            )
+        ));
+    verify(responseSpec, times(2)).chatResponse();
+  }
+
+  @Test
   @DisplayName("首次调用返回结束动作时快速失败")
   void shouldRejectFinishAsFirstAction() {
     respondWith("""
@@ -305,6 +377,47 @@ class SpringAiAdaptiveAgentModelGatewayTest {
             )
         ),
         observations
+    );
+  }
+
+  private ReActModelContext contextWithProject() {
+    ProjectInterviewContext project = new ProjectInterviewContext(
+        "digest-1",
+        List.of(),
+        List.of(new ProjectInterviewContext.ProjectScenario(
+            "scenario-1",
+            "缓存失效并发场景",
+            "订单缓存存在版本号失效逻辑",
+            "order/OrderCache.java:42",
+            "EXPLAIN",
+            "解释并发边界",
+            null
+        ))
+    );
+    return new ReActModelContext(
+        new ReActRequest(
+            "session-1",
+            AgentRole.INTERVIEWER,
+            "provider-1",
+            new InterviewerContext(
+                "JD",
+                "Resume",
+                1,
+                6,
+                0,
+                "项目经验",
+                "架构取舍",
+                List.of(),
+                null,
+                List.of(),
+                null,
+                List.of(),
+                null,
+                null,
+                project
+            )
+        ),
+        List.of()
     );
   }
 }
