@@ -14,4 +14,7 @@ public interface AdaptiveAgentSessionRepository
 
   @Lock(LockModeType.PESSIMISTIC_WRITE)
   Optional<AdaptiveAgentSessionEntity> findLockedByIdAndTenantIdIsNull(String id);
+
+  @Lock(LockModeType.PESSIMISTIC_WRITE)
+  Optional<AdaptiveAgentSessionEntity> findLockedById(String id);
 }

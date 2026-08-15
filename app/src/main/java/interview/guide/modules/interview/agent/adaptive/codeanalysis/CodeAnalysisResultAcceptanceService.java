@@ -6,6 +6,7 @@ import java.util.LinkedHashSet;
 import java.util.Set;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
+import interview.guide.modules.interview.agent.adaptive.observability.CodeAnalysisTelemetry;
 
 @Service
 @RequiredArgsConstructor
@@ -13,21 +14,29 @@ public class CodeAnalysisResultAcceptanceService {
 
   private final CodeAnalysisPersistenceService persistenceService;
   private final CodeAnchorCatalog anchorCatalog;
+  private final CodeAnalysisProperties properties;
+  private final CodeAnalysisTelemetry telemetry;
 
   public void accept(String jobId, CodeAnalysisResult result) {
     ProjectRepositorySnapshot snapshot = persistenceService.getRepositorySnapshot(jobId);
     if (!snapshot.commitHash().equals(result.digest().commitHash())) {
       throw new BusinessException(ErrorCode.BAD_REQUEST, "分析产物 commitHash 不匹配");
     }
+    if (result.tokenCost() > properties.getMaxTokenCost()) {
+      throw new BusinessException(ErrorCode.BAD_REQUEST, "代码分析 token 成本超过上限");
+    }
     Set<CodeAnchor> anchors = anchors(result);
     Set<CodeAnchor> missing = anchorCatalog.findMissing(snapshot.repositoryRef(), anchors);
     if (!missing.isEmpty()) {
+      telemetry.anchorRejected();
       throw new BusinessException(
           ErrorCode.BAD_REQUEST,
           "代码分析产物包含不存在的锚点: " + missing.iterator().next().display()
       );
     }
     persistenceService.complete(jobId, result);
+    telemetry.anchorsAccepted(anchors.size());
+    telemetry.jobCompleted(result.durationMs(), result.tokenCost());
   }
 
   private Set<CodeAnchor> anchors(CodeAnalysisResult result) {

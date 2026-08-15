@@ -74,6 +74,12 @@ class AnalysisJobEntity {
     this.finishedAt = LocalDateTime.now();
   }
 
+  void timeout() {
+    status = AnalysisJobStatus.TIMED_OUT;
+    failureReason = "analysis timeout";
+    finishedAt = LocalDateTime.now();
+  }
+
   @PrePersist
   void prePersist() {
     createdAt = LocalDateTime.now();

@@ -4,6 +4,7 @@ import interview.guide.common.exception.BusinessException;
 import interview.guide.common.exception.ErrorCode;
 import java.time.LocalDateTime;
 import lombok.RequiredArgsConstructor;
+import interview.guide.modules.interview.agent.adaptive.observability.CodeAnalysisTelemetry;
 import org.springframework.stereotype.Service;
 
 @Service
@@ -12,6 +13,7 @@ public class CodeAnalysisSubmissionService {
 
   private final CodeAnalysisPersistenceService persistenceService;
   private final CodeAnalysisStreamProducer producer;
+  private final CodeAnalysisTelemetry telemetry;
 
   public CodeAnalysisJob submit(
       String sessionId,
@@ -30,6 +32,7 @@ public class CodeAnalysisSubmissionService {
     if (job.status() == AnalysisJobStatus.PENDING && !producer.send(job.id())) {
       throw new BusinessException(ErrorCode.INTERNAL_ERROR, "代码分析任务投递失败");
     }
+    telemetry.jobSubmitted();
     return job;
   }
 }

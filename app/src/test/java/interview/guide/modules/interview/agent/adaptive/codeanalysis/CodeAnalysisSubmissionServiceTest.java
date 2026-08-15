@@ -6,6 +6,7 @@ import static org.mockito.Mockito.when;
 
 import interview.guide.common.exception.BusinessException;
 import java.time.LocalDateTime;
+import interview.guide.modules.interview.agent.adaptive.observability.CodeAnalysisTelemetry;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -21,6 +22,9 @@ class CodeAnalysisSubmissionServiceTest {
 
   @Mock
   private CodeAnalysisStreamProducer producer;
+
+  @Mock
+  private CodeAnalysisTelemetry telemetry;
 
   @InjectMocks
   private CodeAnalysisSubmissionService service;

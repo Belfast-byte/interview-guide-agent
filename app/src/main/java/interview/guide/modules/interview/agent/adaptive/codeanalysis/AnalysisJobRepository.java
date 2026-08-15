@@ -1,6 +1,8 @@
 package interview.guide.modules.interview.agent.adaptive.codeanalysis;
 
 import java.util.Optional;
+import java.time.LocalDateTime;
+import java.util.List;
 import org.springframework.data.jpa.repository.JpaRepository;
 
 interface AnalysisJobRepository extends JpaRepository<AnalysisJobEntity, String> {
@@ -12,5 +14,10 @@ interface AnalysisJobRepository extends JpaRepository<AnalysisJobEntity, String>
   Optional<AnalysisJobEntity> findTopBySessionIdAndStatusOrderByCreatedAtDesc(
       String sessionId,
       AnalysisJobStatus status
+  );
+
+  List<AnalysisJobEntity> findByStatusInAndCreatedAtBefore(
+      List<AnalysisJobStatus> statuses,
+      LocalDateTime cutoff
   );
 }

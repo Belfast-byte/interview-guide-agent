@@ -11,4 +11,8 @@ import org.springframework.stereotype.Component;
 public class CodeAnalysisProperties {
 
   private Duration retention = Duration.ofDays(30);
+  private Duration timeout = Duration.ofMinutes(10);
+  private int maxSnapshotBytes = 100 * 1024 * 1024;
+  private int maxSnapshotFiles = 20_000;
+  private long maxTokenCost = 200_000;
 }

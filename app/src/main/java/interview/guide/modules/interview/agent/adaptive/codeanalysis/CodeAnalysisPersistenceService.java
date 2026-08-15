@@ -157,6 +157,45 @@ public class CodeAnalysisPersistenceService {
     );
   }
 
+  @Transactional(readOnly = true)
+  public String getTraceRepositoryRef(String sessionId) {
+    CodeAnalysisJob job = jobRepository
+        .findTopBySessionIdAndStatusOrderByCreatedAtDesc(
+            sessionId,
+            AnalysisJobStatus.COMPLETED
+        )
+        .orElseThrow(() -> new BusinessException(ErrorCode.NOT_FOUND, "代码分析尚未完成"))
+        .toDomain();
+    return repoRepository.findById(job.repositoryId())
+        .orElseThrow(() -> new BusinessException(ErrorCode.NOT_FOUND, "代码仓库快照不存在"))
+        .repositoryRef();
+  }
+
+  @Transactional
+  public int timeoutCreatedBefore(LocalDateTime cutoff) {
+    List<AnalysisJobEntity> jobs = jobRepository.findByStatusInAndCreatedAtBefore(
+        List.of(AnalysisJobStatus.PENDING, AnalysisJobStatus.RUNNING),
+        cutoff
+    );
+    jobs.forEach(AnalysisJobEntity::timeout);
+    return jobs.size();
+  }
+
+  @Transactional(readOnly = true)
+  public List<ExpiredProjectRepository> findExpiredRepositories(LocalDateTime cutoff) {
+    return repoRepository.findByExpiresAtBefore(cutoff).stream()
+        .map(repository -> new ExpiredProjectRepository(
+            repository.id(),
+            repository.repositoryRef()
+        ))
+        .toList();
+  }
+
+  @Transactional
+  public void deleteRepositories(List<String> repositoryIds) {
+    repoRepository.deleteAllById(repositoryIds);
+  }
+
   private AnalysisJobEntity findJob(String jobId) {
     return jobRepository.findById(jobId)
         .orElseThrow(() -> new BusinessException(ErrorCode.NOT_FOUND, "代码分析任务不存在"));

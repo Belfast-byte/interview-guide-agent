@@ -11,6 +11,7 @@ import interview.guide.modules.interview.agent.adaptive.codeanalysis.CodeAnalysi
 import interview.guide.modules.interview.agent.adaptive.codeanalysis.CodeAnalysisProperties;
 import interview.guide.modules.interview.agent.adaptive.codeanalysis.CodeAnalysisSubmissionService;
 import interview.guide.modules.interview.agent.adaptive.codeanalysis.ProjectDigest;
+import interview.guide.modules.interview.agent.adaptive.codeanalysis.CodeTraceService;
 import io.modelcontextprotocol.common.McpTransportContext;
 import java.util.List;
 import java.util.Set;
@@ -39,6 +40,9 @@ class CodeAnalysisMcpToolsTest {
   private AdaptiveMcpAuditService auditService;
 
   @Mock
+  private CodeTraceService traceService;
+
+  @Mock
   private McpSyncRequestContext context;
 
   @Mock
@@ -53,12 +57,13 @@ class CodeAnalysisMcpToolsTest {
         submissionService,
         persistenceService,
         new CodeAnalysisProperties(),
-        auditService
+        auditService,
+        traceService
     );
   }
 
   @Test
-  @DisplayName("MCP 层只暴露提交与三类产物查询工具")
+  @DisplayName("MCP 层暴露提交、三类产物查询和受限代码追踪五个工具")
   void shouldExposeThinArtifactTools() {
     assertThat(new SyncMcpToolProvider(List.of(tools)).getToolSpecifications())
         .extracting(specification -> specification.tool().name())
@@ -66,7 +71,8 @@ class CodeAnalysisMcpToolsTest {
             "code.submit_repo",
             "code.get_digest",
             "code.get_claim_verifications",
-            "code.get_scenarios"
+            "code.get_scenarios",
+            "code.trace"
         );
   }
 

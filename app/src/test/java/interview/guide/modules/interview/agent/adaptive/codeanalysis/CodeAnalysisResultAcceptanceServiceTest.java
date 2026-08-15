@@ -4,8 +4,10 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
+import static org.mockito.Mockito.verifyNoInteractions;
 
 import interview.guide.common.exception.BusinessException;
+import interview.guide.modules.interview.agent.adaptive.observability.CodeAnalysisTelemetry;
 import java.util.List;
 import java.util.Set;
 import org.junit.jupiter.api.BeforeEach;
@@ -24,11 +26,19 @@ class CodeAnalysisResultAcceptanceServiceTest {
   @Mock
   private CodeAnchorCatalog anchorCatalog;
 
+  @Mock
+  private CodeAnalysisTelemetry telemetry;
+
   private CodeAnalysisResultAcceptanceService service;
 
   @BeforeEach
   void setUp() {
-    service = new CodeAnalysisResultAcceptanceService(persistenceService, anchorCatalog);
+    service = new CodeAnalysisResultAcceptanceService(
+        persistenceService,
+        anchorCatalog,
+        new CodeAnalysisProperties(),
+        telemetry
+    );
   }
 
   @Test
@@ -89,5 +99,42 @@ class CodeAnalysisResultAcceptanceServiceTest {
     service.accept("job-1", result);
 
     verify(persistenceService).complete("job-1", result);
+  }
+
+  @Test
+  @DisplayName("分析成本超过单仓库预算时不读取快照也不写入产物")
+  void shouldRejectTokenCostAboveBudget() {
+    CodeAnalysisProperties properties = new CodeAnalysisProperties();
+    properties.setMaxTokenCost(100);
+    service = new CodeAnalysisResultAcceptanceService(
+        persistenceService,
+        anchorCatalog,
+        properties,
+        telemetry
+    );
+    ProjectDigest digest = new ProjectDigest(
+        "digest-1",
+        "abc123",
+        List.of(),
+        List.of(),
+        List.of(),
+        List.of()
+    );
+    CodeAnalysisResult result = new CodeAnalysisResult(
+        digest,
+        List.of(),
+        List.of(),
+        100,
+        101
+    );
+    when(persistenceService.getRepositorySnapshot("job-1"))
+        .thenReturn(new ProjectRepositorySnapshot("repos/one.zip", "abc123"));
+
+    assertThatThrownBy(() -> service.accept("job-1", result))
+        .isInstanceOf(BusinessException.class)
+        .hasMessageContaining("token");
+
+    verifyNoInteractions(anchorCatalog);
+    verify(persistenceService, never()).complete("job-1", result);
   }
 }

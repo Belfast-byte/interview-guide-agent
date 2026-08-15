@@ -8,6 +8,8 @@ import interview.guide.modules.interview.agent.adaptive.codeanalysis.CodeAnalysi
 import interview.guide.modules.interview.agent.adaptive.codeanalysis.CodeAnalysisPersistenceService;
 import interview.guide.modules.interview.agent.adaptive.codeanalysis.CodeAnalysisProperties;
 import interview.guide.modules.interview.agent.adaptive.codeanalysis.CodeAnalysisSubmissionService;
+import interview.guide.modules.interview.agent.adaptive.codeanalysis.CodeTraceResult;
+import interview.guide.modules.interview.agent.adaptive.codeanalysis.CodeTraceService;
 import interview.guide.modules.interview.agent.adaptive.codeanalysis.ProjectDigest;
 import interview.guide.modules.interview.agent.adaptive.codeanalysis.ScenarioCard;
 import java.time.LocalDateTime;
@@ -32,12 +34,14 @@ public class CodeAnalysisMcpTools {
   private static final String DIGEST_TOOL = "code.get_digest";
   private static final String CLAIMS_TOOL = "code.get_claim_verifications";
   private static final String SCENARIOS_TOOL = "code.get_scenarios";
+  private static final String TRACE_TOOL = "code.trace";
 
   private final AdaptiveInterviewApplicationService interviewService;
   private final CodeAnalysisSubmissionService submissionService;
   private final CodeAnalysisPersistenceService persistenceService;
   private final CodeAnalysisProperties properties;
   private final AdaptiveMcpAuditService auditService;
+  private final CodeTraceService traceService;
 
   @McpTool(
       name = SUBMIT_TOOL,
@@ -104,6 +108,26 @@ public class CodeAnalysisMcpTools {
     List<ScenarioCard> scenarios = persistenceService.getScenarios(sessionId, jobId);
     auditService.record(principal, SCENARIOS_TOOL, jobId, McpAuditOutcome.SUCCEEDED);
     return scenarios;
+  }
+
+  @McpTool(name = TRACE_TOOL, description = "Locate a symbol or exact text in the repository")
+  public CodeTraceResult trace(
+      McpSyncRequestContext context,
+      @McpToolParam(description = "Interview session identifier") String sessionId,
+      @McpToolParam(description = "Symbol or exact text to locate") String query
+  ) {
+    if (query == null || query.isBlank() || query.length() > 120) {
+      throw new BusinessException(ErrorCode.BAD_REQUEST, "代码追踪查询无效");
+    }
+    McpTenantPrincipal principal = requireScope(
+        context,
+        TRACE_TOOL,
+        McpInterviewScope.CODE_ANALYSIS_TRACE
+    );
+    interviewService.getForTenant(principal.tenantId(), sessionId);
+    CodeTraceResult result = traceService.trace(sessionId, query);
+    auditService.record(principal, TRACE_TOOL, sessionId, McpAuditOutcome.SUCCEEDED);
+    return result;
   }
 
   private McpTenantPrincipal authorizeRead(
