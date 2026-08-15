@@ -3,6 +3,7 @@ package interview.guide.modules.interview.agent.adaptive.codeanalysis;
 import interview.guide.common.exception.BusinessException;
 import interview.guide.common.exception.ErrorCode;
 import interview.guide.modules.interview.agent.adaptive.core.ProjectInterviewContext;
+import interview.guide.modules.interview.agent.adaptive.planning.ProjectPlanningContext;
 import java.util.Optional;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
@@ -27,6 +28,44 @@ public class CodeAnalysisInterviewContextService {
         AnalysisJobStatus.COMPLETED
     ).map(AnalysisJobEntity::toDomain)
         .map(this::map);
+  }
+
+  @Transactional(readOnly = true)
+  public Optional<ProjectPlanningContext> findPlanningForSession(String sessionId) {
+    return jobRepository.findTopBySessionIdAndStatusOrderByCreatedAtDesc(
+        sessionId,
+        AnalysisJobStatus.COMPLETED
+    ).map(AnalysisJobEntity::toDomain)
+        .map(job -> read(
+            digestRepository.findByRepositoryId(job.repositoryId()).orElseThrow().payloadJson(),
+            ProjectDigest.class
+        ))
+        .map(digest -> new ProjectPlanningContext(
+            digest.digestId(),
+            digest.commitHash(),
+            digest.stack(),
+            digest.modules().stream()
+                .map(module -> new ProjectPlanningContext.ProjectModule(
+                    module.name(),
+                    module.role(),
+                    module.anchor().display()
+                ))
+                .toList(),
+            digest.highlightCandidates().stream()
+                .map(finding -> new ProjectPlanningContext.ProjectFinding(
+                    finding.title(),
+                    finding.anchor().display(),
+                    finding.why()
+                ))
+                .toList(),
+            digest.riskSpots().stream()
+                .map(finding -> new ProjectPlanningContext.ProjectFinding(
+                    finding.title(),
+                    finding.anchor().display(),
+                    finding.why()
+                ))
+                .toList()
+        ));
   }
 
   private ProjectInterviewContext map(CodeAnalysisJob job) {

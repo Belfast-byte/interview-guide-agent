@@ -119,5 +119,10 @@ class CodeAnalysisInterviewContextServiceTest {
         .isEqualTo("src/OrderCache.java:42");
     assertThat(context.scenarios().getFirst().anchor())
         .isEqualTo("src/OrderCache.java:42");
+    assertThat(service.findPlanningForSession("session-1")).get()
+        .satisfies(planning -> {
+          assertThat(planning.commitHash()).isEqualTo("abc123");
+          assertThat(planning.stack()).containsExactly("Java");
+        });
   }
 }

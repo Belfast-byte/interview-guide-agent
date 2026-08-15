@@ -39,6 +39,7 @@ import interview.guide.modules.interview.agent.adaptive.planning.PlannedIntervie
 import interview.guide.modules.interview.agent.adaptive.planning.PlanningAgent;
 import interview.guide.modules.interview.agent.adaptive.planning.PlanningRequest;
 import interview.guide.modules.interview.agent.adaptive.planning.PlanningTaxonomy;
+import interview.guide.modules.interview.agent.adaptive.planning.ProjectPlanningContext;
 import interview.guide.modules.interview.agent.adaptive.role.AgentRoleRegistry;
 import interview.guide.modules.interview.agent.adaptive.runtime.BoundedReActRuntime;
 import interview.guide.modules.interview.agent.adaptive.runtime.ReActBudget;
@@ -206,6 +207,50 @@ class AdaptiveInterviewApplicationServiceTest {
         any(InterviewPlan.class),
         any(RespondAction.class),
         anyList()
+    );
+  }
+
+  @Test
+  @DisplayName("代码分析完成后在首答前重新生成项目感知计划")
+  void shouldReplanWithCompletedCodeAnalysis() {
+    PlannedInterview current = interviewAtTurn(1);
+    ProjectPlanningContext project = new ProjectPlanningContext(
+        "digest-1",
+        "abc123",
+        List.of("Spring Boot"),
+        List.of(),
+        List.of(),
+        List.of()
+    );
+    when(persistenceService.get("session-1")).thenReturn(current);
+    when(candidateMemoryService.coveredTopics("candidate-1")).thenReturn(List.of());
+    when(candidateMemoryService.unverifiedClaims("candidate-1")).thenReturn(List.of());
+    when(planningTaxonomy.catalog()).thenReturn(List.of());
+    when(codeAnalysisContextService.findPlanningForSession("session-1"))
+        .thenReturn(java.util.Optional.of(project));
+    when(planningAgent.propose(any(PlanningRequest.class), any()))
+        .thenReturn(proposal());
+    RespondAction firstQuestion = RespondAction.ask("项目代码首题？", "代码摘要驱动");
+    when(runtime.run(any(ReActRequest.class), any(ReActBudget.class)))
+        .thenReturn(ReActResult.withoutTools(firstQuestion));
+    when(persistenceService.replaceInitialPlan(
+        eq("session-1"),
+        any(InterviewPlan.class),
+        eq(firstQuestion),
+        eq(List.of())
+    )).thenReturn(current);
+    ArgumentCaptor<PlanningRequest> planningRequest =
+        ArgumentCaptor.forClass(PlanningRequest.class);
+
+    service.replanWithCodeAnalysis("session-1");
+
+    verify(planningAgent).propose(planningRequest.capture(), isNull());
+    assertThat(planningRequest.getValue().project()).isEqualTo(project);
+    verify(persistenceService).replaceInitialPlan(
+        eq("session-1"),
+        any(InterviewPlan.class),
+        eq(firstQuestion),
+        eq(List.of())
     );
   }
 

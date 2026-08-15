@@ -212,6 +212,45 @@ public class AdaptiveInterviewPersistenceService
     );
   }
 
+  @Transactional
+  public PlannedInterview replaceInitialPlan(
+      String sessionId,
+      InterviewPlan plan,
+      RespondAction firstAction,
+      List<ToolExecution> toolExecutions
+  ) {
+    AdaptiveAgentSessionEntity session = sessionRepository
+        .findByIdAndTenantIdIsNull(sessionId)
+        .orElseThrow(() -> new BusinessException(
+            ErrorCode.INTERVIEW_SESSION_NOT_FOUND,
+            "Agent 面试会话不存在"
+        ));
+    AdaptiveAgentTurnEntity firstTurn = turnRepository
+        .findBySessionIdAndTurnIndex(sessionId, 1)
+        .orElseThrow();
+    if (session.status() != AdaptiveSessionStatus.IN_PROGRESS
+        || session.toDomain().currentTurn() != 1
+        || firstTurn.answer() != null) {
+      throw new BusinessException(ErrorCode.BAD_REQUEST, "只能在回答第一题前刷新项目面试计划");
+    }
+    turnRepository.delete(firstTurn);
+    turnRepository.flush();
+    planRepository.deleteAll(planRepository.findBySessionIdOrderByDimensionOrder(sessionId));
+    planRepository.flush();
+    session.replaceInitialPlan(plan.maxTurns());
+    planRepository.saveAll(plan.dimensions().stream()
+        .map(dimension -> new AdaptiveAgentPlanEntity(sessionId, dimension))
+        .toList());
+    turnRepository.save(new AdaptiveAgentTurnEntity(
+        sessionId,
+        1,
+        plan.dimensionForTurn(1).order(),
+        firstAction
+    ));
+    saveToolExecutions(sessionId, toolExecutions);
+    return plannedInterview(session, plan);
+  }
+
   private PlannedInterview createInterview(
       String tenantId,
       String sessionId,

@@ -128,6 +128,11 @@ public class AdaptiveAgentSessionEntity {
     }
   }
 
+  void replaceInitialPlan(int maxTurns) {
+    this.maxTurns = maxTurns;
+    currentTurn = 1;
+  }
+
   @PrePersist
   void prePersist() {
     LocalDateTime now = LocalDateTime.now();

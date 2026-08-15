@@ -295,6 +295,49 @@ public class AdaptiveInterviewApplicationService {
     return persistenceService.get(sessionId);
   }
 
+  public PlannedInterview replanWithCodeAnalysis(String sessionId) {
+    PlannedInterview current = persistenceService.get(sessionId);
+    AdaptiveInterviewHistory history = current.history();
+    PlanProposal proposal = planningAgent.propose(
+        new PlanningRequest(
+            sessionId,
+            contextAssembler.planner(
+                history.jd(),
+                history.resume(),
+                candidateMemoryService.coveredTopics(history.candidateId()),
+                candidateMemoryService.unverifiedClaims(history.candidateId()),
+                planningTaxonomy.catalog()
+            ),
+            codeAnalysisContextService.findPlanningForSession(sessionId)
+                .orElseThrow(() -> new BusinessException(
+                    ErrorCode.BAD_REQUEST,
+                    "代码分析尚未完成"
+                ))
+        ),
+        history.llmProvider()
+    );
+    InterviewPlan plan = InterviewPlan.decide(sessionId, proposal);
+    planningTaxonomy.validate(plan);
+    PlannedDimension firstDimension = plan.dimensionForTurn(1);
+    ReActResult firstDecision = runDecision(request(
+        sessionId,
+        history.llmProvider(),
+        history.jd(),
+        history.resume(),
+        plan.maxTurns(),
+        firstDimension,
+        List.of(),
+        null,
+        List.of()
+    ));
+    return persistenceService.replaceInitialPlan(
+        sessionId,
+        plan,
+        firstDecision.response(),
+        firstDecision.toolExecutions()
+    );
+  }
+
   public PlannedInterview getForTenant(String tenantId, String sessionId) {
     return persistenceService.getForTenant(tenantId, sessionId);
   }

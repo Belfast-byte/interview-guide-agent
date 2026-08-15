@@ -94,6 +94,17 @@ public class AdaptiveInterviewController {
     ));
   }
 
+  @PostMapping("/{sessionId}/code-analysis/replan")
+  @RateLimit(dimension = RateLimit.Dimension.GLOBAL, count = 2)
+  @RateLimit(dimension = RateLimit.Dimension.IP, count = 2)
+  public Result<AdaptiveInterviewResponse> replanWithCodeAnalysis(
+      @PathVariable String sessionId
+  ) {
+    return Result.success(AdaptiveInterviewResponse.from(
+        applicationService.replanWithCodeAnalysis(sessionId)
+    ));
+  }
+
   @GetMapping("/candidates/{candidateId}/ability-profile")
   public Result<CandidateAbilityProfileResponse> getAbilityProfile(
       @PathVariable String candidateId

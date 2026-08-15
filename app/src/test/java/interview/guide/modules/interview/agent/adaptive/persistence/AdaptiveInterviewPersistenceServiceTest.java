@@ -10,6 +10,7 @@ import interview.guide.modules.interview.agent.adaptive.assessment.PracticeRecom
 import interview.guide.modules.interview.agent.adaptive.assessment.PracticeStatus;
 import interview.guide.modules.interview.agent.adaptive.assessment.ValidatedAssessmentEvidence;
 import interview.guide.modules.interview.agent.adaptive.core.AdaptiveInterviewHistory;
+import interview.guide.modules.interview.agent.adaptive.core.AdaptiveInterviewTurn;
 import interview.guide.modules.interview.agent.adaptive.core.AdaptiveSessionStatus;
 import interview.guide.modules.interview.agent.adaptive.core.AgentResponseType;
 import interview.guide.modules.interview.agent.adaptive.core.CandidateAnswer;
@@ -98,6 +99,35 @@ class AdaptiveInterviewPersistenceServiceTest {
         .orElseThrow();
     assertThat(turn.questionSourceId()).isEqualTo("question:42");
     assertThat(turn.questionDifficulty()).isEqualTo("MEDIUM");
+  }
+
+  @Test
+  @DisplayName("第一题作答前可用代码分析结果替换计划和首题")
+  void shouldReplaceInitialPlanBeforeFirstAnswer() {
+    String sessionId = "session-code-replan";
+    service.create(
+        sessionId,
+        "candidate-1",
+        "JD",
+        "Resume",
+        null,
+        plan(sessionId, 1),
+        RespondAction.ask("占位首题？", "等待代码分析"),
+        List.of()
+    );
+
+    PlannedInterview replanned = service.replaceInitialPlan(
+        sessionId,
+        plan(sessionId, 2),
+        RespondAction.ask("结合项目代码的新首题？", "代码摘要驱动"),
+        List.of()
+    );
+
+    assertThat(replanned.history().session().maxTurns()).isEqualTo(4);
+    assertThat(replanned.plan().dimensions()).hasSize(2);
+    assertThat(replanned.history().turns()).singleElement()
+        .extracting(AdaptiveInterviewTurn::question)
+        .isEqualTo("结合项目代码的新首题？");
   }
 
   @Test
