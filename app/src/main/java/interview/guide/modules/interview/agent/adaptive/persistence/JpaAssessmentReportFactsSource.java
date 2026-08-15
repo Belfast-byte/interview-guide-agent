@@ -16,10 +16,9 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.function.Function;
 import java.util.stream.Collectors;
-import org.springframework.stereotype.Repository;
-import org.springframework.transaction.annotation.Transactional;
+import org.springframework.stereotype.Component;
 
-@Repository
+@Component
 public class JpaAssessmentReportFactsSource
     implements AssessmentReportFactsSource {
 
@@ -53,7 +52,6 @@ public class JpaAssessmentReportFactsSource
   }
 
   @Override
-  @Transactional(readOnly = true)
   public AssessmentReportFacts loadCandidate(String sessionId) {
     AdaptiveAgentSessionEntity session = sessionRepository
         .findByIdAndTenantIdIsNull(sessionId)
@@ -62,7 +60,6 @@ public class JpaAssessmentReportFactsSource
   }
 
   @Override
-  @Transactional(readOnly = true)
   public AssessmentReportFacts loadEnterprise(
       String tenantId,
       String sessionId

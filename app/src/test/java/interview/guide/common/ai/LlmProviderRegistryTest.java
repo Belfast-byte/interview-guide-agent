@@ -13,6 +13,7 @@ import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.ai.chat.client.ChatClient;
+import org.springframework.ai.embedding.EmbeddingModel;
 import org.springframework.ai.model.tool.ToolCallingManager;
 
 import java.util.HashMap;
@@ -145,6 +146,24 @@ class LlmProviderRegistryTest {
 
         // Then
         assertNotNull(client);
+    }
+
+    @Test
+    @DisplayName("硅基流动 Qwen3 Embedding 模型不会被误判为聊天模型")
+    void siliconFlowQwenEmbeddingIsAccepted() {
+        ProviderConfig config = new ProviderConfig();
+        config.setBaseUrl("https://api.siliconflow.cn/v1");
+        config.setApiKey("test-key");
+        config.setModel("deepseek-ai/DeepSeek-V4-Flash");
+        config.setEmbeddingModel("Qwen/Qwen3-Embedding-0.6B");
+        config.setEmbeddingDimensions(1024);
+        config.setSupportsEmbedding(true);
+
+        when(properties.getProviders()).thenReturn(Map.of("siliconflow", config));
+
+        EmbeddingModel embeddingModel = registry.getEmbeddingModel("siliconflow");
+
+        assertNotNull(embeddingModel);
     }
 
     @Test

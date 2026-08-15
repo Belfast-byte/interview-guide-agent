@@ -6,10 +6,10 @@ import interview.guide.modules.interview.agent.adaptive.algorithm.SandboxVerdict
 import jakarta.persistence.EntityManager;
 import java.util.List;
 import lombok.RequiredArgsConstructor;
-import org.springframework.stereotype.Repository;
+import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-@Repository
+@Service
 @RequiredArgsConstructor
 class JpaAlgorithmAssessmentMetricsSource implements AlgorithmAssessmentMetricsSource {
 

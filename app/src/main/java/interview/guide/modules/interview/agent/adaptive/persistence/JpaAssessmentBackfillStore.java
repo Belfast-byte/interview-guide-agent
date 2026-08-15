@@ -11,10 +11,10 @@ import java.util.Map;
 import java.util.Set;
 import java.util.function.Function;
 import java.util.stream.Collectors;
-import org.springframework.stereotype.Repository;
+import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-@Repository
+@Service
 public class JpaAssessmentBackfillStore implements AssessmentBackfillStore {
 
   private final AdaptiveAgentSessionRepository sessionRepository;

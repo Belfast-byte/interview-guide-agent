@@ -4,27 +4,18 @@ Spring Boot 4.1.0 + Java 21 + Spring AI 2.0.0 + React 面试平台。
 
 本文件是跨工具 Agent 入口，只放长期有效、代码里不容易直接推断、猜错会影响结果的规则。更细的目录规则放在 `.claude/rules/`，需要时再读取。
 
-## Teaching Collaboration
-
-- 默认不仅完成任务，也帮助使用者形成可复用的工程思维；非平凡任务不能只输出代码而不解释业务目标、关键约束和架构取舍。
-- 在设计或修改前，先基于仓库事实说明当前流程、问题边界和必须保持的业务不变量；区分事实、推断、假设和建议。
-- 对功能、重构、集成、数据变更、AI 工作流和疑难问题，选择 1～3 个最相关的失败场景，说明朴素方案如何出错、症状是什么、如何通过设计和测试防住。
-- 解释代码为什么属于当前层和模块，指出至少一个有现实可能的替代方案及其在当前约束下的代价；不要为了展示复杂度而引入模式。
-- 在非平凡决策中，用预测、方案对比、反例或假设检查引导使用者先想一步，增强其思辨能力；思考题默认可选且不阻塞，使用者未回答时继续按最佳判断完成实现与验证，只有需要其授权或明确要求互动练习时才暂停。
-- 用户要求实现时要继续完成实现和验证，不要把任务变成长时间问答；只有会实质改变结果的选择才需要阻塞确认。
-- 验证时说明重要测试证明了什么、没有证明什么；相关时覆盖边界、失败、重试、幂等和并发，而不只验证 happy path。
-- 结束非平凡任务时，简要交付结果、业务/架构心智模型、关键坑、验证证据和一个可继续练习的方向。
-- 提供简洁、基于证据的决策理由，不输出隐藏思维链；简单事实和机械修改保持简洁，避免每次都写成长篇教程。
-- 当用户提出“带我学习”“讲思路/方法论”“像资深工程师指导”“分析业务和架构坑”或明确不想只看代码时，使用项目 Skill：`.agents/skills/mentor-engineering/SKILL.md`。
-
-## Tech Stack
-
-- Backend: Spring Boot 4.1.0 / Java 21 / Gradle / Spring AI 2.0.0
-- Database: PostgreSQL + pgvector，向量维度 1024，距离类型 COSINE
-- Cache & async: Redis / Redisson / Redis Stream
-- Storage & parsing: RustFS/S3 / Apache Tika
-- Mapping & export: MapStruct / iText 8 / SpringDoc OpenAPI
-- Frontend: React 18 / TypeScript / Vite / TailwindCSS 4，代码在 `frontend/`
+# 行为规则
+1.不要假设。不要隐藏困惑。主动暴露权衡取舍。
+2.只写解决当前问题的最小代码，不做任何推测性功能。
+3.只修改必须改的地方，只清理自己产生的问题。
+4.明确定义成功标准，验证通过前持续迭代。
+## 反过度工程/反防御性编程
+- 信任内部代码和框架保证。
+- 只在系统边界(用户输入、外部 API、网络）做校验。
+- 禁止为「不可能发生」的场景添加错误处理、回退、空值检查或验证。
+- 绝不吞掉错误（禁止 rescue nil / 宽泛 catch/ 静默默认值)。
+- 禁止为一次性操作创建辅助函数、工具类或抽象。
+- 优先快速失败，而不是掩盖问题
 
 ## Commands
 
@@ -50,6 +41,7 @@ docker compose -f docker-compose.dev.yml up -d
 - `app/src/main/java/interview/guide/modules/`: 业务模块，每个模块自包含 MVC 分层。
 - `app/src/main/resources/prompts/`: StringTemplate Prompt 模板。
 - `frontend/src/`: React 前端页面、组件、API 客户端和类型定义。
+- `docs/`: 设计文档中心，入口 `docs/README.md`。`docs/design/` 是面试 Agent 重实现蓝图（唯一事实源），`docs/archive/` 是历史文档。
 
 ## Architecture
 

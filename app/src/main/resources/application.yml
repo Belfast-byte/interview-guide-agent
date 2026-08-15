@@ -94,15 +94,15 @@ spring:
       pgvector:
         index-type: HNSW
         distance-type: COSINE_DISTANCE
-        dimensions: 1024  # text-embedding-v3实际生成的向量维度
+        dimensions: 1024  # Qwen3-Embedding-0.6B 输出维度
         initialize-schema: false # schema 统一由 Flyway 管理
         remove-existing-vector-store-table: false  # 保留现有表和数据
 
 # Application custom configuration
 app:
   ai:
-    default-provider: dashscope
-    default-embedding-provider: dashscope
+    default-provider: siliconflow
+    default-embedding-provider: siliconflow
     embedding-dimensions: ${APP_AI_EMBEDDING_DIMENSIONS:1024}
     security:
       api-key-encryption-key: ${APP_AI_CONFIG_ENCRYPTION_KEY:}
@@ -115,11 +115,11 @@ app:
     agent-utils:
       skills-root: ${APP_AI_AGENT_UTILS_SKILLS_ROOT:classpath:skills}
     providers:
-      dashscope:
-        base-url: https://dashscope.aliyuncs.com/compatible-mode/v1
-        api-key: ${AI_BAILIAN_API_KEY}
-        model: ${AI_MODEL:qwen3.5-flash}
-        embedding-model: text-embedding-v3
+      siliconflow:
+        base-url: https://api.siliconflow.cn/v1
+        api-key: ${SILICONFLOW_API_KEY:}
+        model: ${SILICONFLOW_CHAT_MODEL:deepseek-ai/DeepSeek-V4-Flash}
+        embedding-model: ${SILICONFLOW_EMBEDDING_MODEL:Qwen/Qwen3-Embedding-0.6B}
         embedding-dimensions: 1024
         supports-embedding: true
       lmstudio:
@@ -183,6 +183,11 @@ app:
 
   interview:
     follow-up-count: ${APP_INTERVIEW_FOLLOW_UP_COUNT:1}
+    agent-loop:
+      enabled: ${APP_INTERVIEW_AGENT_LOOP_ENABLED:false}
+      deadline: ${APP_INTERVIEW_AGENT_LOOP_DEADLINE:30s}
+      assessment-timeout: ${APP_INTERVIEW_AGENT_LOOP_ASSESSMENT_TIMEOUT:10s}
+      decision-timeout: ${APP_INTERVIEW_AGENT_LOOP_DECISION_TIMEOUT:20s}
     evaluation:
       batch-size: ${APP_INTERVIEW_EVALUATION_BATCH_SIZE:8}
   resume:

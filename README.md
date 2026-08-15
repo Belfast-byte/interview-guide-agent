@@ -18,6 +18,8 @@
 
 InterviewGuide 是一个集成了简历分析、模拟面试（文字 + 语音）、面试安排、知识库管理、知识库题库面试和多模型配置的智能面试辅助平台。系统利用大语言模型（LLM）、向量数据库、Redis Stream 异步任务和实时语音技术，为求职者、HR 和培训机构提供智能化的简历评估、面试练习、知识库问答和面试日程管理能力。
 
+> **面试 Agent 重实现**：本仓库正在按全新设计重新实现面试 Agent（ReAct 内核、多 Agent 角色、工具与代码沙箱、分层记忆、MCP）。设计文档入口：[docs/README.md](./docs/README.md)。
+
 ## 系统架构
 
 ![系统架构图](https://oss.javaguide.cn/xingqiu/pratical-project/interview-guide/interview-guide-architecture-diagram.png)

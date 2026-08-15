@@ -8,10 +8,9 @@ import interview.guide.modules.interview.agent.adaptive.assessment.PracticeRecom
 import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
-import org.springframework.stereotype.Repository;
-import org.springframework.transaction.annotation.Transactional;
+import org.springframework.stereotype.Component;
 
-@Repository
+@Component
 public class JpaPracticeRecommendationFactsSource
     implements PracticeRecommendationFactsSource {
 
@@ -30,7 +29,6 @@ public class JpaPracticeRecommendationFactsSource
   }
 
   @Override
-  @Transactional(readOnly = true)
   public PracticeRecommendationFacts load(String sessionId) {
     List<AdaptiveAgentAssessmentEntity> assessments = assessmentRepository
         .findBySessionIdOrderByDimensionOrderAscTurnIndexAsc(sessionId);

@@ -7,7 +7,6 @@ import java.util.Set;
 import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Component;
-import org.springframework.transaction.annotation.Transactional;
 
 @Component
 @RequiredArgsConstructor
@@ -17,7 +16,6 @@ public class JpaAssessmentEvidenceSource implements AssessmentEvidenceSource {
   private final AlgorithmEvidenceSource algorithmEvidenceSource;
 
   @Override
-  @Transactional(readOnly = true)
   public AssessmentEvidenceFacts load(
       String sessionId,
       int turnIndex,

@@ -25,6 +25,7 @@ const VoiceInterviewEvaluationPage = lazy(() => import('./pages/VoiceInterviewEv
 const InterviewSchedulePage = lazy(() => import('./pages/InterviewSchedulePage'));
 const InterviewHubPage = lazy(() => import('./pages/InterviewHubPage'));
 const AdaptiveInterviewPage = lazy(() => import('./pages/AdaptiveInterviewPage'));
+const AgentInterviewPage = lazy(() => import('./pages/AgentInterviewPage'));
 const SettingsPage = lazy(() => import('./pages/SettingsPage'));
 const InterviewDetailPanel = lazy(() => import('./components/InterviewDetailPanel'));
 
@@ -191,6 +192,10 @@ function App() {
             {/* 自适应面试 M0-M5 */}
             <Route path="adaptive-interview" element={<AdaptiveInterviewPage />} />
             <Route path="adaptive-interview/:sessionId" element={<AdaptiveInterviewPage />} />
+
+            {/* 有界 Agent 面试 */}
+            <Route path="agent-interview" element={<AgentInterviewPage />} />
+            <Route path="agent-interview/:sessionId" element={<AgentInterviewPage />} />
 
             {/* 面试记录列表 */}
             <Route path="interviews" element={<InterviewHistoryWrapper />} />
