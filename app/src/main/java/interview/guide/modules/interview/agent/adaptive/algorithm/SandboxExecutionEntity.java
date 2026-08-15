@@ -61,6 +61,10 @@ class SandboxExecutionEntity {
   private Integer firstFailedCase;
 
   @Enumerated(EnumType.STRING)
+  @Column(name = "policy_violation", length = 32)
+  private SandboxPolicyViolation policyViolation;
+
+  @Enumerated(EnumType.STRING)
   @Column(nullable = false, length = 24)
   private SandboxExecutionStatus status;
 
@@ -132,6 +136,7 @@ class SandboxExecutionEntity {
     timeMs = result.timeMs();
     memoryKb = result.memoryKb();
     firstFailedCase = result.firstFailedCase();
+    policyViolation = result.policyViolation();
     status = SandboxExecutionStatus.DONE;
     pendingRejudge = verdict == SandboxVerdict.IE;
     finishedAt = LocalDateTime.now();
@@ -185,7 +190,8 @@ class SandboxExecutionEntity {
         pendingRejudge,
         retryCount,
         createdAt,
-        finishedAt
+        finishedAt,
+        policyViolation
     );
   }
 

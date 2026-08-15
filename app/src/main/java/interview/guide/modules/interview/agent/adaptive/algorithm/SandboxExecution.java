@@ -23,5 +23,56 @@ public record SandboxExecution(
     boolean pendingRejudge,
     int retryCount,
     LocalDateTime createdAt,
-    LocalDateTime finishedAt
-) {}
+    LocalDateTime finishedAt,
+    SandboxPolicyViolation policyViolation
+) {
+
+  public SandboxExecution(
+      String id,
+      String sessionId,
+      long turnId,
+      int submissionSeq,
+      String problemId,
+      SandboxLanguage language,
+      String codeRef,
+      String codeHash,
+      SandboxRunMode runMode,
+      SandboxExecutionStatus status,
+      SandboxVerdict verdict,
+      Integer passed,
+      Integer total,
+      Long timeMs,
+      Long memoryKb,
+      Integer firstFailedCase,
+      String supersededBy,
+      boolean pendingRejudge,
+      int retryCount,
+      LocalDateTime createdAt,
+      LocalDateTime finishedAt
+  ) {
+    this(
+        id,
+        sessionId,
+        turnId,
+        submissionSeq,
+        problemId,
+        language,
+        codeRef,
+        codeHash,
+        runMode,
+        status,
+        verdict,
+        passed,
+        total,
+        timeMs,
+        memoryKb,
+        firstFailedCase,
+        supersededBy,
+        pendingRejudge,
+        retryCount,
+        createdAt,
+        finishedAt,
+        null
+    );
+  }
+}

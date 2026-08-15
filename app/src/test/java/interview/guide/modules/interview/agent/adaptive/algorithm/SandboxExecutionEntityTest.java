@@ -49,7 +49,8 @@ class SandboxExecutionEntityTest {
         List.of(new SandboxExecutionLog(
             SandboxLogType.TEST_CASES,
             "sandbox/logs/execution-1/cases.json"
-        ))
+        )),
+        SandboxPolicyViolation.NETWORK_ACCESS
     );
 
     execution.markRunning();
@@ -62,6 +63,7 @@ class SandboxExecutionEntityTest {
       assertThat(saved.total()).isEqualTo(10);
       assertThat(saved.firstFailedCase()).isEqualTo(7);
       assertThat(saved.pendingRejudge()).isFalse();
+      assertThat(saved.policyViolation()).isEqualTo(SandboxPolicyViolation.NETWORK_ACCESS);
     });
   }
 

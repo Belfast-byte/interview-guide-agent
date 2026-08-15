@@ -5,6 +5,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import interview.guide.modules.interview.agent.adaptive.algorithm.SandboxExecution;
 import interview.guide.modules.interview.agent.adaptive.algorithm.SandboxExecutionStatus;
 import interview.guide.modules.interview.agent.adaptive.algorithm.SandboxLanguage;
+import interview.guide.modules.interview.agent.adaptive.algorithm.SandboxPolicyViolation;
 import interview.guide.modules.interview.agent.adaptive.algorithm.SandboxRunMode;
 import interview.guide.modules.interview.agent.adaptive.algorithm.SandboxVerdict;
 import io.micrometer.core.instrument.simple.SimpleMeterRegistry;
@@ -31,6 +32,12 @@ class AlgorithmInterviewTelemetryTest {
     telemetry.quotaRejected();
     telemetry.queueDepth(3);
     telemetry.attemptCompleted(SandboxVerdict.IE);
+    telemetry.attemptCompleted(
+        "execution-1",
+        "session-1",
+        SandboxVerdict.RE,
+        SandboxPolicyViolation.NETWORK_ACCESS
+    );
     telemetry.resultReady(execution);
     telemetry.degraded();
 
@@ -46,6 +53,8 @@ class AlgorithmInterviewTelemetryTest {
         .tag("validity", "valid").counter().count()).isEqualTo(1);
     assertThat(registry.get(AlgorithmInterviewTelemetry.END_TO_END_DURATION)
         .tag("status", "DONE").timer().count()).isEqualTo(1);
+    assertThat(registry.get(AlgorithmInterviewTelemetry.POLICY_VIOLATIONS)
+        .tag("type", "NETWORK_ACCESS").counter().count()).isEqualTo(1);
     assertThat(registry.get(AlgorithmInterviewTelemetry.DEGRADATIONS).counter().count())
         .isEqualTo(1);
   }

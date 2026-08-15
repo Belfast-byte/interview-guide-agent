@@ -95,7 +95,12 @@ class AlgorithmJudgeStreamConsumer
     SandboxExecution execution = persistenceService.getExecution(payload.executionId());
     AlgorithmProblem problem = persistenceService.getProblem(execution.problemId());
     SandboxExecutionResult result = sandboxWorker.execute(execution, problem);
-    telemetry.attemptCompleted(result.verdict());
+    telemetry.attemptCompleted(
+        execution.id(),
+        execution.sessionId(),
+        result.verdict(),
+        result.policyViolation()
+    );
     boolean retry = persistenceService.applyResult(execution.id(), result);
     if (retry) {
       if (!producer.sendExecution(execution.id())) {

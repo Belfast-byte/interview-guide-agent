@@ -534,6 +534,7 @@ function JudgeResult({ execution }: { execution: SandboxExecution }) {
       {execution.timeMs !== null && <p>time {execution.timeMs} ms · memory {execution.memoryKb} KB</p>}
       {execution.firstFailedCase !== null && <p>first failed case #{execution.firstFailedCase}</p>}
       {execution.pendingRejudge && <p className="mt-2 text-amber-300">平台故障，已进入待重判；不计入能力证据。</p>}
+      {execution.policyViolation && <p className="mt-2 text-red-300">沙箱策略已阻止：{execution.policyViolation}</p>}
       {execution.status === 'TIMEOUT_QUEUED' && <p className="mt-2 text-amber-300">判题暂不可用，面试将改为代码走读。</p>}
     </div>
   );

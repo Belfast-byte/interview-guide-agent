@@ -4,6 +4,7 @@ import interview.guide.modules.interview.agent.adaptive.algorithm.SandboxExecuti
 import interview.guide.modules.interview.agent.adaptive.algorithm.SandboxExecutionStatus;
 import interview.guide.modules.interview.agent.adaptive.algorithm.SandboxRunMode;
 import interview.guide.modules.interview.agent.adaptive.algorithm.SandboxVerdict;
+import interview.guide.modules.interview.agent.adaptive.algorithm.SandboxPolicyViolation;
 
 public record SandboxExecutionResponse(
     String submissionId,
@@ -16,7 +17,8 @@ public record SandboxExecutionResponse(
     Long timeMs,
     Long memoryKb,
     Integer firstFailedCase,
-    boolean pendingRejudge
+    boolean pendingRejudge,
+    SandboxPolicyViolation policyViolation
 ) {
 
   static SandboxExecutionResponse from(SandboxExecution execution) {
@@ -31,7 +33,8 @@ public record SandboxExecutionResponse(
         execution.timeMs(),
         execution.memoryKb(),
         execution.firstFailedCase(),
-        execution.pendingRejudge()
+        execution.pendingRejudge(),
+        execution.policyViolation()
     );
   }
 }

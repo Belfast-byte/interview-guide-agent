@@ -9,5 +9,19 @@ public record SandboxExecutionResult(
     long timeMs,
     long memoryKb,
     Integer firstFailedCase,
-    List<SandboxExecutionLog> logs
-) {}
+    List<SandboxExecutionLog> logs,
+    SandboxPolicyViolation policyViolation
+) {
+
+  public SandboxExecutionResult(
+      SandboxVerdict verdict,
+      int passed,
+      int total,
+      long timeMs,
+      long memoryKb,
+      Integer firstFailedCase,
+      List<SandboxExecutionLog> logs
+  ) {
+    this(verdict, passed, total, timeMs, memoryKb, firstFailedCase, logs, null);
+  }
+}

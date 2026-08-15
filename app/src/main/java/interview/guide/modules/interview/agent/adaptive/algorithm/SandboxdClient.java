@@ -54,7 +54,8 @@ class SandboxdClient implements SandboxWorker {
         response.timeMs(),
         response.memoryKb(),
         response.firstFailedCase(),
-        response.logs()
+        response.logs(),
+        response.policyViolation()
     );
   }
 
@@ -76,6 +77,7 @@ class SandboxdClient implements SandboxWorker {
       long timeMs,
       long memoryKb,
       Integer firstFailedCase,
-      List<SandboxExecutionLog> logs
+      List<SandboxExecutionLog> logs,
+      SandboxPolicyViolation policyViolation
   ) {}
 }

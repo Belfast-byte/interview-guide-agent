@@ -3,11 +3,14 @@ package interview.guide.modules.interview.agent.adaptive.observability;
 import io.micrometer.core.instrument.Gauge;
 import io.micrometer.core.instrument.MeterRegistry;
 import interview.guide.modules.interview.agent.adaptive.algorithm.SandboxExecution;
+import interview.guide.modules.interview.agent.adaptive.algorithm.SandboxPolicyViolation;
 import interview.guide.modules.interview.agent.adaptive.algorithm.SandboxVerdict;
 import java.time.Duration;
 import java.util.concurrent.atomic.AtomicLong;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;
 
+@Slf4j
 @Component
 public class AlgorithmInterviewTelemetry {
 
@@ -18,6 +21,8 @@ public class AlgorithmInterviewTelemetry {
   static final String END_TO_END_DURATION =
       "app.interview.adaptive.algorithm.end-to-end.duration";
   static final String DEGRADATIONS = "app.interview.adaptive.algorithm.degradations";
+  static final String POLICY_VIOLATIONS =
+      "app.interview.adaptive.algorithm.policy.violations";
 
   private final MeterRegistry meterRegistry;
   private final AtomicLong queueDepth = new AtomicLong();
@@ -42,6 +47,28 @@ public class AlgorithmInterviewTelemetry {
 
   public void attemptCompleted(SandboxVerdict verdict) {
     meterRegistry.counter(ATTEMPTS, "verdict", verdict.name()).increment();
+  }
+
+  public void attemptCompleted(
+      String executionId,
+      String sessionId,
+      SandboxVerdict verdict,
+      SandboxPolicyViolation policyViolation
+  ) {
+    attemptCompleted(verdict);
+    if (policyViolation == null) {
+      return;
+    }
+    meterRegistry.counter(
+        POLICY_VIOLATIONS,
+        "type", policyViolation.name()
+    ).increment();
+    log.warn(
+        "algorithm_sandbox_policy_violation executionId={} sessionId={} type={}",
+        executionId,
+        sessionId,
+        policyViolation
+    );
   }
 
   public void resultReady(SandboxExecution execution) {

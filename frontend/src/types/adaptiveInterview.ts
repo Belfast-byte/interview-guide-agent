@@ -65,6 +65,7 @@ export type SandboxLanguage = 'JAVA' | 'PYTHON' | 'CPP';
 export type SandboxRunMode = 'SAMPLE' | 'FULL';
 export type SandboxExecutionStatus = 'PENDING' | 'RUNNING' | 'DONE' | 'TIMEOUT_QUEUED';
 export type SandboxVerdict = 'AC' | 'WA' | 'CE' | 'TLE' | 'MLE' | 'RE' | 'IE';
+export type SandboxPolicyViolation = 'NETWORK_ACCESS' | 'FILESYSTEM_ACCESS' | 'PROCESS_LIMIT' | 'OUTPUT_LIMIT';
 
 export interface PublicAlgorithmProblem {
   id: string;
@@ -95,6 +96,7 @@ export interface SandboxExecution {
   memoryKb: number | null;
   firstFailedCase: number | null;
   pendingRejudge: boolean;
+  policyViolation: SandboxPolicyViolation | null;
 }
 
 export interface ToolResultFollowUp {
