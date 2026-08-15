@@ -4,6 +4,7 @@ import interview.guide.common.annotation.RateLimit;
 import interview.guide.common.result.Result;
 import interview.guide.modules.interview.agent.adaptive.application.AdaptiveInterviewApplicationService;
 import interview.guide.modules.interview.agent.adaptive.assessment.AssessmentReportService;
+import interview.guide.modules.interview.agent.adaptive.assessment.AssessmentBackfillService;
 import interview.guide.modules.interview.agent.adaptive.assessment.CandidateAssessmentReport;
 import interview.guide.modules.interview.agent.adaptive.core.CandidateAnswer;
 import interview.guide.modules.interview.agent.adaptive.core.CandidateCodeSubmission;
@@ -31,6 +32,7 @@ public class AdaptiveInterviewController {
 
   private final AdaptiveInterviewApplicationService applicationService;
   private final AssessmentReportService reportService;
+  private final AssessmentBackfillService assessmentBackfillService;
 
   @PostMapping
   @RateLimit(dimension = RateLimit.Dimension.GLOBAL, count = 5)
@@ -77,6 +79,17 @@ public class AdaptiveInterviewController {
   @GetMapping("/{sessionId}")
   public Result<AdaptiveInterviewResponse> get(@PathVariable String sessionId) {
     return Result.success(AdaptiveInterviewResponse.from(applicationService.get(sessionId)));
+  }
+
+  @PostMapping("/{sessionId}/assessment-backfill")
+  @RateLimit(dimension = RateLimit.Dimension.GLOBAL, count = 2)
+  @RateLimit(dimension = RateLimit.Dimension.IP, count = 2)
+  public Result<AssessmentBackfillResponse> backfillAssessment(
+      @PathVariable String sessionId
+  ) {
+    return Result.success(new AssessmentBackfillResponse(
+        assessmentBackfillService.backfill(sessionId)
+    ));
   }
 
   @GetMapping("/{sessionId}/report")
