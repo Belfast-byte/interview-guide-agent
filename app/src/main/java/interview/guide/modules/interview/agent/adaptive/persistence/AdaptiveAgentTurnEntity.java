@@ -119,6 +119,10 @@ public class AdaptiveAgentTurnEntity {
     return turnIndex;
   }
 
+  long id() {
+    return id;
+  }
+
   int dimensionOrder() {
     return dimensionOrder;
   }

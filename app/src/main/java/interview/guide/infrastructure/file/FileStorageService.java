@@ -71,6 +71,21 @@ public class FileStorageService {
         return uploadFile(file, "knowledgebases");
     }
 
+    public void uploadFile(String fileKey, byte[] content, String contentType) {
+        try {
+            PutObjectRequest putRequest = PutObjectRequest.builder()
+                    .bucket(storageConfig.getBucket())
+                    .key(fileKey)
+                    .contentType(contentType)
+                    .contentLength((long) content.length)
+                    .build();
+            s3Client.putObject(putRequest, RequestBody.fromBytes(content));
+        } catch (S3Exception e) {
+            log.error("上传文件到RustFS失败: key={}, error={}", fileKey, e.getMessage(), e);
+            throw new BusinessException(ErrorCode.STORAGE_UPLOAD_FAILED, "文件存储失败: " + e.getMessage());
+        }
+    }
+
     /**
      * 删除知识库文件
      */
