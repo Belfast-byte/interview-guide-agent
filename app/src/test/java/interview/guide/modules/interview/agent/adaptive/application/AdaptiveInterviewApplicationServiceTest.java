@@ -29,6 +29,7 @@ import interview.guide.modules.interview.agent.adaptive.memory.CandidateClaimExt
 import interview.guide.modules.interview.agent.adaptive.memory.DimensionBriefService;
 import interview.guide.modules.interview.agent.adaptive.persistence.AdaptiveInterviewPersistenceService;
 import interview.guide.modules.interview.agent.adaptive.observability.AdaptiveAgentTelemetry;
+import interview.guide.modules.interview.agent.adaptive.observability.AlgorithmInterviewTelemetry;
 import interview.guide.modules.interview.agent.adaptive.planning.DimensionProposal;
 import interview.guide.modules.interview.agent.adaptive.planning.InterviewPlan;
 import interview.guide.modules.interview.agent.adaptive.planning.PlanProposal;
@@ -104,6 +105,9 @@ class AdaptiveInterviewApplicationServiceTest {
   @Mock
   private AlgorithmAssessmentEvidenceService algorithmAssessmentEvidenceService;
 
+  @Mock
+  private AlgorithmInterviewTelemetry algorithmTelemetry;
+
   private AdaptiveInterviewApplicationService service;
 
   @BeforeEach
@@ -129,7 +133,8 @@ class AdaptiveInterviewApplicationServiceTest {
         assessmentAgent,
         evidenceValidator(),
         practiceRecommendationService,
-        algorithmAssessmentEvidenceService
+        algorithmAssessmentEvidenceService,
+        algorithmTelemetry
     );
   }
 

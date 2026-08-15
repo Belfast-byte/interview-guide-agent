@@ -21,6 +21,7 @@ import interview.guide.modules.interview.agent.adaptive.memory.DimensionBriefPro
 import interview.guide.modules.interview.agent.adaptive.memory.DimensionBriefService;
 import interview.guide.modules.interview.agent.adaptive.persistence.AdaptiveInterviewPersistenceService;
 import interview.guide.modules.interview.agent.adaptive.observability.AdaptiveAgentTelemetry;
+import interview.guide.modules.interview.agent.adaptive.observability.AlgorithmInterviewTelemetry;
 import interview.guide.modules.interview.agent.adaptive.planning.DimensionProposal;
 import interview.guide.modules.interview.agent.adaptive.planning.PlanDimensionStatus;
 import interview.guide.modules.interview.agent.adaptive.planning.PlanProposal;
@@ -81,7 +82,8 @@ class AdaptiveInterviewFlowIntegrationTest {
         assessmentAgent(),
         evidenceValidator(),
         mock(PracticeRecommendationService.class),
-        mock(AlgorithmAssessmentEvidenceService.class)
+        mock(AlgorithmAssessmentEvidenceService.class),
+        mock(AlgorithmInterviewTelemetry.class)
     );
 
     PlannedInterview created = service.create("candidate-1", "JD", "Resume", null);
@@ -149,7 +151,8 @@ class AdaptiveInterviewFlowIntegrationTest {
         assessmentAgent(),
         evidenceValidator(),
         mock(PracticeRecommendationService.class),
-        mock(AlgorithmAssessmentEvidenceService.class)
+        mock(AlgorithmAssessmentEvidenceService.class),
+        mock(AlgorithmInterviewTelemetry.class)
     );
 
     PlannedInterview interview = service.create("candidate-1", "JD", "Resume", null);

@@ -27,6 +27,7 @@ import interview.guide.modules.interview.agent.adaptive.memory.CandidateClaim;
 import interview.guide.modules.interview.agent.adaptive.memory.CandidateClaimExtractionService;
 import interview.guide.modules.interview.agent.adaptive.memory.DimensionBriefService;
 import interview.guide.modules.interview.agent.adaptive.observability.AdaptiveAgentTelemetry;
+import interview.guide.modules.interview.agent.adaptive.observability.AlgorithmInterviewTelemetry;
 import interview.guide.modules.interview.agent.adaptive.persistence.AdaptiveInterviewPersistenceService;
 import interview.guide.modules.interview.agent.adaptive.planning.InterviewPlan;
 import interview.guide.modules.interview.agent.adaptive.planning.PlanProposal;
@@ -69,6 +70,7 @@ public class AdaptiveInterviewApplicationService {
   private final AssessmentEvidenceValidator assessmentEvidenceValidator;
   private final PracticeRecommendationService practiceRecommendationService;
   private final AlgorithmAssessmentEvidenceService algorithmAssessmentEvidenceService;
+  private final AlgorithmInterviewTelemetry algorithmTelemetry;
 
   public PlannedInterview create(
       String candidateId,
@@ -161,6 +163,7 @@ public class AdaptiveInterviewApplicationService {
     AdaptiveInterviewHistory history = interview.history();
     history.session().assertCanAnswer(answer);
     PlannedDimension currentDimension = interview.plan().dimensionForTurn(answer.turnIndex());
+    algorithmTelemetry.interviewTurnSubmitted(sessionId);
     AssessmentDecision assessment = assessmentAgent.assess(
         new AssessmentRequest(
             sessionId,

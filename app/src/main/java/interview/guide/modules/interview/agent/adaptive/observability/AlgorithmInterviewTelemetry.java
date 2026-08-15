@@ -2,6 +2,7 @@ package interview.guide.modules.interview.agent.adaptive.observability;
 
 import io.micrometer.core.instrument.Gauge;
 import io.micrometer.core.instrument.MeterRegistry;
+import interview.guide.modules.interview.agent.adaptive.algorithm.AlgorithmAssessmentMetricsSource;
 import interview.guide.modules.interview.agent.adaptive.algorithm.SandboxExecution;
 import interview.guide.modules.interview.agent.adaptive.algorithm.SandboxPolicyViolation;
 import interview.guide.modules.interview.agent.adaptive.algorithm.SandboxVerdict;
@@ -23,14 +24,47 @@ public class AlgorithmInterviewTelemetry {
   static final String DEGRADATIONS = "app.interview.adaptive.algorithm.degradations";
   static final String POLICY_VIOLATIONS =
       "app.interview.adaptive.algorithm.policy.violations";
+  static final String INTERVIEW_TURNS = "app.interview.adaptive.algorithm.interview.turns";
+  static final String ASSESSMENTS = "app.interview.adaptive.algorithm.assessments";
+  static final String ASSESSMENTS_WITH_EVIDENCE =
+      "app.interview.adaptive.algorithm.assessments.with-evidence";
+  static final String ASSESSMENTS_REVIEW_REQUIRED =
+      "app.interview.adaptive.algorithm.assessments.review-required";
 
   private final MeterRegistry meterRegistry;
+  private final AlgorithmAssessmentMetricsSource metricsSource;
   private final AtomicLong queueDepth = new AtomicLong();
 
-  public AlgorithmInterviewTelemetry(MeterRegistry meterRegistry) {
+  public AlgorithmInterviewTelemetry(
+      MeterRegistry meterRegistry,
+      AlgorithmAssessmentMetricsSource metricsSource
+  ) {
     this.meterRegistry = meterRegistry;
+    this.metricsSource = metricsSource;
     Gauge.builder(QUEUE_DEPTH, queueDepth, AtomicLong::get)
         .register(meterRegistry);
+    Gauge.builder(
+        ASSESSMENTS,
+        metricsSource,
+        AlgorithmAssessmentMetricsSource::countAssessmentsWithValidResults
+    ).register(meterRegistry);
+    Gauge.builder(
+        ASSESSMENTS_WITH_EVIDENCE,
+        metricsSource,
+        AlgorithmAssessmentMetricsSource::countAssessmentsWithSandboxEvidence
+    ).register(meterRegistry);
+    Gauge.builder(
+        ASSESSMENTS_REVIEW_REQUIRED,
+        metricsSource,
+        AlgorithmAssessmentMetricsSource::countReviewRequiredAssessments
+    ).register(meterRegistry);
+  }
+
+  public void interviewTurnSubmitted(String sessionId) {
+    meterRegistry.counter(
+        INTERVIEW_TURNS,
+        "judging", metricsSource.hasActiveJudging(sessionId) ? "active" : "inactive"
+    ).increment();
   }
 
   public void submissionAccepted() {

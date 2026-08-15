@@ -1,7 +1,10 @@
 package interview.guide.modules.interview.agent.adaptive.observability;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.when;
 
+import interview.guide.modules.interview.agent.adaptive.algorithm.AlgorithmAssessmentMetricsSource;
 import interview.guide.modules.interview.agent.adaptive.algorithm.SandboxExecution;
 import interview.guide.modules.interview.agent.adaptive.algorithm.SandboxExecutionStatus;
 import interview.guide.modules.interview.agent.adaptive.algorithm.SandboxLanguage;
@@ -19,7 +22,17 @@ class AlgorithmInterviewTelemetryTest {
   @DisplayName("记录判题配额、队列、IE、结果有效性和端到端延迟")
   void shouldRecordAlgorithmLifecycleMetrics() {
     SimpleMeterRegistry registry = new SimpleMeterRegistry();
-    AlgorithmInterviewTelemetry telemetry = new AlgorithmInterviewTelemetry(registry);
+    AlgorithmAssessmentMetricsSource metricsSource = mock(
+        AlgorithmAssessmentMetricsSource.class
+    );
+    when(metricsSource.hasActiveJudging("session-1")).thenReturn(true);
+    when(metricsSource.countAssessmentsWithValidResults()).thenReturn(4L);
+    when(metricsSource.countAssessmentsWithSandboxEvidence()).thenReturn(4L);
+    when(metricsSource.countReviewRequiredAssessments()).thenReturn(1L);
+    AlgorithmInterviewTelemetry telemetry = new AlgorithmInterviewTelemetry(
+        registry,
+        metricsSource
+    );
     LocalDateTime finishedAt = LocalDateTime.now();
     SandboxExecution execution = new SandboxExecution(
         "execution-1", "session-1", 10L, 1, "two-sum",
@@ -40,6 +53,7 @@ class AlgorithmInterviewTelemetryTest {
     );
     telemetry.resultReady(execution);
     telemetry.degraded();
+    telemetry.interviewTurnSubmitted("session-1");
 
     assertThat(registry.get(AlgorithmInterviewTelemetry.SUBMISSIONS)
         .tag("status", "accepted").counter().count()).isEqualTo(1);
@@ -57,5 +71,13 @@ class AlgorithmInterviewTelemetryTest {
         .tag("type", "NETWORK_ACCESS").counter().count()).isEqualTo(1);
     assertThat(registry.get(AlgorithmInterviewTelemetry.DEGRADATIONS).counter().count())
         .isEqualTo(1);
+    assertThat(registry.get(AlgorithmInterviewTelemetry.INTERVIEW_TURNS)
+        .tag("judging", "active").counter().count()).isEqualTo(1);
+    assertThat(registry.get(AlgorithmInterviewTelemetry.ASSESSMENTS).gauge().value())
+        .isEqualTo(4);
+    assertThat(registry.get(AlgorithmInterviewTelemetry.ASSESSMENTS_WITH_EVIDENCE)
+        .gauge().value()).isEqualTo(4);
+    assertThat(registry.get(AlgorithmInterviewTelemetry.ASSESSMENTS_REVIEW_REQUIRED)
+        .gauge().value()).isEqualTo(1);
   }
 }
