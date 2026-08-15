@@ -13,6 +13,8 @@ import interview.guide.modules.interview.agent.adaptive.algorithm.SandboxLanguag
 import interview.guide.modules.interview.agent.adaptive.algorithm.SandboxRunMode;
 import interview.guide.modules.interview.agent.adaptive.algorithm.SandboxVerdict;
 import interview.guide.modules.interview.agent.adaptive.core.ToolResultEvent;
+import interview.guide.modules.interview.agent.adaptive.observability.AlgorithmInterviewTelemetry;
+import java.time.LocalDateTime;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -31,6 +33,9 @@ class AdaptiveAlgorithmResultReadyHandlerTest {
 
   @Mock
   private AlgorithmAssessmentEvidenceService assessmentEvidenceService;
+
+  @Mock
+  private AlgorithmInterviewTelemetry telemetry;
 
   @Test
   @DisplayName("过期代码结果落库后不唤醒面试官")
@@ -67,7 +72,8 @@ class AdaptiveAlgorithmResultReadyHandlerTest {
     return new AdaptiveAlgorithmResultReadyHandler(
         applicationService,
         sessionFacts,
-        assessmentEvidenceService
+        assessmentEvidenceService,
+        telemetry
     );
   }
 
@@ -79,7 +85,8 @@ class AdaptiveAlgorithmResultReadyHandlerTest {
         "execution-1", "session-1", 10L, 1, "two-sum",
         SandboxLanguage.JAVA, "source-ref", "a".repeat(64), SandboxRunMode.FULL,
         status, SandboxVerdict.WA, 4, 10, 120L, 32_768L, 7,
-        supersededBy, false, 0
+        supersededBy, false, 0,
+        LocalDateTime.now().minusSeconds(1), LocalDateTime.now()
     );
   }
 }

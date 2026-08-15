@@ -6,6 +6,7 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 import interview.guide.common.exception.BusinessException;
+import java.time.LocalDateTime;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -103,7 +104,9 @@ class AlgorithmSubmissionServiceTest {
         null,
         null,
         false,
-        0
+        0,
+        LocalDateTime.now(),
+        null
     );
   }
 }

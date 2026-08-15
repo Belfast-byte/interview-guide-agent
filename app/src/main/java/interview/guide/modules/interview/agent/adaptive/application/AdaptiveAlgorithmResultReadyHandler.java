@@ -6,6 +6,7 @@ import interview.guide.modules.interview.agent.adaptive.algorithm.AlgorithmAsses
 import interview.guide.modules.interview.agent.adaptive.algorithm.SandboxExecution;
 import interview.guide.modules.interview.agent.adaptive.algorithm.SandboxExecutionStatus;
 import interview.guide.modules.interview.agent.adaptive.core.ToolResultEvent;
+import interview.guide.modules.interview.agent.adaptive.observability.AlgorithmInterviewTelemetry;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Component;
 
@@ -16,9 +17,11 @@ class AdaptiveAlgorithmResultReadyHandler implements AlgorithmResultReadyHandler
   private final AdaptiveInterviewApplicationService applicationService;
   private final AlgorithmSessionFacts sessionFacts;
   private final AlgorithmAssessmentEvidenceService assessmentEvidenceService;
+  private final AlgorithmInterviewTelemetry telemetry;
 
   @Override
   public void handle(SandboxExecution execution) {
+    telemetry.resultReady(execution);
     if (execution.supersededBy() != null) {
       return;
     }

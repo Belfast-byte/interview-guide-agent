@@ -8,6 +8,7 @@ import static org.mockito.Mockito.when;
 
 import interview.guide.common.exception.BusinessException;
 import interview.guide.common.exception.ErrorCode;
+import interview.guide.modules.interview.agent.adaptive.observability.AlgorithmInterviewTelemetry;
 import java.util.Optional;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
@@ -32,6 +33,9 @@ class AlgorithmPersistenceServiceTest {
   @Mock
   private AlgorithmSessionFacts sessionFacts;
 
+  @Mock
+  private AlgorithmInterviewTelemetry telemetry;
+
   private AlgorithmPersistenceService service;
 
   @BeforeEach
@@ -43,7 +47,8 @@ class AlgorithmPersistenceServiceTest {
         executionRepository,
         logRepository,
         sessionFacts,
-        properties
+        properties,
+        telemetry
     );
   }
 

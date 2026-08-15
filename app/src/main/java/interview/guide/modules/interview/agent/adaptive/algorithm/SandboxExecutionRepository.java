@@ -11,6 +11,8 @@ interface SandboxExecutionRepository extends JpaRepository<SandboxExecutionEntit
 
   long countBySessionId(String sessionId);
 
+  long countByStatus(SandboxExecutionStatus status);
+
   Optional<SandboxExecutionEntity> findTopBySessionIdOrderBySubmissionSeqDesc(String sessionId);
 
   List<SandboxExecutionEntity> findBySessionIdAndTurnIdAndSupersededByIsNull(

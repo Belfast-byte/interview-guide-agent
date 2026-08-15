@@ -3,6 +3,7 @@ package interview.guide.modules.interview.agent.adaptive.algorithm;
 import interview.guide.common.async.AbstractStreamConsumer;
 import interview.guide.common.constant.AsyncTaskStreamConstants;
 import interview.guide.infrastructure.redis.RedisService;
+import interview.guide.modules.interview.agent.adaptive.observability.AlgorithmInterviewTelemetry;
 import java.util.Map;
 import org.redisson.api.stream.StreamMessageId;
 import org.springframework.stereotype.Component;
@@ -17,19 +18,22 @@ class AlgorithmJudgeStreamConsumer
   private final SandboxWorker sandboxWorker;
   private final AlgorithmJudgeStreamProducer producer;
   private final AlgorithmResultReadyHandler resultReadyHandler;
+  private final AlgorithmInterviewTelemetry telemetry;
 
   AlgorithmJudgeStreamConsumer(
       RedisService redisService,
       AlgorithmPersistenceService persistenceService,
       SandboxWorker sandboxWorker,
       AlgorithmJudgeStreamProducer producer,
-      AlgorithmResultReadyHandler resultReadyHandler
+      AlgorithmResultReadyHandler resultReadyHandler,
+      AlgorithmInterviewTelemetry telemetry
   ) {
     super(redisService);
     this.persistenceService = persistenceService;
     this.sandboxWorker = sandboxWorker;
     this.producer = producer;
     this.resultReadyHandler = resultReadyHandler;
+    this.telemetry = telemetry;
   }
 
   @Override
@@ -91,6 +95,7 @@ class AlgorithmJudgeStreamConsumer
     SandboxExecution execution = persistenceService.getExecution(payload.executionId());
     AlgorithmProblem problem = persistenceService.getProblem(execution.problemId());
     SandboxExecutionResult result = sandboxWorker.execute(execution, problem);
+    telemetry.attemptCompleted(result.verdict());
     boolean retry = persistenceService.applyResult(execution.id(), result);
     if (retry) {
       if (!producer.sendExecution(execution.id())) {
@@ -108,7 +113,11 @@ class AlgorithmJudgeStreamConsumer
 
   @Override
   protected void markFailed(ExecutionTask payload, String error) {
-    persistenceService.markInfrastructureFailure(payload.executionId());
+    SandboxExecution execution = persistenceService.markInfrastructureFailure(
+        payload.executionId()
+    );
+    telemetry.attemptCompleted(SandboxVerdict.IE);
+    resultReadyHandler.handle(execution);
   }
 
   @Override

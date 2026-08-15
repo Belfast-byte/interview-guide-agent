@@ -1,6 +1,7 @@
 package interview.guide.modules.interview.agent.adaptive.algorithm;
 
 import java.time.LocalDateTime;
+import interview.guide.modules.interview.agent.adaptive.observability.AlgorithmInterviewTelemetry;
 import lombok.RequiredArgsConstructor;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
@@ -12,11 +13,15 @@ class AlgorithmQueueTimeoutScheduler {
   private final AlgorithmPersistenceService persistenceService;
   private final AlgorithmResultReadyHandler resultReadyHandler;
   private final AlgorithmInterviewProperties properties;
+  private final AlgorithmInterviewTelemetry telemetry;
 
   @Scheduled(fixedDelay = 10_000, initialDelay = 10_000)
   void degradeQueuedExecutions() {
     persistenceService.timeoutQueuedBefore(
         LocalDateTime.now().minus(properties.getQueuedTimeout())
-    ).forEach(resultReadyHandler::handle);
+    ).forEach(execution -> {
+      telemetry.degraded();
+      resultReadyHandler.handle(execution);
+    });
   }
 }

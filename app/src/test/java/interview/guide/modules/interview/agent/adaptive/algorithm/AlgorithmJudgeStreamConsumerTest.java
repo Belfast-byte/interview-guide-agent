@@ -4,6 +4,8 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 import interview.guide.infrastructure.redis.RedisService;
+import interview.guide.modules.interview.agent.adaptive.observability.AlgorithmInterviewTelemetry;
+import java.time.LocalDateTime;
 import java.util.List;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
@@ -30,6 +32,9 @@ class AlgorithmJudgeStreamConsumerTest {
   @Mock
   private AlgorithmResultReadyHandler resultReadyHandler;
 
+  @Mock
+  private AlgorithmInterviewTelemetry telemetry;
+
   private AlgorithmJudgeStreamConsumer consumer;
 
   @BeforeEach
@@ -39,7 +44,8 @@ class AlgorithmJudgeStreamConsumerTest {
         persistenceService,
         sandboxWorker,
         producer,
-        resultReadyHandler
+        resultReadyHandler,
+        telemetry
     );
   }
 
@@ -73,10 +79,14 @@ class AlgorithmJudgeStreamConsumerTest {
   void shouldMarkInfrastructureFailureAfterRetries() {
     AlgorithmJudgeStreamConsumer.ExecutionTask task =
         new AlgorithmJudgeStreamConsumer.ExecutionTask("execution-1");
+    SandboxExecution execution = execution();
+    when(persistenceService.markInfrastructureFailure("execution-1"))
+        .thenReturn(execution);
 
     consumer.markFailed(task, "sandbox unavailable");
 
     verify(persistenceService).markInfrastructureFailure("execution-1");
+    verify(resultReadyHandler).handle(execution);
   }
 
   private SandboxExecution execution() {
@@ -84,7 +94,7 @@ class AlgorithmJudgeStreamConsumerTest {
         "execution-1", "session-1", 10L, 1, "two-sum",
         SandboxLanguage.JAVA, "source-ref", "a".repeat(64), SandboxRunMode.FULL,
         SandboxExecutionStatus.RUNNING, null, null, null, null, null, null,
-        null, false, 0
+        null, false, 0, LocalDateTime.now().minusSeconds(1), LocalDateTime.now()
     );
   }
 

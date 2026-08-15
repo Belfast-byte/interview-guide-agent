@@ -183,7 +183,9 @@ class SandboxExecutionEntity {
         firstFailedCase,
         supersededBy,
         pendingRejudge,
-        retryCount
+        retryCount,
+        createdAt,
+        finishedAt
     );
   }
 

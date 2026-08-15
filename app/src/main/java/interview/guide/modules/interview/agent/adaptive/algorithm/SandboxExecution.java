@@ -1,5 +1,7 @@
 package interview.guide.modules.interview.agent.adaptive.algorithm;
 
+import java.time.LocalDateTime;
+
 public record SandboxExecution(
     String id,
     String sessionId,
@@ -19,5 +21,7 @@ public record SandboxExecution(
     Integer firstFailedCase,
     String supersededBy,
     boolean pendingRejudge,
-    int retryCount
+    int retryCount,
+    LocalDateTime createdAt,
+    LocalDateTime finishedAt
 ) {}
