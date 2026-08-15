@@ -111,6 +111,14 @@ class SandboxExecutionEntity {
     return true;
   }
 
+  void supersedeWith(String executionId) {
+    supersededBy = executionId;
+  }
+
+  boolean hasDifferentCode(String hash) {
+    return !codeHash.equals(hash);
+  }
+
   boolean apply(SandboxExecutionResult result) {
     if (result.verdict() == SandboxVerdict.IE && retryCount == 0) {
       retryCount = 1;
@@ -144,6 +152,15 @@ class SandboxExecutionEntity {
     status = SandboxExecutionStatus.DONE;
     pendingRejudge = true;
     finishedAt = LocalDateTime.now();
+  }
+
+  boolean markQueuedTimeout() {
+    if (status != SandboxExecutionStatus.PENDING) {
+      return false;
+    }
+    status = SandboxExecutionStatus.TIMEOUT_QUEUED;
+    finishedAt = LocalDateTime.now();
+    return true;
   }
 
   SandboxExecution toDomain() {

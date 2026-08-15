@@ -10,6 +10,7 @@ import interview.guide.modules.interview.agent.adaptive.role.AgentRole;
 import interview.guide.modules.interview.agent.adaptive.role.AgentRoleRegistry;
 import interview.guide.modules.interview.agent.adaptive.runtime.ReActRequest;
 import interview.guide.modules.interview.agent.adaptive.runtime.ToolExecution;
+import interview.guide.modules.interview.agent.adaptive.runtime.ToolExecutionOutcome;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -81,6 +82,20 @@ class ToolGatewayTest {
         .hasMessageContaining("too large");
   }
 
+  @Test
+  @DisplayName("Pending 工具结果保留句柄并进入异步结果类型")
+  void shouldMapPendingToolResult() {
+    ToolGateway gateway = gateway(new PendingStubTool(), 200);
+
+    ToolExecution execution = gateway.execute(
+        request(AgentRole.INTERVIEWER),
+        new ToolCallAction("question_bank_search", Map.of(), "异步提交")
+    );
+
+    assertThat(execution.resultId()).isEqualTo("submission-1");
+    assertThat(execution.outcome()).isEqualTo(ToolExecutionOutcome.PENDING);
+  }
+
   private ToolGateway gateway(AdaptiveAgentTool tool, int maxResultChars) {
     AdaptiveAgentProperties agentProperties = new AdaptiveAgentProperties();
     ToolProperties toolProperties = new ToolProperties();
@@ -138,7 +153,29 @@ class ToolGatewayTest {
     @Override
     public ToolResult execute(Map<String, Object> arguments) {
       executions.incrementAndGet();
-      return new ToolResult("result-1", output, "stub result");
+      return new CompletedToolResult("result-1", output, "stub result");
+    }
+  }
+
+  private record PendingStubTool() implements AdaptiveAgentTool {
+
+    @Override
+    public String name() {
+      return "question_bank_search";
+    }
+
+    @Override
+    public ToolCallback callback() {
+      return mock(ToolCallback.class);
+    }
+
+    @Override
+    public ToolResult execute(Map<String, Object> arguments) {
+      return new PendingToolResult(
+          "submission-1",
+          Map.of("submissionId", "submission-1", "status", "PENDING"),
+          "submission pending"
+      );
     }
   }
 }

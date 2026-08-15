@@ -6,6 +6,7 @@ import interview.guide.modules.interview.agent.adaptive.application.AdaptiveInte
 import interview.guide.modules.interview.agent.adaptive.assessment.AssessmentReportService;
 import interview.guide.modules.interview.agent.adaptive.assessment.CandidateAssessmentReport;
 import interview.guide.modules.interview.agent.adaptive.core.CandidateAnswer;
+import interview.guide.modules.interview.agent.adaptive.core.ToolResultFollowUp;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
@@ -15,6 +16,7 @@ import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
+import java.util.List;
 
 @RestController
 @RequestMapping("/api/adaptive-agent-interviews")
@@ -70,5 +72,12 @@ public class AdaptiveInterviewController {
       @PathVariable String sessionId
   ) {
     return Result.success(reportService.candidateReport(sessionId));
+  }
+
+  @GetMapping("/{sessionId}/tool-result-follow-ups")
+  public Result<List<ToolResultFollowUp>> getToolResultFollowUps(
+      @PathVariable String sessionId
+  ) {
+    return Result.success(applicationService.toolResultFollowUps(sessionId));
   }
 }

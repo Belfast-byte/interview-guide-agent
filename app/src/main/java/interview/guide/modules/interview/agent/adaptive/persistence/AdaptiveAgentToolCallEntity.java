@@ -1,8 +1,11 @@
 package interview.guide.modules.interview.agent.adaptive.persistence;
 
 import interview.guide.modules.interview.agent.adaptive.runtime.ToolExecution;
+import interview.guide.modules.interview.agent.adaptive.runtime.ToolExecutionOutcome;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
+import jakarta.persistence.EnumType;
+import jakarta.persistence.Enumerated;
 import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
@@ -55,6 +58,10 @@ public class AdaptiveAgentToolCallEntity {
   @Column(name = "duration_ms", nullable = false)
   private long durationMillis;
 
+  @Enumerated(EnumType.STRING)
+  @Column(nullable = false, length = 16)
+  private ToolExecutionOutcome outcome;
+
   @Column(name = "created_at", nullable = false)
   private LocalDateTime createdAt;
 
@@ -70,6 +77,7 @@ public class AdaptiveAgentToolCallEntity {
     this.inputSummary = execution.inputSummary();
     this.outputSummary = execution.outputSummary();
     this.resultId = execution.resultId();
+    this.outcome = execution.outcome();
     this.durationMillis = execution.durationMillis();
   }
 
@@ -115,6 +123,10 @@ public class AdaptiveAgentToolCallEntity {
 
   long durationMillis() {
     return durationMillis;
+  }
+
+  ToolExecutionOutcome outcome() {
+    return outcome;
   }
 
   @PrePersist

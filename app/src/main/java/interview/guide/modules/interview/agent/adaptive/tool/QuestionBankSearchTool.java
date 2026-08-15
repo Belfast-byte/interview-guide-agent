@@ -43,7 +43,7 @@ public class QuestionBankSearchTool implements AdaptiveAgentTool {
         .map(String::valueOf)
         .reduce((left, right) -> left + "," + right)
         .orElse("empty");
-    return new ToolResult(
+    return new CompletedToolResult(
         resultId,
         questions,
         "matchedQuestionIds=" + questions.stream().map(QuestionBankQuestion::id).toList()

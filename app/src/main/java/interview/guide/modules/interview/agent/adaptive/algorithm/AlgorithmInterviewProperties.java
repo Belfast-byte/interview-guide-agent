@@ -15,4 +15,5 @@ public class AlgorithmInterviewProperties {
   private String sandboxBaseUrl = "http://sandboxd:8090";
   private Duration sandboxConnectTimeout = Duration.ofSeconds(2);
   private Duration sandboxReadTimeout = Duration.ofSeconds(15);
+  private Duration queuedTimeout = Duration.ofSeconds(90);
 }

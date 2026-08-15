@@ -27,6 +27,9 @@ class AlgorithmJudgeStreamConsumerTest {
   @Mock
   private AlgorithmJudgeStreamProducer producer;
 
+  @Mock
+  private AlgorithmResultReadyHandler resultReadyHandler;
+
   private AlgorithmJudgeStreamConsumer consumer;
 
   @BeforeEach
@@ -35,7 +38,8 @@ class AlgorithmJudgeStreamConsumerTest {
         redisService,
         persistenceService,
         sandboxWorker,
-        producer
+        producer,
+        resultReadyHandler
     );
   }
 

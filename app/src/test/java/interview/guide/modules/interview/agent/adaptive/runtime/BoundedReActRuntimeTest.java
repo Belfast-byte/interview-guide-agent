@@ -70,6 +70,43 @@ class BoundedReActRuntimeTest {
     }
 
     @Test
+    @DisplayName("Pending 句柄立即成为 observation，循环不等待外部结果")
+    void shouldContinueAfterPendingToolResult() {
+      AtomicInteger modelSteps = new AtomicInteger();
+      AgentModelGateway model = context -> {
+        if (modelSteps.getAndIncrement() == 0) {
+          return toolCall("sandbox_submit", "full");
+        }
+        assertThat(context.observations().getFirst().output())
+            .contains("PENDING", "submission-1");
+        return RespondAction.ask("先讲讲这段代码的时间复杂度？", "判题已在后台受理");
+      };
+      BoundedReActRuntime runtime = new BoundedReActRuntime(
+          model,
+          (request, action) -> new ToolExecution(
+              "invocation-1",
+              action.toolName(),
+              action.reason(),
+              AgentRole.INTERVIEWER.name(),
+              1,
+              "keys=[runMode]",
+              "submission pending",
+              "submission-1",
+              "{\"submissionId\":\"submission-1\",\"status\":\"PENDING\"}",
+              ToolExecutionOutcome.PENDING,
+              1
+          )
+      );
+
+      ReActResult result = runtime.run(request(), budget(3, 1));
+
+      assertThat(result.response().content()).contains("时间复杂度");
+      assertThat(result.toolExecutions().getFirst().outcome())
+          .isEqualTo(ToolExecutionOutcome.PENDING);
+      assertThat(modelSteps).hasValue(2);
+    }
+
+    @Test
     @DisplayName("相同工具和参数重复调用时只执行一次")
     void shouldRejectDuplicateToolCall() {
       AtomicInteger modelSteps = new AtomicInteger();

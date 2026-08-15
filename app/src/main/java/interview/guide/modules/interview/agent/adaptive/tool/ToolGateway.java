@@ -9,6 +9,7 @@ import interview.guide.modules.interview.agent.adaptive.role.AgentRoleRegistry;
 import interview.guide.modules.interview.agent.adaptive.runtime.AgentToolExecutor;
 import interview.guide.modules.interview.agent.adaptive.runtime.ReActRequest;
 import interview.guide.modules.interview.agent.adaptive.runtime.ToolExecution;
+import interview.guide.modules.interview.agent.adaptive.runtime.ToolExecutionOutcome;
 import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
@@ -127,6 +128,9 @@ public class ToolGateway implements AgentToolExecutor {
         result.summary(),
         result.resultId(),
         output,
+        result instanceof PendingToolResult
+            ? ToolExecutionOutcome.PENDING
+            : ToolExecutionOutcome.COMPLETED,
         (System.nanoTime() - startedNanos) / 1_000_000
     );
   }

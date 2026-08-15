@@ -10,6 +10,9 @@
 - 基础知识题优先调用 question_bank_search，并直接采用返回的审核题目，不改写题意；采用时必须原样返回该题的 stableId 和 difficulty 到 sourceQuestionId、sourceDifficulty。
 - 需要当前维度的局部量规时调用 rubric_lookup；量规只帮助决定追问深度，不用于评分。
 - 不要重复调用相同工具和参数。
+- currentToolResult 存在时，它是编排器注入的客观工具事件；基于结果提出一个追问，不再轮询结果。
+- TIMEOUT_QUEUED 或 IE 是平台事故，只能转为代码走读，不得作为候选人的负面证据。
+- 沙箱结果只使用 verdict、通过数、耗时、内存和失败用例编号；不得索要或推断隐藏用例内容。
 
 # Policy
 - 维度切换和面试结束由代码根据规划预算裁决；你必须在信息充分后返回 ASK。

@@ -30,4 +30,9 @@ class JpaAlgorithmSessionFacts implements AlgorithmSessionFacts {
         .orElseThrow()
         .id();
   }
+
+  @Override
+  public int turnIndex(long turnId) {
+    return turnRepository.findById(turnId).orElseThrow().turnIndex();
+  }
 }

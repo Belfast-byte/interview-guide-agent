@@ -14,8 +14,40 @@ public record InterviewerContext(
     String suggestedSkill,
     List<AdaptiveInterviewTurn> currentDimensionTurns,
     CandidateAnswer currentDimensionAnswer,
-    List<DimensionBrief> completedDimensionBriefs
+    List<DimensionBrief> completedDimensionBriefs,
+    ToolResultEvent currentToolResult
 ) {
+
+  public InterviewerContext(
+      String jd,
+      String resume,
+      int currentTurn,
+      int maxTurns,
+      int targetDimensionOrder,
+      String targetDimension,
+      String targetFocus,
+      List<String> suggestedTools,
+      String suggestedSkill,
+      List<AdaptiveInterviewTurn> currentDimensionTurns,
+      CandidateAnswer currentDimensionAnswer,
+      List<DimensionBrief> completedDimensionBriefs
+  ) {
+    this(
+        jd,
+        resume,
+        currentTurn,
+        maxTurns,
+        targetDimensionOrder,
+        targetDimension,
+        targetFocus,
+        suggestedTools,
+        suggestedSkill,
+        currentDimensionTurns,
+        currentDimensionAnswer,
+        completedDimensionBriefs,
+        null
+    );
+  }
 
   public InterviewerContext {
     suggestedTools = List.copyOf(suggestedTools);

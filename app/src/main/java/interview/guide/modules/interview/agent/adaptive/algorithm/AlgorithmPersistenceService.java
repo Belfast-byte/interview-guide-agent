@@ -3,6 +3,8 @@ package interview.guide.modules.interview.agent.adaptive.algorithm;
 import interview.guide.common.exception.BusinessException;
 import interview.guide.common.exception.ErrorCode;
 import java.util.UUID;
+import java.time.LocalDateTime;
+import java.util.List;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -49,6 +51,12 @@ public class AlgorithmPersistenceService {
         turnId,
         submissionSeq
     );
+    executionRepository.findBySessionIdAndTurnIdAndSupersededByIsNull(
+        command.sessionId(),
+        turnId
+    ).stream()
+        .filter(previous -> previous.hasDifferentCode(command.codeHash()))
+        .forEach(previous -> previous.supersedeWith(entity.id()));
     return executionRepository.save(entity).toDomain();
   }
 
@@ -96,5 +104,16 @@ public class AlgorithmPersistenceService {
     executionRepository.findLockedById(executionId)
         .orElseThrow(() -> new BusinessException(ErrorCode.NOT_FOUND, "判题提交不存在"))
         .markInfrastructureFailure();
+  }
+
+  @Transactional
+  public List<SandboxExecution> timeoutQueuedBefore(LocalDateTime cutoff) {
+    return executionRepository.findByStatusAndCreatedAtBefore(
+        SandboxExecutionStatus.PENDING,
+        cutoff
+    ).stream()
+        .filter(SandboxExecutionEntity::markQueuedTimeout)
+        .map(SandboxExecutionEntity::toDomain)
+        .toList();
   }
 }

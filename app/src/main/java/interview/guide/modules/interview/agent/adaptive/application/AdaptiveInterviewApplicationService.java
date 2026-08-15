@@ -15,8 +15,11 @@ import interview.guide.modules.interview.agent.adaptive.assessment.ValidatedAsse
 import interview.guide.modules.interview.agent.adaptive.core.AdaptiveInterviewHistory;
 import interview.guide.modules.interview.agent.adaptive.core.AdaptiveInterviewTurn;
 import interview.guide.modules.interview.agent.adaptive.core.CandidateAnswer;
+import interview.guide.modules.interview.agent.adaptive.core.AgentResponseType;
 import interview.guide.modules.interview.agent.adaptive.core.DimensionBrief;
 import interview.guide.modules.interview.agent.adaptive.core.RespondAction;
+import interview.guide.modules.interview.agent.adaptive.core.ToolResultEvent;
+import interview.guide.modules.interview.agent.adaptive.core.ToolResultFollowUp;
 import interview.guide.modules.interview.agent.adaptive.memory.ContextAssembler;
 import interview.guide.modules.interview.agent.adaptive.memory.CandidateMemoryService;
 import interview.guide.modules.interview.agent.adaptive.memory.CandidateClaim;
@@ -269,6 +272,54 @@ public class AdaptiveInterviewApplicationService {
 
   public PlannedInterview getForTenant(String tenantId, String sessionId) {
     return persistenceService.getForTenant(tenantId, sessionId);
+  }
+
+  public Optional<RespondAction> handleToolResult(
+      String sessionId,
+      ToolResultEvent event
+  ) {
+    PlannedInterview interview = persistenceService.get(sessionId);
+    if (!persistenceService.reserveToolResultEvent(sessionId, event)) {
+      return Optional.empty();
+    }
+    PlannedDimension dimension = interview.plan().dimensionForTurn(event.turnIndex());
+    try {
+      ReActResult decision = runDecision(new ReActRequest(
+          sessionId,
+          AgentRole.INTERVIEWER,
+          interview.history().llmProvider(),
+          contextAssembler.toolResult(
+              interview.history().jd(),
+              interview.history().resume(),
+              interview.history().session().maxTurns(),
+              dimension.order(),
+              dimension.dimension(),
+              dimension.focus(),
+              dimension.suggestedTools(),
+              dimension.suggestedSkill(),
+              interview.history().turns(),
+              event,
+              interview.dimensionBriefs()
+          )
+      ));
+      if (decision.response().type() != AgentResponseType.ASK) {
+        throw new BusinessException(ErrorCode.AI_SERVICE_ERROR, "工具结果事件只能生成追问");
+      }
+      persistenceService.completeToolResultEvent(
+          sessionId,
+          event,
+          decision.response(),
+          decision.toolExecutions()
+      );
+      return Optional.of(decision.response());
+    } catch (BusinessException e) {
+      persistenceService.discardToolResultReservation(event);
+      throw e;
+    }
+  }
+
+  public List<ToolResultFollowUp> toolResultFollowUps(String sessionId) {
+    return persistenceService.toolResultFollowUps(sessionId);
   }
 
   private ReActRequest request(

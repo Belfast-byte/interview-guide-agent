@@ -20,6 +20,7 @@ import interview.guide.modules.interview.agent.adaptive.core.CandidateClaimType;
 import interview.guide.modules.interview.agent.adaptive.core.PlanningSkill;
 import interview.guide.modules.interview.agent.adaptive.core.UnverifiedClaim;
 import interview.guide.modules.interview.agent.adaptive.core.RespondAction;
+import interview.guide.modules.interview.agent.adaptive.core.ToolResultEvent;
 import interview.guide.modules.interview.agent.adaptive.memory.ContextAssembler;
 import interview.guide.modules.interview.agent.adaptive.memory.CandidateMemoryService;
 import interview.guide.modules.interview.agent.adaptive.memory.CandidateClaimExtractionService;
@@ -489,6 +490,39 @@ class AdaptiveInterviewApplicationServiceTest {
     return new AssessmentEvidenceValidator((sessionId, turnIndex, resultIds) -> {
       throw new AssertionError("纯文本引用不应查询工具结果");
     });
+  }
+
+  @Test
+  @DisplayName("工具结果事件开启独立 ReAct 运行但不推进会话轮次")
+  void shouldHandleToolResultInNewRuntimeInvocation() {
+    ToolResultEvent event = new ToolResultEvent(
+        1,
+        "sandbox_submit",
+        "execution-1",
+        "verdict=WA, passed=4/10",
+        "verdict=WA, passed=4/10, firstFailedCase=7"
+    );
+    PlannedInterview interview = interviewAtTurn(1);
+    RespondAction followUp = RespondAction.ask("第 7 个用例失败可能是哪类边界？", "基于判题结果追问");
+    when(persistenceService.get("session-1")).thenReturn(interview);
+    when(persistenceService.reserveToolResultEvent("session-1", event)).thenReturn(true);
+    when(runtime.run(any(ReActRequest.class), any(ReActBudget.class)))
+        .thenReturn(ReActResult.withoutTools(followUp));
+    ArgumentCaptor<ReActRequest> request = ArgumentCaptor.forClass(ReActRequest.class);
+
+    assertThat(service.handleToolResult("session-1", event)).contains(followUp);
+
+    verify(runtime).run(request.capture(), any(ReActBudget.class));
+    assertThat(request.getValue().interviewerContext().currentToolResult()).isEqualTo(event);
+    verify(persistenceService).completeToolResultEvent(
+        "session-1",
+        event,
+        followUp,
+        List.of()
+    );
+    verify(persistenceService, never()).recordDecision(
+        anyString(), any(), any(), anyList(), any(), anyList(), any(), anyList(), anyList()
+    );
   }
 
   private PlannedInterview interviewAtTurn(int currentTurn) {

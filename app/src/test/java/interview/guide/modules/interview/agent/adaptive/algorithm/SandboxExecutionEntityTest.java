@@ -65,6 +65,27 @@ class SandboxExecutionEntityTest {
     });
   }
 
+  @Test
+  @DisplayName("新代码提交后旧执行保留事实但标记为过期")
+  void shouldMarkExecutionSuperseded() {
+    SandboxExecutionEntity execution = execution();
+
+    execution.supersedeWith("execution-2");
+
+    assertThat(execution.toDomain().supersededBy()).isEqualTo("execution-2");
+  }
+
+  @Test
+  @DisplayName("只有排队中的执行可以进入排队超时降级")
+  void shouldTimeoutOnlyQueuedExecution() {
+    SandboxExecutionEntity execution = execution();
+
+    assertThat(execution.markQueuedTimeout()).isTrue();
+    assertThat(execution.toDomain().status())
+        .isEqualTo(SandboxExecutionStatus.TIMEOUT_QUEUED);
+    assertThat(execution.markRunning()).isFalse();
+  }
+
   private SandboxExecutionEntity execution() {
     return new SandboxExecutionEntity(
         "execution-1",

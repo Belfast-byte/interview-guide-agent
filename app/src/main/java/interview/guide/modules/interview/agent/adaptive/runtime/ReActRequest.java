@@ -19,10 +19,16 @@ public record ReActRequest(
   }
 
   public int inputTurnIndex() {
+    if (interviewerContext.currentToolResult() != null) {
+      return interviewerContext.currentToolResult().turnIndex();
+    }
     return interviewerContext.currentTurn();
   }
 
   public int targetTurnIndex() {
+    if (interviewerContext.currentToolResult() != null) {
+      return interviewerContext.currentToolResult().turnIndex();
+    }
     return interviewerContext.currentTurn() + 1;
   }
 }

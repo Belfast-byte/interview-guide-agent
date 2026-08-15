@@ -57,7 +57,7 @@ public class RubricLookupTool implements AdaptiveAgentTool {
         .map(String::valueOf)
         .reduce((left, right) -> left + "," + right)
         .orElse("empty");
-    return new ToolResult(
+    return new CompletedToolResult(
         resultId,
         rubrics,
         "rubricQuestionIds=" + rubrics.stream().map(RubricPayload::questionId).toList()

@@ -58,7 +58,7 @@ public class LoadSkillTool implements AdaptiveAgentTool {
         skill.persona(),
         hash
     );
-    return new ToolResult(
+    return new CompletedToolResult(
         "skill:" + skill.id() + ":" + hash,
         payload,
         "skillId=" + skill.id() + ", sha256=" + hash

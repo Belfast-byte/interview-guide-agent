@@ -1,3 +1,3 @@
 package interview.guide.modules.interview.agent.adaptive.core;
 
-public record CandidateAnswer(int turnIndex, String content) {}
+public record CandidateAnswer(int turnIndex, String content) implements InterviewInputEvent {}

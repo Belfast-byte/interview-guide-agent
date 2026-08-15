@@ -8,11 +8,14 @@ import interview.guide.modules.interview.agent.adaptive.assessment.PracticeRecom
 import interview.guide.modules.interview.agent.adaptive.assessment.ValidatedAssessmentEvidence;
 import interview.guide.modules.interview.agent.adaptive.core.AdaptiveInterviewHistory;
 import interview.guide.modules.interview.agent.adaptive.core.AdaptiveInterviewSession;
+import interview.guide.modules.interview.agent.adaptive.core.AdaptiveSessionStatus;
 import interview.guide.modules.interview.agent.adaptive.core.AgentResponseType;
 import interview.guide.modules.interview.agent.adaptive.core.CandidateAnswer;
 import interview.guide.modules.interview.agent.adaptive.core.DimensionBrief;
 import interview.guide.modules.interview.agent.adaptive.core.RespondAction;
 import interview.guide.modules.interview.agent.adaptive.core.SessionTransition;
+import interview.guide.modules.interview.agent.adaptive.core.ToolResultEvent;
+import interview.guide.modules.interview.agent.adaptive.core.ToolResultFollowUp;
 import interview.guide.modules.interview.agent.adaptive.memory.CandidateClaim;
 import interview.guide.modules.interview.agent.adaptive.planning.InterviewPlan;
 import interview.guide.modules.interview.agent.adaptive.planning.PlanDimensionStatus;
@@ -38,6 +41,65 @@ public class AdaptiveInterviewPersistenceService {
   private final AdaptiveAgentAssessmentRepository assessmentRepository;
   private final AdaptiveAgentEvidenceRepository evidenceRepository;
   private final PracticeRecordRepository practiceRecordRepository;
+  private final AdaptiveAgentToolResultEventRepository toolResultEventRepository;
+
+  @Transactional
+  public boolean reserveToolResultEvent(String sessionId, ToolResultEvent event) {
+    AdaptiveAgentSessionEntity session = sessionRepository
+        .findByIdAndTenantIdIsNull(sessionId)
+        .orElseThrow(() -> new BusinessException(
+            ErrorCode.INTERVIEW_SESSION_NOT_FOUND,
+            "Agent 面试会话不存在"
+        ));
+    if (session.status() != AdaptiveSessionStatus.IN_PROGRESS) {
+      return false;
+    }
+    if (toolResultEventRepository.existsByToolNameAndResultId(
+        event.toolName(),
+        event.resultId()
+    )) {
+      return false;
+    }
+    turnRepository.findBySessionIdAndTurnIndex(sessionId, event.turnIndex())
+        .orElseThrow();
+    toolResultEventRepository.save(new AdaptiveAgentToolResultEventEntity(sessionId, event));
+    return true;
+  }
+
+  @Transactional
+  public void completeToolResultEvent(
+      String sessionId,
+      ToolResultEvent event,
+      RespondAction response,
+      List<ToolExecution> toolExecutions
+  ) {
+    AdaptiveAgentToolResultEventEntity entity = toolResultEventRepository
+        .findByToolNameAndResultId(event.toolName(), event.resultId())
+        .orElseThrow();
+    entity.complete(response);
+    saveToolExecutions(sessionId, toolExecutions);
+  }
+
+  @Transactional
+  public void discardToolResultReservation(ToolResultEvent event) {
+    toolResultEventRepository.findByToolNameAndResultId(
+        event.toolName(),
+        event.resultId()
+    ).ifPresent(toolResultEventRepository::delete);
+  }
+
+  @Transactional(readOnly = true)
+  public List<ToolResultFollowUp> toolResultFollowUps(String sessionId) {
+    sessionRepository.findByIdAndTenantIdIsNull(sessionId)
+        .orElseThrow(() -> new BusinessException(
+            ErrorCode.INTERVIEW_SESSION_NOT_FOUND,
+            "Agent 面试会话不存在"
+        ));
+    return toolResultEventRepository.findBySessionIdAndStatusOrderById(
+        sessionId,
+        ToolResultEventStatus.COMPLETED
+    ).stream().map(AdaptiveAgentToolResultEventEntity::toFollowUp).toList();
+  }
 
   @Transactional(readOnly = true)
   public DepthLevel latestAssessmentDepth(String sessionId, int dimensionOrder) {

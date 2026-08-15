@@ -16,17 +16,20 @@ class AlgorithmJudgeStreamConsumer
   private final AlgorithmPersistenceService persistenceService;
   private final SandboxWorker sandboxWorker;
   private final AlgorithmJudgeStreamProducer producer;
+  private final AlgorithmResultReadyHandler resultReadyHandler;
 
   AlgorithmJudgeStreamConsumer(
       RedisService redisService,
       AlgorithmPersistenceService persistenceService,
       SandboxWorker sandboxWorker,
-      AlgorithmJudgeStreamProducer producer
+      AlgorithmJudgeStreamProducer producer,
+      AlgorithmResultReadyHandler resultReadyHandler
   ) {
     super(redisService);
     this.persistenceService = persistenceService;
     this.sandboxWorker = sandboxWorker;
     this.producer = producer;
+    this.resultReadyHandler = resultReadyHandler;
   }
 
   @Override
@@ -88,10 +91,14 @@ class AlgorithmJudgeStreamConsumer
     SandboxExecution execution = persistenceService.getExecution(payload.executionId());
     AlgorithmProblem problem = persistenceService.getProblem(execution.problemId());
     SandboxExecutionResult result = sandboxWorker.execute(execution, problem);
-    if (persistenceService.applyResult(execution.id(), result)
-        && !producer.sendExecution(execution.id())) {
-      throw new IllegalStateException("IE rejudge task enqueue failed");
+    boolean retry = persistenceService.applyResult(execution.id(), result);
+    if (retry) {
+      if (!producer.sendExecution(execution.id())) {
+        throw new IllegalStateException("IE rejudge task enqueue failed");
+      }
+      return;
     }
+    resultReadyHandler.handle(persistenceService.getExecution(execution.id()));
   }
 
   @Override
