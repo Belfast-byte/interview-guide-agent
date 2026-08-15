@@ -48,11 +48,46 @@ export interface AdaptiveEvidenceReference {
   answer: string;
   quote: string | null;
   toolResult: {
-    toolCallId: number;
+    toolCallId: number | null;
+    sandboxExecutionId: string | null;
     toolName: string;
     resultId: string;
     output: string;
   } | null;
+}
+
+export type SandboxLanguage = 'JAVA' | 'PYTHON' | 'CPP';
+export type SandboxRunMode = 'SAMPLE' | 'FULL';
+export type SandboxExecutionStatus = 'PENDING' | 'RUNNING' | 'DONE' | 'TIMEOUT_QUEUED';
+export type SandboxVerdict = 'AC' | 'WA' | 'CE' | 'TLE' | 'MLE' | 'RE' | 'IE';
+
+export interface SubmitAlgorithmCodeRequest {
+  turnIndex: number;
+  problemId: string;
+  language: SandboxLanguage;
+  source: string;
+  runMode: SandboxRunMode;
+}
+
+export interface SandboxExecution {
+  submissionId: string;
+  submissionSeq: number;
+  runMode: SandboxRunMode;
+  status: SandboxExecutionStatus;
+  verdict: SandboxVerdict | null;
+  passed: number | null;
+  total: number | null;
+  timeMs: number | null;
+  memoryKb: number | null;
+  firstFailedCase: number | null;
+  pendingRejudge: boolean;
+}
+
+export interface ToolResultFollowUp {
+  resultId: string;
+  turnIndex: number;
+  responseContent: string;
+  completedAt: string;
 }
 
 export interface AdaptiveDimensionConclusion {

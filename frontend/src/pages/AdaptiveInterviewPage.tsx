@@ -7,9 +7,12 @@ import {
   Check,
   CheckCircle2,
   ChevronRight,
+  Clock3,
+  Code2,
   FileText,
   Loader2,
   RefreshCw,
+  Play,
   Send,
   Sparkles,
   Target,
@@ -23,6 +26,10 @@ import type {
   AdaptiveAssessmentReport,
   AdaptiveInterviewDimension,
   AdaptiveInterviewSession,
+  SandboxExecution,
+  SandboxLanguage,
+  SandboxRunMode,
+  ToolResultFollowUp,
 } from '../types/adaptiveInterview';
 
 const DEPTH_LABELS = {
@@ -49,6 +56,14 @@ export default function AdaptiveInterviewPage() {
   const [reportLoading, setReportLoading] = useState(false);
   const [error, setError] = useState('');
   const [reportError, setReportError] = useState('');
+  const [problemId, setProblemId] = useState('');
+  const [language, setLanguage] = useState<SandboxLanguage>('JAVA');
+  const [runMode, setRunMode] = useState<SandboxRunMode>('SAMPLE');
+  const [source, setSource] = useState('');
+  const [submission, setSubmission] = useState<SandboxExecution | null>(null);
+  const [followUps, setFollowUps] = useState<ToolResultFollowUp[]>([]);
+  const [judging, setJudging] = useState(false);
+  const [judgeError, setJudgeError] = useState('');
 
   const loadReport = useCallback(async (id: string) => {
     setReportLoading(true);
@@ -88,6 +103,43 @@ export default function AdaptiveInterviewPage() {
     () => session?.turns.filter(turn => turn.answer !== null).length ?? 0,
     [session?.turns],
   );
+  const currentDimension = useMemo(
+    () => session?.dimensions.find(dimension => dimension.status === 'IN_PROGRESS'),
+    [session?.dimensions],
+  );
+  const algorithmActive = Boolean(
+    currentDimension && /算法|数据结构|algorithm/i.test(`${currentDimension.dimension} ${currentDimension.focus}`),
+  );
+
+  useEffect(() => {
+    if (!session || !submission || !['PENDING', 'RUNNING'].includes(submission.status)) return;
+    const timer = window.setTimeout(async () => {
+      try {
+        const updated = await adaptiveInterviewApi.getCodeSubmission(
+          session.sessionId,
+          submission.submissionId,
+        );
+        setSubmission(updated);
+      } catch (requestError) {
+        setJudgeError(getErrorMessage(requestError));
+      }
+    }, 2_000);
+    return () => window.clearTimeout(timer);
+  }, [session, submission]);
+
+  useEffect(() => {
+    if (!session || !submission || session.status !== 'IN_PROGRESS') return;
+    if (['PENDING', 'RUNNING'].includes(submission.status)) return;
+    if (followUps.some(item => item.resultId === submission.submissionId)) return;
+    const timer = window.setTimeout(async () => {
+      try {
+        setFollowUps(await adaptiveInterviewApi.getToolResultFollowUps(session.sessionId));
+      } catch (requestError) {
+        setJudgeError(getErrorMessage(requestError));
+      }
+    }, 2_000);
+    return () => window.clearTimeout(timer);
+  }, [followUps, session, submission]);
 
   const createInterview = async () => {
     const request = {
@@ -137,6 +189,28 @@ export default function AdaptiveInterviewPage() {
       setError(getErrorMessage(requestError));
     } finally {
       setWorking(false);
+    }
+  };
+
+  const submitCode = async (activeSession: AdaptiveInterviewSession) => {
+    if (!problemId.trim() || !source.trim()) {
+      setJudgeError('请填写题目标识和代码后再运行。');
+      return;
+    }
+    setJudging(true);
+    setJudgeError('');
+    try {
+      setSubmission(await adaptiveInterviewApi.submitCode(activeSession.sessionId, {
+        turnIndex: activeSession.currentTurn,
+        problemId: problemId.trim(),
+        language,
+        source,
+        runMode,
+      }));
+    } catch (requestError) {
+      setJudgeError(getErrorMessage(requestError));
+    } finally {
+      setJudging(false);
     }
   };
 
@@ -248,7 +322,35 @@ export default function AdaptiveInterviewPage() {
                 )}
               </motion.article>
             ))}
+            {followUps.filter(item => item.turnIndex === session.currentTurn).map(item => (
+              <div key={item.resultId} className="flex gap-3">
+                <div className="flex h-9 w-9 flex-none items-center justify-center rounded-xl bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-300">
+                  <Code2 className="h-4 w-4" />
+                </div>
+                <div className="min-w-0 flex-1 rounded-2xl rounded-tl-md border border-amber-200 bg-amber-50/70 px-4 py-3.5 dark:border-amber-800/60 dark:bg-amber-950/20">
+                  <p className="mb-1 font-mono text-[10px] uppercase tracking-[0.14em] text-amber-600">Judge follow-up</p>
+                  <p className="text-sm font-medium leading-7 text-slate-900 dark:text-slate-100">{item.responseContent}</p>
+                </div>
+              </div>
+            ))}
           </div>
+
+          {session.status === 'IN_PROGRESS' && algorithmActive && (
+            <AlgorithmWorkbench
+              problemId={problemId}
+              language={language}
+              runMode={runMode}
+              source={source}
+              submission={submission}
+              judging={judging}
+              error={judgeError}
+              onProblemIdChange={setProblemId}
+              onLanguageChange={setLanguage}
+              onRunModeChange={setRunMode}
+              onSourceChange={setSource}
+              onRun={() => void submitCode(session)}
+            />
+          )}
 
           {session.status === 'IN_PROGRESS' && (
             <div className="border-t border-slate-100 bg-slate-50/80 px-5 py-5 dark:border-slate-700 dark:bg-slate-900/35 sm:px-7">
@@ -297,6 +399,86 @@ export default function AdaptiveInterviewPage() {
           )}
         </aside>
       </div>
+    </div>
+  );
+}
+
+interface AlgorithmWorkbenchProps {
+  problemId: string;
+  language: SandboxLanguage;
+  runMode: SandboxRunMode;
+  source: string;
+  submission: SandboxExecution | null;
+  judging: boolean;
+  error: string;
+  onProblemIdChange: (value: string) => void;
+  onLanguageChange: (value: SandboxLanguage) => void;
+  onRunModeChange: (value: SandboxRunMode) => void;
+  onSourceChange: (value: string) => void;
+  onRun: () => void;
+}
+
+function AlgorithmWorkbench(props: AlgorithmWorkbenchProps) {
+  const running = props.judging || props.submission?.status === 'PENDING' || props.submission?.status === 'RUNNING';
+  return (
+    <section className="border-t border-slate-200 bg-slate-950 text-slate-100 dark:border-slate-700">
+      <div className="flex flex-col gap-4 border-b border-slate-800 px-5 py-4 sm:px-7 lg:flex-row lg:items-center lg:justify-between">
+        <div className="flex items-center gap-3">
+          <div className="flex h-9 w-9 items-center justify-center rounded-xl border border-slate-700 bg-slate-900 text-cyan-300"><Code2 className="h-4 w-4" /></div>
+          <div>
+            <p className="font-mono text-[10px] uppercase tracking-[0.18em] text-cyan-300">Judge docket</p>
+            <h2 className="text-sm font-semibold">代码判题工单</h2>
+          </div>
+        </div>
+        <div className="flex items-center gap-2 font-mono text-[10px] uppercase tracking-wider text-slate-400">
+          {['PENDING', 'RUNNING', 'DONE'].map((status, index) => {
+            const active = props.submission && (
+              props.submission.status === status
+              || (status === 'DONE' && props.submission.status === 'TIMEOUT_QUEUED')
+            );
+            return <span key={status} className={`rounded-full border px-2.5 py-1 ${active ? 'border-cyan-400/60 bg-cyan-400/10 text-cyan-200' : 'border-slate-700'}`}>{index + 1}. {status}</span>;
+          })}
+        </div>
+      </div>
+      <div className="grid gap-4 px-5 py-5 sm:px-7 lg:grid-cols-[minmax(0,1fr)_220px]">
+        <div>
+          <label htmlFor="algorithm-source" className="mb-2 block font-mono text-[11px] uppercase tracking-wider text-slate-400">candidate source</label>
+          <textarea
+            id="algorithm-source"
+            value={props.source}
+            onChange={event => props.onSourceChange(event.target.value)}
+            rows={15}
+            spellCheck={false}
+            placeholder="在这里写出完整可运行代码…"
+            className="w-full resize-y rounded-xl border border-slate-700 bg-slate-900 px-4 py-3 font-mono text-[13px] leading-6 text-slate-100 outline-none transition focus:border-cyan-400 focus:ring-2 focus:ring-cyan-400/15"
+          />
+        </div>
+        <div className="space-y-4">
+          <label className="block"><span className="mb-2 block text-xs font-medium text-slate-300">题目标识</span><input value={props.problemId} onChange={event => props.onProblemIdChange(event.target.value)} placeholder="例如 two-sum" className="w-full rounded-lg border border-slate-700 bg-slate-900 px-3 py-2.5 font-mono text-xs outline-none focus:border-cyan-400" /></label>
+          <label className="block"><span className="mb-2 block text-xs font-medium text-slate-300">语言</span><select value={props.language} onChange={event => props.onLanguageChange(event.target.value as SandboxLanguage)} className="w-full rounded-lg border border-slate-700 bg-slate-900 px-3 py-2.5 text-xs outline-none focus:border-cyan-400"><option value="JAVA">Java</option><option value="PYTHON">Python</option><option value="CPP">C++</option></select></label>
+          <div><span className="mb-2 block text-xs font-medium text-slate-300">运行范围</span><div className="grid grid-cols-2 gap-2">{(['SAMPLE', 'FULL'] as const).map(mode => <button key={mode} type="button" onClick={() => props.onRunModeChange(mode)} className={`rounded-lg border px-3 py-2 text-xs font-semibold ${props.runMode === mode ? 'border-cyan-400 bg-cyan-400/10 text-cyan-200' : 'border-slate-700 text-slate-400'}`}>{mode === 'SAMPLE' ? '公开样例' : '完整判题'}</button>)}</div></div>
+          {props.submission && <JudgeResult execution={props.submission} />}
+          {props.error && <p role="alert" className="rounded-lg border border-red-800 bg-red-950/50 px-3 py-2 text-xs leading-5 text-red-200">{props.error}</p>}
+          <button type="button" onClick={props.onRun} disabled={running || !props.problemId.trim() || !props.source.trim()} className="inline-flex w-full items-center justify-center gap-2 rounded-lg bg-cyan-300 px-4 py-3 text-sm font-bold text-slate-950 transition hover:bg-cyan-200 disabled:cursor-not-allowed disabled:opacity-45">
+            {running ? <Clock3 className="h-4 w-4 animate-pulse" /> : <Play className="h-4 w-4" />}
+            {running ? '判题进行中，可继续回答' : props.runMode === 'SAMPLE' ? '运行公开样例' : '提交完整判题'}
+          </button>
+        </div>
+      </div>
+    </section>
+  );
+}
+
+function JudgeResult({ execution }: { execution: SandboxExecution }) {
+  const verdictTone = execution.verdict === 'AC' ? 'text-emerald-300' : execution.verdict ? 'text-amber-300' : 'text-cyan-300';
+  return (
+    <div className="rounded-lg border border-slate-700 bg-slate-900 p-3 font-mono text-[11px] leading-5 text-slate-400">
+      <div className="flex items-center justify-between"><span>#{execution.submissionSeq}</span><span className={verdictTone}>{execution.verdict ?? execution.status}</span></div>
+      {execution.total !== null && <p className="mt-2">cases {execution.passed}/{execution.total}</p>}
+      {execution.timeMs !== null && <p>time {execution.timeMs} ms · memory {execution.memoryKb} KB</p>}
+      {execution.firstFailedCase !== null && <p>first failed case #{execution.firstFailedCase}</p>}
+      {execution.pendingRejudge && <p className="mt-2 text-amber-300">平台故障，已进入待重判；不计入能力证据。</p>}
+      {execution.status === 'TIMEOUT_QUEUED' && <p className="mt-2 text-amber-300">判题暂不可用，面试将改为代码走读。</p>}
     </div>
   );
 }
