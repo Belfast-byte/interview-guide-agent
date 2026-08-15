@@ -130,6 +130,33 @@ public class CodeAnalysisPersistenceService {
         .toList();
   }
 
+  @Transactional(readOnly = true)
+  public PatchScenarioTarget getPatchTarget(String sessionId, String scenarioId) {
+    CodeAnalysisJob job = jobRepository
+        .findTopBySessionIdAndStatusOrderByCreatedAtDesc(
+            sessionId,
+            AnalysisJobStatus.COMPLETED
+        )
+        .orElseThrow(() -> new BusinessException(ErrorCode.NOT_FOUND, "代码分析尚未完成"))
+        .toDomain();
+    ScenarioCard scenario = deserialize(
+        scenarioRepository.findByRepositoryIdAndScenarioId(job.repositoryId(), scenarioId)
+            .orElseThrow(() -> new BusinessException(ErrorCode.NOT_FOUND, "PATCH 场景不存在"))
+            .payloadJson(),
+        ScenarioCard.class
+    );
+    if (scenario.taskType() != ScenarioTaskType.PATCH) {
+      throw new BusinessException(ErrorCode.BAD_REQUEST, "该场景不是 PATCH 实操题");
+    }
+    ProjectRepoEntity repository = repoRepository.findById(job.repositoryId())
+        .orElseThrow(() -> new BusinessException(ErrorCode.NOT_FOUND, "代码仓库快照不存在"));
+    return new PatchScenarioTarget(
+        scenario.scenarioId(),
+        repository.repositoryRef(),
+        scenario.testsRef()
+    );
+  }
+
   private AnalysisJobEntity findJob(String jobId) {
     return jobRepository.findById(jobId)
         .orElseThrow(() -> new BusinessException(ErrorCode.NOT_FOUND, "代码分析任务不存在"));

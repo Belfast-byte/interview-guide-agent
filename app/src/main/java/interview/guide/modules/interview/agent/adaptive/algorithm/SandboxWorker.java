@@ -4,6 +4,6 @@ public interface SandboxWorker {
 
   SandboxExecutionResult execute(
       SandboxExecution execution,
-      AlgorithmProblem problem
+      SandboxExecutionSpec spec
   );
 }

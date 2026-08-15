@@ -58,6 +58,7 @@ export default function AdaptiveInterviewPage() {
   const [error, setError] = useState('');
   const [reportError, setReportError] = useState('');
   const [problemId, setProblemId] = useState('');
+  const [workloadType, setWorkloadType] = useState<'ALGORITHM' | 'PATCH'>('ALGORITHM');
   const [problem, setProblem] = useState<PublicAlgorithmProblem | null>(null);
   const [problemLoading, setProblemLoading] = useState(false);
   const [language, setLanguage] = useState<SandboxLanguage>('JAVA');
@@ -110,8 +111,10 @@ export default function AdaptiveInterviewPage() {
     () => session?.dimensions.find(dimension => dimension.status === 'IN_PROGRESS'),
     [session?.dimensions],
   );
-  const algorithmActive = Boolean(
-    currentDimension && /算法|数据结构|algorithm/i.test(`${currentDimension.dimension} ${currentDimension.focus}`),
+  const codeWorkbenchActive = Boolean(
+    currentDimension && /算法|数据结构|algorithm|项目|代码|优化/i.test(
+      `${currentDimension.dimension} ${currentDimension.focus}`,
+    ),
   );
 
   useEffect(() => {
@@ -197,14 +200,14 @@ export default function AdaptiveInterviewPage() {
 
   const submitCode = async (activeSession: AdaptiveInterviewSession) => {
     if (!problemId.trim() || !source.trim()) {
-      setJudgeError('请填写题目标识和代码后再运行。');
+      setJudgeError(workloadType === 'PATCH' ? '请填写场景标识和补丁后再提交。' : '请填写题目标识和代码后再运行。');
       return;
     }
     setJudging(true);
     setJudgeError('');
     try {
       const turnIndex = activeSession.currentTurn;
-      if (runMode === 'SAMPLE') {
+      if (workloadType === 'ALGORITHM' && runMode === 'SAMPLE') {
         setSubmission(await adaptiveInterviewApi.submitCode(activeSession.sessionId, {
           turnIndex,
           problemId: problemId.trim(),
@@ -217,9 +220,11 @@ export default function AdaptiveInterviewPage() {
           turnIndex,
           answer: source,
           codeSubmission: {
-            problemId: problemId.trim(),
+            ...(workloadType === 'PATCH'
+              ? { scenarioId: problemId.trim() }
+              : { problemId: problemId.trim() }),
             language,
-            runMode,
+            runMode: workloadType === 'PATCH' ? 'FULL' : runMode,
           },
         });
         setSession(updated);
@@ -380,8 +385,9 @@ export default function AdaptiveInterviewPage() {
             ))}
           </div>
 
-          {session.status === 'IN_PROGRESS' && algorithmActive && (
+          {session.status === 'IN_PROGRESS' && codeWorkbenchActive && (
             <AlgorithmWorkbench
+              workloadType={workloadType}
               problemId={problemId}
               problem={problem}
               problemLoading={problemLoading}
@@ -394,6 +400,11 @@ export default function AdaptiveInterviewPage() {
               onProblemIdChange={value => {
                 setProblemId(value);
                 setProblem(null);
+              }}
+              onWorkloadTypeChange={value => {
+                setWorkloadType(value);
+                setProblem(null);
+                if (value === 'PATCH') setRunMode('FULL');
               }}
               onLoadProblem={() => void loadProblemVariant(session)}
               onLanguageChange={setLanguage}
@@ -455,6 +466,7 @@ export default function AdaptiveInterviewPage() {
 }
 
 interface AlgorithmWorkbenchProps {
+  workloadType: 'ALGORITHM' | 'PATCH';
   problemId: string;
   problem: PublicAlgorithmProblem | null;
   problemLoading: boolean;
@@ -465,6 +477,7 @@ interface AlgorithmWorkbenchProps {
   judging: boolean;
   error: string;
   onProblemIdChange: (value: string) => void;
+  onWorkloadTypeChange: (value: 'ALGORITHM' | 'PATCH') => void;
   onLoadProblem: () => void;
   onLanguageChange: (value: SandboxLanguage) => void;
   onRunModeChange: (value: SandboxRunMode) => void;
@@ -496,28 +509,29 @@ function AlgorithmWorkbench(props: AlgorithmWorkbenchProps) {
       </div>
       <div className="grid gap-4 px-5 py-5 sm:px-7 lg:grid-cols-[minmax(0,1fr)_220px]">
         <div>
-          <label htmlFor="algorithm-source" className="mb-2 block font-mono text-[11px] uppercase tracking-wider text-slate-400">candidate source</label>
+          <label htmlFor="algorithm-source" className="mb-2 block font-mono text-[11px] uppercase tracking-wider text-slate-400">{props.workloadType === 'PATCH' ? 'candidate patch' : 'candidate source'}</label>
           <textarea
             id="algorithm-source"
             value={props.source}
             onChange={event => props.onSourceChange(event.target.value)}
             rows={15}
             spellCheck={false}
-            placeholder="在这里写出完整可运行代码…"
+            placeholder={props.workloadType === 'PATCH' ? '在这里粘贴 unified diff 补丁…' : '在这里写出完整可运行代码…'}
             className="w-full resize-y rounded-xl border border-slate-700 bg-slate-900 px-4 py-3 font-mono text-[13px] leading-6 text-slate-100 outline-none transition focus:border-cyan-400 focus:ring-2 focus:ring-cyan-400/15"
           />
         </div>
         <div className="space-y-4">
-          <label className="block"><span className="mb-2 block text-xs font-medium text-slate-300">题目标识</span><input value={props.problemId} onChange={event => props.onProblemIdChange(event.target.value)} placeholder="例如 two-sum" className="w-full rounded-lg border border-slate-700 bg-slate-900 px-3 py-2.5 font-mono text-xs outline-none focus:border-cyan-400" /></label>
-          <button type="button" onClick={props.onLoadProblem} disabled={props.problemLoading || !props.problemId.trim()} className="flex w-full items-center justify-center gap-2 rounded-lg border border-cyan-400/40 bg-cyan-400/10 px-3 py-2.5 text-xs font-semibold text-cyan-200 transition hover:bg-cyan-400/15 disabled:opacity-50">{props.problemLoading ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <RefreshCw className="h-3.5 w-3.5" />}载入未考察变体</button>
+          <div><span className="mb-2 block text-xs font-medium text-slate-300">工作负载</span><div className="grid grid-cols-2 gap-2">{(['ALGORITHM', 'PATCH'] as const).map(type => <button key={type} type="button" onClick={() => props.onWorkloadTypeChange(type)} className={`rounded-lg border px-3 py-2 text-xs font-semibold ${props.workloadType === type ? 'border-cyan-400 bg-cyan-400/10 text-cyan-200' : 'border-slate-700 text-slate-400'}`}>{type === 'ALGORITHM' ? '算法题' : '项目补丁'}</button>)}</div></div>
+          <label className="block"><span className="mb-2 block text-xs font-medium text-slate-300">{props.workloadType === 'PATCH' ? '场景标识' : '题目标识'}</span><input value={props.problemId} onChange={event => props.onProblemIdChange(event.target.value)} placeholder={props.workloadType === 'PATCH' ? '例如 scenario-1' : '例如 two-sum'} className="w-full rounded-lg border border-slate-700 bg-slate-900 px-3 py-2.5 font-mono text-xs outline-none focus:border-cyan-400" /></label>
+          {props.workloadType === 'ALGORITHM' && <button type="button" onClick={props.onLoadProblem} disabled={props.problemLoading || !props.problemId.trim()} className="flex w-full items-center justify-center gap-2 rounded-lg border border-cyan-400/40 bg-cyan-400/10 px-3 py-2.5 text-xs font-semibold text-cyan-200 transition hover:bg-cyan-400/15 disabled:opacity-50">{props.problemLoading ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <RefreshCw className="h-3.5 w-3.5" />}载入未考察变体</button>}
           {props.problem && <div className="rounded-lg border border-slate-700 bg-slate-900 p-3"><div className="flex items-center justify-between gap-2"><p className="text-xs font-semibold text-slate-100">{props.problem.title}</p><span className="font-mono text-[10px] text-cyan-300">{props.problem.difficulty}</span></div><p className="mt-2 whitespace-pre-wrap text-xs leading-5 text-slate-400">{props.problem.statement}</p><pre className="mt-3 overflow-x-auto rounded bg-slate-950 p-2 text-[10px] leading-4 text-slate-500">{props.problem.sampleCases}</pre></div>}
           <label className="block"><span className="mb-2 block text-xs font-medium text-slate-300">语言</span><select value={props.language} onChange={event => props.onLanguageChange(event.target.value as SandboxLanguage)} className="w-full rounded-lg border border-slate-700 bg-slate-900 px-3 py-2.5 text-xs outline-none focus:border-cyan-400"><option value="JAVA">Java</option><option value="PYTHON">Python</option><option value="CPP">C++</option></select></label>
-          <div><span className="mb-2 block text-xs font-medium text-slate-300">运行范围</span><div className="grid grid-cols-2 gap-2">{(['SAMPLE', 'FULL'] as const).map(mode => <button key={mode} type="button" onClick={() => props.onRunModeChange(mode)} className={`rounded-lg border px-3 py-2 text-xs font-semibold ${props.runMode === mode ? 'border-cyan-400 bg-cyan-400/10 text-cyan-200' : 'border-slate-700 text-slate-400'}`}>{mode === 'SAMPLE' ? '公开样例' : '完整判题'}</button>)}</div></div>
+          {props.workloadType === 'ALGORITHM' && <div><span className="mb-2 block text-xs font-medium text-slate-300">运行范围</span><div className="grid grid-cols-2 gap-2">{(['SAMPLE', 'FULL'] as const).map(mode => <button key={mode} type="button" onClick={() => props.onRunModeChange(mode)} className={`rounded-lg border px-3 py-2 text-xs font-semibold ${props.runMode === mode ? 'border-cyan-400 bg-cyan-400/10 text-cyan-200' : 'border-slate-700 text-slate-400'}`}>{mode === 'SAMPLE' ? '公开样例' : '完整判题'}</button>)}</div></div>}
           {props.submission && <JudgeResult execution={props.submission} />}
           {props.error && <p role="alert" className="rounded-lg border border-red-800 bg-red-950/50 px-3 py-2 text-xs leading-5 text-red-200">{props.error}</p>}
           <button type="button" onClick={props.onRun} disabled={running || !props.problemId.trim() || !props.source.trim()} className="inline-flex w-full items-center justify-center gap-2 rounded-lg bg-cyan-300 px-4 py-3 text-sm font-bold text-slate-950 transition hover:bg-cyan-200 disabled:cursor-not-allowed disabled:opacity-45">
             {running ? <Clock3 className="h-4 w-4 animate-pulse" /> : <Play className="h-4 w-4" />}
-            {running ? '判题进行中，可继续回答' : props.runMode === 'SAMPLE' ? '运行公开样例' : '提交完整判题'}
+            {running ? '判题进行中，可继续回答' : props.workloadType === 'PATCH' ? '提交补丁验证' : props.runMode === 'SAMPLE' ? '运行公开样例' : '提交完整判题'}
           </button>
         </div>
       </div>

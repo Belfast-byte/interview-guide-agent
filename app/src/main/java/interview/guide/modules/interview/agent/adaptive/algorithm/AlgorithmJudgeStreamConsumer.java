@@ -19,6 +19,7 @@ class AlgorithmJudgeStreamConsumer
   private final AlgorithmJudgeStreamProducer producer;
   private final AlgorithmResultReadyHandler resultReadyHandler;
   private final AlgorithmInterviewTelemetry telemetry;
+  private final AlgorithmInterviewProperties properties;
 
   AlgorithmJudgeStreamConsumer(
       RedisService redisService,
@@ -26,7 +27,8 @@ class AlgorithmJudgeStreamConsumer
       SandboxWorker sandboxWorker,
       AlgorithmJudgeStreamProducer producer,
       AlgorithmResultReadyHandler resultReadyHandler,
-      AlgorithmInterviewTelemetry telemetry
+      AlgorithmInterviewTelemetry telemetry,
+      AlgorithmInterviewProperties properties
   ) {
     super(redisService);
     this.persistenceService = persistenceService;
@@ -34,6 +36,7 @@ class AlgorithmJudgeStreamConsumer
     this.producer = producer;
     this.resultReadyHandler = resultReadyHandler;
     this.telemetry = telemetry;
+    this.properties = properties;
   }
 
   @Override
@@ -93,8 +96,7 @@ class AlgorithmJudgeStreamConsumer
   @Override
   protected void processBusiness(ExecutionTask payload) {
     SandboxExecution execution = persistenceService.getExecution(payload.executionId());
-    AlgorithmProblem problem = persistenceService.getProblem(execution.problemId());
-    SandboxExecutionResult result = sandboxWorker.execute(execution, problem);
+    SandboxExecutionResult result = sandboxWorker.execute(execution, executionSpec(execution));
     telemetry.attemptCompleted(
         execution.id(),
         execution.sessionId(),
@@ -109,6 +111,28 @@ class AlgorithmJudgeStreamConsumer
       return;
     }
     resultReadyHandler.handle(persistenceService.getExecution(execution.id()));
+  }
+
+  private SandboxExecutionSpec executionSpec(SandboxExecution execution) {
+    if (execution.workloadType() == SandboxWorkloadType.PATCH) {
+      return new SandboxExecutionSpec(
+          execution.scenarioId(),
+          execution.testsRef(),
+          execution.workspaceRef(),
+          properties.getPatchTimeLimitMs(),
+          properties.getPatchMemoryLimitKb()
+      );
+    }
+    AlgorithmProblem problem = persistenceService.getProblem(execution.problemId());
+    return new SandboxExecutionSpec(
+        problem.id(),
+        execution.runMode() == SandboxRunMode.SAMPLE
+            ? problem.sampleCasesRef()
+            : problem.hiddenCasesRef(),
+        null,
+        problem.timeLimitMs(),
+        problem.memoryLimitKb()
+    );
   }
 
   @Override

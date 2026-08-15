@@ -65,6 +65,7 @@ public class AdaptiveInterviewController {
                     ? null
                     : new CandidateCodeSubmission(
                         request.codeSubmission().problemId(),
+                        request.codeSubmission().scenarioId(),
                         request.codeSubmission().language().name(),
                         request.codeSubmission().runMode().name()
                     )

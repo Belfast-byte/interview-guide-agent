@@ -9,6 +9,7 @@ import interview.guide.modules.interview.agent.adaptive.algorithm.SandboxRunMode
 import interview.guide.modules.interview.agent.adaptive.algorithm.SubmitAlgorithmCode;
 import interview.guide.modules.interview.agent.adaptive.core.CandidateAnswer;
 import interview.guide.modules.interview.agent.adaptive.core.CandidateCodeSubmission;
+import interview.guide.modules.interview.agent.adaptive.codeanalysis.CodePatchSubmissionService;
 import interview.guide.modules.interview.agent.adaptive.runtime.ReActRequest;
 import java.util.Map;
 import org.springframework.ai.tool.ToolCallback;
@@ -21,10 +22,15 @@ public class SandboxSubmitTool implements AdaptiveAgentTool {
   public static final String NAME = "sandbox_submit";
 
   private final AlgorithmSubmissionService submissionService;
+  private final CodePatchSubmissionService patchSubmissionService;
   private final ToolCallback callback;
 
-  public SandboxSubmitTool(AlgorithmSubmissionService submissionService) {
+  public SandboxSubmitTool(
+      AlgorithmSubmissionService submissionService,
+      CodePatchSubmissionService patchSubmissionService
+  ) {
     this.submissionService = submissionService;
+    this.patchSubmissionService = patchSubmissionService;
     callback = FunctionToolCallback
         .builder(NAME, (SandboxSubmitInput input) -> unsupportedDirectCall())
         .description("Submit the candidate's exact current code answer for asynchronous judging")
@@ -52,22 +58,34 @@ public class SandboxSubmitTool implements AdaptiveAgentTool {
       );
     }
     CandidateCodeSubmission submission = answer.codeSubmission();
-    String problemId = ToolArguments.requiredString(arguments, "problemId", 64);
     String runMode = ToolArguments.requiredString(arguments, "runMode", 16);
-    if (!problemId.equals(submission.problemId()) || !runMode.equals(submission.runMode())) {
+    String targetArgument = submission.patch() ? "scenarioId" : "problemId";
+    String targetId = ToolArguments.requiredString(arguments, targetArgument, 64);
+    String expectedTargetId = submission.patch()
+        ? submission.scenarioId()
+        : submission.problemId();
+    if (!targetId.equals(expectedTargetId) || !runMode.equals(submission.runMode())) {
       throw new BusinessException(
           ErrorCode.AI_SERVICE_ERROR,
           "sandbox_submit arguments do not match the candidate submission"
       );
     }
-    SandboxExecution execution = submissionService.submit(new SubmitAlgorithmCode(
-        request.sessionId(),
-        answer.turnIndex(),
-        submission.problemId(),
-        SandboxLanguage.valueOf(submission.language()),
-        answer.content(),
-        SandboxRunMode.valueOf(submission.runMode())
-    ));
+    SandboxExecution execution = submission.patch()
+        ? patchSubmissionService.submit(
+            request.sessionId(),
+            answer.turnIndex(),
+            submission.scenarioId(),
+            SandboxLanguage.valueOf(submission.language()),
+            answer.content()
+        )
+        : submissionService.submit(new SubmitAlgorithmCode(
+            request.sessionId(),
+            answer.turnIndex(),
+            submission.problemId(),
+            SandboxLanguage.valueOf(submission.language()),
+            answer.content(),
+            SandboxRunMode.valueOf(submission.runMode())
+        ));
     return new PendingToolResult(
         execution.id(),
         new SandboxPendingResult(execution.id(), execution.status().name()),
@@ -88,7 +106,7 @@ public class SandboxSubmitTool implements AdaptiveAgentTool {
     throw new IllegalStateException("Tool execution must go through ToolGateway");
   }
 
-  record SandboxSubmitInput(String problemId, String runMode) {}
+  record SandboxSubmitInput(String problemId, String scenarioId, String runMode) {}
 
   record SandboxPendingResult(String submissionId, String status) {}
 }

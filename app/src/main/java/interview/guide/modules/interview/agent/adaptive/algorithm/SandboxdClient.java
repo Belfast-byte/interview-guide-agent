@@ -25,22 +25,21 @@ class SandboxdClient implements SandboxWorker {
   @Override
   public SandboxExecutionResult execute(
       SandboxExecution execution,
-      AlgorithmProblem problem
+      SandboxExecutionSpec spec
   ) {
-    String casesRef = execution.runMode() == SandboxRunMode.SAMPLE
-        ? problem.sampleCasesRef()
-        : problem.hiddenCasesRef();
     SandboxdResponse response = restClient.post()
         .uri("/internal/executions")
         .body(new SandboxdRequest(
             execution.id(),
-            execution.problemId(),
+            execution.workloadType(),
+            spec.referenceId(),
             execution.language(),
             execution.codeRef(),
-            casesRef,
+            spec.casesRef(),
+            spec.workspaceRef(),
             execution.runMode(),
-            problem.timeLimitMs(),
-            problem.memoryLimitKb()
+            spec.timeLimitMs(),
+            spec.memoryLimitKb()
         ))
         .retrieve()
         .body(SandboxdResponse.class);
@@ -61,10 +60,12 @@ class SandboxdClient implements SandboxWorker {
 
   private record SandboxdRequest(
       String executionId,
-      String problemId,
+      SandboxWorkloadType workloadType,
+      String referenceId,
       SandboxLanguage language,
       String codeRef,
       String casesRef,
+      String workspaceRef,
       SandboxRunMode runMode,
       int timeLimitMs,
       int memoryLimitKb

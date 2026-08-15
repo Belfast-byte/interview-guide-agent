@@ -13,12 +13,12 @@ import org.springframework.stereotype.Component;
 
 @Component
 @RequiredArgsConstructor
-class AlgorithmSourceStorage {
+public class AlgorithmSourceStorage {
 
   private final FileStorageService fileStorageService;
   private final AlgorithmInterviewProperties properties;
 
-  StoredAlgorithmSource store(
+  public StoredAlgorithmSource store(
       String sessionId,
       SandboxLanguage language,
       String source

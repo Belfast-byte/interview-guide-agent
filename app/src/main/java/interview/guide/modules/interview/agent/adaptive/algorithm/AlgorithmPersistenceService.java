@@ -52,19 +52,31 @@ public class AlgorithmPersistenceService {
 
   @Transactional(readOnly = true)
   public List<String> attemptedProblemIds(String sessionId) {
-    return executionRepository.findDistinctProblemIdsBySessionId(sessionId);
+    return executionRepository.findDistinctProblemIdsBySessionIdAndWorkloadType(
+        sessionId,
+        SandboxWorkloadType.ALGORITHM
+    );
   }
 
   @Transactional
   public SandboxExecution createPending(CreateSandboxExecution command) {
     long turnId = sessionFacts.lockCurrentTurn(command.sessionId(), command.turnIndex());
-    if (!problemRepository.existsById(command.problemId())) {
+    if (command.workloadType() == SandboxWorkloadType.ALGORITHM
+        && !problemRepository.existsById(command.problemId())) {
       throw new BusinessException(ErrorCode.NOT_FOUND, "算法题不存在");
     }
     long submitted = executionRepository.countBySessionId(command.sessionId());
     if (submitted >= properties.getMaxExecutionsPerSession()) {
       telemetry.quotaRejected();
       throw new BusinessException(ErrorCode.RATE_LIMIT_EXCEEDED, "本场面试代码执行次数已达上限");
+    }
+    if (command.workloadType() == SandboxWorkloadType.PATCH
+        && executionRepository.countBySessionIdAndWorkloadType(
+            command.sessionId(),
+            SandboxWorkloadType.PATCH
+        ) >= properties.getMaxPatchExecutionsPerSession()) {
+      telemetry.quotaRejected();
+      throw new BusinessException(ErrorCode.RATE_LIMIT_EXCEEDED, "本场面试 PATCH 实操次数已达上限");
     }
     int submissionSeq = executionRepository
         .findTopBySessionIdOrderBySubmissionSeqDesc(command.sessionId())

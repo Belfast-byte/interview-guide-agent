@@ -16,6 +16,7 @@ import interview.guide.modules.interview.agent.adaptive.algorithm.SubmitAlgorith
 import interview.guide.modules.interview.agent.adaptive.core.CandidateAnswer;
 import interview.guide.modules.interview.agent.adaptive.core.CandidateCodeSubmission;
 import interview.guide.modules.interview.agent.adaptive.core.InterviewerContext;
+import interview.guide.modules.interview.agent.adaptive.codeanalysis.CodePatchSubmissionService;
 import interview.guide.modules.interview.agent.adaptive.runtime.ReActRequest;
 import java.time.LocalDateTime;
 import java.util.Map;
@@ -31,6 +32,9 @@ class SandboxSubmitToolTest {
 
   @Mock
   private AlgorithmSubmissionService submissionService;
+
+  @Mock
+  private CodePatchSubmissionService patchSubmissionService;
 
   @Mock
   private ReActRequest request;
@@ -50,7 +54,7 @@ class SandboxSubmitToolTest {
     when(request.interviewerContext()).thenReturn(context);
     when(context.currentCodeSubmission()).thenReturn(answer);
     when(submissionService.submit(any())).thenReturn(pendingExecution());
-    SandboxSubmitTool tool = new SandboxSubmitTool(submissionService);
+    SandboxSubmitTool tool = new SandboxSubmitTool(submissionService, patchSubmissionService);
 
     PendingToolResult result = (PendingToolResult) tool.execute(
         request,
@@ -77,13 +81,48 @@ class SandboxSubmitToolTest {
         "source",
         new CandidateCodeSubmission("two-sum", "JAVA", "FULL")
     ));
-    SandboxSubmitTool tool = new SandboxSubmitTool(submissionService);
+    SandboxSubmitTool tool = new SandboxSubmitTool(submissionService, patchSubmissionService);
 
     assertThatThrownBy(() -> tool.execute(
         request,
         Map.of("problemId", "another-problem", "runMode", "FULL")
     )).isInstanceOf(BusinessException.class)
         .hasMessageContaining("do not match");
+  }
+
+  @Test
+  @DisplayName("PATCH 场景只提交编排器绑定的候选人补丁原文")
+  void shouldSubmitExactCandidatePatch() {
+    CandidateAnswer answer = new CandidateAnswer(
+        3,
+        "@@ -1 +1 @@\n-old\n+new",
+        new CandidateCodeSubmission(null, "scenario-1", "JAVA", "FULL")
+    );
+    when(request.sessionId()).thenReturn("session-1");
+    when(request.interviewerContext()).thenReturn(context);
+    when(context.currentCodeSubmission()).thenReturn(answer);
+    when(patchSubmissionService.submit(
+        "session-1",
+        3,
+        "scenario-1",
+        SandboxLanguage.JAVA,
+        answer.content()
+    )).thenReturn(pendingExecution());
+    SandboxSubmitTool tool = new SandboxSubmitTool(submissionService, patchSubmissionService);
+
+    PendingToolResult result = (PendingToolResult) tool.execute(
+        request,
+        Map.of("scenarioId", "scenario-1", "runMode", "FULL")
+    );
+
+    assertThat(result.handle()).isEqualTo("execution-1");
+    verify(patchSubmissionService).submit(
+        "session-1",
+        3,
+        "scenario-1",
+        SandboxLanguage.JAVA,
+        answer.content()
+    );
   }
 
   private SandboxExecution pendingExecution() {

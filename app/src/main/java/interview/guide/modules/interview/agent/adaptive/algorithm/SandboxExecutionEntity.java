@@ -26,8 +26,21 @@ class SandboxExecutionEntity {
   @Column(name = "submission_seq", nullable = false)
   private int submissionSeq;
 
-  @Column(name = "problem_id", nullable = false, length = 64)
+  @Enumerated(EnumType.STRING)
+  @Column(name = "workload_type", nullable = false, length = 16)
+  private SandboxWorkloadType workloadType;
+
+  @Column(name = "problem_id", length = 64)
   private String problemId;
+
+  @Column(name = "scenario_id", length = 64)
+  private String scenarioId;
+
+  @Column(name = "workspace_ref", length = 512)
+  private String workspaceRef;
+
+  @Column(name = "tests_ref", length = 512)
+  private String testsRef;
 
   @Enumerated(EnumType.STRING)
   @Column(nullable = false, length = 16)
@@ -98,7 +111,11 @@ class SandboxExecutionEntity {
     sessionId = command.sessionId();
     this.turnId = turnId;
     this.submissionSeq = submissionSeq;
+    workloadType = command.workloadType();
     problemId = command.problemId();
+    scenarioId = command.scenarioId();
+    workspaceRef = command.workspaceRef();
+    testsRef = command.testsRef();
     language = command.language();
     codeRef = command.codeRef();
     codeHash = command.codeHash();
@@ -174,7 +191,11 @@ class SandboxExecutionEntity {
         sessionId,
         turnId,
         submissionSeq,
+        workloadType,
         problemId,
+        scenarioId,
+        workspaceRef,
+        testsRef,
         language,
         codeRef,
         codeHash,

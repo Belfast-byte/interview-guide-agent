@@ -7,7 +7,7 @@ import java.util.Map;
 import org.springframework.stereotype.Component;
 
 @Component
-class AlgorithmJudgeStreamProducer
+public class AlgorithmJudgeStreamProducer
     extends AbstractStreamProducer<AlgorithmJudgeStreamProducer.ExecutionTask> {
 
   record ExecutionTask(String executionId, int retryCount) {}
@@ -16,7 +16,7 @@ class AlgorithmJudgeStreamProducer
     super(redisService);
   }
 
-  boolean sendExecution(String executionId) {
+  public boolean sendExecution(String executionId) {
     return sendTask(new ExecutionTask(executionId, 0));
   }
 

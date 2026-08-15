@@ -40,7 +40,8 @@ export interface SubmitAdaptiveAnswerRequest {
   turnIndex: number;
   answer: string;
   codeSubmission?: {
-    problemId: string;
+    problemId?: string;
+    scenarioId?: string;
     language: SandboxLanguage;
     runMode: SandboxRunMode;
   };

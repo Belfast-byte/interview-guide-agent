@@ -12,11 +12,19 @@ interface SandboxExecutionRepository extends JpaRepository<SandboxExecutionEntit
 
   long countBySessionId(String sessionId);
 
+  long countBySessionIdAndWorkloadType(
+      String sessionId,
+      SandboxWorkloadType workloadType
+  );
+
   long countByStatus(SandboxExecutionStatus status);
 
   @Query("select distinct execution.problemId from SandboxExecutionEntity execution "
-      + "where execution.sessionId = :sessionId")
-  List<String> findDistinctProblemIdsBySessionId(String sessionId);
+      + "where execution.sessionId = :sessionId and execution.workloadType = :workloadType")
+  List<String> findDistinctProblemIdsBySessionIdAndWorkloadType(
+      String sessionId,
+      SandboxWorkloadType workloadType
+  );
 
   Optional<SandboxExecutionEntity> findTopBySessionIdOrderBySubmissionSeqDesc(String sessionId);
 
