@@ -6,6 +6,8 @@ import interview.guide.modules.interview.agent.adaptive.assessment.AssessmentDec
 import interview.guide.modules.interview.agent.adaptive.assessment.DepthLevel;
 import interview.guide.modules.interview.agent.adaptive.assessment.PracticeRecommendation;
 import interview.guide.modules.interview.agent.adaptive.assessment.ValidatedAssessmentEvidence;
+import interview.guide.modules.interview.agent.adaptive.assessment.EvidenceType;
+import interview.guide.modules.interview.agent.adaptive.algorithm.AlgorithmAssessmentEvidenceStore;
 import interview.guide.modules.interview.agent.adaptive.core.AdaptiveInterviewHistory;
 import interview.guide.modules.interview.agent.adaptive.core.AdaptiveInterviewSession;
 import interview.guide.modules.interview.agent.adaptive.core.AdaptiveSessionStatus;
@@ -29,7 +31,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 @Service
 @RequiredArgsConstructor
-public class AdaptiveInterviewPersistenceService {
+public class AdaptiveInterviewPersistenceService implements AlgorithmAssessmentEvidenceStore {
 
   private final AdaptiveAgentSessionRepository sessionRepository;
   private final AdaptiveAgentTurnRepository turnRepository;
@@ -99,6 +101,30 @@ public class AdaptiveInterviewPersistenceService {
         sessionId,
         ToolResultEventStatus.COMPLETED
     ).stream().map(AdaptiveAgentToolResultEventEntity::toFollowUp).toList();
+  }
+
+  @Override
+  @Transactional
+  public boolean attach(String sessionId, int turnIndex, String executionId) {
+    AdaptiveAgentAssessmentEntity assessment = assessmentRepository
+        .findBySessionIdAndTurnIndex(sessionId, turnIndex)
+        .orElse(null);
+    if (assessment == null || evidenceRepository
+        .existsByAssessmentIdAndSandboxExecutionId(assessment.id(), executionId)) {
+      return false;
+    }
+    evidenceRepository.save(new AdaptiveAgentEvidenceEntity(
+        assessment,
+        sessionId,
+        turnIndex,
+        new ValidatedAssessmentEvidence(
+            EvidenceType.TOOL_RESULT,
+            null,
+            null,
+            executionId
+        )
+    ));
+    return true;
   }
 
   @Transactional(readOnly = true)

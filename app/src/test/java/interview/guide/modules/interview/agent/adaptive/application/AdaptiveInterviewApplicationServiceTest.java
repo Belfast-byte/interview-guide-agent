@@ -9,6 +9,7 @@ import interview.guide.modules.interview.agent.adaptive.assessment.PracticeRecom
 import interview.guide.modules.interview.agent.adaptive.assessment.PracticeRecommendation;
 import interview.guide.modules.interview.agent.adaptive.assessment.PracticeStatus;
 import interview.guide.modules.interview.agent.adaptive.assessment.DepthLevel;
+import interview.guide.modules.interview.agent.adaptive.algorithm.AlgorithmAssessmentEvidenceService;
 import interview.guide.modules.interview.agent.adaptive.core.AdaptiveInterviewHistory;
 import interview.guide.modules.interview.agent.adaptive.core.AdaptiveInterviewSession;
 import interview.guide.modules.interview.agent.adaptive.core.AdaptiveInterviewTurn;
@@ -96,6 +97,9 @@ class AdaptiveInterviewApplicationServiceTest {
   @Mock
   private PracticeRecommendationService practiceRecommendationService;
 
+  @Mock
+  private AlgorithmAssessmentEvidenceService algorithmAssessmentEvidenceService;
+
   private AdaptiveInterviewApplicationService service;
 
   @BeforeEach
@@ -120,7 +124,8 @@ class AdaptiveInterviewApplicationServiceTest {
         candidateClaimExtractionService,
         assessmentAgent,
         evidenceValidator(),
-        practiceRecommendationService
+        practiceRecommendationService,
+        algorithmAssessmentEvidenceService
     );
   }
 

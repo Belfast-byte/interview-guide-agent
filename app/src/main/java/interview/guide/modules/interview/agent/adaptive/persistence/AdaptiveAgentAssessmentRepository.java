@@ -15,4 +15,9 @@ public interface AdaptiveAgentAssessmentRepository
           String sessionId,
           int dimensionOrder
       );
+
+  Optional<AdaptiveAgentAssessmentEntity> findBySessionIdAndTurnIndex(
+      String sessionId,
+      int turnIndex
+  );
 }

@@ -2,6 +2,7 @@ package interview.guide.modules.interview.agent.adaptive.application;
 
 import interview.guide.modules.interview.agent.adaptive.algorithm.AlgorithmResultReadyHandler;
 import interview.guide.modules.interview.agent.adaptive.algorithm.AlgorithmSessionFacts;
+import interview.guide.modules.interview.agent.adaptive.algorithm.AlgorithmAssessmentEvidenceService;
 import interview.guide.modules.interview.agent.adaptive.algorithm.SandboxExecution;
 import interview.guide.modules.interview.agent.adaptive.algorithm.SandboxExecutionStatus;
 import interview.guide.modules.interview.agent.adaptive.core.ToolResultEvent;
@@ -14,6 +15,7 @@ class AdaptiveAlgorithmResultReadyHandler implements AlgorithmResultReadyHandler
 
   private final AdaptiveInterviewApplicationService applicationService;
   private final AlgorithmSessionFacts sessionFacts;
+  private final AlgorithmAssessmentEvidenceService assessmentEvidenceService;
 
   @Override
   public void handle(SandboxExecution execution) {
@@ -31,10 +33,12 @@ class AdaptiveAlgorithmResultReadyHandler implements AlgorithmResultReadyHandler
                 execution.memoryKb(),
                 execution.firstFailedCase()
             );
+    int turnIndex = sessionFacts.turnIndex(execution.turnId());
+    assessmentEvidenceService.attachAvailable(execution.sessionId(), turnIndex);
     applicationService.handleToolResult(
         execution.sessionId(),
         new ToolResultEvent(
-            sessionFacts.turnIndex(execution.turnId()),
+            turnIndex,
             "sandbox_submit",
             execution.id(),
             summary,

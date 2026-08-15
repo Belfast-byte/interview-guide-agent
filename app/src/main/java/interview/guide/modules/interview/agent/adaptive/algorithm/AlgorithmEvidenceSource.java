@@ -11,5 +11,7 @@ public interface AlgorithmEvidenceSource {
       Set<String> resultIds
   );
 
+  Map<String, String> findCandidateEvidenceIds(String sessionId, int turnIndex);
+
   Map<String, AlgorithmEvidence> findEvidence(Set<String> executionIds);
 }

@@ -18,4 +18,9 @@ public interface AdaptiveAgentEvidenceRepository
   List<AdaptiveAgentEvidenceEntity> findReportEvidence(
       @Param("sessionId") String sessionId
   );
+
+  boolean existsByAssessmentIdAndSandboxExecutionId(
+      Long assessmentId,
+      String sandboxExecutionId
+  );
 }

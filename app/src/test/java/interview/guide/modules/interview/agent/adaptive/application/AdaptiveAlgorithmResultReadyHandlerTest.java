@@ -6,6 +6,7 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 import interview.guide.modules.interview.agent.adaptive.algorithm.AlgorithmSessionFacts;
+import interview.guide.modules.interview.agent.adaptive.algorithm.AlgorithmAssessmentEvidenceService;
 import interview.guide.modules.interview.agent.adaptive.algorithm.SandboxExecution;
 import interview.guide.modules.interview.agent.adaptive.algorithm.SandboxExecutionStatus;
 import interview.guide.modules.interview.agent.adaptive.algorithm.SandboxLanguage;
@@ -27,6 +28,9 @@ class AdaptiveAlgorithmResultReadyHandlerTest {
 
   @Mock
   private AlgorithmSessionFacts sessionFacts;
+
+  @Mock
+  private AlgorithmAssessmentEvidenceService assessmentEvidenceService;
 
   @Test
   @DisplayName("过期代码结果落库后不唤醒面试官")
@@ -60,7 +64,11 @@ class AdaptiveAlgorithmResultReadyHandlerTest {
   }
 
   private AdaptiveAlgorithmResultReadyHandler handler() {
-    return new AdaptiveAlgorithmResultReadyHandler(applicationService, sessionFacts);
+    return new AdaptiveAlgorithmResultReadyHandler(
+        applicationService,
+        sessionFacts,
+        assessmentEvidenceService
+    );
   }
 
   private SandboxExecution execution(

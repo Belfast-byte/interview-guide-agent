@@ -5,6 +5,7 @@ import interview.guide.modules.interview.agent.adaptive.algorithm.AlgorithmEvide
 import interview.guide.modules.interview.agent.adaptive.algorithm.SandboxExecutionStatus;
 import interview.guide.modules.interview.agent.adaptive.algorithm.SandboxVerdict;
 import jakarta.persistence.EntityManager;
+import jakarta.persistence.TypedQuery;
 import java.util.Map;
 import java.util.Set;
 import java.util.stream.Collectors;
@@ -53,6 +54,17 @@ class JpaAlgorithmEvidenceSource implements AlgorithmEvidenceSource {
 
   @Override
   @Transactional(readOnly = true)
+  public Map<String, String> findCandidateEvidenceIds(
+      String sessionId,
+      int turnIndex
+  ) {
+    return candidateEvidenceQuery(sessionId, turnIndex)
+        .getResultStream()
+        .collect(Collectors.toMap(id -> id, id -> id));
+  }
+
+  @Override
+  @Transactional(readOnly = true)
   public Map<String, AlgorithmEvidence> findEvidence(Set<String> executionIds) {
     if (executionIds.isEmpty()) {
       return Map.of();
@@ -77,5 +89,26 @@ class JpaAlgorithmEvidenceSource implements AlgorithmEvidenceSource {
     String summary = "verdict=%s, passed=%s/%s, timeMs=%s, memoryKb=%s, firstFailedCase=%s"
         .formatted(row[1], row[2], row[3], row[4], row[5], row[6]);
     return new AlgorithmEvidence((String) row[0], summary);
+  }
+
+  private TypedQuery<String> candidateEvidenceQuery(
+      String sessionId,
+      int turnIndex
+  ) {
+    return entityManager.createQuery("""
+        select execution.id
+        from SandboxExecutionEntity execution, AdaptiveAgentTurnEntity turn
+        where execution.turnId = turn.id
+          and execution.sessionId = :sessionId
+          and turn.turnIndex = :turnIndex
+          and execution.status = :status
+          and execution.verdict is not null
+          and execution.verdict <> :internalError
+          and execution.supersededBy is null
+        """, String.class)
+        .setParameter("sessionId", sessionId)
+        .setParameter("turnIndex", turnIndex)
+        .setParameter("status", SandboxExecutionStatus.DONE)
+        .setParameter("internalError", SandboxVerdict.IE);
   }
 }

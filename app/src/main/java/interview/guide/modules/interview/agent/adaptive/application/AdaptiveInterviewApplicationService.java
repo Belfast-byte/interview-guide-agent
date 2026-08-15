@@ -12,6 +12,7 @@ import interview.guide.modules.interview.agent.adaptive.assessment.DepthLevel;
 import interview.guide.modules.interview.agent.adaptive.assessment.PracticeRecommendation;
 import interview.guide.modules.interview.agent.adaptive.assessment.PracticeRecommendationService;
 import interview.guide.modules.interview.agent.adaptive.assessment.ValidatedAssessmentEvidence;
+import interview.guide.modules.interview.agent.adaptive.algorithm.AlgorithmAssessmentEvidenceService;
 import interview.guide.modules.interview.agent.adaptive.core.AdaptiveInterviewHistory;
 import interview.guide.modules.interview.agent.adaptive.core.AdaptiveInterviewTurn;
 import interview.guide.modules.interview.agent.adaptive.core.CandidateAnswer;
@@ -64,6 +65,7 @@ public class AdaptiveInterviewApplicationService {
   private final DepthAssessmentAgent assessmentAgent;
   private final AssessmentEvidenceValidator assessmentEvidenceValidator;
   private final PracticeRecommendationService practiceRecommendationService;
+  private final AlgorithmAssessmentEvidenceService algorithmAssessmentEvidenceService;
 
   public PlannedInterview create(
       String candidateId,
@@ -245,6 +247,7 @@ public class AdaptiveInterviewApplicationService {
           assessmentEvidences,
           practiceRecommendations
       );
+      algorithmAssessmentEvidenceService.attachAvailable(sessionId, answer.turnIndex());
       telemetry.assessmentRecorded(
           currentDimension.dimension(),
           assessment.depthLevel(),
