@@ -6,5 +6,6 @@ public record CandidateAssessmentReport(
     String sessionId,
     List<ReportDimensionConclusion> dimensions,
     List<CandidateWeakPoint> weakPoints,
-    List<PracticeRecommendation> practiceRecommendations
+    List<PracticeRecommendation> practiceRecommendations,
+    List<ProjectCodeSourceReference> projectSources
 ) {}

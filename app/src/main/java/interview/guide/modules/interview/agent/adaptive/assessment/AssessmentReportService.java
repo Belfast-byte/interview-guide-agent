@@ -30,7 +30,8 @@ public class AssessmentReportService {
         facts.sessionId(),
         conclusions,
         weakPoints(conclusions),
-        facts.practiceRecommendations()
+        facts.practiceRecommendations(),
+        facts.projectSources()
     );
   }
 
@@ -43,6 +44,7 @@ public class AssessmentReportService {
         facts.sessionId(),
         facts.candidateId(),
         conclusions(facts),
+        facts.projectSources(),
         ENTERPRISE_DISCLAIMER
     );
   }

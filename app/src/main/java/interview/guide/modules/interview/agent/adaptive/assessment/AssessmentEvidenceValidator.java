@@ -54,6 +54,7 @@ public class AssessmentEvidenceValidator {
           candidate.toolResultId(),
           facts
       );
+      case CODE_FACT -> throw invalidEvidence();
     };
   }
 

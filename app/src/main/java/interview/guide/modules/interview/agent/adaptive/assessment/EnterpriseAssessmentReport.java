@@ -6,5 +6,6 @@ public record EnterpriseAssessmentReport(
     String sessionId,
     String candidateId,
     List<ReportDimensionConclusion> dimensionMatrix,
+    List<ProjectCodeSourceReference> projectSources,
     String disclaimer
 ) {}

@@ -1,5 +1,7 @@
 package interview.guide.modules.interview.agent.adaptive.assessment;
 
+import interview.guide.modules.interview.agent.adaptive.core.CodeFactUsage;
+
 public record AssessmentBackfillTurn(
     String sessionId,
     int turnIndex,
@@ -8,5 +10,8 @@ public record AssessmentBackfillTurn(
     String focus,
     String question,
     String answer,
-    String llmProvider
+    String llmProvider,
+    String codeSourceId,
+    String codeAnchor,
+    CodeFactUsage codeFactUsage
 ) {}

@@ -25,7 +25,10 @@ class AssessmentBackfillServiceTest {
             "缓存权衡",
             "原始问题？",
             "原始回答包含一致性取舍",
-            "provider-a"
+            "provider-a",
+            null,
+            null,
+            null
         )
     ));
     List<AssessmentRequest> requests = new ArrayList<>();

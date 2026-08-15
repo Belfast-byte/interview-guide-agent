@@ -80,6 +80,16 @@ public class JpaAssessmentBackfillStore implements AssessmentBackfillStore {
             evidence
         ))
         .toList());
+    if (turn.codeFactUsage() != null) {
+      evidenceRepository.save(new AdaptiveAgentEvidenceEntity(
+          entity,
+          turn.sessionId(),
+          turn.turnIndex(),
+          turn.codeSourceId(),
+          turn.codeAnchor(),
+          turn.codeFactUsage()
+      ));
+    }
   }
 
   private AssessmentBackfillTurn backfillTurn(
@@ -96,7 +106,10 @@ public class JpaAssessmentBackfillStore implements AssessmentBackfillStore {
         plan.focus(),
         turn.question(),
         turn.answer(),
-        session.llmProvider()
+        session.llmProvider(),
+        turn.codeSourceId(),
+        turn.codeAnchor(),
+        turn.codeFactUsage()
     );
   }
 }

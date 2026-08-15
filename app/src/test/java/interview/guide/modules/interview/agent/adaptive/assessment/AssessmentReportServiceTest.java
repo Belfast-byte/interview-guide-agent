@@ -68,6 +68,7 @@ class AssessmentReportServiceTest {
         "candidate-1",
         AdaptiveSessionStatus.IN_PROGRESS,
         completedFacts().dimensions(),
+        List.of(),
         List.of()
     );
     AssessmentReportService service = new AssessmentReportService(
@@ -105,6 +106,7 @@ class AssessmentReportServiceTest {
                 List.of(assessment(3, DepthLevel.L1, "复述了步骤", "先看日志"))
             )
         ),
+        List.of(),
         List.of()
     );
   }

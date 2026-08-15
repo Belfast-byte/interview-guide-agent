@@ -2,6 +2,7 @@ package interview.guide.modules.interview.agent.adaptive.persistence;
 
 import interview.guide.modules.interview.agent.adaptive.assessment.EvidenceType;
 import interview.guide.modules.interview.agent.adaptive.assessment.ValidatedAssessmentEvidence;
+import interview.guide.modules.interview.agent.adaptive.core.CodeFactUsage;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.EnumType;
@@ -47,6 +48,16 @@ public class AdaptiveAgentEvidenceEntity {
   @Column(name = "sandbox_execution_id", length = 36)
   private String sandboxExecutionId;
 
+  @Column(name = "code_source_id", length = 128)
+  private String codeSourceId;
+
+  @Column(name = "code_anchor", length = 500)
+  private String codeAnchor;
+
+  @Enumerated(EnumType.STRING)
+  @Column(name = "code_fact_usage", length = 24)
+  private CodeFactUsage codeFactUsage;
+
   @Column(name = "created_at", nullable = false)
   private LocalDateTime createdAt;
 
@@ -65,6 +76,23 @@ public class AdaptiveAgentEvidenceEntity {
     this.quoteText = evidence.quote();
     this.toolCallId = evidence.toolCallId();
     this.sandboxExecutionId = evidence.sandboxExecutionId();
+  }
+
+  AdaptiveAgentEvidenceEntity(
+      AdaptiveAgentAssessmentEntity assessment,
+      String sessionId,
+      int turnIndex,
+      String codeSourceId,
+      String codeAnchor,
+      CodeFactUsage codeFactUsage
+  ) {
+    this.assessment = assessment;
+    this.evidenceType = EvidenceType.CODE_FACT;
+    this.sourceSessionId = sessionId;
+    this.sourceTurnIndex = turnIndex;
+    this.codeSourceId = codeSourceId;
+    this.codeAnchor = codeAnchor;
+    this.codeFactUsage = codeFactUsage;
   }
 
   @PrePersist
@@ -94,5 +122,17 @@ public class AdaptiveAgentEvidenceEntity {
 
   String sandboxExecutionId() {
     return sandboxExecutionId;
+  }
+
+  String codeSourceId() {
+    return codeSourceId;
+  }
+
+  String codeAnchor() {
+    return codeAnchor;
+  }
+
+  CodeFactUsage codeFactUsage() {
+    return codeFactUsage;
   }
 }

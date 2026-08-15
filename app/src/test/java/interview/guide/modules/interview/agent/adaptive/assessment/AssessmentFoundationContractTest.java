@@ -28,7 +28,8 @@ class AssessmentFoundationContractTest {
   void shouldExposeOnlyTraceableEvidenceTypes() {
     assertThat(EvidenceType.values()).containsExactly(
         EvidenceType.QUOTE,
-        EvidenceType.TOOL_RESULT
+        EvidenceType.TOOL_RESULT,
+        EvidenceType.CODE_FACT
     );
   }
 

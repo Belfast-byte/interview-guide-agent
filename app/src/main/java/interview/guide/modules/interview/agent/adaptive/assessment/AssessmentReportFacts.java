@@ -8,5 +8,6 @@ public record AssessmentReportFacts(
     String candidateId,
     AdaptiveSessionStatus status,
     List<AssessmentReportDimensionFacts> dimensions,
-    List<PracticeRecommendation> practiceRecommendations
+    List<PracticeRecommendation> practiceRecommendations,
+    List<ProjectCodeSourceReference> projectSources
 ) {}

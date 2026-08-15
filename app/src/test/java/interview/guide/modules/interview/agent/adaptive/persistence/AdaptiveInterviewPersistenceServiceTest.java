@@ -129,6 +129,42 @@ class AdaptiveInterviewPersistenceServiceTest {
     assertThat(turn.codeSourceId()).isEqualTo("scenario-1");
     assertThat(turn.codeAnchor()).isEqualTo("order/OrderCache.java:42");
     assertThat(turn.codeFactUsage()).isEqualTo(CodeFactUsage.QUESTION_SOURCE);
+
+    service.recordDecision(
+        sessionId,
+        new CandidateAnswer(1, "回答包含可追溯引用"),
+        RespondAction.ask("继续说明实现取舍？", "继续验证"),
+        List.of(),
+        null,
+        List.of(),
+        assessment(sessionId, 1),
+        evidences(),
+        List.of()
+    );
+    service.recordDecision(
+        sessionId,
+        new CandidateAnswer(2, "回答包含可追溯引用"),
+        RespondAction.finish("完成", "规划完成"),
+        List.of(),
+        null,
+        List.of(),
+        assessment(sessionId, 2),
+        evidences(),
+        List.of()
+    );
+
+    assertThat(evidenceRepository.findReportEvidence(sessionId))
+        .extracting(AdaptiveAgentEvidenceEntity::evidenceType)
+        .containsExactly(EvidenceType.QUOTE, EvidenceType.CODE_FACT, EvidenceType.QUOTE);
+    CandidateAssessmentReport report = reportService.candidateReport(sessionId);
+    assertThat(report.dimensions().getFirst().evidences())
+        .extracting(reference -> reference.type())
+        .containsOnly(EvidenceType.QUOTE);
+    assertThat(report.projectSources()).singleElement().satisfies(source -> {
+      assertThat(source.sourceId()).isEqualTo("scenario-1");
+      assertThat(source.anchor()).isEqualTo("order/OrderCache.java:42");
+      assertThat(source.usage()).isEqualTo(CodeFactUsage.QUESTION_SOURCE);
+    });
   }
 
   @Test

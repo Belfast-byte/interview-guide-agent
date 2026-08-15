@@ -85,6 +85,10 @@ public class AdaptiveAgentAssessmentEntity {
     return id;
   }
 
+  String sessionId() {
+    return sessionId;
+  }
+
   int turnIndex() {
     return turnIndex;
   }

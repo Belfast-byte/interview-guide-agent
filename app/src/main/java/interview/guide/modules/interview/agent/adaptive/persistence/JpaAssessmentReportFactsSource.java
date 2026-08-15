@@ -8,6 +8,7 @@ import interview.guide.modules.interview.agent.adaptive.assessment.AssessmentRep
 import interview.guide.modules.interview.agent.adaptive.assessment.AssessmentReportFactsSource;
 import interview.guide.modules.interview.agent.adaptive.assessment.AssessmentReportTurnFacts;
 import interview.guide.modules.interview.agent.adaptive.assessment.EvidenceType;
+import interview.guide.modules.interview.agent.adaptive.assessment.ProjectCodeSourceReference;
 import interview.guide.modules.interview.agent.adaptive.algorithm.AlgorithmEvidence;
 import interview.guide.modules.interview.agent.adaptive.algorithm.AlgorithmEvidenceSource;
 import java.util.List;
@@ -131,6 +132,16 @@ public class JpaAssessmentReportFactsSource
         practiceRecordRepository
             .findBySourceSessionIdOrderByDimensionOrder(session.id()).stream()
             .map(PracticeRecordEntity::toDomain)
+            .toList(),
+        evidences.stream()
+            .filter(evidence -> evidence.evidenceType() == EvidenceType.CODE_FACT)
+            .map(evidence -> new ProjectCodeSourceReference(
+                evidence.sourceTurnIndex(),
+                turns.get(evidence.sourceTurnIndex()).question(),
+                evidence.codeSourceId(),
+                evidence.codeAnchor(),
+                evidence.codeFactUsage()
+            ))
             .toList()
     );
   }
@@ -148,6 +159,7 @@ public class JpaAssessmentReportFactsSource
         assessment.confidence(),
         assessment.rationaleSummary(),
         evidenceByAssessment.get(assessment.id()).stream()
+            .filter(evidence -> evidence.evidenceType() != EvidenceType.CODE_FACT)
             .map(evidence -> evidenceFacts(
                 evidence,
                 turns,

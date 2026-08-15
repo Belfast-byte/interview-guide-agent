@@ -167,6 +167,10 @@ public class AdaptiveInterviewPersistenceService
             evidence
         ))
         .toList());
+    AdaptiveAgentTurnEntity sourceTurn = turnRepository
+        .findBySessionIdAndTurnIndex(sessionId, turnIndex)
+        .orElseThrow();
+    saveCodeFactEvidence(assessment, sourceTurn);
     abilityProfileRepository.findBySourceSessionIdAndDimensionOrder(
         sessionId,
         assessment.dimensionOrder()
@@ -318,6 +322,7 @@ public class AdaptiveInterviewPersistenceService
             evidence
         ))
         .toList());
+    saveCodeFactEvidence(assessment, turnEntity);
     practiceRecordRepository.saveAll(practiceRecommendations.stream()
         .map(recommendation -> new PracticeRecordEntity(
             sessionEntity,
@@ -392,6 +397,22 @@ public class AdaptiveInterviewPersistenceService
           profile.supersede(current.id());
         }
       }
+    }
+  }
+
+  private void saveCodeFactEvidence(
+      AdaptiveAgentAssessmentEntity assessment,
+      AdaptiveAgentTurnEntity turn
+  ) {
+    if (turn.codeFactUsage() != null) {
+      evidenceRepository.save(new AdaptiveAgentEvidenceEntity(
+          assessment,
+          assessment.sessionId(),
+          turn.turnIndex(),
+          turn.codeSourceId(),
+          turn.codeAnchor(),
+          turn.codeFactUsage()
+      ));
     }
   }
 

@@ -123,6 +123,7 @@ class AdaptiveInterviewMcpToolsTest {
         "session-a",
         "candidate-a",
         List.of(),
+        List.of(),
         "AI 初筛建议，不构成录用决定"
     );
     when(reportService.enterpriseReport("tenant-a", "session-a"))
