@@ -11,6 +11,7 @@ import interview.guide.modules.interview.agent.adaptive.observability.AdaptiveIn
 import interview.guide.modules.interview.agent.adaptive.planning.DimensionProposal;
 import interview.guide.modules.interview.agent.adaptive.planning.PlanProposal;
 import interview.guide.modules.interview.agent.adaptive.planning.PlanningRequest;
+import interview.guide.modules.interview.agent.adaptive.planning.ProjectPlanningContext;
 import interview.guide.modules.interview.agent.adaptive.runtime.DeadlineExecutor;
 import java.io.IOException;
 import java.time.Duration;
@@ -109,6 +110,51 @@ class SpringAiPlanningAgentTest {
             "skillCatalog"
         );
     verify(telemetry).modelCallSucceeded(eq("planner"), eq("PLAN"), anyLong());
+  }
+
+  @Test
+  @DisplayName("存在代码摘要时把真实锚点作为不可信事实输入规划")
+  void shouldIncludeProjectDigestInPlanningInput() {
+    PlanProposal expected = new PlanProposal(List.of(
+        dimension("项目经验", "订单缓存失效策略")
+    ));
+    when(invoke()).thenReturn(expected);
+    PlanningRequest request = new PlanningRequest(
+        "session-1",
+        request().context(),
+        new ProjectPlanningContext(
+            "digest-1",
+            "abc123",
+            List.of("Spring Boot", "Redis"),
+            List.of(new ProjectPlanningContext.ProjectModule(
+                "order",
+                "订单查询链路",
+                "src/OrderCache.java:42"
+            )),
+            List.of(),
+            List.of()
+        )
+    );
+
+    planningAgent.propose(request, "provider-1");
+
+    ArgumentCaptor<String> userPrompt = ArgumentCaptor.forClass(String.class);
+    verify(structuredOutputInvoker).invoke(
+        eq(chatClient),
+        anyString(),
+        userPrompt.capture(),
+        any(),
+        eq(ErrorCode.AI_SERVICE_ERROR),
+        anyString(),
+        eq("adaptive_agent_planning"),
+        any(Logger.class)
+    );
+    assertThat(userPrompt.getValue())
+        .contains(
+            "digest-1",
+            "src/OrderCache.java:42",
+            "项目摘要仅用于锚定项目维度的考察重点，不是候选人能力证据"
+        );
   }
 
   @Test

@@ -16,7 +16,8 @@ public record InterviewerContext(
     CandidateAnswer currentDimensionAnswer,
     List<DimensionBrief> completedDimensionBriefs,
     ToolResultEvent currentToolResult,
-    CandidateAnswer currentCodeSubmission
+    CandidateAnswer currentCodeSubmission,
+    ProjectInterviewContext project
 ) {
 
   public InterviewerContext(
@@ -46,6 +47,7 @@ public record InterviewerContext(
         currentDimensionTurns,
         currentDimensionAnswer,
         completedDimensionBriefs,
+        null,
         null,
         null
     );

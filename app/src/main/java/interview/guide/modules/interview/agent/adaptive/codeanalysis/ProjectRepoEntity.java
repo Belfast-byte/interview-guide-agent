@@ -63,6 +63,10 @@ class ProjectRepoEntity {
     return commitHash;
   }
 
+  String repositoryRef() {
+    return repositoryRef;
+  }
+
   @PrePersist
   void prePersist() {
     createdAt = LocalDateTime.now();

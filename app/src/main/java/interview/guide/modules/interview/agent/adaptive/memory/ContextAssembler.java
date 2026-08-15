@@ -7,6 +7,7 @@ import interview.guide.modules.interview.agent.adaptive.core.DimensionBrief;
 import interview.guide.modules.interview.agent.adaptive.core.InterviewerContext;
 import interview.guide.modules.interview.agent.adaptive.core.PlannerContext;
 import interview.guide.modules.interview.agent.adaptive.core.PlanningSkill;
+import interview.guide.modules.interview.agent.adaptive.core.ProjectInterviewContext;
 import interview.guide.modules.interview.agent.adaptive.core.UnverifiedClaim;
 import interview.guide.modules.interview.agent.adaptive.core.ToolResultEvent;
 import java.util.List;
@@ -36,7 +37,8 @@ public class ContextAssembler {
       String suggestedSkill,
       List<AdaptiveInterviewTurn> turns,
       CandidateAnswer candidateAnswer,
-      List<DimensionBrief> dimensionBriefs
+      List<DimensionBrief> dimensionBriefs,
+      ProjectInterviewContext project
   ) {
     List<AdaptiveInterviewTurn> currentDimensionTurns = turns.stream()
         .filter(turn -> turn.dimensionOrder() == targetDimensionOrder)
@@ -64,7 +66,37 @@ public class ContextAssembler {
         null,
         candidateAnswer != null && candidateAnswer.codeSubmission() != null
             ? candidateAnswer
-            : null
+            : null,
+        project
+    );
+  }
+
+  public InterviewerContext interviewer(
+      String jd,
+      String resume,
+      int maxTurns,
+      int targetDimensionOrder,
+      String targetDimension,
+      String targetFocus,
+      List<String> suggestedTools,
+      String suggestedSkill,
+      List<AdaptiveInterviewTurn> turns,
+      CandidateAnswer candidateAnswer,
+      List<DimensionBrief> dimensionBriefs
+  ) {
+    return interviewer(
+        jd,
+        resume,
+        maxTurns,
+        targetDimensionOrder,
+        targetDimension,
+        targetFocus,
+        suggestedTools,
+        suggestedSkill,
+        turns,
+        candidateAnswer,
+        dimensionBriefs,
+        null
     );
   }
 
@@ -79,7 +111,8 @@ public class ContextAssembler {
       String suggestedSkill,
       List<AdaptiveInterviewTurn> turns,
       ToolResultEvent event,
-      List<DimensionBrief> dimensionBriefs
+      List<DimensionBrief> dimensionBriefs,
+      ProjectInterviewContext project
   ) {
     return new InterviewerContext(
         jd,
@@ -99,7 +132,8 @@ public class ContextAssembler {
             .filter(brief -> brief.dimensionOrder() != targetDimensionOrder)
             .toList(),
         event,
-        null
+        null,
+        project
     );
   }
 }

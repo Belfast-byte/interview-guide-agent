@@ -10,6 +10,8 @@ import interview.guide.modules.interview.agent.adaptive.observability.AdaptiveIn
 import interview.guide.modules.interview.agent.adaptive.planning.PlanProposal;
 import interview.guide.modules.interview.agent.adaptive.planning.PlanningAgent;
 import interview.guide.modules.interview.agent.adaptive.planning.PlanningRequest;
+import interview.guide.modules.interview.agent.adaptive.planning.ProjectPlanningContext;
+import interview.guide.modules.interview.agent.adaptive.core.PlannerContext;
 import interview.guide.modules.interview.agent.adaptive.runtime.DeadlineExecutor;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
@@ -112,10 +114,18 @@ public class SpringAiPlanningAgent implements PlanningAgent {
 
   private String serializeInput(PlanningRequest request) {
     try {
-      return objectMapper.writeValueAsString(request.context());
+      return objectMapper.writeValueAsString(new PlanningModelInput(
+          request.context(),
+          request.project()
+      ));
     } catch (JacksonException e) {
       throw new BusinessException(ErrorCode.AI_SERVICE_ERROR, "规划上下文序列化失败", e);
     }
   }
+
+  private record PlanningModelInput(
+      PlannerContext interview,
+      ProjectPlanningContext project
+  ) {}
 
 }

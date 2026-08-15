@@ -86,6 +86,17 @@ public class CodeAnalysisPersistenceService {
   }
 
   @Transactional(readOnly = true)
+  public ProjectRepositorySnapshot getRepositorySnapshot(String jobId) {
+    AnalysisJobEntity job = findJob(jobId);
+    ProjectRepoEntity repository = repoRepository.findById(job.toDomain().repositoryId())
+        .orElseThrow(() -> new BusinessException(ErrorCode.NOT_FOUND, "代码仓库快照不存在"));
+    return new ProjectRepositorySnapshot(
+        repository.repositoryRef(),
+        repository.commitHash()
+    );
+  }
+
+  @Transactional(readOnly = true)
   public CodeAnalysisJob getJob(String sessionId, String jobId) {
     return jobRepository.findByIdAndSessionId(jobId, sessionId)
         .orElseThrow(() -> new BusinessException(ErrorCode.NOT_FOUND, "代码分析任务不存在"))
