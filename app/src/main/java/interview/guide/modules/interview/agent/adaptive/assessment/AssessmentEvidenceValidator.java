@@ -69,13 +69,15 @@ public class AssessmentEvidenceValidator {
       AssessmentEvidenceFacts facts
   ) {
     Long toolCallId = facts.toolCallIdsByResultId().get(resultId);
-    if (toolCallId == null) {
+    String sandboxExecutionId = facts.sandboxExecutionIdsByResultId().get(resultId);
+    if (toolCallId == null && sandboxExecutionId == null) {
       throw invalidEvidence();
     }
     return new ValidatedAssessmentEvidence(
         EvidenceType.TOOL_RESULT,
         null,
-        toolCallId
+        toolCallId,
+        sandboxExecutionId
     );
   }
 

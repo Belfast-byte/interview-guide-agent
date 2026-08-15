@@ -42,6 +42,7 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 @Import({
     AdaptiveInterviewPersistenceService.class,
     CandidateMemoryService.class,
+    JpaAlgorithmEvidenceSource.class,
     JpaAssessmentReportFactsSource.class,
     AssessmentReportService.class
 })

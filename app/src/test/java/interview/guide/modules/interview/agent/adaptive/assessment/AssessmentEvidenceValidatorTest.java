@@ -70,6 +70,31 @@ class AssessmentEvidenceValidatorTest {
     ));
   }
 
+  @Test
+  @DisplayName("沙箱执行 ID 可作为独立 TOOL_RESULT 证据来源")
+  void shouldResolveSandboxExecutionEvidence() {
+    AssessmentEvidenceValidator validator = new AssessmentEvidenceValidator(
+        (sessionId, turnIndex, resultIds) -> new AssessmentEvidenceFacts(
+            Map.of(),
+            Map.of("execution-1", "execution-1")
+        )
+    );
+
+    List<ValidatedAssessmentEvidence> evidences = validator.validate(
+        "session-1",
+        1,
+        "回答",
+        List.of(AssessmentEvidenceCandidate.toolResult("execution-1"))
+    );
+
+    assertThat(evidences).containsExactly(new ValidatedAssessmentEvidence(
+        EvidenceType.TOOL_RESULT,
+        null,
+        null,
+        "execution-1"
+    ));
+  }
+
   private AssessmentEvidenceValidator quoteValidator() {
     return new AssessmentEvidenceValidator((sessionId, turnIndex, resultIds) -> {
       throw new AssertionError("纯文本引用不应查询工具结果");

@@ -44,6 +44,9 @@ public class AdaptiveAgentEvidenceEntity {
   @Column(name = "tool_call_id")
   private Long toolCallId;
 
+  @Column(name = "sandbox_execution_id", length = 36)
+  private String sandboxExecutionId;
+
   @Column(name = "created_at", nullable = false)
   private LocalDateTime createdAt;
 
@@ -61,6 +64,7 @@ public class AdaptiveAgentEvidenceEntity {
     this.sourceTurnIndex = turnIndex;
     this.quoteText = evidence.quote();
     this.toolCallId = evidence.toolCallId();
+    this.sandboxExecutionId = evidence.sandboxExecutionId();
   }
 
   @PrePersist
@@ -86,5 +90,9 @@ public class AdaptiveAgentEvidenceEntity {
 
   Long toolCallId() {
     return toolCallId;
+  }
+
+  String sandboxExecutionId() {
+    return sandboxExecutionId;
   }
 }

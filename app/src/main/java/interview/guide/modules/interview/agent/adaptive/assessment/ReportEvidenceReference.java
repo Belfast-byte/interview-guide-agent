@@ -13,6 +13,7 @@ public record ReportEvidenceReference(
     ReportToolResult toolResult = facts.type() == EvidenceType.TOOL_RESULT
         ? new ReportToolResult(
             facts.toolCallId(),
+            facts.sandboxExecutionId(),
             facts.toolName(),
             facts.toolResultId(),
             facts.toolOutput()
