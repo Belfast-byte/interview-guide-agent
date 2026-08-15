@@ -65,6 +65,26 @@ class JpaAlgorithmEvidenceSource implements AlgorithmEvidenceSource {
 
   @Override
   @Transactional(readOnly = true)
+  public Set<Integer> findCandidateTurnIndexes(String sessionId) {
+    return entityManager.createQuery("""
+        select distinct turn.turnIndex
+        from SandboxExecutionEntity execution, AdaptiveAgentTurnEntity turn
+        where execution.turnId = turn.id
+          and execution.sessionId = :sessionId
+          and execution.status = :status
+          and execution.verdict is not null
+          and execution.verdict <> :internalError
+          and execution.supersededBy is null
+        """, Integer.class)
+        .setParameter("sessionId", sessionId)
+        .setParameter("status", SandboxExecutionStatus.DONE)
+        .setParameter("internalError", SandboxVerdict.IE)
+        .getResultStream()
+        .collect(Collectors.toSet());
+  }
+
+  @Override
+  @Transactional(readOnly = true)
   public Map<String, AlgorithmEvidence> findEvidence(Set<String> executionIds) {
     if (executionIds.isEmpty()) {
       return Map.of();

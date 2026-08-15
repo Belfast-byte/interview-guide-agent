@@ -16,4 +16,10 @@ public class AlgorithmAssessmentEvidenceService {
         .filter(executionId -> evidenceStore.attach(sessionId, turnIndex, executionId))
         .count();
   }
+
+  public int attachAvailable(String sessionId) {
+    return evidenceSource.findCandidateTurnIndexes(sessionId).stream()
+        .mapToInt(turnIndex -> attachAvailable(sessionId, turnIndex))
+        .sum();
+  }
 }

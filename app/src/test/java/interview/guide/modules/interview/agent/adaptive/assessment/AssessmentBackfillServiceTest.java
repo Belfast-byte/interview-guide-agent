@@ -6,7 +6,10 @@ import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.verify;
 
+import interview.guide.modules.interview.agent.adaptive.algorithm.AlgorithmAssessmentEvidenceService;
 class AssessmentBackfillServiceTest {
 
   @Test
@@ -40,10 +43,13 @@ class AssessmentBackfillServiceTest {
           throw new AssertionError("quote 回填不应加载工具结果");
         }
     );
+    AlgorithmAssessmentEvidenceService algorithmEvidenceService =
+        mock(AlgorithmAssessmentEvidenceService.class);
     AssessmentBackfillService service = new AssessmentBackfillService(
         store,
         agent,
-        validator
+        validator,
+        algorithmEvidenceService
     );
 
     assertThat(service.backfill("session-old")).isEqualTo(1);
@@ -63,6 +69,7 @@ class AssessmentBackfillServiceTest {
           )
       );
     });
+    verify(algorithmEvidenceService).attachAvailable("session-old");
   }
 
   private static final class RecordingStore implements AssessmentBackfillStore {
