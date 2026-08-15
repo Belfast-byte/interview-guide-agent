@@ -80,6 +80,15 @@ public class AlgorithmPersistenceService {
   }
 
   @Transactional(readOnly = true)
+  public SandboxExecution getLatestExecution(String sessionId, int turnIndex) {
+    long turnId = sessionFacts.turnId(sessionId, turnIndex);
+    return executionRepository
+        .findTopBySessionIdAndTurnIdOrderBySubmissionSeqDesc(sessionId, turnId)
+        .orElseThrow(() -> new BusinessException(ErrorCode.NOT_FOUND, "判题提交不存在"))
+        .toDomain();
+  }
+
+  @Transactional(readOnly = true)
   public boolean executionExists(String executionId) {
     return executionRepository.existsById(executionId);
   }

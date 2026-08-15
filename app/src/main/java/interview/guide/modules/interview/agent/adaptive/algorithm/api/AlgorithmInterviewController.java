@@ -14,6 +14,7 @@ import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 @RestController
@@ -60,6 +61,16 @@ public class AlgorithmInterviewController {
   ) {
     return Result.success(SandboxExecutionResponse.from(
         submissionService.get(sessionId, submissionId)
+    ));
+  }
+
+  @GetMapping("/{sessionId}/algorithm/submissions/latest")
+  public Result<SandboxExecutionResponse> getLatestSubmission(
+      @PathVariable String sessionId,
+      @RequestParam int turnIndex
+  ) {
+    return Result.success(SandboxExecutionResponse.from(
+        submissionService.getLatest(sessionId, turnIndex)
     ));
   }
 }

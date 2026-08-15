@@ -94,6 +94,7 @@ class ToolGatewayTest {
 
     assertThat(execution.resultId()).isEqualTo("submission-1");
     assertThat(execution.outcome()).isEqualTo(ToolExecutionOutcome.PENDING);
+    assertThat(execution.turnIndex()).isEqualTo(4);
   }
 
   private ToolGateway gateway(AdaptiveAgentTool tool, int maxResultChars) {
@@ -174,7 +175,8 @@ class ToolGatewayTest {
       return new PendingToolResult(
           "submission-1",
           Map.of("submissionId", "submission-1", "status", "PENDING"),
-          "submission pending"
+          "submission pending",
+          4
       );
     }
   }

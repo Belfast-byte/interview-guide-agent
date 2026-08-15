@@ -113,7 +113,7 @@ public class ToolGateway implements AgentToolExecutor {
         action.toolName(),
         argumentsJson
     ));
-    ToolResult result = tool.execute(action.arguments());
+    ToolResult result = tool.execute(request, action.arguments());
     String output = writeJson(result.value());
     if (output.length() > maxResultChars) {
       throw new BusinessException(ErrorCode.AI_SERVICE_ERROR, "Agent tool result is too large");
@@ -123,7 +123,9 @@ public class ToolGateway implements AgentToolExecutor {
         action.toolName(),
         action.reason(),
         request.role().name(),
-        request.targetTurnIndex(),
+        result instanceof PendingToolResult pending && pending.targetTurnIndex() != null
+            ? pending.targetTurnIndex()
+            : request.targetTurnIndex(),
         "keys=" + action.arguments().keySet().stream().sorted().toList(),
         result.summary(),
         result.resultId(),

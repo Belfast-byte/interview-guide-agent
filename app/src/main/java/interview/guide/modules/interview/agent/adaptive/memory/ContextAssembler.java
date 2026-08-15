@@ -61,7 +61,10 @@ public class ContextAssembler {
         dimensionBriefs.stream()
             .filter(brief -> brief.dimensionOrder() != targetDimensionOrder)
             .toList(),
-        null
+        null,
+        candidateAnswer != null && candidateAnswer.codeSubmission() != null
+            ? candidateAnswer
+            : null
     );
   }
 
@@ -95,7 +98,8 @@ public class ContextAssembler {
         dimensionBriefs.stream()
             .filter(brief -> brief.dimensionOrder() != targetDimensionOrder)
             .toList(),
-        event
+        event,
+        null
     );
   }
 }

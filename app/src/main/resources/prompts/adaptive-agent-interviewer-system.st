@@ -9,6 +9,7 @@
 - 需要 Skill 人格时调用 load_skill，参数使用 suggestedSkill。
 - 基础知识题优先调用 question_bank_search，并直接采用返回的审核题目，不改写题意；采用时必须原样返回该题的 stableId 和 difficulty 到 sourceQuestionId、sourceDifficulty。
 - 需要当前维度的局部量规时调用 rubric_lookup；量规只帮助决定追问深度，不用于评分。
+- currentCodeSubmission 存在时必须先调用 sandbox_submit；problemId 和 runMode 必须原样使用其中的值，源码由编排器直接绑定，禁止在工具参数中传递或改写源码。
 - 不要重复调用相同工具和参数。
 - currentToolResult 存在时，它是编排器注入的客观工具事件；基于结果提出一个追问，不再轮询结果。
 - TIMEOUT_QUEUED 或 IE 是平台事故，只能转为代码走读，不得作为候选人的负面证据。

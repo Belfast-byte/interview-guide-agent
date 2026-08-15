@@ -96,6 +96,26 @@ class AlgorithmPersistenceServiceTest {
     }
   }
 
+  @Test
+  @DisplayName("按会话和轮次读取最新代码提交")
+  void shouldReadLatestExecutionForTurn() {
+    CreateSandboxExecution command = command();
+    SandboxExecutionEntity entity = new SandboxExecutionEntity(
+        "execution-latest",
+        command,
+        9L,
+        3
+    );
+    when(sessionFacts.turnId("session-1", 1)).thenReturn(9L);
+    when(executionRepository.findTopBySessionIdAndTurnIdOrderBySubmissionSeqDesc(
+        "session-1",
+        9L
+    )).thenReturn(Optional.of(entity));
+
+    assertThat(service.getLatestExecution("session-1", 1).id())
+        .isEqualTo("execution-latest");
+  }
+
   private CreateSandboxExecution command() {
     return new CreateSandboxExecution(
         "session-1",

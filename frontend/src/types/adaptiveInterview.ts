@@ -39,6 +39,11 @@ export interface CreateAdaptiveInterviewRequest {
 export interface SubmitAdaptiveAnswerRequest {
   turnIndex: number;
   answer: string;
+  codeSubmission?: {
+    problemId: string;
+    language: SandboxLanguage;
+    runMode: SandboxRunMode;
+  };
 }
 
 export interface AdaptiveEvidenceReference {

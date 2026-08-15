@@ -47,4 +47,8 @@ public class AlgorithmSubmissionService {
     }
     return execution;
   }
+
+  public SandboxExecution getLatest(String sessionId, int turnIndex) {
+    return persistenceService.getLatestExecution(sessionId, turnIndex);
+  }
 }

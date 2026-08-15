@@ -35,4 +35,14 @@ class JpaAlgorithmSessionFacts implements AlgorithmSessionFacts {
   public int turnIndex(long turnId) {
     return turnRepository.findById(turnId).orElseThrow().turnIndex();
   }
+
+  @Override
+  public long turnId(String sessionId, int turnIndex) {
+    return turnRepository.findBySessionIdAndTurnIndex(sessionId, turnIndex)
+        .orElseThrow(() -> new BusinessException(
+            ErrorCode.NOT_FOUND,
+            "面试轮次不存在"
+        ))
+        .id();
+  }
 }

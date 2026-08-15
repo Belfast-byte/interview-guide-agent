@@ -40,6 +40,9 @@ import interview.guide.modules.interview.agent.adaptive.role.AgentRoleRegistry;
 import interview.guide.modules.interview.agent.adaptive.runtime.BoundedReActRuntime;
 import interview.guide.modules.interview.agent.adaptive.runtime.ReActRequest;
 import interview.guide.modules.interview.agent.adaptive.runtime.ReActResult;
+import interview.guide.modules.interview.agent.adaptive.runtime.ToolExecution;
+import interview.guide.modules.interview.agent.adaptive.runtime.ToolExecutionOutcome;
+import interview.guide.modules.interview.agent.adaptive.tool.SandboxSubmitTool;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
@@ -209,14 +212,15 @@ public class AdaptiveInterviewApplicationService {
         )
         : List.of();
     ReActResult decision;
-    if (lastTurn) {
+    if (lastTurn && answer.codeSubmission() == null) {
       decision = ReActResult.withoutTools(RespondAction.finish(
           "面试已覆盖全部规划维度。",
           "规划轮次已全部完成"
       ));
     } else {
-      PlannedDimension nextDimension = interview.plan()
-          .dimensionForTurn(answer.turnIndex() + 1);
+      PlannedDimension nextDimension = lastTurn
+          ? currentDimension
+          : interview.plan().dimensionForTurn(answer.turnIndex() + 1);
       decision = runDecision(request(
           sessionId,
           history.llmProvider(),
@@ -228,6 +232,19 @@ public class AdaptiveInterviewApplicationService {
           answer,
           briefsForNextDecision(interview.dimensionBriefs(), dimensionBrief)
       ));
+    }
+    if (answer.codeSubmission() != null) {
+      List<ToolExecution> sandboxSubmissions = decision.toolExecutions().stream()
+          .filter(execution -> SandboxSubmitTool.NAME.equals(execution.toolName()))
+          .toList();
+      if (sandboxSubmissions.size() != 1
+          || sandboxSubmissions.getFirst().outcome() != ToolExecutionOutcome.PENDING
+          || sandboxSubmissions.getFirst().turnIndex() != answer.turnIndex()) {
+        throw new BusinessException(
+            ErrorCode.AI_SERVICE_ERROR,
+            "算法代码回答必须产生一个异步判题任务"
+        );
+      }
     }
     Optional<DepthLevel> previousDepth = currentDimension.completedTurns() == 0
         ? Optional.empty()

@@ -54,6 +54,13 @@ export const adaptiveInterviewApi = {
     );
   },
 
+  getLatestCodeSubmission(sessionId: string, turnIndex: number): Promise<SandboxExecution> {
+    return request.get<SandboxExecution>(
+      `${BASE_PATH}/${sessionId}/algorithm/submissions/latest`,
+      { params: { turnIndex } },
+    );
+  },
+
   getToolResultFollowUps(sessionId: string): Promise<ToolResultFollowUp[]> {
     return request.get<ToolResultFollowUp[]>(
       `${BASE_PATH}/${sessionId}/tool-result-follow-ups`,

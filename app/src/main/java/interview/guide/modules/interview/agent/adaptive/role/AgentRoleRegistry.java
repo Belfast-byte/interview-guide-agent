@@ -24,7 +24,7 @@ public class AgentRoleRegistry {
             properties.getMaxToolCalls(),
             properties.getDeadline()
         ),
-        Set.of("load_skill", "question_bank_search", "rubric_lookup")
+        Set.of("load_skill", "question_bank_search", "rubric_lookup", "sandbox_submit")
     );
   }
 

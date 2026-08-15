@@ -6,6 +6,7 @@ import interview.guide.modules.interview.agent.adaptive.application.AdaptiveInte
 import interview.guide.modules.interview.agent.adaptive.assessment.AssessmentReportService;
 import interview.guide.modules.interview.agent.adaptive.assessment.CandidateAssessmentReport;
 import interview.guide.modules.interview.agent.adaptive.core.CandidateAnswer;
+import interview.guide.modules.interview.agent.adaptive.core.CandidateCodeSubmission;
 import interview.guide.modules.interview.agent.adaptive.core.ToolResultFollowUp;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
@@ -57,7 +58,17 @@ public class AdaptiveInterviewController {
     return Result.success(AdaptiveInterviewResponse.from(
         applicationService.submitAnswer(
             sessionId,
-            new CandidateAnswer(request.turnIndex(), request.answer())
+            new CandidateAnswer(
+                request.turnIndex(),
+                request.answer(),
+                request.codeSubmission() == null
+                    ? null
+                    : new CandidateCodeSubmission(
+                        request.codeSubmission().problemId(),
+                        request.codeSubmission().language().name(),
+                        request.codeSubmission().runMode().name()
+                    )
+            )
         )
     ));
   }

@@ -200,13 +200,34 @@ export default function AdaptiveInterviewPage() {
     setJudging(true);
     setJudgeError('');
     try {
-      setSubmission(await adaptiveInterviewApi.submitCode(activeSession.sessionId, {
-        turnIndex: activeSession.currentTurn,
-        problemId: problemId.trim(),
-        language,
-        source,
-        runMode,
-      }));
+      const turnIndex = activeSession.currentTurn;
+      if (runMode === 'SAMPLE') {
+        setSubmission(await adaptiveInterviewApi.submitCode(activeSession.sessionId, {
+          turnIndex,
+          problemId: problemId.trim(),
+          language,
+          source,
+          runMode,
+        }));
+      } else {
+        const updated = await adaptiveInterviewApi.submitAnswer(activeSession.sessionId, {
+          turnIndex,
+          answer: source,
+          codeSubmission: {
+            problemId: problemId.trim(),
+            language,
+            runMode,
+          },
+        });
+        setSession(updated);
+        setSubmission(await adaptiveInterviewApi.getLatestCodeSubmission(
+          activeSession.sessionId,
+          turnIndex,
+        ));
+        if (updated.status === 'COMPLETED') {
+          await loadReport(updated.sessionId);
+        }
+      }
     } catch (requestError) {
       setJudgeError(getErrorMessage(requestError));
     } finally {

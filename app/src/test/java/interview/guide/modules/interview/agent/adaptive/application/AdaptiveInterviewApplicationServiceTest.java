@@ -16,6 +16,7 @@ import interview.guide.modules.interview.agent.adaptive.core.AdaptiveInterviewTu
 import interview.guide.modules.interview.agent.adaptive.core.AdaptiveSessionStatus;
 import interview.guide.modules.interview.agent.adaptive.core.AgentResponseType;
 import interview.guide.modules.interview.agent.adaptive.core.CandidateAnswer;
+import interview.guide.modules.interview.agent.adaptive.core.CandidateCodeSubmission;
 import interview.guide.modules.interview.agent.adaptive.core.CoveredTopic;
 import interview.guide.modules.interview.agent.adaptive.core.CandidateClaimType;
 import interview.guide.modules.interview.agent.adaptive.core.PlanningSkill;
@@ -40,6 +41,9 @@ import interview.guide.modules.interview.agent.adaptive.runtime.BoundedReActRunt
 import interview.guide.modules.interview.agent.adaptive.runtime.ReActBudget;
 import interview.guide.modules.interview.agent.adaptive.runtime.ReActRequest;
 import interview.guide.modules.interview.agent.adaptive.runtime.ReActResult;
+import interview.guide.modules.interview.agent.adaptive.runtime.ToolExecution;
+import interview.guide.modules.interview.agent.adaptive.runtime.ToolExecutionOutcome;
+import interview.guide.modules.interview.agent.adaptive.tool.SandboxSubmitTool;
 import java.util.List;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
@@ -246,6 +250,70 @@ class AdaptiveInterviewApplicationServiceTest {
         anyList()
     );
     verify(telemetry).decisionFailed(eq("session-1"), eq(1), anyInt(), anyLong());
+  }
+
+  @Test
+  @DisplayName("代码回答必须通过 sandbox_submit 产生绑定原轮次的 Pending 结果")
+  void shouldPersistPendingSandboxSubmissionForCodeAnswer() {
+    PlannedInterview interview = interviewAtTurn(1);
+    CandidateAnswer answer = new CandidateAnswer(
+        1,
+        "class Main {}",
+        new CandidateCodeSubmission("two-sum", "JAVA", "FULL")
+    );
+    RespondAction action = RespondAction.ask("先说明这段实现的复杂度？", "判题期间继续追问");
+    ToolExecution pending = new ToolExecution(
+        "invocation-1",
+        SandboxSubmitTool.NAME,
+        "提交候选人代码",
+        "INTERVIEWER",
+        1,
+        "keys=[problemId, runMode]",
+        "submission pending",
+        "execution-1",
+        "{\"submissionId\":\"execution-1\",\"status\":\"PENDING\"}",
+        ToolExecutionOutcome.PENDING,
+        5
+    );
+    when(persistenceService.get("session-1")).thenReturn(interview);
+    when(runtime.run(any(ReActRequest.class), any(ReActBudget.class)))
+        .thenReturn(new ReActResult(action, List.of(pending)));
+    when(persistenceService.recordDecision(
+        eq("session-1"), eq(answer), eq(action), eq(List.of(pending)),
+        isNull(), eq(List.of()), any(), anyList(), eq(List.of())
+    )).thenReturn(interview);
+    ArgumentCaptor<ReActRequest> request = ArgumentCaptor.forClass(ReActRequest.class);
+
+    service.submitAnswer("session-1", answer);
+
+    verify(runtime).run(request.capture(), any(ReActBudget.class));
+    assertThat(request.getValue().interviewerContext().currentCodeSubmission())
+        .isEqualTo(answer);
+    verify(persistenceService).recordDecision(
+        eq("session-1"), eq(answer), eq(action), eq(List.of(pending)),
+        isNull(), eq(List.of()), any(), anyList(), eq(List.of())
+    );
+  }
+
+  @Test
+  @DisplayName("代码回答未产生异步判题任务时不推进会话")
+  void shouldRejectCodeAnswerWithoutPendingSubmission() {
+    CandidateAnswer answer = new CandidateAnswer(
+        1,
+        "class Main {}",
+        new CandidateCodeSubmission("two-sum", "JAVA", "FULL")
+    );
+    when(persistenceService.get("session-1")).thenReturn(interviewAtTurn(1));
+    when(runtime.run(any(ReActRequest.class), any(ReActBudget.class)))
+        .thenReturn(ReActResult.withoutTools(RespondAction.ask("下一题？", "继续")));
+
+    assertThatThrownBy(() -> service.submitAnswer("session-1", answer))
+        .isInstanceOf(BusinessException.class)
+        .hasMessageContaining("异步判题任务");
+
+    verify(persistenceService, never()).recordDecision(
+        anyString(), any(), any(), anyList(), any(), anyList(), any(), anyList(), anyList()
+    );
   }
 
   @Test
