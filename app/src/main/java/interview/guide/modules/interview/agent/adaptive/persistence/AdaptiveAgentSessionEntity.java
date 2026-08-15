@@ -116,6 +116,10 @@ public class AdaptiveAgentSessionEntity {
     return status;
   }
 
+  LocalDateTime completedAt() {
+    return completedAt;
+  }
+
   void apply(AdaptiveInterviewSession session) {
     status = session.status();
     currentTurn = session.currentTurn();

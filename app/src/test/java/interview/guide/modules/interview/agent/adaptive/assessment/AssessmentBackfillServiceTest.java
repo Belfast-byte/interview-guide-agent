@@ -10,6 +10,7 @@ import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
 
 import interview.guide.modules.interview.agent.adaptive.algorithm.AlgorithmAssessmentEvidenceService;
+import interview.guide.modules.interview.agent.adaptive.memory.CandidateAbilityProfileWriter;
 class AssessmentBackfillServiceTest {
 
   @Test
@@ -45,11 +46,14 @@ class AssessmentBackfillServiceTest {
     );
     AlgorithmAssessmentEvidenceService algorithmEvidenceService =
         mock(AlgorithmAssessmentEvidenceService.class);
+    CandidateAbilityProfileWriter abilityProfileWriter =
+        mock(CandidateAbilityProfileWriter.class);
     AssessmentBackfillService service = new AssessmentBackfillService(
         store,
         agent,
         validator,
-        algorithmEvidenceService
+        algorithmEvidenceService,
+        abilityProfileWriter
     );
 
     assertThat(service.backfill("session-old")).isEqualTo(1);
@@ -70,6 +74,7 @@ class AssessmentBackfillServiceTest {
       );
     });
     verify(algorithmEvidenceService).attachAvailable("session-old");
+    verify(abilityProfileWriter).refresh("session-old");
   }
 
   private static final class RecordingStore implements AssessmentBackfillStore {

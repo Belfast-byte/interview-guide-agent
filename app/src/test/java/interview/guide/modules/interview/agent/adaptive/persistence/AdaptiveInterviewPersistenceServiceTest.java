@@ -69,6 +69,9 @@ class AdaptiveInterviewPersistenceServiceTest {
   @Autowired
   private AssessmentReportService reportService;
 
+  @Autowired
+  private CandidateAbilityProfileRepository abilityProfileRepository;
+
   @Test
   @DisplayName("审核题稳定 ID 与难度随问题轮次一起落库")
   void shouldPersistQuestionProvenance() {
@@ -487,6 +490,51 @@ class AdaptiveInterviewPersistenceServiceTest {
     assertThat(history.turns()).hasSize(2);
     assertThat(history.turns().getLast().responseType()).isEqualTo(AgentResponseType.FINISH);
     assertThat(history.turns().getLast().decisionReason()).isEqualTo("轮次预算已用尽");
+
+    service.create(
+        "session-2-retest",
+        "candidate-1",
+        "JD",
+        "Resume",
+        null,
+        plan("session-2-retest", 1),
+        RespondAction.ask("复测第一题？", "复测"),
+        List.of()
+    );
+    service.recordDecision(
+        "session-2-retest",
+        new CandidateAnswer(1, "复测回答一"),
+        RespondAction.ask("复测第二题？", "继续复测"),
+        List.of(),
+        null,
+        List.of(),
+        assessment("session-2-retest", 1),
+        evidences(),
+        List.of()
+    );
+    service.recordDecision(
+        "session-2-retest",
+        new CandidateAnswer(2, "复测回答二"),
+        RespondAction.finish("复测完成", "规划完成"),
+        List.of(),
+        null,
+        List.of(),
+        assessment("session-2-retest", 2),
+        evidences(),
+        List.of()
+    );
+
+    assertThat(abilityProfileRepository
+        .findByTenantIdIsNullAndCandidateIdOrderByCreatedAtAscIdAsc("candidate-1"))
+        .hasSize(2)
+        .satisfiesExactly(
+            profile -> assertThat(profile.current()).isFalse(),
+            profile -> {
+              assertThat(profile.current()).isTrue();
+              assertThat(profile.sourceSessionId()).isEqualTo("session-2-retest");
+              assertThat(profile.sourceAssessmentId()).isNotNull();
+            }
+        );
   }
 
   @Test

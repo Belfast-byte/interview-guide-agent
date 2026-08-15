@@ -1,6 +1,7 @@
 package interview.guide.modules.interview.agent.adaptive.assessment;
 
 import interview.guide.modules.interview.agent.adaptive.algorithm.AlgorithmAssessmentEvidenceService;
+import interview.guide.modules.interview.agent.adaptive.memory.CandidateAbilityProfileWriter;
 
 import java.util.List;
 import org.springframework.stereotype.Service;
@@ -12,17 +13,20 @@ public class AssessmentBackfillService {
   private final DepthAssessmentAgent assessmentAgent;
   private final AssessmentEvidenceValidator evidenceValidator;
   private final AlgorithmAssessmentEvidenceService algorithmEvidenceService;
+  private final CandidateAbilityProfileWriter abilityProfileWriter;
 
   public AssessmentBackfillService(
       AssessmentBackfillStore store,
       DepthAssessmentAgent assessmentAgent,
       AssessmentEvidenceValidator evidenceValidator,
-      AlgorithmAssessmentEvidenceService algorithmEvidenceService
+      AlgorithmAssessmentEvidenceService algorithmEvidenceService,
+      CandidateAbilityProfileWriter abilityProfileWriter
   ) {
     this.store = store;
     this.assessmentAgent = assessmentAgent;
     this.evidenceValidator = evidenceValidator;
     this.algorithmEvidenceService = algorithmEvidenceService;
+    this.abilityProfileWriter = abilityProfileWriter;
   }
 
   public int backfill(String sessionId) {
@@ -52,6 +56,7 @@ public class AssessmentBackfillService {
       store.save(turn, assessment, evidences);
     }
     algorithmEvidenceService.attachAvailable(sessionId);
+    abilityProfileWriter.refresh(sessionId);
     return missingTurns.size();
   }
 }

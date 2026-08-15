@@ -9,6 +9,7 @@ import interview.guide.modules.interview.agent.adaptive.assessment.CandidateAsse
 import interview.guide.modules.interview.agent.adaptive.core.CandidateAnswer;
 import interview.guide.modules.interview.agent.adaptive.core.CandidateCodeSubmission;
 import interview.guide.modules.interview.agent.adaptive.core.ToolResultFollowUp;
+import interview.guide.modules.interview.agent.adaptive.memory.CandidateAbilityProfileService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
@@ -33,6 +34,7 @@ public class AdaptiveInterviewController {
   private final AdaptiveInterviewApplicationService applicationService;
   private final AssessmentReportService reportService;
   private final AssessmentBackfillService assessmentBackfillService;
+  private final CandidateAbilityProfileService abilityProfileService;
 
   @PostMapping
   @RateLimit(dimension = RateLimit.Dimension.GLOBAL, count = 5)
@@ -89,6 +91,16 @@ public class AdaptiveInterviewController {
   ) {
     return Result.success(new AssessmentBackfillResponse(
         assessmentBackfillService.backfill(sessionId)
+    ));
+  }
+
+  @GetMapping("/candidates/{candidateId}/ability-profile")
+  public Result<CandidateAbilityProfileResponse> getAbilityProfile(
+      @PathVariable String candidateId
+  ) {
+    return Result.success(CandidateAbilityProfileResponse.from(
+        candidateId,
+        abilityProfileService.trajectory(candidateId)
     ));
   }
 

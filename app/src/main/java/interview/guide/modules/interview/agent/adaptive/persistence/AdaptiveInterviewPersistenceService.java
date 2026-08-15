@@ -19,6 +19,7 @@ import interview.guide.modules.interview.agent.adaptive.core.SessionTransition;
 import interview.guide.modules.interview.agent.adaptive.core.ToolResultEvent;
 import interview.guide.modules.interview.agent.adaptive.core.ToolResultFollowUp;
 import interview.guide.modules.interview.agent.adaptive.memory.CandidateClaim;
+import interview.guide.modules.interview.agent.adaptive.memory.CandidateAbilityProfileWriter;
 import interview.guide.modules.interview.agent.adaptive.planning.InterviewPlan;
 import interview.guide.modules.interview.agent.adaptive.planning.PlanDimensionStatus;
 import interview.guide.modules.interview.agent.adaptive.planning.PlannedDimension;
@@ -31,7 +32,8 @@ import org.springframework.transaction.annotation.Transactional;
 
 @Service
 @RequiredArgsConstructor
-public class AdaptiveInterviewPersistenceService implements AlgorithmAssessmentEvidenceStore {
+public class AdaptiveInterviewPersistenceService
+    implements AlgorithmAssessmentEvidenceStore, CandidateAbilityProfileWriter {
 
   private final AdaptiveAgentSessionRepository sessionRepository;
   private final AdaptiveAgentTurnRepository turnRepository;
@@ -44,6 +46,7 @@ public class AdaptiveInterviewPersistenceService implements AlgorithmAssessmentE
   private final AdaptiveAgentEvidenceRepository evidenceRepository;
   private final PracticeRecordRepository practiceRecordRepository;
   private final AdaptiveAgentToolResultEventRepository toolResultEventRepository;
+  private final CandidateAbilityProfileRepository abilityProfileRepository;
 
   @Transactional
   public boolean reserveToolResultEvent(String sessionId, ToolResultEvent event) {
@@ -164,6 +167,10 @@ public class AdaptiveInterviewPersistenceService implements AlgorithmAssessmentE
             evidence
         ))
         .toList());
+    abilityProfileRepository.findBySourceSessionIdAndDimensionOrder(
+        sessionId,
+        assessment.dimensionOrder()
+    ).ifPresent(profile -> profile.replaceAssessment(assessment));
   }
 
   @Transactional
@@ -317,7 +324,75 @@ public class AdaptiveInterviewPersistenceService implements AlgorithmAssessmentE
             recommendation
         ))
         .toList());
+    if (transition.session().status() == AdaptiveSessionStatus.COMPLETED) {
+      refreshProfiles(sessionEntity, planEntities);
+    }
     return plannedInterview(sessionEntity, updatedPlan);
+  }
+
+  @Override
+  @Transactional
+  public void refresh(String sessionId) {
+    AdaptiveAgentSessionEntity session = sessionRepository.findById(sessionId)
+        .orElseThrow(() -> new BusinessException(
+            ErrorCode.INTERVIEW_SESSION_NOT_FOUND,
+            "Agent 面试会话不存在"
+        ));
+    refreshProfiles(
+        session,
+        planRepository.findBySessionIdOrderByDimensionOrder(sessionId)
+    );
+  }
+
+  private void refreshProfiles(
+      AdaptiveAgentSessionEntity session,
+      List<AdaptiveAgentPlanEntity> dimensions
+  ) {
+    if (session.status() != AdaptiveSessionStatus.COMPLETED) {
+      return;
+    }
+    for (AdaptiveAgentPlanEntity dimension : dimensions) {
+      AdaptiveAgentAssessmentEntity assessment = assessmentRepository
+          .findTopBySessionIdAndDimensionOrderOrderByTurnIndexDesc(
+              session.id(),
+              dimension.dimensionOrder()
+          )
+          .orElseThrow();
+      CandidateAbilityProfileEntity existing = abilityProfileRepository
+          .findBySourceSessionIdAndDimensionOrder(
+              session.id(),
+              dimension.dimensionOrder()
+          )
+          .orElse(null);
+      if (existing != null) {
+        existing.replaceAssessment(assessment);
+        continue;
+      }
+      CandidateAbilityProfileEntity current = session.tenantId() == null
+          ? abilityProfileRepository
+              .findByTenantIdIsNullAndCandidateIdAndDimensionAndSupersededByIsNull(
+                  session.candidateId(),
+                  dimension.dimension()
+              )
+              .orElse(null)
+          : abilityProfileRepository
+              .findByTenantIdAndCandidateIdAndDimensionAndSupersededByIsNull(
+                  session.tenantId(),
+                  session.candidateId(),
+                  dimension.dimension()
+              )
+              .orElse(null);
+      CandidateAbilityProfileEntity profile = abilityProfileRepository.save(
+          new CandidateAbilityProfileEntity(session, dimension, assessment)
+      );
+      if (current != null && !current.sourceSessionId().equals(session.id())) {
+        if (current.createdAt().isBefore(profile.createdAt())) {
+          current.supersede(profile.id());
+        } else {
+          profile.supersede(current.id());
+        }
+      }
+    }
   }
 
   @Transactional(readOnly = true)
