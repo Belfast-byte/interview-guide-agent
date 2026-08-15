@@ -85,6 +85,16 @@ public class CodeAnalysisPersistenceService {
     job.complete(result.durationMs(), result.tokenCost());
   }
 
+  @Transactional
+  public void markRunning(String jobId) {
+    findJob(jobId).markRunning();
+  }
+
+  @Transactional
+  public void markFailed(String jobId, String reason) {
+    findJob(jobId).fail(reason);
+  }
+
   @Transactional(readOnly = true)
   public ProjectRepositorySnapshot getRepositorySnapshot(String jobId) {
     AnalysisJobEntity job = findJob(jobId);

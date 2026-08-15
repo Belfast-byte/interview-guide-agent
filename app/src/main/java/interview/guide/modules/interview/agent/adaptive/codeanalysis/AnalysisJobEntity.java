@@ -74,6 +74,17 @@ class AnalysisJobEntity {
     this.finishedAt = LocalDateTime.now();
   }
 
+  void markRunning() {
+    status = AnalysisJobStatus.RUNNING;
+    startedAt = LocalDateTime.now();
+  }
+
+  void fail(String reason) {
+    status = AnalysisJobStatus.FAILED;
+    failureReason = reason;
+    finishedAt = LocalDateTime.now();
+  }
+
   void timeout() {
     status = AnalysisJobStatus.TIMED_OUT;
     failureReason = "analysis timeout";

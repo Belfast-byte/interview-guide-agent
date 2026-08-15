@@ -15,4 +15,5 @@ public class CodeAnalysisProperties {
   private int maxSnapshotBytes = 100 * 1024 * 1024;
   private int maxSnapshotFiles = 20_000;
   private long maxTokenCost = 200_000;
+  private String workerToken;
 }
