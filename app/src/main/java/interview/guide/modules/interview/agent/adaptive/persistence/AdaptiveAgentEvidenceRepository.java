@@ -23,4 +23,6 @@ public interface AdaptiveAgentEvidenceRepository
       Long assessmentId,
       String sandboxExecutionId
   );
+
+  void deleteByAssessmentId(Long assessmentId);
 }

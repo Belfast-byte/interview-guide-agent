@@ -344,6 +344,47 @@ public class AdaptiveInterviewApplicationService {
     }
   }
 
+  public void reassessAlgorithmResult(
+      String sessionId,
+      int turnIndex,
+      String toolResult
+  ) {
+    PlannedInterview interview = persistenceService.get(sessionId);
+    AdaptiveInterviewTurn turn = interview.history().turns().stream()
+        .filter(candidate -> candidate.turnIndex() == turnIndex)
+        .findFirst()
+        .orElseThrow();
+    PlannedDimension dimension = interview.plan().dimensionForTurn(turnIndex);
+    AssessmentDecision assessment = assessmentAgent.assess(
+        new AssessmentRequest(
+            sessionId,
+            turnIndex,
+            AssessmentContext.algorithmResult(
+                dimension.dimension(),
+                dimension.focus(),
+                turn.question(),
+                turn.answer(),
+                toolResult
+            )
+        ),
+        interview.history().llmProvider()
+    );
+    List<ValidatedAssessmentEvidence> evidences = assessmentEvidenceValidator.validate(
+        sessionId,
+        turnIndex,
+        turn.answer(),
+        assessment.evidenceQuotes().stream()
+            .map(AssessmentEvidenceCandidate::quote)
+            .toList()
+    );
+    persistenceService.replaceAssessment(sessionId, turnIndex, assessment, evidences);
+    telemetry.assessmentRecorded(
+        dimension.dimension(),
+        assessment.depthLevel(),
+        evidences.size()
+    );
+  }
+
   public List<ToolResultFollowUp> toolResultFollowUps(String sessionId) {
     return persistenceService.toolResultFollowUps(sessionId);
   }

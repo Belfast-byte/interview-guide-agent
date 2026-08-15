@@ -8,6 +8,7 @@ public record AssessmentContext(
     String focus,
     String question,
     String answer,
+    String toolResult,
     List<DepthRubricEntry> rubric
 ) {
 
@@ -26,6 +27,24 @@ public record AssessmentContext(
         focus,
         question,
         answer,
+        null,
+        Arrays.stream(DepthLevel.values()).map(DepthRubricEntry::from).toList()
+    );
+  }
+
+  public static AssessmentContext algorithmResult(
+      String dimension,
+      String focus,
+      String question,
+      String answer,
+      String toolResult
+  ) {
+    return new AssessmentContext(
+        dimension,
+        focus,
+        question,
+        answer,
+        toolResult,
         Arrays.stream(DepthLevel.values()).map(DepthRubricEntry::from).toList()
     );
   }

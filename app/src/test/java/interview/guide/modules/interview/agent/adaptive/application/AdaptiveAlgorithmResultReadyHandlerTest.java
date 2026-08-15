@@ -63,6 +63,11 @@ class AdaptiveAlgorithmResultReadyHandlerTest {
         org.mockito.ArgumentMatchers.eq("session-1"),
         event.capture()
     );
+    verify(applicationService).reassessAlgorithmResult(
+        "session-1",
+        1,
+        event.getValue().output()
+    );
     assertThat(event.getValue().output())
         .contains("verdict=WA", "passed=4/10", "firstFailedCase=7")
         .doesNotContain("source-ref", "hidden");

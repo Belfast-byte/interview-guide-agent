@@ -37,6 +37,13 @@ class AdaptiveAlgorithmResultReadyHandler implements AlgorithmResultReadyHandler
                 execution.firstFailedCase()
             );
     int turnIndex = sessionFacts.turnIndex(execution.turnId());
+    if (execution.status() == SandboxExecutionStatus.DONE) {
+      applicationService.reassessAlgorithmResult(
+          execution.sessionId(),
+          turnIndex,
+          summary
+      );
+    }
     assessmentEvidenceService.attachAvailable(execution.sessionId(), turnIndex);
     applicationService.handleToolResult(
         execution.sessionId(),

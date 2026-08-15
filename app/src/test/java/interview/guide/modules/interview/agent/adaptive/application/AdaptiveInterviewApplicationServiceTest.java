@@ -4,6 +4,7 @@ import interview.guide.common.exception.BusinessException;
 import interview.guide.common.exception.ErrorCode;
 import interview.guide.modules.interview.agent.adaptive.assessment.AssessmentEvidenceValidator;
 import interview.guide.modules.interview.agent.adaptive.assessment.AssessmentProposal;
+import interview.guide.modules.interview.agent.adaptive.assessment.AssessmentRequest;
 import interview.guide.modules.interview.agent.adaptive.assessment.DepthAssessmentAgent;
 import interview.guide.modules.interview.agent.adaptive.assessment.PracticeRecommendationService;
 import interview.guide.modules.interview.agent.adaptive.assessment.PracticeRecommendation;
@@ -47,6 +48,7 @@ import interview.guide.modules.interview.agent.adaptive.runtime.ToolExecution;
 import interview.guide.modules.interview.agent.adaptive.runtime.ToolExecutionOutcome;
 import interview.guide.modules.interview.agent.adaptive.tool.SandboxSubmitTool;
 import java.util.List;
+import java.util.concurrent.atomic.AtomicReference;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -573,6 +575,38 @@ class AdaptiveInterviewApplicationServiceTest {
     return new AssessmentEvidenceValidator((sessionId, turnIndex, resultIds) -> {
       throw new AssertionError("纯文本引用不应查询工具结果");
     });
+  }
+
+  @Test
+  @DisplayName("算法题最终评估包含沙箱执行结果并替换原评估")
+  void shouldReassessAlgorithmAnswerWithSandboxResult() {
+    AtomicReference<AssessmentRequest> captured = new AtomicReference<>();
+    service = serviceWithAssessmentAgent(new DepthAssessmentAgent((request, provider) -> {
+      captured.set(request);
+      return new AssessmentProposal(
+          DepthLevel.L3,
+          0.9,
+          "代码通过全部测试",
+          false,
+          List.of(request.context().answer())
+      );
+    }));
+    when(persistenceService.get("session-1")).thenReturn(interviewAtTurn(2));
+
+    service.reassessAlgorithmResult(
+        "session-1",
+        1,
+        "verdict=AC, passed=10/10, timeMs=12"
+    );
+
+    assertThat(captured.get().context().toolResult())
+        .isEqualTo("verdict=AC, passed=10/10, timeMs=12");
+    verify(persistenceService).replaceAssessment(
+        eq("session-1"),
+        eq(1),
+        any(),
+        anyList()
+    );
   }
 
   @Test

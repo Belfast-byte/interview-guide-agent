@@ -142,6 +142,31 @@ public class AdaptiveInterviewPersistenceService implements AlgorithmAssessmentE
   }
 
   @Transactional
+  public void replaceAssessment(
+      String sessionId,
+      int turnIndex,
+      AssessmentDecision decision,
+      List<ValidatedAssessmentEvidence> evidences
+  ) {
+    AdaptiveAgentAssessmentEntity assessment = assessmentRepository
+        .findBySessionIdAndTurnIndex(sessionId, turnIndex)
+        .orElseThrow(() -> new BusinessException(
+            ErrorCode.AI_SERVICE_ERROR,
+            "算法判题结果缺少对应的回答评估"
+        ));
+    assessment.replace(decision);
+    evidenceRepository.deleteByAssessmentId(assessment.id());
+    evidenceRepository.saveAll(evidences.stream()
+        .map(evidence -> new AdaptiveAgentEvidenceEntity(
+            assessment,
+            sessionId,
+            turnIndex,
+            evidence
+        ))
+        .toList());
+  }
+
+  @Transactional
   public PlannedInterview create(
       String sessionId,
       String candidateId,
