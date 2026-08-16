@@ -6,6 +6,9 @@ import org.springframework.stereotype.Component;
 
 import java.util.List;
 
+/**
+ * Agent 上下文装配器，将持久化会话、技能、回答与评估组装为模型可用的上下文。
+ */
 @Component
 @RequiredArgsConstructor
 public class AgentContextBuilder {

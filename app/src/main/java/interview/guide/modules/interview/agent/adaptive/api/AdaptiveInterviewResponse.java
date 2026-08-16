@@ -4,6 +4,9 @@ import interview.guide.modules.interview.agent.adaptive.core.AdaptiveSessionStat
 import interview.guide.modules.interview.agent.adaptive.planning.PlannedInterview;
 import java.util.List;
 
+/**
+ * 自适应面试响应。
+ */
 public record AdaptiveInterviewResponse(
     String sessionId,
     String runtimeVersion,

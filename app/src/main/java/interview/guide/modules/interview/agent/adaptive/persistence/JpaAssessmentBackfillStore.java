@@ -14,6 +14,9 @@ import java.util.stream.Collectors;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+/**
+ * 基于 JPA 的评估回填存储实现。
+ */
 @Service
 public class JpaAssessmentBackfillStore implements AssessmentBackfillStore {
 

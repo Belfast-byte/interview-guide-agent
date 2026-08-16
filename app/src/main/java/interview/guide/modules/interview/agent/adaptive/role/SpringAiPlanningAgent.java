@@ -25,6 +25,9 @@ import org.springframework.stereotype.Component;
 import tools.jackson.core.JacksonException;
 import tools.jackson.databind.ObjectMapper;
 
+/**
+ * 基于 Spring AI 的规划 Agent 实现，将 JD/简历/记忆转换为结构化面试计划。
+ */
 @Component
 public class SpringAiPlanningAgent implements PlanningAgent {
 

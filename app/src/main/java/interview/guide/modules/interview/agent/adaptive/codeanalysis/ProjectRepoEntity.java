@@ -7,6 +7,9 @@ import jakarta.persistence.PrePersist;
 import jakarta.persistence.Table;
 import java.time.LocalDateTime;
 
+/**
+ * 项目仓库实体。
+ */
 @Entity
 @Table(name = "project_repos")
 class ProjectRepoEntity {

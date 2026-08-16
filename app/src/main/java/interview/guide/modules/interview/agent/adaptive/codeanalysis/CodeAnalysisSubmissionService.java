@@ -7,6 +7,9 @@ import lombok.RequiredArgsConstructor;
 import interview.guide.modules.interview.agent.adaptive.observability.CodeAnalysisTelemetry;
 import org.springframework.stereotype.Service;
 
+/**
+ * 代码分析提交服务，创建分析任务并投递到工作队列。
+ */
 @Service
 @RequiredArgsConstructor
 public class CodeAnalysisSubmissionService {

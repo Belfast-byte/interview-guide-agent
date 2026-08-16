@@ -17,6 +17,9 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
+/**
+ * 算法面试 REST 控制器，提供提交代码、查询沙箱执行等接口。
+ */
 @RestController
 @RequestMapping("/api/adaptive-agent-interviews")
 @RequiredArgsConstructor

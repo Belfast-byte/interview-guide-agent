@@ -4,6 +4,9 @@ import interview.guide.modules.interview.agent.runtime.AgentLoopState;
 import interview.guide.modules.interview.agent.runtime.AgentLoopStatus;
 import java.util.List;
 
+/**
+ * Agent 面试会话响应。
+ */
 public record AgentInterviewSessionResponse(
     String sessionId,
     String runtimeVersion,

@@ -5,6 +5,9 @@ import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
+/**
+ * AdaptiveAgentEvidenceRepository 数据访问接口，提供相关实体的 Spring Data Repository。
+ */
 public interface AdaptiveAgentEvidenceRepository
     extends JpaRepository<AdaptiveAgentEvidenceEntity, Long> {
 

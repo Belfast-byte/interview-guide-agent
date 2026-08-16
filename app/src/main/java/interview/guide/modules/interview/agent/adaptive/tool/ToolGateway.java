@@ -25,6 +25,9 @@ import org.springframework.stereotype.Component;
 import tools.jackson.core.JacksonException;
 import tools.jackson.databind.ObjectMapper;
 
+/**
+ * 工具网关，负责执行 Agent 请求的工具调用并管理同步/异步结果。
+ */
 @Component
 public class ToolGateway implements AgentToolExecutor {
 
@@ -51,6 +54,13 @@ public class ToolGateway implements AgentToolExecutor {
     this.maxResultChars = properties.getMaxResultChars();
   }
 
+  /**
+   * 执行一次 Agent 工具调用：校验角色白名单、调用具体工具、记录执行轨迹和遥测。
+   *
+   * @param request ReAct 请求上下文
+   * @param action 工具调用动作
+   * @return 工具执行结果
+   */
   @Override
   public ToolExecution execute(ReActRequest request, ToolCallAction action) {
     long startedNanos = System.nanoTime();
@@ -137,6 +147,12 @@ public class ToolGateway implements AgentToolExecutor {
     );
   }
 
+  /**
+   * 按角色白名单生成 Spring AI ToolCallback 列表，供模型调用。
+   *
+   * @param role 角色定义
+   * @return 该角色可用的工具回调
+   */
   public List<ToolCallback> callbacksFor(AgentRoleDefinition role) {
     return role.allowedTools().stream()
         .sorted()

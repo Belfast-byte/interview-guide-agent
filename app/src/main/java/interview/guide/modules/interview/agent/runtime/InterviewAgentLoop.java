@@ -14,6 +14,9 @@ import java.util.concurrent.FutureTask;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 
+/**
+ * Agent 面试主循环服务，负责创建会话、提交回答、有界执行模型决策并持久化结果。
+ */
 @Service
 @RequiredArgsConstructor
 public class InterviewAgentLoop {
@@ -31,6 +34,13 @@ public class InterviewAgentLoop {
   private final AgentInterviewPersistenceService persistenceService;
   private final AgentInterviewRuntimeProperties runtimeProperties;
 
+  /**
+   * 创建新的 Agent 面试会话，并让模型生成首轮问题。
+   *
+   * @param jd 职位描述
+   * @param resume 候选人简历
+   * @return 创建后的会话状态
+   */
   public AgentLoopState createSession(String jd, String resume) {
     AgentLoopState created = persistenceService.create(jd, resume, MAX_TURNS);
     try {
@@ -55,6 +65,13 @@ public class InterviewAgentLoop {
     }
   }
 
+  /**
+   * 提交候选人回答：先做深度评估，再让 Agent 决定追问、结束或继续。
+   *
+   * @param sessionId 会话 ID
+   * @param answer 候选人回答原文
+   * @return 推进后的会话状态
+   */
   public AgentLoopState submitAnswer(String sessionId, String answer) {
     AgentLoopState snapshot = persistenceService.get(sessionId);
     if (snapshot.status() == AgentLoopStatus.COMPLETED) {
@@ -107,6 +124,12 @@ public class InterviewAgentLoop {
     return persistenceService.get(sessionId);
   }
 
+  /**
+   * 获取指定会话的最新状态。
+   *
+   * @param sessionId 会话 ID
+   * @return 当前会话状态
+   */
   public AgentLoopState getSession(String sessionId) {
     return persistenceService.get(sessionId);
   }

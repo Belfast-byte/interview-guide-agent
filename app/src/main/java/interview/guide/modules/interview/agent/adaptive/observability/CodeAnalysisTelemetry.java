@@ -5,6 +5,9 @@ import java.time.Duration;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Component;
 
+/**
+ * 代码分析可观测性门面。
+ */
 @Component
 @RequiredArgsConstructor
 public class CodeAnalysisTelemetry {

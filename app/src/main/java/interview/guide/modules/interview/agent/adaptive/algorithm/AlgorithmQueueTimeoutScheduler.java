@@ -6,6 +6,9 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
 
+/**
+ * 算法队列超时调度器，处理长时间未完成评测的任务。
+ */
 @Component
 @RequiredArgsConstructor
 class AlgorithmQueueTimeoutScheduler {

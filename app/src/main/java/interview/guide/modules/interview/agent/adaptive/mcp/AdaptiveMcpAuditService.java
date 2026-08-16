@@ -4,6 +4,9 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+/**
+ * MCP 调用审计服务，记录每次 MCP 工具调用的输入/输出摘要。
+ */
 @Service
 @RequiredArgsConstructor
 class AdaptiveMcpAuditService {

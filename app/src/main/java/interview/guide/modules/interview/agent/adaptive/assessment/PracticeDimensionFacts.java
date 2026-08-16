@@ -2,6 +2,9 @@ package interview.guide.modules.interview.agent.adaptive.assessment;
 
 import java.util.List;
 
+/**
+ * 练习维度事实。
+ */
 public record PracticeDimensionFacts(
     int order,
     String dimension,

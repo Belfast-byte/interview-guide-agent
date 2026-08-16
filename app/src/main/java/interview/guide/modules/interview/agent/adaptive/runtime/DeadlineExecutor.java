@@ -9,6 +9,9 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 import org.springframework.stereotype.Component;
 
+/**
+ * 带截止时间的任务执行器，在超时或中断时统一转换为业务异常。
+ */
 @Component
 public class DeadlineExecutor {
 

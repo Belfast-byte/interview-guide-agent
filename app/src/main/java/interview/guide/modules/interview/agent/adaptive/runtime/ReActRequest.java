@@ -3,6 +3,9 @@ package interview.guide.modules.interview.agent.adaptive.runtime;
 import interview.guide.modules.interview.agent.adaptive.core.InterviewerContext;
 import interview.guide.modules.interview.agent.adaptive.role.AgentRole;
 
+/**
+ * ReAct 执行请求，携带会话、角色、Prompt 上下文和工具白名单。
+ */
 public record ReActRequest(
     String sessionId,
     AgentRole role,

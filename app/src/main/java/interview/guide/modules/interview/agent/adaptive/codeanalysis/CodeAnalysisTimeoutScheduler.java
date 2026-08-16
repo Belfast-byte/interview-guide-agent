@@ -6,6 +6,9 @@ import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
 import interview.guide.modules.interview.agent.adaptive.observability.CodeAnalysisTelemetry;
 
+/**
+ * 代码分析超时调度器。
+ */
 @Component
 @RequiredArgsConstructor
 public class CodeAnalysisTimeoutScheduler {

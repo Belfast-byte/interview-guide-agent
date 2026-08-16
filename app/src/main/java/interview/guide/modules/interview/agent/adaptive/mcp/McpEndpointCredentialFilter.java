@@ -12,6 +12,9 @@ import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.stereotype.Component;
 import org.springframework.web.filter.OncePerRequestFilter;
 
+/**
+ * MCP 端点凭据过滤器。
+ */
 @Component
 @RequiredArgsConstructor
 @ConditionalOnProperty(

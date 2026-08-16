@@ -16,6 +16,9 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
+/**
+ * Agent 面试（agent-loop-v2）REST 控制器，提供创建会话、提交回答、查询会话的 HTTP 接口。
+ */
 @RestController
 @RequestMapping("/api/interview/agent-loop/sessions")
 @RequiredArgsConstructor

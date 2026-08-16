@@ -8,6 +8,9 @@ import java.util.List;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+/**
+ * 评估报告服务，基于持久化评估结果确定性组装候选人报告。
+ */
 @Service
 public class AssessmentReportService {
 

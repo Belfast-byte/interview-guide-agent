@@ -10,6 +10,9 @@ import java.util.HashSet;
 import java.util.Map;
 import java.util.Set;
 
+/**
+ * 有界 ReAct 运行时，以最大步数、最大工具调用数和 deadline 约束驱动 Agent 循环，防止失控。
+ */
 public class BoundedReActRuntime {
 
   private final AgentModelGateway modelGateway;
@@ -33,6 +36,13 @@ public class BoundedReActRuntime {
     this.deadlineExecutor = deadlineExecutor;
   }
 
+  /**
+   * 执行一个有界的 ReAct 循环：在步数/工具调用数/deadline 限制内反复“模型决策→工具执行→观察反馈”，直到回复或预算耗尽。
+   *
+   * @param request ReAct 执行请求
+   * @param budget 执行预算
+   * @return 最终回复与工具执行轨迹
+   */
   public ReActResult run(ReActRequest request, ReActBudget budget) {
     long deadlineNanos = System.nanoTime() + budget.deadline().toNanos();
     var observations = new ArrayList<ToolObservation>();

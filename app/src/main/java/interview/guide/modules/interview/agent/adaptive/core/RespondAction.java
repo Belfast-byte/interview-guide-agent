@@ -1,5 +1,8 @@
 package interview.guide.modules.interview.agent.adaptive.core;
 
+/**
+ * Agent 回复动作，表示直接向候选人输出文本响应。
+ */
 public record RespondAction(
     AgentResponseType type,
     String content,

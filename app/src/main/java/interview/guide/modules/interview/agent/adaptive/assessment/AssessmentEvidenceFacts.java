@@ -2,6 +2,9 @@ package interview.guide.modules.interview.agent.adaptive.assessment;
 
 import java.util.Map;
 
+/**
+ * 评估证据事实集合。
+ */
 public record AssessmentEvidenceFacts(
     Map<String, Long> toolCallIdsByResultId,
     Map<String, String> sandboxExecutionIdsByResultId

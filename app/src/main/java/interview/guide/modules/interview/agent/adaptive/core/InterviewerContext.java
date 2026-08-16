@@ -2,6 +2,9 @@ package interview.guide.modules.interview.agent.adaptive.core;
 
 import java.util.List;
 
+/**
+ * 面试官上下文，包含当前维度、历史、记忆和可用工具，用于生成下一轮问题。
+ */
 public record InterviewerContext(
     String jd,
     String resume,

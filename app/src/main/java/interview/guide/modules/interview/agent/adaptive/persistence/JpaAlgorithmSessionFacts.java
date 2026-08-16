@@ -7,6 +7,9 @@ import interview.guide.modules.interview.agent.adaptive.core.AdaptiveSessionStat
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Component;
 
+/**
+ * 基于 JPA 的算法会话事实实现，提供当前轮次锁定与状态查询。
+ */
 @Component
 @RequiredArgsConstructor
 class JpaAlgorithmSessionFacts implements AlgorithmSessionFacts {

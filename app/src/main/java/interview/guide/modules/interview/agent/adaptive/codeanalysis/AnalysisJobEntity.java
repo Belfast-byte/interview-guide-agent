@@ -9,6 +9,9 @@ import jakarta.persistence.PrePersist;
 import jakarta.persistence.Table;
 import java.time.LocalDateTime;
 
+/**
+ * 代码分析任务 JPA 实体。
+ */
 @Entity
 @Table(name = "analysis_jobs")
 class AnalysisJobEntity {

@@ -8,6 +8,9 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import interview.guide.modules.interview.agent.adaptive.observability.CodeAnalysisTelemetry;
 
+/**
+ * 代码分析结果验收服务，校验结果锚点和来源可信度。
+ */
 @Service
 @RequiredArgsConstructor
 public class CodeAnalysisResultAcceptanceService {

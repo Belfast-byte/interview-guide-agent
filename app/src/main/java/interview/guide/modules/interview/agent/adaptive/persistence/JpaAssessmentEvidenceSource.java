@@ -8,6 +8,9 @@ import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Component;
 
+/**
+ * 基于 JPA 的评估证据来源实现。
+ */
 @Component
 @RequiredArgsConstructor
 public class JpaAssessmentEvidenceSource implements AssessmentEvidenceSource {

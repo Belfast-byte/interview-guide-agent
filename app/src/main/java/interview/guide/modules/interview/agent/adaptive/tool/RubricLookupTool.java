@@ -10,6 +10,9 @@ import org.springframework.ai.tool.function.FunctionToolCallback;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.stereotype.Component;
 
+/**
+ * 深度量规查询工具，供 Agent 获取当前维度的评级标准。
+ */
 @Component
 public class RubricLookupTool implements AdaptiveAgentTool {
 

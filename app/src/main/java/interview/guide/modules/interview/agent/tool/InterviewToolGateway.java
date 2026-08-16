@@ -7,6 +7,9 @@ import interview.guide.modules.interview.agent.runtime.LoadedSkill;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Component;
 
+/**
+ * 旧版 Agent 面试工具网关，当前主要用于加载面试技能。
+ */
 @Component
 @RequiredArgsConstructor
 public class InterviewToolGateway {

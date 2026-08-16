@@ -5,6 +5,9 @@ import lombok.Data;
 import org.springframework.boot.context.properties.ConfigurationProperties;
 import org.springframework.stereotype.Component;
 
+/**
+ * 自适应 Agent 配置属性。
+ */
 @Data
 @Component
 @ConfigurationProperties(prefix = "app.interview.adaptive-agent")

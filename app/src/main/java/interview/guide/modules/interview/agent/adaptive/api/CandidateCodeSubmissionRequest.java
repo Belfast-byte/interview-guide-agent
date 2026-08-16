@@ -6,6 +6,9 @@ import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Size;
 import jakarta.validation.constraints.AssertTrue;
 
+/**
+ * 候选人代码提交请求。
+ */
 public record CandidateCodeSubmissionRequest(
     @Size(max = 64, message = "算法题标识不能超过 64 个字符")
     String problemId,

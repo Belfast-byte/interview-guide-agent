@@ -1,5 +1,8 @@
 package interview.guide.modules.interview.agent.adaptive.core;
 
+/**
+ * 候选人提交的回答值对象。
+ */
 public record CandidateAnswer(
     int turnIndex,
     String content,

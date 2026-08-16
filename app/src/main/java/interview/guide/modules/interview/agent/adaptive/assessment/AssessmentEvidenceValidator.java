@@ -9,6 +9,9 @@ import java.util.Set;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 
+/**
+ * 评估证据校验器，校验引用是否真实存在于回答或工具结果中。
+ */
 @Service
 @RequiredArgsConstructor
 public class AssessmentEvidenceValidator {

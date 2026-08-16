@@ -1,5 +1,8 @@
 package interview.guide.modules.interview.agent.adaptive.assessment;
 
+/**
+ * 深度等级枚举。
+ */
 public enum DepthLevel {
   L0(
       "无证据",

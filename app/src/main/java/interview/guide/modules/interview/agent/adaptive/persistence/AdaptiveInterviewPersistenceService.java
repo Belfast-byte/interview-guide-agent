@@ -30,6 +30,9 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+/**
+ * 自适应面试持久化服务，统一读写会话、计划、轮次、工具调用、评估、记忆与练习记录。
+ */
 @Service
 @RequiredArgsConstructor
 public class AdaptiveInterviewPersistenceService

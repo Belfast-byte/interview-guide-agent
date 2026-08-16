@@ -1,5 +1,8 @@
 package interview.guide.modules.interview.agent.adaptive.assessment;
 
+/**
+ * 报告中的工具结果。
+ */
 public record ReportToolResult(
     Long toolCallId,
     String sandboxExecutionId,

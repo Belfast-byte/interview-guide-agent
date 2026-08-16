@@ -18,6 +18,9 @@ import java.util.function.Function;
 import java.util.stream.Collectors;
 import org.springframework.stereotype.Component;
 
+/**
+ * 基于 JPA 的评估报告事实来源实现。
+ */
 @Component
 public class JpaAssessmentReportFactsSource
     implements AssessmentReportFactsSource {

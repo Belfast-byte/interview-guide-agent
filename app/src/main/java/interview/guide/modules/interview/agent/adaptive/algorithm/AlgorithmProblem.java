@@ -1,5 +1,8 @@
 package interview.guide.modules.interview.agent.adaptive.algorithm;
 
+/**
+ * 算法题目值对象。
+ */
 public record AlgorithmProblem(
     String id,
     String title,

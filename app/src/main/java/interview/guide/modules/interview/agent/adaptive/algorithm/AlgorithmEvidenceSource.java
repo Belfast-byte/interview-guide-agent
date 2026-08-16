@@ -3,6 +3,9 @@ package interview.guide.modules.interview.agent.adaptive.algorithm;
 import java.util.Map;
 import java.util.Set;
 
+/**
+ * 算法证据来源接口。
+ */
 public interface AlgorithmEvidenceSource {
 
   Map<String, String> findCandidateEvidenceIds(

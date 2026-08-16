@@ -10,6 +10,9 @@ import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import tools.jackson.databind.json.JsonMapper;
 
+/**
+ * MCP 租户传输配置。
+ */
 @Configuration(proxyBeanMethods = false)
 @ConditionalOnProperty(
     prefix = "app.interview.adaptive-agent",

@@ -18,6 +18,9 @@ import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
 
+/**
+ * AdaptiveDimensionBriefEntity JPA 实体，对应数据库中的相关表。
+ */
 @Entity
 @Table(
     name = "dimension_briefs",

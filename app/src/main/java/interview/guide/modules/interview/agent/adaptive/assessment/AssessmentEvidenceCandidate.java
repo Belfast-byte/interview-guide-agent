@@ -1,5 +1,8 @@
 package interview.guide.modules.interview.agent.adaptive.assessment;
 
+/**
+ * 评估证据候选，用于后续校验是否可采信。
+ */
 public record AssessmentEvidenceCandidate(
     EvidenceType type,
     String quote,

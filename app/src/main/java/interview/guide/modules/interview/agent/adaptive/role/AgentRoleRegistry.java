@@ -5,6 +5,9 @@ import interview.guide.modules.interview.agent.adaptive.runtime.ReActBudget;
 import java.util.Set;
 import org.springframework.stereotype.Component;
 
+/**
+ * Agent 角色注册表，集中管理各角色的 Prompt、工具和预算配置。
+ */
 @Component
 public class AgentRoleRegistry {
 

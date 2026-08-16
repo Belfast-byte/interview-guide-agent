@@ -9,6 +9,9 @@ import java.util.Set;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Component;
 
+/**
+ * MCP 租户凭据解析器。
+ */
 @Component
 @RequiredArgsConstructor
 public class McpTenantCredentialResolver {

@@ -5,6 +5,9 @@ import jakarta.persistence.LockModeType;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Lock;
 
+/**
+ * AdaptiveAgentSessionRepository 数据访问接口，提供相关实体的 Spring Data Repository。
+ */
 public interface AdaptiveAgentSessionRepository
     extends JpaRepository<AdaptiveAgentSessionEntity, String> {
 

@@ -1,5 +1,8 @@
 package interview.guide.modules.interview.agent.adaptive.algorithm;
 
+/**
+ * 沙箱执行规格。
+ */
 public record SandboxExecutionSpec(
     String referenceId,
     String casesRef,

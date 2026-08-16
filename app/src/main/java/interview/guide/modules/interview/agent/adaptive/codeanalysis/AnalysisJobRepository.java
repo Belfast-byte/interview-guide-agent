@@ -5,6 +5,9 @@ import java.time.LocalDateTime;
 import java.util.List;
 import org.springframework.data.jpa.repository.JpaRepository;
 
+/**
+ * 代码分析任务仓储。
+ */
 interface AnalysisJobRepository extends JpaRepository<AnalysisJobEntity, String> {
 
   Optional<AnalysisJobEntity> findByIdAndSessionId(String id, String sessionId);

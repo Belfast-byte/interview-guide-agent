@@ -18,6 +18,9 @@ import tools.jackson.core.JacksonException;
 import tools.jackson.core.type.TypeReference;
 import tools.jackson.databind.ObjectMapper;
 
+/**
+ * MCP 题库网关，通过远程 MCP 服务检索题库。
+ */
 @Component
 @RequiredArgsConstructor
 @ConditionalOnProperty(

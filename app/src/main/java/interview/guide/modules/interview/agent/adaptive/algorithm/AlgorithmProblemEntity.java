@@ -10,6 +10,9 @@ import jakarta.persistence.PreUpdate;
 import jakarta.persistence.Table;
 import java.time.LocalDateTime;
 
+/**
+ * 算法题目 JPA 实体。
+ */
 @Entity
 @Table(name = "algorithm_problems")
 class AlgorithmProblemEntity {

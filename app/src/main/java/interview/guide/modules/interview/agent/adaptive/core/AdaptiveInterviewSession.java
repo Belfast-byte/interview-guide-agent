@@ -3,6 +3,9 @@ package interview.guide.modules.interview.agent.adaptive.core;
 import interview.guide.common.exception.BusinessException;
 import interview.guide.common.exception.ErrorCode;
 
+/**
+ * 自适应面试会话领域对象，封装状态、候选人信息、当前轮次与回答校验。
+ */
 public record AdaptiveInterviewSession(
     String id,
     String runtimeVersion,

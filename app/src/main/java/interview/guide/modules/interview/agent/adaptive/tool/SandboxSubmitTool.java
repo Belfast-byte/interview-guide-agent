@@ -16,6 +16,9 @@ import org.springframework.ai.tool.ToolCallback;
 import org.springframework.ai.tool.function.FunctionToolCallback;
 import org.springframework.stereotype.Component;
 
+/**
+ * 代码提交工具，将候选人代码提交到沙箱评测。
+ */
 @Component
 public class SandboxSubmitTool implements AdaptiveAgentTool {
 

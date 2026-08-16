@@ -13,6 +13,9 @@ import jakarta.persistence.Table;
 import jakarta.persistence.Version;
 import java.time.LocalDateTime;
 
+/**
+ * AdaptiveAgentSessionEntity JPA 实体，对应数据库中的相关表。
+ */
 @Entity
 @Table(name = "agent_sessions")
 public class AdaptiveAgentSessionEntity {

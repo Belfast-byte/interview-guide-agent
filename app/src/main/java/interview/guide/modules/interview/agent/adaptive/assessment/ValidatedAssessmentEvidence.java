@@ -1,5 +1,8 @@
 package interview.guide.modules.interview.agent.adaptive.assessment;
 
+/**
+ * 已通过校验的评估证据。
+ */
 public record ValidatedAssessmentEvidence(
     EvidenceType type,
     String quote,

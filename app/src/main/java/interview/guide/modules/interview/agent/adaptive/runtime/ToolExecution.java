@@ -1,5 +1,8 @@
 package interview.guide.modules.interview.agent.adaptive.runtime;
 
+/**
+ * 单次工具执行记录，包含调用参数、结果 ID、输出和是否成功。
+ */
 public record ToolExecution(
     String invocationId,
     String toolName,

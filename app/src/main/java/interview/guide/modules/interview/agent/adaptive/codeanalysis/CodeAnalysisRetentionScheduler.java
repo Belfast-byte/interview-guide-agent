@@ -7,6 +7,9 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
 
+/**
+ * 代码分析保留策略定时任务。
+ */
 @Component
 @RequiredArgsConstructor
 public class CodeAnalysisRetentionScheduler {

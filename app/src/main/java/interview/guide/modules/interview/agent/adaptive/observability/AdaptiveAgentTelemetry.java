@@ -15,6 +15,9 @@ import org.springframework.ai.chat.client.advisor.api.CallAdvisorChain;
 import org.springframework.ai.chat.metadata.Usage;
 import org.springframework.stereotype.Component;
 
+/**
+ * 自适应 Agent 可观测性门面，采集计划、决策、工具调用等指标。
+ */
 @Slf4j
 @Component
 @RequiredArgsConstructor

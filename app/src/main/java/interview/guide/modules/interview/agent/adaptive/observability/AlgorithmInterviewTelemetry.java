@@ -11,6 +11,9 @@ import java.util.concurrent.atomic.AtomicLong;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;
 
+/**
+ * 算法面试可观测性门面。
+ */
 @Slf4j
 @Component
 public class AlgorithmInterviewTelemetry {

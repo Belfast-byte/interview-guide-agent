@@ -4,6 +4,9 @@ import interview.guide.modules.interview.agent.adaptive.assessment.DepthLevel;
 import interview.guide.modules.interview.agent.adaptive.memory.CandidateAbilityProfile;
 import java.time.LocalDateTime;
 
+/**
+ * 候选人能力画像条目响应。
+ */
 public record CandidateAbilityProfileEntryResponse(
     String dimension,
     DepthLevel depthLevel,

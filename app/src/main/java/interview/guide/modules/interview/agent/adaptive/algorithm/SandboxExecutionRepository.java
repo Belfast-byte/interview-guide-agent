@@ -8,6 +8,9 @@ import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Lock;
 import org.springframework.data.jpa.repository.Query;
 
+/**
+ * 沙箱执行仓储。
+ */
 interface SandboxExecutionRepository extends JpaRepository<SandboxExecutionEntity, String> {
 
   long countBySessionId(String sessionId);

@@ -7,6 +7,9 @@ import org.springframework.http.client.SimpleClientHttpRequestFactory;
 import org.springframework.stereotype.Component;
 import org.springframework.web.client.RestClient;
 
+/**
+ * Sandboxd 客户端，封装与沙箱服务的通信。
+ */
 @Component
 class SandboxdClient implements SandboxWorker {
 

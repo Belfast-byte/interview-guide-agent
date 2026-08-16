@@ -12,6 +12,9 @@ import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Component;
 
+/**
+ * 规划分类校验器，负责校验计划维度、预算和分类是否符合平台约束。
+ */
 @Component
 @RequiredArgsConstructor
 public class PlanningTaxonomy {

@@ -8,6 +8,9 @@ import java.util.Map;
 import org.redisson.api.stream.StreamMessageId;
 import org.springframework.stereotype.Component;
 
+/**
+ * 算法判题结果流消费者，消费沙箱评测结果并更新执行状态。
+ */
 @Component
 class AlgorithmJudgeStreamConsumer
     extends AbstractStreamConsumer<AlgorithmJudgeStreamConsumer.ExecutionTask> {

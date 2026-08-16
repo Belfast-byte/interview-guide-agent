@@ -7,6 +7,9 @@ import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Positive;
 import jakarta.validation.constraints.Size;
 
+/**
+ * 提交算法代码请求，包含题目、源码、语言与运行模式。
+ */
 public record SubmitAlgorithmCodeRequest(
     @Positive(message = "轮次必须大于 0") int turnIndex,
     @NotBlank(message = "算法题标识不能为空")

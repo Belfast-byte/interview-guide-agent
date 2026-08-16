@@ -3,6 +3,9 @@ package interview.guide.modules.interview.agent.adaptive.mcp;
 import interview.guide.modules.interview.agent.adaptive.core.AdaptiveSessionStatus;
 import interview.guide.modules.interview.agent.adaptive.planning.PlannedInterview;
 
+/**
+ * MCP 面试状态响应。
+ */
 public record McpInterviewStatusResponse(
     String sessionId,
     AdaptiveSessionStatus status,

@@ -11,6 +11,9 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+/**
+ * 候选人记忆服务，统一读写已覆盖主题、未验证声明和能力画像。
+ */
 @Service
 @RequiredArgsConstructor
 public class CandidateMemoryService {

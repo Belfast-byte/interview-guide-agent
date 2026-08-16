@@ -3,6 +3,9 @@ package interview.guide.modules.interview.agent.adaptive.mcp;
 import interview.guide.modules.interview.agent.adaptive.planning.PlanDimensionStatus;
 import interview.guide.modules.interview.agent.adaptive.planning.PlannedDimension;
 
+/**
+ * MCP 面试维度响应。
+ */
 public record McpInterviewDimensionResponse(
     int order,
     String dimension,

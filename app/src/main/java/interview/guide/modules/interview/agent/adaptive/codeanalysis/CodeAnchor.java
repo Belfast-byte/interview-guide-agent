@@ -3,6 +3,9 @@ package interview.guide.modules.interview.agent.adaptive.codeanalysis;
 import interview.guide.common.exception.BusinessException;
 import interview.guide.common.exception.ErrorCode;
 
+/**
+ * 代码锚点，定位项目文件中的具体位置。
+ */
 public record CodeAnchor(String file, int line) {
 
   public CodeAnchor {

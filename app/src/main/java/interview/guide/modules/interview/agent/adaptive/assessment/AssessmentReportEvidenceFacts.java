@@ -1,5 +1,8 @@
 package interview.guide.modules.interview.agent.adaptive.assessment;
 
+/**
+ * 评估报告证据事实。
+ */
 public record AssessmentReportEvidenceFacts(
     EvidenceType type,
     int turnIndex,

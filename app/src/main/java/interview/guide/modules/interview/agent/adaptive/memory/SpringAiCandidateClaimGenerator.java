@@ -20,6 +20,9 @@ import org.springframework.stereotype.Component;
 import tools.jackson.core.JacksonException;
 import tools.jackson.databind.ObjectMapper;
 
+/**
+ * 基于 Spring AI 的候选人声明生成器。
+ */
 @Component
 public class SpringAiCandidateClaimGenerator implements CandidateClaimGenerator {
 

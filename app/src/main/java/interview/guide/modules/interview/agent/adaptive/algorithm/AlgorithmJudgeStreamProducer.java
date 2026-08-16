@@ -6,6 +6,9 @@ import interview.guide.infrastructure.redis.RedisService;
 import java.util.Map;
 import org.springframework.stereotype.Component;
 
+/**
+ * 算法判题结果流生产者。
+ */
 @Component
 public class AlgorithmJudgeStreamProducer
     extends AbstractStreamProducer<AlgorithmJudgeStreamProducer.ExecutionTask> {

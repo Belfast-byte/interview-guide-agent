@@ -11,6 +11,9 @@ import org.springframework.transaction.annotation.Transactional;
 import tools.jackson.core.JacksonException;
 import tools.jackson.databind.ObjectMapper;
 
+/**
+ * 代码分析面试上下文服务，将项目代码分析结果装配进面试上下文。
+ */
 @Service
 @RequiredArgsConstructor
 public class CodeAnalysisInterviewContextService {

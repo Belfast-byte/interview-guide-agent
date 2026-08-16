@@ -2,6 +2,9 @@ package interview.guide.modules.interview.agent.adaptive.core;
 
 import java.util.List;
 
+/**
+ * 项目面试上下文，聚合候选人项目代码与代码分析结果。
+ */
 public record ProjectInterviewContext(
     String digestId,
     List<ProjectClaim> claims,

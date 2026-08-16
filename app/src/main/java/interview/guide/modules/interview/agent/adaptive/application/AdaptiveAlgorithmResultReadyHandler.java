@@ -10,6 +10,9 @@ import interview.guide.modules.interview.agent.adaptive.observability.AlgorithmI
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Component;
 
+/**
+ * 算法评测结果就绪事件处理器，负责将异步评测结果回写并触发重新评估。
+ */
 @Component
 @RequiredArgsConstructor
 class AdaptiveAlgorithmResultReadyHandler implements AlgorithmResultReadyHandler {

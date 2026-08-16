@@ -16,6 +16,9 @@ import jakarta.persistence.UniqueConstraint;
 import java.time.LocalDateTime;
 import java.util.List;
 
+/**
+ * AdaptiveAgentPlanEntity JPA 实体，对应数据库中的相关表。
+ */
 @Entity
 @Table(
     name = "agent_plans",

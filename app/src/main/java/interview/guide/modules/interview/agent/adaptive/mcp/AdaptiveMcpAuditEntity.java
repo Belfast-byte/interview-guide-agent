@@ -11,6 +11,9 @@ import jakarta.persistence.PrePersist;
 import jakarta.persistence.Table;
 import java.time.LocalDateTime;
 
+/**
+ * MCP 调用审计实体。
+ */
 @Entity
 @Table(name = "adaptive_mcp_audits")
 class AdaptiveMcpAuditEntity {

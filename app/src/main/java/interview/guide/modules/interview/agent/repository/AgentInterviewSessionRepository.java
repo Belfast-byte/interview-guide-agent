@@ -6,6 +6,9 @@ import org.springframework.stereotype.Repository;
 
 import java.util.Optional;
 
+/**
+ * Agent 面试会话仓储。
+ */
 @Repository
 public interface AgentInterviewSessionRepository
     extends JpaRepository<AgentInterviewSessionEntity, Long> {

@@ -6,6 +6,9 @@ import org.springframework.ai.tool.ToolCallback;
 import org.springframework.ai.tool.function.FunctionToolCallback;
 import org.springframework.stereotype.Component;
 
+/**
+ * 题库搜索工具，供 Agent 检索面试题目。
+ */
 @Component
 public class QuestionBankSearchTool implements AdaptiveAgentTool {
 

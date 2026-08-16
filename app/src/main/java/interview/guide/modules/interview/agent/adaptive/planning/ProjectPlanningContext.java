@@ -2,6 +2,9 @@ package interview.guide.modules.interview.agent.adaptive.planning;
 
 import java.util.List;
 
+/**
+ * 项目规划上下文，包含项目代码相关事实。
+ */
 public record ProjectPlanningContext(
     String digestId,
     String commitHash,

@@ -9,6 +9,9 @@ import jakarta.persistence.PrePersist;
 import jakarta.persistence.Table;
 import java.time.LocalDateTime;
 
+/**
+ * 代码调用轨迹实体。
+ */
 @Entity
 @Table(name = "code_trace_calls")
 class CodeTraceCallEntity {

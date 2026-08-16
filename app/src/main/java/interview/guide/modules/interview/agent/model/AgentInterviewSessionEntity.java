@@ -16,6 +16,9 @@ import jakarta.persistence.Version;
 
 import java.time.LocalDateTime;
 
+/**
+ * Agent 面试会话 JPA 实体（agent-loop-v2）。
+ */
 @Entity
 @Table(name = "agent_interview_sessions", indexes = {
     @Index(name = "idx_agent_interview_status_created", columnList = "status,created_at")

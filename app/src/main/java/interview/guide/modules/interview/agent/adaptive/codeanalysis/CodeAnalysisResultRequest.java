@@ -5,6 +5,9 @@ import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.PositiveOrZero;
 import java.util.List;
 
+/**
+ * 代码分析结果请求。
+ */
 public record CodeAnalysisResultRequest(
     @NotNull @Valid ProjectDigest digest,
     @NotNull List<@Valid ClaimVerification> claimVerifications,

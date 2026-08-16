@@ -6,6 +6,9 @@ import org.springframework.stereotype.Component;
 
 import java.time.Duration;
 
+/**
+ * Agent 面试运行配置，绑定 deadline、评估超时和决策超时等参数。
+ */
 @Data
 @Component
 @ConfigurationProperties(prefix = "app.interview.agent-loop")

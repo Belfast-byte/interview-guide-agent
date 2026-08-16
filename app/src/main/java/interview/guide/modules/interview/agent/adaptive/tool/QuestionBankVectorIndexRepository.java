@@ -8,6 +8,9 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Repository;
 
+/**
+ * 题库向量索引仓储。
+ */
 @Repository
 @RequiredArgsConstructor
 class QuestionBankVectorIndexRepository {

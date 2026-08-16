@@ -13,6 +13,9 @@ import org.springframework.ai.tool.ToolCallback;
 import org.springframework.ai.tool.function.FunctionToolCallback;
 import org.springframework.stereotype.Component;
 
+/**
+ * 加载面试技能工具，允许 Agent 在面试中按需加载 SKILL.md。
+ */
 @Component
 public class LoadSkillTool implements AdaptiveAgentTool {
 

@@ -21,6 +21,9 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 import java.util.List;
 
+/**
+ * 自适应面试 REST 控制器，暴露创建、答题、查询、报告等接口。
+ */
 @RestController
 @RequestMapping("/api/adaptive-agent-interviews")
 @RequiredArgsConstructor

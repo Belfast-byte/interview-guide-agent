@@ -13,6 +13,9 @@ import org.springframework.ai.vectorstore.SearchRequest;
 import org.springframework.ai.vectorstore.VectorStore;
 import org.springframework.stereotype.Component;
 
+/**
+ * 题库语义搜索服务。
+ */
 @Component("localQuestionBankSearchSource")
 @RequiredArgsConstructor
 class QuestionBankSemanticSearch implements QuestionBankSearchSource {

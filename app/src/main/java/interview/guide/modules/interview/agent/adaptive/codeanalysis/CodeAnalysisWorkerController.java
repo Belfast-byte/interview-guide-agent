@@ -14,6 +14,9 @@ import org.springframework.web.bind.annotation.RequestHeader;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
+/**
+ * 代码分析 Worker 回调控制器。
+ */
 @RestController
 @RequestMapping("/internal/code-analysis/jobs")
 @RequiredArgsConstructor

@@ -8,6 +8,9 @@ import org.springframework.ai.tokenizer.JTokkitTokenCountEstimator;
 import org.springframework.ai.tokenizer.TokenCountEstimator;
 import org.springframework.stereotype.Component;
 
+/**
+ * 输入 Token 预算控制器，防止单轮上下文超限。
+ */
 @Component
 public class AdaptiveInputTokenBudget {
 

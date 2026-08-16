@@ -6,6 +6,9 @@ import interview.guide.modules.interview.agent.adaptive.algorithm.SandboxRunMode
 import interview.guide.modules.interview.agent.adaptive.algorithm.SandboxVerdict;
 import interview.guide.modules.interview.agent.adaptive.algorithm.SandboxPolicyViolation;
 
+/**
+ * 沙箱执行结果响应，封装提交状态、评测结论与资源消耗。
+ */
 public record SandboxExecutionResponse(
     String submissionId,
     int submissionSeq,

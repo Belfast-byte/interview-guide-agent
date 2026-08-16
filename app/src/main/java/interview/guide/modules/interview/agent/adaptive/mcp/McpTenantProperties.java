@@ -12,6 +12,9 @@ import org.springframework.boot.context.properties.ConfigurationProperties;
 import org.springframework.stereotype.Component;
 import org.springframework.validation.annotation.Validated;
 
+/**
+ * MCP 租户配置。
+ */
 @Getter
 @Setter
 @Component

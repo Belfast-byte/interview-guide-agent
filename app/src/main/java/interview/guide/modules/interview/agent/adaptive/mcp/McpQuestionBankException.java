@@ -1,5 +1,8 @@
 package interview.guide.modules.interview.agent.adaptive.mcp;
 
+/**
+ * MCP 题库异常。
+ */
 public class McpQuestionBankException extends RuntimeException {
 
   private final McpQuestionBankFailureReason reason;

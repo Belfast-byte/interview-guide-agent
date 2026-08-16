@@ -9,6 +9,9 @@ import jakarta.persistence.PrePersist;
 import jakarta.persistence.Table;
 import java.time.LocalDateTime;
 
+/**
+ * 声明核验 JPA 实体。
+ */
 @Entity
 @Table(name = "claim_verifications")
 class ClaimVerificationEntity {

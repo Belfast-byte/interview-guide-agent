@@ -1,5 +1,8 @@
 package interview.guide.modules.interview.agent.adaptive.algorithm;
 
+/**
+ * 沙箱策略违规枚举。
+ */
 public enum SandboxPolicyViolation {
   NETWORK_ACCESS,
   FILESYSTEM_ACCESS,

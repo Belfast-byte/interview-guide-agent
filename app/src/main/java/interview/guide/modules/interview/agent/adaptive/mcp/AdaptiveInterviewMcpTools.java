@@ -14,6 +14,9 @@ import org.springframework.ai.mcp.annotation.context.McpSyncRequestContext;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.stereotype.Component;
 
+/**
+ * 自适应面试 MCP 工具集合，将面试能力暴露给外部 MCP 客户端。
+ */
 @Component
 @RequiredArgsConstructor
 @ConditionalOnProperty(

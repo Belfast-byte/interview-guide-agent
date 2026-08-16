@@ -16,6 +16,9 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
 
+/**
+ * Agent 面试持久化服务，负责会话、轮次和状态的读写与状态流转。
+ */
 @Service
 @RequiredArgsConstructor
 public class AgentInterviewPersistenceService {

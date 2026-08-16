@@ -15,6 +15,9 @@ import jakarta.persistence.Table;
 import jakarta.persistence.UniqueConstraint;
 import java.time.LocalDateTime;
 
+/**
+ * CandidateMemoryClaimEntity JPA 实体，对应数据库中的相关表。
+ */
 @Entity
 @Table(
     name = "candidate_memory_claims",

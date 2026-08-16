@@ -11,6 +11,9 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+/**
+ * 代码轨迹持久化服务。
+ */
 @Service
 @RequiredArgsConstructor
 public class CodeTracePersistenceService {

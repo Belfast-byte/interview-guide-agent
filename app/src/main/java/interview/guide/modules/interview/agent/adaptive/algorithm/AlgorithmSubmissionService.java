@@ -5,6 +5,9 @@ import interview.guide.common.exception.ErrorCode;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 
+/**
+ * 算法提交服务，将代码提交到沙箱并记录执行。
+ */
 @Service
 @RequiredArgsConstructor
 public class AlgorithmSubmissionService {

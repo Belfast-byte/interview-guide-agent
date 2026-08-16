@@ -6,6 +6,9 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+/**
+ * 题库向量索引持久化服务。
+ */
 @Service
 @RequiredArgsConstructor
 class QuestionBankVectorIndexPersistenceService {

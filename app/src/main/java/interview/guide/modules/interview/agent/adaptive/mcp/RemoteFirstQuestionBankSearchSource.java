@@ -9,6 +9,9 @@ import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.context.annotation.Primary;
 import org.springframework.stereotype.Component;
 
+/**
+ * 远程优先的题库搜索源，先走 MCP 远程题库再回退本地。
+ */
 @Primary
 @Component
 @ConditionalOnProperty(

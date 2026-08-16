@@ -21,6 +21,9 @@ import org.springframework.ai.mcp.annotation.context.McpSyncRequestContext;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.stereotype.Component;
 
+/**
+ * 代码分析 MCP 工具集合。
+ */
 @Component
 @RequiredArgsConstructor
 @ConditionalOnProperty(

@@ -17,6 +17,9 @@ import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.util.Map;
 
+/**
+ * 基于 Spring AI 的 Agent 模型网关实现，负责组装 Prompt 并调用 LLM 获取结构化决策。
+ */
 @Slf4j
 @Component
 public class SpringAiAgentModelGateway implements AgentModelGateway {

@@ -4,6 +4,9 @@ import interview.guide.common.exception.BusinessException;
 import interview.guide.common.exception.ErrorCode;
 import java.util.Map;
 
+/**
+ * 工具参数解析器。
+ */
 final class ToolArguments {
 
   private ToolArguments() {}

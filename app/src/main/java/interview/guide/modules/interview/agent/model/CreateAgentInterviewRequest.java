@@ -3,6 +3,9 @@ package interview.guide.modules.interview.agent.model;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.Size;
 
+/**
+ * 创建 Agent 面试请求。
+ */
 public record CreateAgentInterviewRequest(
     @NotBlank(message = "JD 不能为空")
     @Size(max = 20000, message = "JD 最多 20000 字符")

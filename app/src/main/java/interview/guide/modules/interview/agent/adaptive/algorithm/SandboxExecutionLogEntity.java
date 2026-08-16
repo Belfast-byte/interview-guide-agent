@@ -11,6 +11,9 @@ import jakarta.persistence.PrePersist;
 import jakarta.persistence.Table;
 import java.time.LocalDateTime;
 
+/**
+ * 沙箱执行日志实体。
+ */
 @Entity
 @Table(name = "sandbox_execution_logs")
 class SandboxExecutionLogEntity {

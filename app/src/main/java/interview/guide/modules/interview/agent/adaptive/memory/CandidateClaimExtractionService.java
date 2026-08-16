@@ -15,6 +15,9 @@ import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 
+/**
+ * 候选人声明抽取服务，从回答中提取可验证声明。
+ */
 @Service
 @RequiredArgsConstructor
 public class CandidateClaimExtractionService {

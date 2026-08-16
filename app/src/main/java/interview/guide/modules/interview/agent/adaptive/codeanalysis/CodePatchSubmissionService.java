@@ -14,6 +14,9 @@ import interview.guide.modules.interview.agent.adaptive.algorithm.StoredAlgorith
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 
+/**
+ * 代码补丁提交服务。
+ */
 @Service
 @RequiredArgsConstructor
 public class CodePatchSubmissionService {

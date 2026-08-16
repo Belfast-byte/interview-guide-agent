@@ -6,6 +6,9 @@ import interview.guide.infrastructure.redis.RedisService;
 import java.util.Map;
 import org.springframework.stereotype.Component;
 
+/**
+ * 代码分析任务流生产者。
+ */
 @Component
 class CodeAnalysisStreamProducer
     extends AbstractStreamProducer<CodeAnalysisStreamProducer.AnalysisTask> {

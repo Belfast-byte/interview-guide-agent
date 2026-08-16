@@ -2,6 +2,9 @@ package interview.guide.modules.interview.agent.adaptive.algorithm;
 
 import java.time.LocalDateTime;
 
+/**
+ * 沙箱执行值对象。
+ */
 public record SandboxExecution(
     String id,
     String sessionId,

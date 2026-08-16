@@ -9,6 +9,9 @@ import jakarta.persistence.PrePersist;
 import jakarta.persistence.Table;
 import java.time.LocalDateTime;
 
+/**
+ * 沙箱执行 JPA 实体。
+ */
 @Entity
 @Table(name = "sandbox_executions")
 class SandboxExecutionEntity {

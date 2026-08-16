@@ -5,6 +5,9 @@ import java.time.LocalDateTime;
 import java.util.List;
 import org.springframework.data.jpa.repository.JpaRepository;
 
+/**
+ * 项目仓库仓储。
+ */
 interface ProjectRepoRepository extends JpaRepository<ProjectRepoEntity, String> {
 
   Optional<ProjectRepoEntity> findBySessionIdAndCommitHash(String sessionId, String commitHash);

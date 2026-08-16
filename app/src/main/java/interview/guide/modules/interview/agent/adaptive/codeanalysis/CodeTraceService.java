@@ -3,6 +3,9 @@ package interview.guide.modules.interview.agent.adaptive.codeanalysis;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 
+/**
+ * 代码轨迹服务。
+ */
 @Service
 @RequiredArgsConstructor
 public class CodeTraceService {

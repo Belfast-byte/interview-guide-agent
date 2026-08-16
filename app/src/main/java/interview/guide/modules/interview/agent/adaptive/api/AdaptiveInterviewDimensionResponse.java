@@ -3,6 +3,9 @@ package interview.guide.modules.interview.agent.adaptive.api;
 import interview.guide.modules.interview.agent.adaptive.planning.PlanDimensionStatus;
 import interview.guide.modules.interview.agent.adaptive.planning.PlannedDimension;
 
+/**
+ * 自适应面试维度响应。
+ */
 public record AdaptiveInterviewDimensionResponse(
     int order,
     String dimension,

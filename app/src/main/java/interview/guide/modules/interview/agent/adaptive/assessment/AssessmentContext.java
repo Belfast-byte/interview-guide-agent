@@ -3,6 +3,9 @@ package interview.guide.modules.interview.agent.adaptive.assessment;
 import java.util.Arrays;
 import java.util.List;
 
+/**
+ * 自适应评估上下文，包含维度、考察重点、问题、回答、工具结果与深度量规。
+ */
 public record AssessmentContext(
     String dimension,
     String focus,

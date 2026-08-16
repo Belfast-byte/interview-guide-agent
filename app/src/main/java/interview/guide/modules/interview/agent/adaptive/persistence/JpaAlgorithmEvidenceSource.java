@@ -12,6 +12,9 @@ import java.util.stream.Collectors;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+/**
+ * 基于 JPA 的算法评估证据来源实现。
+ */
 @Service
 class JpaAlgorithmEvidenceSource implements AlgorithmEvidenceSource {
 

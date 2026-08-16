@@ -14,6 +14,9 @@ import jakarta.persistence.PrePersist;
 import jakarta.persistence.Table;
 import java.time.LocalDateTime;
 
+/**
+ * AdaptiveAgentToolResultEventEntity JPA 实体，对应数据库中的相关表。
+ */
 @Entity
 @Table(name = "agent_tool_result_events")
 class AdaptiveAgentToolResultEventEntity {

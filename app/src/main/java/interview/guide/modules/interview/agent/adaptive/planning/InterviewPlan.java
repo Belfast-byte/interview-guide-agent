@@ -9,6 +9,9 @@ import java.util.List;
 import java.util.Locale;
 import java.util.Set;
 
+/**
+ * 面试计划值对象，包含维度列表、轮次预算和状态，并提供按轮次定位维度等行为。
+ */
 public record InterviewPlan(
     String sessionId,
     int maxTurns,

@@ -14,6 +14,9 @@ import java.security.NoSuchAlgorithmException;
 import java.util.HexFormat;
 import java.util.List;
 
+/**
+ * 基于 Spring AI Agent Utils 的面试技能目录实现，从 classpath 加载 SKILL.md 技能。
+ */
 @Component
 @RequiredArgsConstructor
 public class InterviewSkillServiceCatalog implements InterviewSkillCatalog {

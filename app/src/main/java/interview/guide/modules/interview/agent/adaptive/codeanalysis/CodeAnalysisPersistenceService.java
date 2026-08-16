@@ -12,6 +12,9 @@ import org.springframework.transaction.annotation.Transactional;
 import tools.jackson.core.JacksonException;
 import tools.jackson.databind.ObjectMapper;
 
+/**
+ * 代码分析持久化服务，管理任务、项目快照和核验记录。
+ */
 @Service
 @RequiredArgsConstructor
 public class CodeAnalysisPersistenceService {

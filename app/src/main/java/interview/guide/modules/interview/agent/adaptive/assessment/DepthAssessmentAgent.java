@@ -5,6 +5,9 @@ import interview.guide.common.exception.ErrorCode;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 
+/**
+ * 深度评估 Agent，按深度量规对候选人回答进行评级并提取证据。
+ */
 @Service
 @RequiredArgsConstructor
 public class DepthAssessmentAgent {

@@ -37,6 +37,9 @@ import tools.jackson.core.JacksonException;
 import tools.jackson.core.type.TypeReference;
 import tools.jackson.databind.ObjectMapper;
 
+/**
+ * 基于 Spring AI 的自适应 Agent 模型网关，按角色组装 Prompt 并调用 LLM。
+ */
 @Component
 public class SpringAiAdaptiveAgentModelGateway implements AgentModelGateway {
 

@@ -2,6 +2,9 @@ package interview.guide.modules.interview.agent.adaptive.planning;
 
 import java.util.List;
 
+/**
+ * 已规划维度，包含考察重点、预算和建议技能。
+ */
 public record PlannedDimension(
     int order,
     String dimension,

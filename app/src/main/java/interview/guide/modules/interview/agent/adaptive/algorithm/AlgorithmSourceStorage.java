@@ -11,6 +11,9 @@ import java.util.UUID;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Component;
 
+/**
+ * 算法源码存储。
+ */
 @Component
 @RequiredArgsConstructor
 public class AlgorithmSourceStorage {

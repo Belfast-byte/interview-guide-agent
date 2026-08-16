@@ -20,6 +20,9 @@ import org.springframework.stereotype.Component;
 import tools.jackson.core.JacksonException;
 import tools.jackson.databind.ObjectMapper;
 
+/**
+ * 基于 Spring AI 的维度简报生成器。
+ */
 @Component
 public class SpringAiDimensionBriefGenerator implements DimensionBriefGenerator {
 

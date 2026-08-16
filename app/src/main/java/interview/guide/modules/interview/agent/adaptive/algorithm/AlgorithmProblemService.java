@@ -5,6 +5,9 @@ import java.nio.charset.StandardCharsets;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 
+/**
+ * 算法题目服务。
+ */
 @Service
 @RequiredArgsConstructor
 public class AlgorithmProblemService {

@@ -1,5 +1,8 @@
 package interview.guide.modules.interview.agent.adaptive.core;
 
+/**
+ * 自适应面试单轮领域对象，记录问题、回答、工具调用和评估摘要。
+ */
 public record AdaptiveInterviewTurn(
     int turnIndex,
     Integer dimensionOrder,

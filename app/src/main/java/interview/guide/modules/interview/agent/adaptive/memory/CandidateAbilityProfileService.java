@@ -6,6 +6,9 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+/**
+ * 候选人能力画像服务，维护跨会话的能力标签和轨迹。
+ */
 @Service
 @RequiredArgsConstructor
 public class CandidateAbilityProfileService {

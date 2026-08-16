@@ -7,6 +7,9 @@ import java.util.Set;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 
+/**
+ * 算法题目选择服务，根据面试上下文挑选合适题目。
+ */
 @Service
 @RequiredArgsConstructor
 public class AlgorithmProblemSelectionService {

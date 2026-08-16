@@ -6,6 +6,9 @@ import interview.guide.modules.interview.agent.adaptive.memory.CandidateAbilityP
 import java.util.List;
 import org.springframework.stereotype.Service;
 
+/**
+ * 评估回填服务，为历史会话补写缺失的评估结果。
+ */
 @Service
 public class AssessmentBackfillService {
 

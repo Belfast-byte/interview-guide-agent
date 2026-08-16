@@ -2,6 +2,9 @@ package interview.guide.modules.interview.agent.adaptive.algorithm;
 
 import java.util.List;
 
+/**
+ * 沙箱执行结果。
+ */
 public record SandboxExecutionResult(
     SandboxVerdict verdict,
     int passed,

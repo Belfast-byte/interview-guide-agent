@@ -11,6 +11,9 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+/**
+ * 算法面试持久化服务，管理题目、提交和执行记录。
+ */
 @Service
 @RequiredArgsConstructor
 public class AlgorithmPersistenceService {

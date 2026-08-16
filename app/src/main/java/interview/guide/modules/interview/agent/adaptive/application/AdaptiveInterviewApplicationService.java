@@ -53,6 +53,9 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.dao.OptimisticLockingFailureException;
 import org.springframework.stereotype.Service;
 
+/**
+ * 自适应面试应用服务，是面试流程的总编排入口，负责创建会话、提交回答、生成报告和回填评估。
+ */
 @Service
 @RequiredArgsConstructor
 public class AdaptiveInterviewApplicationService {
@@ -74,6 +77,15 @@ public class AdaptiveInterviewApplicationService {
   private final AlgorithmInterviewTelemetry algorithmTelemetry;
   private final CodeAnalysisInterviewContextService codeAnalysisContextService;
 
+  /**
+   * 创建一次非租户维度的自适应面试：规划面试计划并生成首轮决策。
+   *
+   * @param candidateId 候选人 ID
+   * @param jd 职位描述
+   * @param resume 候选人简历
+   * @param llmProvider 使用的 LLM 供应商
+   * @return 已创建的自适应面试
+   */
   public PlannedInterview create(
       String candidateId,
       String jd,
@@ -83,6 +95,16 @@ public class AdaptiveInterviewApplicationService {
     return create(null, candidateId, jd, resume, llmProvider);
   }
 
+  /**
+   * 创建指定租户下的自适应面试，用于多租户隔离场景。
+   *
+   * @param tenantId 租户 ID
+   * @param candidateId 候选人 ID
+   * @param jd 职位描述
+   * @param resume 候选人简历
+   * @param llmProvider 使用的 LLM 供应商
+   * @return 已创建的自适应面试
+   */
   public PlannedInterview createForTenant(
       String tenantId,
       String candidateId,
@@ -160,6 +182,13 @@ public class AdaptiveInterviewApplicationService {
     );
   }
 
+  /**
+   * 提交候选人回答：执行深度评估、持久化轮次，并让面试官 Agent 决定下一轮动作。
+   *
+   * @param sessionId 会话 ID
+   * @param answer 候选人回答
+   * @return 推进后的面试状态
+   */
   public PlannedInterview submitAnswer(String sessionId, CandidateAnswer answer) {
     PlannedInterview interview = persistenceService.get(sessionId);
     AdaptiveInterviewHistory history = interview.history();
@@ -291,10 +320,22 @@ public class AdaptiveInterviewApplicationService {
     }
   }
 
+  /**
+   * 获取指定自适应面试的当前状态。
+   *
+   * @param sessionId 会话 ID
+   * @return 面试聚合
+   */
   public PlannedInterview get(String sessionId) {
     return persistenceService.get(sessionId);
   }
 
+  /**
+   * 在代码分析完成后重新规划面试：用代码分析结论替换初始计划并重新生成首轮决策。
+   *
+   * @param sessionId 会话 ID
+   * @return 重新规划后的面试
+   */
   public PlannedInterview replanWithCodeAnalysis(String sessionId) {
     PlannedInterview current = persistenceService.get(sessionId);
     AdaptiveInterviewHistory history = current.history();
@@ -338,10 +379,24 @@ public class AdaptiveInterviewApplicationService {
     );
   }
 
+  /**
+   * 获取指定租户下的面试状态。
+   *
+   * @param tenantId 租户 ID
+   * @param sessionId 会话 ID
+   * @return 面试聚合
+   */
   public PlannedInterview getForTenant(String tenantId, String sessionId) {
     return persistenceService.getForTenant(tenantId, sessionId);
   }
 
+  /**
+   * 处理异步工具结果事件：预留事件、让面试官生成追问，并持久化结果。
+   *
+   * @param sessionId 会话 ID
+   * @param event 工具结果事件
+   * @return 生成的追问响应；若事件已被其他请求处理则返回空
+   */
   public Optional<RespondAction> handleToolResult(
       String sessionId,
       ToolResultEvent event
@@ -387,6 +442,13 @@ public class AdaptiveInterviewApplicationService {
     }
   }
 
+  /**
+   * 当算法评测结果到达后，基于运行结果重新评估该轮回答并替换原有评估。
+   *
+   * @param sessionId 会话 ID
+   * @param turnIndex 需要重新评估的轮次
+   * @param toolResult 算法沙箱评测结果原文
+   */
   public void reassessAlgorithmResult(
       String sessionId,
       int turnIndex,
@@ -428,6 +490,12 @@ public class AdaptiveInterviewApplicationService {
     );
   }
 
+  /**
+   * 查询指定会话中由工具结果触发的待处理/已完成追问列表。
+   *
+   * @param sessionId 会话 ID
+   * @return 工具结果追问列表
+   */
   public List<ToolResultFollowUp> toolResultFollowUps(String sessionId) {
     return persistenceService.toolResultFollowUps(sessionId);
   }

@@ -2,6 +2,9 @@ package interview.guide.modules.interview.agent.adaptive.codeanalysis;
 
 import java.util.List;
 
+/**
+ * 项目摘要。
+ */
 public record ProjectDigest(
     String digestId,
     String commitHash,

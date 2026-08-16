@@ -1,5 +1,8 @@
 package interview.guide.modules.interview.agent.adaptive.algorithm;
 
+/**
+ * 创建沙箱执行的请求。
+ */
 public record CreateSandboxExecution(
     String sessionId,
     int turnIndex,
