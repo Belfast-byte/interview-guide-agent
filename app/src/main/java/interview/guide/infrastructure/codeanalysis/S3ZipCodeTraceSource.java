@@ -3,10 +3,11 @@ package interview.guide.infrastructure.codeanalysis;
 import interview.guide.common.exception.BusinessException;
 import interview.guide.common.exception.ErrorCode;
 import interview.guide.infrastructure.file.FileStorageService;
-import interview.guide.modules.interview.agent.adaptive.codeanalysis.CodeAnalysisProperties;
 import interview.guide.modules.interview.agent.adaptive.codeanalysis.CodeAnchor;
-import interview.guide.modules.interview.agent.adaptive.codeanalysis.CodeTraceMatch;
-import interview.guide.modules.interview.agent.adaptive.codeanalysis.CodeTraceSource;
+import interview.guide.modules.interview.agent.adaptive.codeanalysis.job.CodeAnalysisProperties;
+import interview.guide.modules.interview.agent.adaptive.codeanalysis.repo.CodeAnalysisRepositoryKeyPolicy;
+import interview.guide.modules.interview.agent.adaptive.codeanalysis.trace.CodeTraceMatch;
+import interview.guide.modules.interview.agent.adaptive.codeanalysis.trace.CodeTraceSource;
 import java.io.ByteArrayInputStream;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
@@ -31,7 +32,14 @@ public class S3ZipCodeTraceSource implements CodeTraceSource {
   private final CodeAnalysisProperties properties;
 
   @Override
-  public List<CodeTraceMatch> trace(String repositoryRef, String query, int limit) {
+  public List<CodeTraceMatch> trace(
+      String tenantId,
+      String sessionId,
+      String repositoryRef,
+      String query,
+      int limit
+  ) {
+    CodeAnalysisRepositoryKeyPolicy.requireOwned(repositoryRef, tenantId, sessionId);
     byte[] snapshot = fileStorageService.downloadFile(repositoryRef);
     if (snapshot.length > properties.getMaxSnapshotBytes()) {
       throw new BusinessException(ErrorCode.BAD_REQUEST, "仓库快照超过大小上限");

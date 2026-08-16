@@ -2,6 +2,10 @@ package interview.guide.modules.interview.agent.adaptive.codeanalysis;
 
 import interview.guide.common.exception.BusinessException;
 import interview.guide.common.exception.ErrorCode;
+import interview.guide.modules.interview.agent.adaptive.codeanalysis.claim.ClaimVerification;
+import interview.guide.modules.interview.agent.adaptive.codeanalysis.job.CodeAnalysisPersistenceService;
+import interview.guide.modules.interview.agent.adaptive.codeanalysis.job.CodeAnalysisProperties;
+import interview.guide.modules.interview.agent.adaptive.codeanalysis.repo.ProjectRepositorySnapshot;
 import java.util.LinkedHashSet;
 import java.util.Set;
 import lombok.RequiredArgsConstructor;
@@ -29,7 +33,12 @@ public class CodeAnalysisResultAcceptanceService {
       throw new BusinessException(ErrorCode.BAD_REQUEST, "代码分析 token 成本超过上限");
     }
     Set<CodeAnchor> anchors = anchors(result);
-    Set<CodeAnchor> missing = anchorCatalog.findMissing(snapshot.repositoryRef(), anchors);
+    Set<CodeAnchor> missing = anchorCatalog.findMissing(
+        snapshot.tenantId(),
+        snapshot.sessionId(),
+        snapshot.repositoryRef(),
+        anchors
+    );
     if (!missing.isEmpty()) {
       telemetry.anchorRejected();
       throw new BusinessException(

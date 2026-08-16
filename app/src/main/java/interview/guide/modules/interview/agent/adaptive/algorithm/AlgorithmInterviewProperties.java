@@ -20,6 +20,8 @@ public class AlgorithmInterviewProperties {
   private Duration sandboxConnectTimeout = Duration.ofSeconds(2);
   private Duration sandboxReadTimeout = Duration.ofSeconds(15);
   private Duration queuedTimeout = Duration.ofSeconds(90);
+  private Duration runningTimeout = Duration.ofSeconds(120);
+  private Duration resultReadyRedeliveryGrace = Duration.ofSeconds(30);
   private int patchTimeLimitMs = 10_000;
   private int patchMemoryLimitKb = 512 * 1024;
 }

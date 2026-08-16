@@ -5,7 +5,8 @@ import interview.guide.common.exception.ErrorCode;
 import interview.guide.infrastructure.file.FileStorageService;
 import interview.guide.modules.interview.agent.adaptive.codeanalysis.CodeAnchor;
 import interview.guide.modules.interview.agent.adaptive.codeanalysis.CodeAnchorCatalog;
-import interview.guide.modules.interview.agent.adaptive.codeanalysis.CodeAnalysisProperties;
+import interview.guide.modules.interview.agent.adaptive.codeanalysis.job.CodeAnalysisProperties;
+import interview.guide.modules.interview.agent.adaptive.codeanalysis.repo.CodeAnalysisRepositoryKeyPolicy;
 import java.io.ByteArrayInputStream;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
@@ -25,7 +26,13 @@ public class S3ZipCodeAnchorCatalog implements CodeAnchorCatalog {
   private final CodeAnalysisProperties properties;
 
   @Override
-  public Set<CodeAnchor> findMissing(String repositoryRef, Set<CodeAnchor> anchors) {
+  public Set<CodeAnchor> findMissing(
+      String tenantId,
+      String sessionId,
+      String repositoryRef,
+      Set<CodeAnchor> anchors
+  ) {
+    CodeAnalysisRepositoryKeyPolicy.requireOwned(repositoryRef, tenantId, sessionId);
     Set<CodeAnchor> missing = new LinkedHashSet<>(anchors);
     byte[] snapshot = fileStorageService.downloadFile(repositoryRef);
     if (snapshot.length > properties.getMaxSnapshotBytes()) {

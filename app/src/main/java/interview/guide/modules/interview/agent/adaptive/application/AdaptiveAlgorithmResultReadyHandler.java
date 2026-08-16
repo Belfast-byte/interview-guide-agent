@@ -1,11 +1,11 @@
 package interview.guide.modules.interview.agent.adaptive.application;
 
-import interview.guide.modules.interview.agent.adaptive.algorithm.AlgorithmResultReadyHandler;
-import interview.guide.modules.interview.agent.adaptive.algorithm.AlgorithmSessionFacts;
-import interview.guide.modules.interview.agent.adaptive.algorithm.AlgorithmAssessmentEvidenceService;
-import interview.guide.modules.interview.agent.adaptive.algorithm.SandboxExecution;
-import interview.guide.modules.interview.agent.adaptive.algorithm.SandboxExecutionStatus;
-import interview.guide.modules.interview.agent.adaptive.core.ToolResultEvent;
+import interview.guide.modules.interview.agent.adaptive.algorithm.judge.AlgorithmResultReadyHandler;
+import interview.guide.modules.interview.agent.adaptive.algorithm.evidence.AlgorithmSessionFacts;
+import interview.guide.modules.interview.agent.adaptive.algorithm.evidence.AlgorithmAssessmentEvidenceService;
+import interview.guide.modules.interview.agent.adaptive.algorithm.sandbox.SandboxExecution;
+import interview.guide.modules.interview.agent.adaptive.algorithm.sandbox.SandboxExecutionStatus;
+import interview.guide.modules.interview.agent.adaptive.core.event.ToolResultEvent;
 import interview.guide.modules.interview.agent.adaptive.observability.AlgorithmInterviewTelemetry;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Component;
@@ -52,7 +52,7 @@ class AdaptiveAlgorithmResultReadyHandler implements AlgorithmResultReadyHandler
         execution.sessionId(),
         new ToolResultEvent(
             turnIndex,
-            "sandbox_submit",
+            AlgorithmResultReadyHandler.SANDBOX_SUBMIT_TOOL_NAME,
             execution.id(),
             summary,
             summary

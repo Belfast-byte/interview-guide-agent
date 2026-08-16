@@ -1,21 +1,22 @@
-package interview.guide.modules.interview.agent.adaptive.codeanalysis;
+package interview.guide.modules.interview.agent.adaptive.codeanalysis.trace;
 
-import java.util.Set;
+import java.util.List;
 
 /**
- * 代码锚点目录接口。
+ * 代码轨迹来源接口。
  */
-public interface CodeAnchorCatalog {
+public interface CodeTraceSource {
 
   /**
    * @param tenantId 会话所属租户（服务端认定，不来自 repositoryRef）
    * @param sessionId 会话标识
    * @param repositoryRef 仓库快照 S3 key
    */
-  Set<CodeAnchor> findMissing(
+  List<CodeTraceMatch> trace(
       String tenantId,
       String sessionId,
       String repositoryRef,
-      Set<CodeAnchor> anchors
+      String query,
+      int limit
   );
 }

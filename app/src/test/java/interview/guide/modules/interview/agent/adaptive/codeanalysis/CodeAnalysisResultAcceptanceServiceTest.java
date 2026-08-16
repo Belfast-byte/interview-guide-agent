@@ -7,6 +7,10 @@ import static org.mockito.Mockito.when;
 import static org.mockito.Mockito.verifyNoInteractions;
 
 import interview.guide.common.exception.BusinessException;
+import interview.guide.modules.interview.agent.adaptive.codeanalysis.job.CodeAnalysisPersistenceService;
+import interview.guide.modules.interview.agent.adaptive.codeanalysis.job.CodeAnalysisProperties;
+import interview.guide.modules.interview.agent.adaptive.codeanalysis.repo.ProjectDigest;
+import interview.guide.modules.interview.agent.adaptive.codeanalysis.repo.ProjectRepositorySnapshot;
 import interview.guide.modules.interview.agent.adaptive.observability.CodeAnalysisTelemetry;
 import java.util.List;
 import java.util.Set;
@@ -61,9 +65,18 @@ class CodeAnalysisResultAcceptanceServiceTest {
         20
     );
     when(persistenceService.getRepositorySnapshot("job-1"))
-        .thenReturn(new ProjectRepositorySnapshot("repos/one.zip", "abc123"));
-    when(anchorCatalog.findMissing("repos/one.zip", Set.of(anchor)))
-        .thenReturn(Set.of(anchor));
+        .thenReturn(new ProjectRepositorySnapshot(
+            "tenant-a",
+            "session-1",
+            "code-analysis/tenant-a/session-1/repo.zip",
+            "abc123"
+        ));
+    when(anchorCatalog.findMissing(
+        "tenant-a",
+        "session-1",
+        "code-analysis/tenant-a/session-1/repo.zip",
+        Set.of(anchor)
+    )).thenReturn(Set.of(anchor));
 
     assertThatThrownBy(() -> service.accept("job-1", result))
         .isInstanceOf(BusinessException.class)
@@ -92,13 +105,28 @@ class CodeAnalysisResultAcceptanceServiceTest {
         20
     );
     when(persistenceService.getRepositorySnapshot("job-1"))
-        .thenReturn(new ProjectRepositorySnapshot("repos/one.zip", "abc123"));
-    when(anchorCatalog.findMissing("repos/one.zip", Set.of(anchor)))
-        .thenReturn(Set.of());
+        .thenReturn(new ProjectRepositorySnapshot(
+            "tenant-a",
+            "session-1",
+            "code-analysis/tenant-a/session-1/repo.zip",
+            "abc123"
+        ));
+    when(anchorCatalog.findMissing(
+        "tenant-a",
+        "session-1",
+        "code-analysis/tenant-a/session-1/repo.zip",
+        Set.of(anchor)
+    )).thenReturn(Set.of());
 
     service.accept("job-1", result);
 
     verify(persistenceService).complete("job-1", result);
+    verify(anchorCatalog).findMissing(
+        "tenant-a",
+        "session-1",
+        "code-analysis/tenant-a/session-1/repo.zip",
+        Set.of(anchor)
+    );
   }
 
   @Test
@@ -128,7 +156,12 @@ class CodeAnalysisResultAcceptanceServiceTest {
         101
     );
     when(persistenceService.getRepositorySnapshot("job-1"))
-        .thenReturn(new ProjectRepositorySnapshot("repos/one.zip", "abc123"));
+        .thenReturn(new ProjectRepositorySnapshot(
+            "tenant-a",
+            "session-1",
+            "code-analysis/tenant-a/session-1/repo.zip",
+            "abc123"
+        ));
 
     assertThatThrownBy(() -> service.accept("job-1", result))
         .isInstanceOf(BusinessException.class)

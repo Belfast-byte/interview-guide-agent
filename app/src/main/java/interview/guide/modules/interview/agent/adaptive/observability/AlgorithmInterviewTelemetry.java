@@ -2,10 +2,10 @@ package interview.guide.modules.interview.agent.adaptive.observability;
 
 import io.micrometer.core.instrument.Gauge;
 import io.micrometer.core.instrument.MeterRegistry;
-import interview.guide.modules.interview.agent.adaptive.algorithm.AlgorithmAssessmentMetricsSource;
-import interview.guide.modules.interview.agent.adaptive.algorithm.SandboxExecution;
-import interview.guide.modules.interview.agent.adaptive.algorithm.SandboxPolicyViolation;
-import interview.guide.modules.interview.agent.adaptive.algorithm.SandboxVerdict;
+import interview.guide.modules.interview.agent.adaptive.algorithm.evidence.AlgorithmAssessmentMetricsSource;
+import interview.guide.modules.interview.agent.adaptive.algorithm.sandbox.SandboxExecution;
+import interview.guide.modules.interview.agent.adaptive.algorithm.sandbox.SandboxPolicyViolation;
+import interview.guide.modules.interview.agent.adaptive.algorithm.sandbox.SandboxVerdict;
 import java.time.Duration;
 import java.util.concurrent.atomic.AtomicLong;
 import lombok.extern.slf4j.Slf4j;
@@ -25,6 +25,12 @@ public class AlgorithmInterviewTelemetry {
   static final String END_TO_END_DURATION =
       "app.interview.adaptive.algorithm.end-to-end.duration";
   static final String DEGRADATIONS = "app.interview.adaptive.algorithm.degradations";
+  static final String STUCK_RUNNING_TIMEOUTS =
+      "app.interview.adaptive.algorithm.stuck-running.timeouts";
+  static final String RESULT_READY_FAILED =
+      "app.interview.adaptive.algorithm.result-ready.failed";
+  static final String RESULT_READY_REDELIVERED =
+      "app.interview.adaptive.algorithm.result-ready.redelivered";
   static final String POLICY_VIOLATIONS =
       "app.interview.adaptive.algorithm.policy.violations";
   static final String INTERVIEW_TURNS = "app.interview.adaptive.algorithm.interview.turns";
@@ -117,6 +123,18 @@ public class AlgorithmInterviewTelemetry {
 
   public void degraded() {
     meterRegistry.counter(DEGRADATIONS).increment();
+  }
+
+  public void stuckRunningTimedOut() {
+    meterRegistry.counter(STUCK_RUNNING_TIMEOUTS).increment();
+  }
+
+  public void resultReadyFailed() {
+    meterRegistry.counter(RESULT_READY_FAILED).increment();
+  }
+
+  public void resultReadyRedelivered() {
+    meterRegistry.counter(RESULT_READY_REDELIVERED).increment();
   }
 
   private void submission(String status) {

@@ -2,17 +2,24 @@ package interview.guide.modules.interview.agent.adaptive.mcp;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
+import interview.guide.common.exception.BusinessException;
 import interview.guide.modules.interview.agent.adaptive.application.AdaptiveInterviewApplicationService;
-import interview.guide.modules.interview.agent.adaptive.codeanalysis.CodeAnalysisPersistenceService;
-import interview.guide.modules.interview.agent.adaptive.codeanalysis.CodeAnalysisProperties;
-import interview.guide.modules.interview.agent.adaptive.codeanalysis.CodeAnalysisSubmissionService;
-import interview.guide.modules.interview.agent.adaptive.codeanalysis.ProjectDigest;
-import interview.guide.modules.interview.agent.adaptive.codeanalysis.CodeTraceService;
+import interview.guide.modules.interview.agent.adaptive.codeanalysis.job.AnalysisJobStatus;
+import interview.guide.modules.interview.agent.adaptive.codeanalysis.job.CodeAnalysisJob;
+import interview.guide.modules.interview.agent.adaptive.codeanalysis.job.CodeAnalysisPersistenceService;
+import interview.guide.modules.interview.agent.adaptive.codeanalysis.job.CodeAnalysisProperties;
+import interview.guide.modules.interview.agent.adaptive.codeanalysis.job.CodeAnalysisSubmissionService;
+import interview.guide.modules.interview.agent.adaptive.codeanalysis.repo.ProjectDigest;
+import interview.guide.modules.interview.agent.adaptive.codeanalysis.trace.CodeTraceService;
 import io.modelcontextprotocol.common.McpTransportContext;
+import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Set;
 import org.junit.jupiter.api.BeforeEach;
@@ -130,5 +137,116 @@ class CodeAnalysisMcpToolsTest {
         "job-1",
         McpAuditOutcome.SUCCEEDED
     );
+  }
+
+  @Test
+  @DisplayName("提交他人租户前缀的仓库 key 时按跨租户 404 拒绝并写审计")
+  void shouldRejectRepositoryRefOfAnotherTenantPrefix() {
+    McpTenantPrincipal principal = principalWith(McpInterviewScope.CODE_ANALYSIS_SUBMIT);
+    when(context.transportContext()).thenReturn(transportContext);
+    when(transportContext.get(McpTenantTransportConfiguration.PRINCIPAL_KEY))
+        .thenReturn(principal);
+
+    assertThatThrownBy(() -> tools.submitRepository(
+        context,
+        "session-1",
+        "code-analysis/tenant-b/session-1/repo.zip",
+        "abc123"
+    ))
+        .isInstanceOf(BusinessException.class)
+        .hasFieldOrPropertyWithValue("code", 404)
+        .hasMessage("代码仓库快照不存在");
+
+    verify(submissionService, never()).submit(
+        anyString(),
+        anyString(),
+        anyString(),
+        anyString(),
+        any(LocalDateTime.class)
+    );
+    verify(auditService).record(
+        principal,
+        "code.submit_repo",
+        null,
+        McpAuditOutcome.NOT_FOUND
+    );
+  }
+
+  @Test
+  @DisplayName("提交平台其他命名空间(简历/候选人源码)的 key 时按跨租户 404 拒绝")
+  void shouldRejectRepositoryRefOutsideCodeAnalysisNamespace() {
+    McpTenantPrincipal principal = principalWith(McpInterviewScope.CODE_ANALYSIS_SUBMIT);
+    when(context.transportContext()).thenReturn(transportContext);
+    when(transportContext.get(McpTenantTransportConfiguration.PRINCIPAL_KEY))
+        .thenReturn(principal);
+
+    assertThatThrownBy(() -> tools.submitRepository(
+        context,
+        "session-1",
+        "sandbox/sources/session-1/00000000-0000-0000-0000-000000000001.java",
+        "abc123"
+    ))
+        .isInstanceOf(BusinessException.class)
+        .hasFieldOrPropertyWithValue("code", 404)
+        .hasMessage("代码仓库快照不存在");
+
+    verify(submissionService, never()).submit(
+        anyString(),
+        anyString(),
+        anyString(),
+        anyString(),
+        any(LocalDateTime.class)
+    );
+    verify(auditService).record(
+        principal,
+        "code.submit_repo",
+        null,
+        McpAuditOutcome.NOT_FOUND
+    );
+  }
+
+  @Test
+  @DisplayName("提交本租户会话前缀内的 key 时放行并投递分析任务")
+  void shouldSubmitRepositoryRefOwnedByTenant() {
+    McpTenantPrincipal principal = principalWith(McpInterviewScope.CODE_ANALYSIS_SUBMIT);
+    CodeAnalysisJob job = new CodeAnalysisJob(
+        "job-1",
+        "session-1",
+        "repo-1",
+        AnalysisJobStatus.PENDING,
+        null,
+        null,
+        null,
+        null
+    );
+    when(context.transportContext()).thenReturn(transportContext);
+    when(transportContext.get(McpTenantTransportConfiguration.PRINCIPAL_KEY))
+        .thenReturn(principal);
+    when(submissionService.submit(
+        eq("session-1"),
+        eq("tenant-a"),
+        eq("code-analysis/tenant-a/session-1/repo.zip"),
+        eq("abc123"),
+        any(LocalDateTime.class)
+    )).thenReturn(job);
+
+    assertThat(tools.submitRepository(
+        context,
+        "session-1",
+        "code-analysis/tenant-a/session-1/repo.zip",
+        "abc123"
+    )).isSameAs(job);
+
+    verify(interviewService).getForTenant("tenant-a", "session-1");
+    verify(auditService).record(
+        principal,
+        "code.submit_repo",
+        "job-1",
+        McpAuditOutcome.SUCCEEDED
+    );
+  }
+
+  private McpTenantPrincipal principalWith(McpInterviewScope scope) {
+    return new McpTenantPrincipal("tenant-a", "credential-a", Set.of(scope));
   }
 }

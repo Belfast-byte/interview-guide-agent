@@ -3,15 +3,16 @@ package interview.guide.modules.interview.agent.adaptive.mcp;
 import interview.guide.common.exception.BusinessException;
 import interview.guide.common.exception.ErrorCode;
 import interview.guide.modules.interview.agent.adaptive.application.AdaptiveInterviewApplicationService;
-import interview.guide.modules.interview.agent.adaptive.codeanalysis.ClaimVerification;
-import interview.guide.modules.interview.agent.adaptive.codeanalysis.CodeAnalysisJob;
-import interview.guide.modules.interview.agent.adaptive.codeanalysis.CodeAnalysisPersistenceService;
-import interview.guide.modules.interview.agent.adaptive.codeanalysis.CodeAnalysisProperties;
-import interview.guide.modules.interview.agent.adaptive.codeanalysis.CodeAnalysisSubmissionService;
-import interview.guide.modules.interview.agent.adaptive.codeanalysis.CodeTraceResult;
-import interview.guide.modules.interview.agent.adaptive.codeanalysis.CodeTraceService;
-import interview.guide.modules.interview.agent.adaptive.codeanalysis.ProjectDigest;
-import interview.guide.modules.interview.agent.adaptive.codeanalysis.ScenarioCard;
+import interview.guide.modules.interview.agent.adaptive.codeanalysis.claim.ClaimVerification;
+import interview.guide.modules.interview.agent.adaptive.codeanalysis.job.CodeAnalysisJob;
+import interview.guide.modules.interview.agent.adaptive.codeanalysis.job.CodeAnalysisPersistenceService;
+import interview.guide.modules.interview.agent.adaptive.codeanalysis.job.CodeAnalysisProperties;
+import interview.guide.modules.interview.agent.adaptive.codeanalysis.job.CodeAnalysisSubmissionService;
+import interview.guide.modules.interview.agent.adaptive.codeanalysis.repo.CodeAnalysisRepositoryKeyPolicy;
+import interview.guide.modules.interview.agent.adaptive.codeanalysis.repo.ProjectDigest;
+import interview.guide.modules.interview.agent.adaptive.codeanalysis.scenario.ScenarioCard;
+import interview.guide.modules.interview.agent.adaptive.codeanalysis.trace.CodeTraceResult;
+import interview.guide.modules.interview.agent.adaptive.codeanalysis.trace.CodeTraceService;
 import java.time.LocalDateTime;
 import java.util.List;
 import lombok.RequiredArgsConstructor;
@@ -53,7 +54,8 @@ public class CodeAnalysisMcpTools {
   public CodeAnalysisJob submitRepository(
       McpSyncRequestContext context,
       @McpToolParam(description = "Interview session identifier") String sessionId,
-      @McpToolParam(description = "S3 key or authorized git URL") String repositoryRef,
+      @McpToolParam(description = "平台生成的仓库快照 S3 key，须位于 code-analysis/{tenantId}/{sessionId}/ 前缀下")
+          String repositoryRef,
       @McpToolParam(description = "Repository snapshot commit hash") String commitHash
   ) {
     validateSubmitInput(sessionId, repositoryRef, commitHash);
@@ -63,6 +65,7 @@ public class CodeAnalysisMcpTools {
         McpInterviewScope.CODE_ANALYSIS_SUBMIT
     );
     interviewService.getForTenant(principal.tenantId(), sessionId);
+    requireOwnedRepositoryRef(principal, sessionId, repositoryRef);
     CodeAnalysisJob job = submissionService.submit(
         sessionId,
         principal.tenantId(),
@@ -128,7 +131,7 @@ public class CodeAnalysisMcpTools {
         McpInterviewScope.CODE_ANALYSIS_TRACE
     );
     interviewService.getForTenant(principal.tenantId(), sessionId);
-    CodeTraceResult result = traceService.trace(sessionId, query);
+    CodeTraceResult result = traceService.trace(principal.tenantId(), sessionId, query);
     auditService.record(principal, TRACE_TOOL, sessionId, McpAuditOutcome.SUCCEEDED);
     return result;
   }
@@ -170,6 +173,24 @@ public class CodeAnalysisMcpTools {
     }
     if (commitHash == null || commitHash.isBlank() || commitHash.length() > 64) {
       throw new BusinessException(ErrorCode.BAD_REQUEST, "commitHash 无效");
+    }
+  }
+
+  /**
+   * 强制仓库快照 key 落在当前租户会话前缀下，防止跨租户读取单 bucket 内的其他对象。
+   */
+  private void requireOwnedRepositoryRef(
+      McpTenantPrincipal principal,
+      String sessionId,
+      String repositoryRef
+  ) {
+    if (!CodeAnalysisRepositoryKeyPolicy.isOwned(
+        repositoryRef,
+        principal.tenantId(),
+        sessionId
+    )) {
+      auditService.record(principal, SUBMIT_TOOL, null, McpAuditOutcome.NOT_FOUND);
+      throw new BusinessException(ErrorCode.NOT_FOUND, "代码仓库快照不存在");
     }
   }
 }

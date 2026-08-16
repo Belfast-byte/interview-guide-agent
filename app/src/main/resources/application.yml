@@ -188,6 +188,8 @@ app:
       deadline: ${APP_INTERVIEW_AGENT_LOOP_DEADLINE:30s}
       assessment-timeout: ${APP_INTERVIEW_AGENT_LOOP_ASSESSMENT_TIMEOUT:10s}
       decision-timeout: ${APP_INTERVIEW_AGENT_LOOP_DECISION_TIMEOUT:20s}
+    adaptive-agent:
+      enabled: ${APP_INTERVIEW_ADAPTIVE_AGENT_ENABLED:false}
     evaluation:
       batch-size: ${APP_INTERVIEW_EVALUATION_BATCH_SIZE:8}
   resume:

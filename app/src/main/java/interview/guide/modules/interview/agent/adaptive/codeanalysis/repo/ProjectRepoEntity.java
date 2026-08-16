@@ -1,0 +1,81 @@
+package interview.guide.modules.interview.agent.adaptive.codeanalysis.repo;
+
+import jakarta.persistence.Column;
+import jakarta.persistence.Entity;
+import jakarta.persistence.Id;
+import jakarta.persistence.PrePersist;
+import jakarta.persistence.Table;
+import java.time.LocalDateTime;
+
+/**
+ * 项目仓库实体。
+ */
+@Entity
+@Table(name = "project_repos")
+public class ProjectRepoEntity {
+
+  @Id
+  @Column(length = 36)
+  private String id;
+
+  @Column(name = "session_id", nullable = false, length = 36)
+  private String sessionId;
+
+  @Column(name = "tenant_id", length = 64)
+  private String tenantId;
+
+  @Column(name = "repository_ref", nullable = false, length = 512)
+  private String repositoryRef;
+
+  @Column(name = "commit_hash", nullable = false, length = 64)
+  private String commitHash;
+
+  @Column(name = "expires_at", nullable = false)
+  private LocalDateTime expiresAt;
+
+  @Column(name = "created_at", nullable = false)
+  private LocalDateTime createdAt;
+
+  protected ProjectRepoEntity() {}
+
+  public ProjectRepoEntity(
+      String id,
+      String sessionId,
+      String tenantId,
+      String repositoryRef,
+      String commitHash,
+      LocalDateTime expiresAt
+  ) {
+    this.id = id;
+    this.sessionId = sessionId;
+    this.tenantId = tenantId;
+    this.repositoryRef = repositoryRef;
+    this.commitHash = commitHash;
+    this.expiresAt = expiresAt;
+  }
+
+  public String id() {
+    return id;
+  }
+
+  public String sessionId() {
+    return sessionId;
+  }
+
+  public String tenantId() {
+    return tenantId;
+  }
+
+  public String commitHash() {
+    return commitHash;
+  }
+
+  public String repositoryRef() {
+    return repositoryRef;
+  }
+
+  @PrePersist
+  void prePersist() {
+    createdAt = LocalDateTime.now();
+  }
+}
