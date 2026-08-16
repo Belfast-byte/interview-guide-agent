@@ -22,6 +22,7 @@ import interview.guide.modules.interview.agent.adaptive.core.CandidateCodeSubmis
 import interview.guide.modules.interview.agent.adaptive.core.CoveredTopic;
 import interview.guide.modules.interview.agent.adaptive.core.CandidateClaimType;
 import interview.guide.modules.interview.agent.adaptive.core.PlanningSkill;
+import interview.guide.modules.interview.agent.adaptive.core.ProbeGap;
 import interview.guide.modules.interview.agent.adaptive.core.UnverifiedClaim;
 import interview.guide.modules.interview.agent.adaptive.core.RespondAction;
 import interview.guide.modules.interview.agent.adaptive.core.ToolResultEvent;
@@ -48,6 +49,7 @@ import interview.guide.modules.interview.agent.adaptive.runtime.ReActResult;
 import interview.guide.modules.interview.agent.adaptive.runtime.ToolExecution;
 import interview.guide.modules.interview.agent.adaptive.runtime.ToolExecutionOutcome;
 import interview.guide.modules.interview.agent.adaptive.tool.SandboxSubmitTool;
+import interview.guide.modules.interview.skill.InterviewSkillService;
 import java.util.List;
 import java.util.concurrent.atomic.AtomicReference;
 import org.junit.jupiter.api.BeforeEach;
@@ -115,6 +117,9 @@ class AdaptiveInterviewApplicationServiceTest {
   @Mock
   private CodeAnalysisInterviewContextService codeAnalysisContextService;
 
+  @Mock
+  private InterviewSkillService skillService;
+
   private AdaptiveInterviewApplicationService service;
 
   @BeforeEach
@@ -142,7 +147,8 @@ class AdaptiveInterviewApplicationServiceTest {
         practiceRecommendationService,
         algorithmAssessmentEvidenceService,
         algorithmTelemetry,
-        codeAnalysisContextService
+        codeAnalysisContextService,
+        skillService
     );
   }
 
@@ -307,6 +313,83 @@ class AdaptiveInterviewApplicationServiceTest {
         anyList()
     );
     verify(telemetry).decisionFailed(eq("session-1"), eq(1), anyInt(), anyLong());
+  }
+
+  @Test
+  @DisplayName("评估产出的追问缺口进入同维度下一轮面试官上下文")
+  void shouldPassProbeGapsToSameDimensionInterviewer() {
+    ProbeGap gap = new ProbeGap("回答", "未说明失败场景");
+    AdaptiveInterviewApplicationService gapService = serviceWithAssessmentAgent(
+        new DepthAssessmentAgent((request, provider) -> new AssessmentProposal(
+            DepthLevel.L2,
+            0.8,
+            "描述了应用",
+            false,
+            List.of("回答"),
+            List.of(gap)
+        ))
+    );
+    PlannedInterview interview = interviewAtTurn(1);
+    CandidateAnswer answer = new CandidateAnswer(1, "回答");
+    RespondAction action = RespondAction.ask("下一题？", "继续验证");
+    when(persistenceService.get("session-1")).thenReturn(interview);
+    when(skillService.buildEvaluationReferenceSectionSafe("java-backend"))
+        .thenReturn("### Redis (REDIS)\n- 缓存穿透");
+    when(runtime.run(any(ReActRequest.class), any(ReActBudget.class)))
+        .thenReturn(ReActResult.withoutTools(action));
+    when(persistenceService.recordDecision(
+        eq("session-1"), eq(answer), eq(action), eq(List.of()),
+        isNull(), eq(List.of()), any(), anyList(), eq(List.of())
+    )).thenReturn(interview);
+    ArgumentCaptor<ReActRequest> request = ArgumentCaptor.forClass(ReActRequest.class);
+
+    gapService.submitAnswer("session-1", answer);
+
+    verify(runtime).run(request.capture(), any(ReActBudget.class));
+    assertThat(request.getValue().interviewerContext().currentAnswerGaps())
+        .containsExactly(gap);
+    verify(skillService).buildEvaluationReferenceSectionSafe("java-backend");
+  }
+
+  @Test
+  @DisplayName("当前维度完成后追问缺口不泄漏到下一维度")
+  void shouldClearProbeGapsWhenDimensionCompletes() {
+    ProbeGap gap = new ProbeGap("第二轮回答", "未说明失败场景");
+    AdaptiveInterviewApplicationService gapService = serviceWithAssessmentAgent(
+        new DepthAssessmentAgent((request, provider) -> new AssessmentProposal(
+            DepthLevel.L2,
+            0.8,
+            "描述了应用",
+            false,
+            List.of("第二轮回答"),
+            List.of(gap)
+        ))
+    );
+    PlannedInterview interview = interviewAtTurn(2);
+    CandidateAnswer answer = new CandidateAnswer(2, "第二轮回答");
+    RespondAction action = RespondAction.ask("项目经验问题？", "切换维度");
+    when(persistenceService.get("session-1")).thenReturn(interview);
+    when(runtime.run(any(ReActRequest.class), any(ReActBudget.class)))
+        .thenReturn(ReActResult.withoutTools(action));
+    when(dimensionBriefService.summarize(
+        eq("session-1"), any(), anyList(), eq(answer), nullable(String.class)
+    )).thenReturn(null);
+    when(candidateClaimExtractionService.extract(
+        eq("session-1"), any(), anyList(), eq(answer), anyList(), nullable(String.class)
+    )).thenReturn(List.of());
+    when(persistenceService.latestAssessmentDepth("session-1", 0))
+        .thenReturn(DepthLevel.L1);
+    when(persistenceService.recordDecision(
+        eq("session-1"), eq(answer), eq(action), eq(List.of()),
+        isNull(), eq(List.of()), any(), anyList(), eq(List.of())
+    )).thenReturn(interview);
+    ArgumentCaptor<ReActRequest> request = ArgumentCaptor.forClass(ReActRequest.class);
+
+    gapService.submitAnswer("session-1", answer);
+
+    verify(runtime).run(request.capture(), any(ReActBudget.class));
+    assertThat(request.getValue().interviewerContext().currentAnswerGaps()).isEmpty();
+    assertThat(request.getValue().interviewerContext().targetDimension()).isEqualTo("项目经验");
   }
 
   @Test

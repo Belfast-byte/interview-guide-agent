@@ -7,6 +7,7 @@ import interview.guide.modules.interview.agent.adaptive.core.DimensionBrief;
 import interview.guide.modules.interview.agent.adaptive.core.InterviewerContext;
 import interview.guide.modules.interview.agent.adaptive.core.PlannerContext;
 import interview.guide.modules.interview.agent.adaptive.core.PlanningSkill;
+import interview.guide.modules.interview.agent.adaptive.core.ProbeGap;
 import interview.guide.modules.interview.agent.adaptive.core.ProjectInterviewContext;
 import interview.guide.modules.interview.agent.adaptive.core.UnverifiedClaim;
 import interview.guide.modules.interview.agent.adaptive.core.ToolResultEvent;
@@ -70,6 +71,41 @@ public class ContextAssembler {
       List<DimensionBrief> dimensionBriefs,
       ProjectInterviewContext project
   ) {
+    return interviewer(
+        jd,
+        resume,
+        maxTurns,
+        targetDimensionOrder,
+        targetDimension,
+        targetFocus,
+        suggestedTools,
+        suggestedSkill,
+        turns,
+        candidateAnswer,
+        List.of(),
+        dimensionBriefs,
+        project
+    );
+  }
+
+  /**
+   * 组装带追问缺口的面试官上下文。
+   */
+  public InterviewerContext interviewer(
+      String jd,
+      String resume,
+      int maxTurns,
+      int targetDimensionOrder,
+      String targetDimension,
+      String targetFocus,
+      List<String> suggestedTools,
+      String suggestedSkill,
+      List<AdaptiveInterviewTurn> turns,
+      CandidateAnswer candidateAnswer,
+      List<ProbeGap> currentAnswerGaps,
+      List<DimensionBrief> dimensionBriefs,
+      ProjectInterviewContext project
+  ) {
     List<AdaptiveInterviewTurn> currentDimensionTurns = turns.stream()
         .filter(turn -> turn.dimensionOrder() == targetDimensionOrder)
         .toList();
@@ -90,6 +126,7 @@ public class ContextAssembler {
         suggestedSkill,
         currentDimensionTurns,
         currentDimensionAnswer,
+        currentDimensionAnswer == null ? List.of() : currentAnswerGaps,
         dimensionBriefs.stream()
             .filter(brief -> brief.dimensionOrder() != targetDimensionOrder)
             .toList(),
@@ -147,6 +184,40 @@ public class ContextAssembler {
   }
 
   /**
+   * 组装带追问缺口且无项目代码分析的面试官上下文。
+   */
+  public InterviewerContext interviewer(
+      String jd,
+      String resume,
+      int maxTurns,
+      int targetDimensionOrder,
+      String targetDimension,
+      String targetFocus,
+      List<String> suggestedTools,
+      String suggestedSkill,
+      List<AdaptiveInterviewTurn> turns,
+      CandidateAnswer candidateAnswer,
+      List<ProbeGap> currentAnswerGaps,
+      List<DimensionBrief> dimensionBriefs
+  ) {
+    return interviewer(
+        jd,
+        resume,
+        maxTurns,
+        targetDimensionOrder,
+        targetDimension,
+        targetFocus,
+        suggestedTools,
+        suggestedSkill,
+        turns,
+        candidateAnswer,
+        currentAnswerGaps,
+        dimensionBriefs,
+        null
+    );
+  }
+
+  /**
    * 组装“工具结果到达后”的面试官上下文，用于生成基于客观结果的追问。
    *
    * @param jd 职位描述
@@ -191,6 +262,7 @@ public class ContextAssembler {
             .filter(turn -> turn.dimensionOrder() == targetDimensionOrder)
             .toList(),
         null,
+        List.of(),
         dimensionBriefs.stream()
             .filter(brief -> brief.dimensionOrder() != targetDimensionOrder)
             .toList(),

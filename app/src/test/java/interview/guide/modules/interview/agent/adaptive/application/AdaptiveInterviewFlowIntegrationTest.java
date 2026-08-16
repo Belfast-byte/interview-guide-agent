@@ -30,6 +30,7 @@ import interview.guide.modules.interview.agent.adaptive.planning.PlannedIntervie
 import interview.guide.modules.interview.agent.adaptive.planning.PlanningTaxonomy;
 import interview.guide.modules.interview.agent.adaptive.role.AgentRoleRegistry;
 import interview.guide.modules.interview.agent.adaptive.runtime.BoundedReActRuntime;
+import interview.guide.modules.interview.skill.InterviewSkillService;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.atomic.AtomicInteger;
@@ -85,7 +86,8 @@ class AdaptiveInterviewFlowIntegrationTest {
         mock(PracticeRecommendationService.class),
         mock(AlgorithmAssessmentEvidenceService.class),
         mock(AlgorithmInterviewTelemetry.class),
-        mock(CodeAnalysisInterviewContextService.class)
+        mock(CodeAnalysisInterviewContextService.class),
+        mock(InterviewSkillService.class)
     );
 
     PlannedInterview created = service.create("candidate-1", "JD", "Resume", null);
@@ -155,7 +157,8 @@ class AdaptiveInterviewFlowIntegrationTest {
         mock(PracticeRecommendationService.class),
         mock(AlgorithmAssessmentEvidenceService.class),
         mock(AlgorithmInterviewTelemetry.class),
-        mock(CodeAnalysisInterviewContextService.class)
+        mock(CodeAnalysisInterviewContextService.class),
+        mock(InterviewSkillService.class)
     );
 
     PlannedInterview interview = service.create("candidate-1", "JD", "Resume", null);

@@ -8,3 +8,9 @@
 - 不得使用或推断候选人的历史表现、身份、简历声誉或长期画像。
 - rationaleSummary 只写不超过 500 字的一句判定摘要，不得包含思维链。
 - recommendSwitchQuestion 只是建议，最终动作由编排器裁决。
+- probeGaps 是给下一轮面试官的追问素材，不是评级：最多 2 条。
+- probeGaps[].anchor 必须逐字来自 answer 中实际出现的短语。
+- probeGaps[].missingPoint 只写“回答提到 X，但未说明 Y”，描述缺失的机制、证据、代价或边界。
+- probeGaps 不得出现 L0～L4、深浅、好坏、分数等评级语言；评级词只写在 rationaleSummary。
+- 回答已经覆盖关键机制与边界时，probeGaps 可以为空数组。
+- skillReferenceSection 是知识基线，不是逐字标准答案；合理方案即使不在其中也不能判错。

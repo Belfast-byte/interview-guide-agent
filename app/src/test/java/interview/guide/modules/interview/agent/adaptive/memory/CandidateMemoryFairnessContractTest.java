@@ -45,6 +45,20 @@ class CandidateMemoryFairnessContractTest {
         .doesNotContain("coveredTopics", "unverifiedClaims");
   }
 
+  @Test
+  @DisplayName("面试官可以接收追问缺口但不得接收评级结论")
+  void shouldAllowProbeGapsButNotRatingsInInterviewerContext() {
+    assertThat(componentNames(InterviewerContext.class))
+        .contains("currentDimensionAnswer", "currentAnswerGaps")
+        .doesNotContain(
+            "depthLevel",
+            "confidence",
+            "rationaleSummary",
+            "recommendSwitchQuestion",
+            "evidenceQuotes"
+        );
+  }
+
   private String[] componentNames(Class<? extends Record> type) {
     return Arrays.stream(type.getRecordComponents())
         .map(component -> component.getName())

@@ -42,4 +42,6 @@ public class AdaptiveAgentProperties {
       "classpath:prompts/adaptive-agent-assessment-system.st";
   private String assessmentUserPromptPath =
       "classpath:prompts/adaptive-agent-assessment-user.st";
+  private String assessmentExamplesPath =
+      "classpath:prompts/adaptive-agent-assessment-agents.md";
 }

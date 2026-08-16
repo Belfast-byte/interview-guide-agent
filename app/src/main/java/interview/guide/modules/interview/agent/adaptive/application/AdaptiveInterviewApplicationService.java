@@ -19,6 +19,7 @@ import interview.guide.modules.interview.agent.adaptive.core.AdaptiveInterviewTu
 import interview.guide.modules.interview.agent.adaptive.core.CandidateAnswer;
 import interview.guide.modules.interview.agent.adaptive.core.AgentResponseType;
 import interview.guide.modules.interview.agent.adaptive.core.DimensionBrief;
+import interview.guide.modules.interview.agent.adaptive.core.ProbeGap;
 import interview.guide.modules.interview.agent.adaptive.core.RespondAction;
 import interview.guide.modules.interview.agent.adaptive.core.ToolResultEvent;
 import interview.guide.modules.interview.agent.adaptive.core.ToolResultFollowUp;
@@ -45,6 +46,7 @@ import interview.guide.modules.interview.agent.adaptive.runtime.ReActResult;
 import interview.guide.modules.interview.agent.adaptive.runtime.ToolExecution;
 import interview.guide.modules.interview.agent.adaptive.runtime.ToolExecutionOutcome;
 import interview.guide.modules.interview.agent.adaptive.tool.SandboxSubmitTool;
+import interview.guide.modules.interview.skill.InterviewSkillService;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
@@ -76,6 +78,7 @@ public class AdaptiveInterviewApplicationService {
   private final AlgorithmAssessmentEvidenceService algorithmAssessmentEvidenceService;
   private final AlgorithmInterviewTelemetry algorithmTelemetry;
   private final CodeAnalysisInterviewContextService codeAnalysisContextService;
+  private final InterviewSkillService skillService;
 
   /**
    * 创建一次非租户维度的自适应面试：规划面试计划并生成首轮决策。
@@ -155,6 +158,7 @@ public class AdaptiveInterviewApplicationService {
         firstDimension,
         List.of(),
         null,
+        List.of(),
         List.of()
     ));
     if (tenantId == null) {
@@ -204,6 +208,9 @@ public class AdaptiveInterviewApplicationService {
                 currentDimension.focus(),
                 history.turns().getLast().question(),
                 answer.content()
+            ),
+            skillService.buildEvaluationReferenceSectionSafe(
+                currentDimension.suggestedSkill()
             )
         ),
         history.llmProvider()
@@ -218,6 +225,9 @@ public class AdaptiveInterviewApplicationService {
                 .toList()
         );
     boolean dimensionCompleted = completesDimension(currentDimension);
+    List<ProbeGap> nextProbeGaps = dimensionCompleted
+        ? List.of()
+        : assessment.probeGaps();
     DimensionBrief dimensionBrief = dimensionCompleted
         ? dimensionBriefService.summarize(
             sessionId,
@@ -264,7 +274,8 @@ public class AdaptiveInterviewApplicationService {
           nextDimension,
           history.turns(),
           answer,
-          briefsForNextDecision(interview.dimensionBriefs(), dimensionBrief)
+          briefsForNextDecision(interview.dimensionBriefs(), dimensionBrief),
+          nextProbeGaps
       ));
     }
     if (answer.codeSubmission() != null) {
@@ -369,6 +380,7 @@ public class AdaptiveInterviewApplicationService {
         firstDimension,
         List.of(),
         null,
+        List.of(),
         List.of()
     ));
     return persistenceService.replaceInitialPlan(
@@ -470,6 +482,9 @@ public class AdaptiveInterviewApplicationService {
                 turn.question(),
                 turn.answer(),
                 toolResult
+            ),
+            skillService.buildEvaluationReferenceSectionSafe(
+                dimension.suggestedSkill()
             )
         ),
         interview.history().llmProvider()
@@ -509,7 +524,8 @@ public class AdaptiveInterviewApplicationService {
       PlannedDimension dimension,
       List<AdaptiveInterviewTurn> turns,
       CandidateAnswer candidateAnswer,
-      List<DimensionBrief> dimensionBriefs
+      List<DimensionBrief> dimensionBriefs,
+      List<ProbeGap> probeGaps
   ) {
     return new ReActRequest(
         sessionId,
@@ -526,6 +542,7 @@ public class AdaptiveInterviewApplicationService {
             dimension.suggestedSkill(),
             turns,
             candidateAnswer,
+            probeGaps,
             dimensionBriefs,
             codeAnalysisContextService.findForSession(sessionId).orElse(null)
         )

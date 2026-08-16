@@ -7,6 +7,7 @@ import interview.guide.modules.interview.agent.adaptive.core.CoveredTopic;
 import interview.guide.modules.interview.agent.adaptive.core.DimensionBrief;
 import interview.guide.modules.interview.agent.adaptive.core.InterviewerContext;
 import interview.guide.modules.interview.agent.adaptive.core.PlannerContext;
+import interview.guide.modules.interview.agent.adaptive.core.ProbeGap;
 import interview.guide.modules.interview.agent.adaptive.core.PlanningSkill;
 import interview.guide.modules.interview.agent.adaptive.core.UnverifiedClaim;
 import interview.guide.modules.interview.agent.adaptive.core.CandidateClaimType;
@@ -64,6 +65,55 @@ class ContextAssemblerTest {
     assertThat(context.currentDimensionTurns()).containsExactly(currentDimension);
     assertThat(context.currentDimensionAnswer()).isEqualTo(answer);
     assertThat(context.currentTurn()).isEqualTo(2);
+  }
+
+  @Test
+  @DisplayName("同维度追问缺口随当前回答进入面试官上下文")
+  void shouldExposeCurrentAnswerGapsForSameDimension() {
+    AdaptiveInterviewTurn currentDimension = turn(2, 1, "当前维度问题", null);
+    CandidateAnswer answer = new CandidateAnswer(2, "当前维度回答");
+    ProbeGap gap = new ProbeGap("当前维度回答", "未说明失败场景");
+
+    InterviewerContext context = assembler.interviewer(
+        "JD",
+        "Resume",
+        6,
+        1,
+        "项目经验",
+        "架构取舍",
+        List.of(),
+        null,
+        List.of(turn(1, 0, "上一维度问题", "上一维度回答"), currentDimension),
+        answer,
+        List.of(gap),
+        List.of()
+    );
+
+    assertThat(context.currentAnswerGaps()).containsExactly(gap);
+  }
+
+  @Test
+  @DisplayName("切换维度时清空上一维度的追问缺口")
+  void shouldClearProbeGapsAfterDimensionSwitch() {
+    AdaptiveInterviewTurn answeredTurn = turn(1, 0, "专业基础问题", null);
+    ProbeGap gap = new ProbeGap("上一维度回答", "未说明失败场景");
+
+    InterviewerContext context = assembler.interviewer(
+        "JD",
+        "Resume",
+        6,
+        1,
+        "项目经验",
+        "架构取舍",
+        List.of(),
+        null,
+        List.of(answeredTurn),
+        new CandidateAnswer(1, "上一维度回答"),
+        List.of(gap),
+        List.of()
+    );
+
+    assertThat(context.currentAnswerGaps()).isEmpty();
   }
 
   @Test

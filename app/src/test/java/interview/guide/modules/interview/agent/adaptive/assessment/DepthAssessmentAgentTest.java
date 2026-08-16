@@ -1,6 +1,7 @@
 package interview.guide.modules.interview.agent.adaptive.assessment;
 
 import interview.guide.common.exception.BusinessException;
+import interview.guide.modules.interview.agent.adaptive.core.ProbeGap;
 import java.lang.reflect.RecordComponent;
 import java.util.Arrays;
 import java.util.List;
@@ -53,6 +54,45 @@ class DepthAssessmentAgentTest {
     assertThat(decision.rationaleSummary()).isEqualTo("能说明方案代价和边界");
     assertThat(decision.evidenceQuotes())
         .containsExactly("延迟双删只能降低概率");
+  }
+
+  @Test
+  @DisplayName("评估决策透传锚定原文的追问点")
+  void shouldCarryProbeGapsIntoDecision() {
+    ProbeGap gap = new ProbeGap("版本号", "未说明版本号如何推进");
+    DepthAssessmentAgent agent = new DepthAssessmentAgent((request, provider) ->
+        new AssessmentProposal(
+            DepthLevel.L2,
+            0.8,
+            "描述了应用",
+            false,
+            List.of("重要数据使用版本号"),
+            List.of(gap)
+        )
+    );
+
+    AssessmentDecision decision = agent.assess(request(), null);
+
+    assertThat(decision.probeGaps()).containsExactly(gap);
+  }
+
+  @Test
+  @DisplayName("追问点锚定内容不在回答原文时快速失败")
+  void shouldRejectProbeGapWithoutAnswerAnchor() {
+    DepthAssessmentAgent agent = new DepthAssessmentAgent((request, provider) ->
+        new AssessmentProposal(
+            DepthLevel.L2,
+            0.8,
+            "描述了应用",
+            false,
+            List.of("重要数据使用版本号"),
+            List.of(new ProbeGap("布隆过滤器", "未说明误判率"))
+        )
+    );
+
+    assertThatThrownBy(() -> agent.assess(request(), null))
+        .isInstanceOf(BusinessException.class)
+        .hasMessageContaining("锚定内容");
   }
 
   @Test

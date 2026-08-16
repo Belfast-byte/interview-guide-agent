@@ -37,6 +37,7 @@ public class SpringAiAssessmentProposalGenerator
   private final PromptTemplate systemPromptTemplate;
   private final PromptTemplate userPromptTemplate;
   private final BeanOutputConverter<AssessmentProposal> outputConverter;
+  private final String assessmentExamples;
 
   public SpringAiAssessmentProposalGenerator(
       LlmProviderRegistry llmProviderRegistry,
@@ -63,6 +64,9 @@ public class SpringAiAssessmentProposalGenerator
         resourceLoader.getResource(properties.getAssessmentUserPromptPath())
             .getContentAsString(StandardCharsets.UTF_8)
     );
+    this.assessmentExamples = resourceLoader
+        .getResource(properties.getAssessmentExamplesPath())
+        .getContentAsString(StandardCharsets.UTF_8);
     this.outputConverter = new BeanOutputConverter<>(AssessmentProposal.class);
   }
 
@@ -75,6 +79,9 @@ public class SpringAiAssessmentProposalGenerator
     try {
       String systemPrompt = systemPromptTemplate.render()
           + "\n\n"
+          + assessmentExamples
+          + "\n\n"
+          + skillReferenceSection(request.skillReferenceSection())
           + outputConverter.getFormat();
       String userPrompt = userPromptTemplate.render(Map.of(
           "contextJson",
@@ -112,6 +119,15 @@ public class SpringAiAssessmentProposalGenerator
       );
       throw e;
     }
+  }
+
+  private String skillReferenceSection(String skillReferenceSection) {
+    if (skillReferenceSection == null || skillReferenceSection.isBlank()) {
+      return "";
+    }
+    return "# Skill reference baseline\n"
+        + skillReferenceSection
+        + "\n\n";
   }
 
   private String serialize(AssessmentContext context) {

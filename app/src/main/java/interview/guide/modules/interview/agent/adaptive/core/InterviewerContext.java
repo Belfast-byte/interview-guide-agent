@@ -17,6 +17,7 @@ public record InterviewerContext(
     String suggestedSkill,
     List<AdaptiveInterviewTurn> currentDimensionTurns,
     CandidateAnswer currentDimensionAnswer,
+    List<ProbeGap> currentAnswerGaps,
     List<DimensionBrief> completedDimensionBriefs,
     ToolResultEvent currentToolResult,
     CandidateAnswer currentCodeSubmission,
@@ -49,6 +50,7 @@ public record InterviewerContext(
         suggestedSkill,
         currentDimensionTurns,
         currentDimensionAnswer,
+        List.of(),
         completedDimensionBriefs,
         null,
         null,
@@ -56,9 +58,82 @@ public record InterviewerContext(
     );
   }
 
+  public InterviewerContext(
+      String jd,
+      String resume,
+      int currentTurn,
+      int maxTurns,
+      int targetDimensionOrder,
+      String targetDimension,
+      String targetFocus,
+      List<String> suggestedTools,
+      String suggestedSkill,
+      List<AdaptiveInterviewTurn> currentDimensionTurns,
+      CandidateAnswer currentDimensionAnswer,
+      List<ProbeGap> currentAnswerGaps,
+      List<DimensionBrief> completedDimensionBriefs
+  ) {
+    this(
+        jd,
+        resume,
+        currentTurn,
+        maxTurns,
+        targetDimensionOrder,
+        targetDimension,
+        targetFocus,
+        suggestedTools,
+        suggestedSkill,
+        currentDimensionTurns,
+        currentDimensionAnswer,
+        currentAnswerGaps,
+        completedDimensionBriefs,
+        null,
+        null,
+        null
+    );
+  }
+
+  public InterviewerContext(
+      String jd,
+      String resume,
+      int currentTurn,
+      int maxTurns,
+      int targetDimensionOrder,
+      String targetDimension,
+      String targetFocus,
+      List<String> suggestedTools,
+      String suggestedSkill,
+      List<AdaptiveInterviewTurn> currentDimensionTurns,
+      CandidateAnswer currentDimensionAnswer,
+      List<DimensionBrief> completedDimensionBriefs,
+      ToolResultEvent currentToolResult,
+      CandidateAnswer currentCodeSubmission,
+      ProjectInterviewContext project
+  ) {
+    this(
+        jd,
+        resume,
+        currentTurn,
+        maxTurns,
+        targetDimensionOrder,
+        targetDimension,
+        targetFocus,
+        suggestedTools,
+        suggestedSkill,
+        currentDimensionTurns,
+        currentDimensionAnswer,
+        List.of(),
+        completedDimensionBriefs,
+        currentToolResult,
+        currentCodeSubmission,
+        project
+    );
+  }
+
   public InterviewerContext {
     suggestedTools = List.copyOf(suggestedTools);
     currentDimensionTurns = List.copyOf(currentDimensionTurns);
+    currentAnswerGaps = List.copyOf(currentAnswerGaps);
     completedDimensionBriefs = List.copyOf(completedDimensionBriefs);
   }
 

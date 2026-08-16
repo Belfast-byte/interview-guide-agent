@@ -105,6 +105,48 @@ class SpringAiAssessmentProposalGeneratorTest {
   }
 
   @Test
+  @DisplayName("评估 system prompt 注入 Skill 知识基线和 few-shot 校准示例")
+  void shouldIncludeSkillBaselineAndCalibrationExamplesInSystemPrompt() {
+    AssessmentProposal expected = new AssessmentProposal(
+        DepthLevel.L2,
+        0.8,
+        "说明了权衡",
+        false,
+        List.of("重要数据使用版本号")
+    );
+    when(invoke()).thenReturn(expected);
+    AssessmentRequest request = new AssessmentRequest(
+        "private-session-id",
+        1,
+        AssessmentContext.currentAnswer(
+            "专业基础",
+            "缓存一致性",
+            "如何保证缓存一致性？",
+            "延迟双删只能降低概率，重要数据使用版本号。"
+        ),
+        "### Redis (REDIS)\n- 缓存穿透：布隆过滤器 / 空值缓存"
+    );
+
+    generator.generate(request, "provider-1");
+
+    ArgumentCaptor<String> systemPrompt = ArgumentCaptor.forClass(String.class);
+    verify(structuredOutputInvoker).invoke(
+        eq(chatClient),
+        systemPrompt.capture(),
+        anyString(),
+        any(),
+        eq(ErrorCode.AI_SERVICE_ERROR),
+        anyString(),
+        eq("adaptive_depth_assessment"),
+        any(Logger.class)
+    );
+    assertThat(systemPrompt.getValue())
+        .contains("评估 Agent 校准示例", "用布隆过滤器就行")
+        .contains("### Redis (REDIS)", "缓存穿透")
+        .doesNotContain("private-session-id");
+  }
+
+  @Test
   @DisplayName("相同回答在不同会话和轮次下生成一致的评估输入")
   void shouldBuildSameAssessmentInputAcrossSessions() {
     AssessmentProposal expected = new AssessmentProposal(
