@@ -1,6 +1,6 @@
 package interview.guide.modules.interview.agent.adaptive.runtime;
 
-import interview.guide.modules.interview.agent.adaptive.core.InterviewerContext;
+import interview.guide.modules.interview.agent.adaptive.core.context.InterviewerContext;
 import interview.guide.modules.interview.agent.adaptive.role.AgentRole;
 
 /**

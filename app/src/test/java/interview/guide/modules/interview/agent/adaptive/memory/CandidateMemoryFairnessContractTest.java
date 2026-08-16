@@ -1,10 +1,10 @@
 package interview.guide.modules.interview.agent.adaptive.memory;
 
-import interview.guide.modules.interview.agent.adaptive.core.InterviewerContext;
-import interview.guide.modules.interview.agent.adaptive.core.PlannerContext;
-import interview.guide.modules.interview.agent.adaptive.persistence.CandidateMemoryClaimEntity;
-import interview.guide.modules.interview.agent.adaptive.persistence.CandidateMemoryTopicEntity;
-import interview.guide.modules.interview.agent.adaptive.persistence.ClaimVerificationStatus;
+import interview.guide.modules.interview.agent.adaptive.core.context.InterviewerContext;
+import interview.guide.modules.interview.agent.adaptive.core.context.PlannerContext;
+import interview.guide.modules.interview.agent.adaptive.persistence.memory.CandidateMemoryClaimEntity;
+import interview.guide.modules.interview.agent.adaptive.persistence.memory.CandidateMemoryClaimStatus;
+import interview.guide.modules.interview.agent.adaptive.persistence.memory.CandidateMemoryTopicEntity;
 import java.lang.reflect.Field;
 import java.util.Arrays;
 import java.util.Locale;
@@ -32,8 +32,8 @@ class CandidateMemoryFairnessContractTest {
   @Test
   @DisplayName("候选人声明在 M5 前只能保持未验证状态")
   void shouldKeepClaimsUnverified() {
-    assertThat(ClaimVerificationStatus.values())
-        .containsExactly(ClaimVerificationStatus.UNVERIFIED);
+    assertThat(CandidateMemoryClaimStatus.values())
+        .containsExactly(CandidateMemoryClaimStatus.UNVERIFIED);
   }
 
   @Test

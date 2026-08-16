@@ -1,7 +1,7 @@
 package interview.guide.modules.interview.agent.adaptive.planning;
 
 import interview.guide.common.exception.BusinessException;
-import interview.guide.modules.interview.agent.adaptive.core.PlanningSkill;
+import interview.guide.modules.interview.agent.adaptive.core.context.PlanningSkill;
 import interview.guide.modules.interview.skill.InterviewSkillService;
 import interview.guide.modules.interview.skill.InterviewSkillService.SkillCategoryDTO;
 import interview.guide.modules.interview.skill.InterviewSkillService.SkillDTO;

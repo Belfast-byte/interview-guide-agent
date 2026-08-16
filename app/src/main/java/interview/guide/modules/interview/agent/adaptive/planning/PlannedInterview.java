@@ -1,7 +1,7 @@
 package interview.guide.modules.interview.agent.adaptive.planning;
 
-import interview.guide.modules.interview.agent.adaptive.core.AdaptiveInterviewHistory;
-import interview.guide.modules.interview.agent.adaptive.core.DimensionBrief;
+import interview.guide.modules.interview.agent.adaptive.core.session.AdaptiveInterviewHistory;
+import interview.guide.modules.interview.agent.adaptive.core.context.DimensionBrief;
 import java.util.List;
 
 /**

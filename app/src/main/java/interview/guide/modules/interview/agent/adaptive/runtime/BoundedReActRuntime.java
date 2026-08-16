@@ -2,9 +2,9 @@ package interview.guide.modules.interview.agent.adaptive.runtime;
 
 import interview.guide.common.exception.BusinessException;
 import interview.guide.common.exception.ErrorCode;
-import interview.guide.modules.interview.agent.adaptive.core.AgentAction;
-import interview.guide.modules.interview.agent.adaptive.core.RespondAction;
-import interview.guide.modules.interview.agent.adaptive.core.ToolCallAction;
+import interview.guide.modules.interview.agent.adaptive.core.action.AgentAction;
+import interview.guide.modules.interview.agent.adaptive.core.action.RespondAction;
+import interview.guide.modules.interview.agent.adaptive.core.action.ToolCallAction;
 import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.Map;

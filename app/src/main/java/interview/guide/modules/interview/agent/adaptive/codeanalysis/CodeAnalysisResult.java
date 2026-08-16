@@ -1,5 +1,8 @@
 package interview.guide.modules.interview.agent.adaptive.codeanalysis;
 
+import interview.guide.modules.interview.agent.adaptive.codeanalysis.claim.ClaimVerification;
+import interview.guide.modules.interview.agent.adaptive.codeanalysis.repo.ProjectDigest;
+import interview.guide.modules.interview.agent.adaptive.codeanalysis.scenario.ScenarioCard;
 import java.util.List;
 
 /**

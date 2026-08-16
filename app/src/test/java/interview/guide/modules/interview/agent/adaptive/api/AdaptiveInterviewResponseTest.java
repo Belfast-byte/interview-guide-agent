@@ -1,9 +1,9 @@
 package interview.guide.modules.interview.agent.adaptive.api;
 
-import interview.guide.modules.interview.agent.adaptive.core.AdaptiveInterviewHistory;
-import interview.guide.modules.interview.agent.adaptive.core.AdaptiveInterviewSession;
-import interview.guide.modules.interview.agent.adaptive.core.AdaptiveInterviewTurn;
-import interview.guide.modules.interview.agent.adaptive.core.AdaptiveSessionStatus;
+import interview.guide.modules.interview.agent.adaptive.core.session.AdaptiveInterviewHistory;
+import interview.guide.modules.interview.agent.adaptive.core.session.AdaptiveInterviewSession;
+import interview.guide.modules.interview.agent.adaptive.core.session.AdaptiveInterviewTurn;
+import interview.guide.modules.interview.agent.adaptive.core.session.AdaptiveSessionStatus;
 import interview.guide.modules.interview.agent.adaptive.planning.InterviewPlan;
 import interview.guide.modules.interview.agent.adaptive.planning.PlanDimensionStatus;
 import interview.guide.modules.interview.agent.adaptive.planning.PlannedDimension;

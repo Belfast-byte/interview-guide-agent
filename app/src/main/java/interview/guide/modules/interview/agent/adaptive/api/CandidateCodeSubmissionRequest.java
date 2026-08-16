@@ -1,7 +1,7 @@
 package interview.guide.modules.interview.agent.adaptive.api;
 
-import interview.guide.modules.interview.agent.adaptive.algorithm.SandboxLanguage;
-import interview.guide.modules.interview.agent.adaptive.algorithm.SandboxRunMode;
+import interview.guide.modules.interview.agent.adaptive.algorithm.sandbox.SandboxLanguage;
+import interview.guide.modules.interview.agent.adaptive.algorithm.sandbox.SandboxRunMode;
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Size;
 import jakarta.validation.constraints.AssertTrue;

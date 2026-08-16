@@ -2,7 +2,7 @@ package interview.guide.modules.interview.agent.adaptive.tool;
 
 import interview.guide.common.exception.BusinessException;
 import interview.guide.common.exception.ErrorCode;
-import interview.guide.modules.interview.agent.adaptive.core.ToolCallAction;
+import interview.guide.modules.interview.agent.adaptive.core.action.ToolCallAction;
 import interview.guide.modules.interview.agent.adaptive.observability.AdaptiveAgentTelemetry;
 import interview.guide.modules.interview.agent.adaptive.role.AgentRoleDefinition;
 import interview.guide.modules.interview.agent.adaptive.role.AgentRoleRegistry;

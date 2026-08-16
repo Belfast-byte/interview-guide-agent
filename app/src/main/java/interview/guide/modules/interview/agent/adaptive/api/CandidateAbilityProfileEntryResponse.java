@@ -1,7 +1,7 @@
 package interview.guide.modules.interview.agent.adaptive.api;
 
-import interview.guide.modules.interview.agent.adaptive.assessment.DepthLevel;
-import interview.guide.modules.interview.agent.adaptive.memory.CandidateAbilityProfile;
+import interview.guide.modules.interview.agent.adaptive.assessment.depth.DepthLevel;
+import interview.guide.modules.interview.agent.adaptive.memory.profile.CandidateAbilityProfile;
 import java.time.LocalDateTime;
 
 /**

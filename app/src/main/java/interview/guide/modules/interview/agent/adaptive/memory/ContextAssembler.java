@@ -1,16 +1,16 @@
 package interview.guide.modules.interview.agent.adaptive.memory;
 
-import interview.guide.modules.interview.agent.adaptive.core.AdaptiveInterviewTurn;
-import interview.guide.modules.interview.agent.adaptive.core.CandidateAnswer;
-import interview.guide.modules.interview.agent.adaptive.core.CoveredTopic;
-import interview.guide.modules.interview.agent.adaptive.core.DimensionBrief;
-import interview.guide.modules.interview.agent.adaptive.core.InterviewerContext;
-import interview.guide.modules.interview.agent.adaptive.core.PlannerContext;
-import interview.guide.modules.interview.agent.adaptive.core.PlanningSkill;
-import interview.guide.modules.interview.agent.adaptive.core.ProbeGap;
-import interview.guide.modules.interview.agent.adaptive.core.ProjectInterviewContext;
-import interview.guide.modules.interview.agent.adaptive.core.UnverifiedClaim;
-import interview.guide.modules.interview.agent.adaptive.core.ToolResultEvent;
+import interview.guide.modules.interview.agent.adaptive.core.session.AdaptiveInterviewTurn;
+import interview.guide.modules.interview.agent.adaptive.core.event.CandidateAnswer;
+import interview.guide.modules.interview.agent.adaptive.core.context.CoveredTopic;
+import interview.guide.modules.interview.agent.adaptive.core.context.DimensionBrief;
+import interview.guide.modules.interview.agent.adaptive.core.context.InterviewerContext;
+import interview.guide.modules.interview.agent.adaptive.core.context.PlannerContext;
+import interview.guide.modules.interview.agent.adaptive.core.context.PlanningSkill;
+import interview.guide.modules.interview.agent.adaptive.core.context.ProbeGap;
+import interview.guide.modules.interview.agent.adaptive.core.context.ProjectInterviewContext;
+import interview.guide.modules.interview.agent.adaptive.core.context.UnverifiedClaim;
+import interview.guide.modules.interview.agent.adaptive.core.event.ToolResultEvent;
 import java.util.List;
 import org.springframework.stereotype.Component;
 

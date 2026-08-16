@@ -1,6 +1,6 @@
 package interview.guide.modules.interview.agent.adaptive.api;
 
-import interview.guide.modules.interview.agent.adaptive.core.AdaptiveInterviewTurn;
+import interview.guide.modules.interview.agent.adaptive.core.session.AdaptiveInterviewTurn;
 
 /**
  * 自适应面试轮次响应。

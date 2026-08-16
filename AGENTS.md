@@ -39,6 +39,7 @@ docker compose -f docker-compose.dev.yml up -d
 - `app/src/main/java/interview/guide/common/`: 通用能力，包括限流、AI 调用、异步模板、配置、异常、统一响应。
 - `app/src/main/java/interview/guide/infrastructure/`: 技术基础设施，包括文件、导出、Redis、MapStruct 映射。
 - `app/src/main/java/interview/guide/modules/`: 业务模块，每个模块自包含 MVC 分层。
+- `app/src/main/java/interview/guide/modules/interview/agent/adaptive/`: 自适应面试 Agent，顶层按职责分包（`core`/`runtime`/`role`/`application`/`persistence`/`planning`/`tool`/`memory`/`assessment`/`algorithm`/`codeanalysis`/`mcp` 等）；大模块内部再按职责划二级子包（如 `persistence.session`、`assessment.depth`），子包划分见 `docs/design/20-implementation-modules.md` §3.2。
 - `app/src/main/resources/prompts/`: StringTemplate Prompt 模板。
 - `frontend/src/`: React 前端页面、组件、API 客户端和类型定义。
 - `docs/`: 设计文档中心，入口 `docs/README.md`。`docs/design/` 是面试 Agent 重实现蓝图（唯一事实源），`docs/archive/` 是历史文档。

@@ -2,7 +2,17 @@ package interview.guide.modules.interview.agent.adaptive.codeanalysis;
 
 import interview.guide.common.exception.BusinessException;
 import interview.guide.common.exception.ErrorCode;
-import interview.guide.modules.interview.agent.adaptive.core.ProjectInterviewContext;
+import interview.guide.modules.interview.agent.adaptive.codeanalysis.claim.ClaimVerification;
+import interview.guide.modules.interview.agent.adaptive.codeanalysis.claim.ClaimVerificationRepository;
+import interview.guide.modules.interview.agent.adaptive.codeanalysis.job.AnalysisJobEntity;
+import interview.guide.modules.interview.agent.adaptive.codeanalysis.job.AnalysisJobRepository;
+import interview.guide.modules.interview.agent.adaptive.codeanalysis.job.AnalysisJobStatus;
+import interview.guide.modules.interview.agent.adaptive.codeanalysis.job.CodeAnalysisJob;
+import interview.guide.modules.interview.agent.adaptive.codeanalysis.repo.ProjectDigest;
+import interview.guide.modules.interview.agent.adaptive.codeanalysis.repo.ProjectDigestRepository;
+import interview.guide.modules.interview.agent.adaptive.codeanalysis.scenario.ScenarioCard;
+import interview.guide.modules.interview.agent.adaptive.codeanalysis.scenario.ScenarioCardRepository;
+import interview.guide.modules.interview.agent.adaptive.core.context.ProjectInterviewContext;
 import interview.guide.modules.interview.agent.adaptive.planning.ProjectPlanningContext;
 import java.util.Optional;
 import lombok.RequiredArgsConstructor;

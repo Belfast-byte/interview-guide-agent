@@ -1,11 +1,11 @@
 package interview.guide.modules.interview.agent.adaptive.runtime;
 
 import interview.guide.common.exception.BusinessException;
-import interview.guide.modules.interview.agent.adaptive.core.AgentAction;
-import interview.guide.modules.interview.agent.adaptive.core.CandidateAnswer;
-import interview.guide.modules.interview.agent.adaptive.core.InterviewerContext;
-import interview.guide.modules.interview.agent.adaptive.core.RespondAction;
-import interview.guide.modules.interview.agent.adaptive.core.ToolCallAction;
+import interview.guide.modules.interview.agent.adaptive.core.action.AgentAction;
+import interview.guide.modules.interview.agent.adaptive.core.event.CandidateAnswer;
+import interview.guide.modules.interview.agent.adaptive.core.context.InterviewerContext;
+import interview.guide.modules.interview.agent.adaptive.core.action.RespondAction;
+import interview.guide.modules.interview.agent.adaptive.core.action.ToolCallAction;
 import interview.guide.modules.interview.agent.adaptive.role.AgentRole;
 import java.time.Duration;
 import java.util.List;

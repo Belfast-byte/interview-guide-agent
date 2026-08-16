@@ -1,8 +1,8 @@
 package interview.guide.modules.interview.agent.adaptive.observability;
 
 import io.micrometer.core.instrument.MeterRegistry;
-import interview.guide.modules.interview.agent.adaptive.assessment.DepthLevel;
-import interview.guide.modules.interview.agent.adaptive.core.AgentResponseType;
+import interview.guide.modules.interview.agent.adaptive.assessment.depth.DepthLevel;
+import interview.guide.modules.interview.agent.adaptive.core.action.AgentResponseType;
 import interview.guide.modules.interview.agent.adaptive.mcp.McpQuestionBankFailureReason;
 import java.util.concurrent.TimeUnit;
 import lombok.RequiredArgsConstructor;

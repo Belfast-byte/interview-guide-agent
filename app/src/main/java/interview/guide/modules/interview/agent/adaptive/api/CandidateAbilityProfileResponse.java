@@ -1,6 +1,6 @@
 package interview.guide.modules.interview.agent.adaptive.api;
 
-import interview.guide.modules.interview.agent.adaptive.memory.CandidateAbilityProfile;
+import interview.guide.modules.interview.agent.adaptive.memory.profile.CandidateAbilityProfile;
 import java.util.List;
 
 /**

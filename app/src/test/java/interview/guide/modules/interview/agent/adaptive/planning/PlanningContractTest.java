@@ -1,6 +1,6 @@
 package interview.guide.modules.interview.agent.adaptive.planning;
 
-import interview.guide.modules.interview.agent.adaptive.core.PlannerContext;
+import interview.guide.modules.interview.agent.adaptive.core.context.PlannerContext;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;

@@ -64,6 +64,19 @@ interview.guide.modules.interview.agent.adaptive
 | 代码分析接入 | `adaptive.codeanalysis` | 仓库任务、三类结构化产物、锚点校验、MCP 薄适配 | `mcp`、`tool`、`planning` 端口 | CA-1～CA-4 |
 | 可观测性 | `adaptive.observability` | 指标、审计字段、trace 关联；不得记录回答/代码等敏感原文 | 各模块发布的稳定事件 | M0 起 |
 
+大文件量模块内部按职责划二级子包（2026-08-16 落地，纯机械移动，不改变顶层依赖方向）：
+
+| 顶层模块 | 二级子包 |
+|---|---|
+| `core` | `session`（会话/轮次/状态机）、`action`（Agent 动作）、`context`（各角色上下文与领域值对象）、`event`（输入事件） |
+| `memory` | `brief`（维度小结）、`claim`（候选人主张）、`profile`（能力画像）；`ContextAssembler` 留根包 |
+| `persistence` | `session`、`plan`、`memory`、`assessment`、`practice`、`algorithm`，按 §4 数据所有权分组 |
+| `assessment` | `depth`（深度评估）、`evidence`（证据校验）、`report`（双视图报告）、`practice`（练习推荐）、`backfill`（历史回填） |
+| `algorithm` | `problem`（题目选题）、`sandbox`（沙箱协议）、`judge`（异步判题流）、`evidence`（沙箱证据）；`api` 原有 |
+| `codeanalysis` | `job`（任务生命周期）、`repo`（仓库快照）、`claim`（主张核验）、`scenario`（场景卡）、`trace`（调用链）；入口服务留根包 |
+
+注意：`persistence.memory.CandidateMemoryClaimStatus`（候选人记忆 claim 状态，仅 `UNVERIFIED`）与 `codeanalysis.claim.ClaimVerificationStatus`（代码事实核验状态）是两个不同概念，不要混用。
+
 ### 3.3 依赖方向
 
 ```mermaid

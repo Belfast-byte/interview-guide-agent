@@ -6,6 +6,7 @@ import interview.guide.common.exception.ErrorCode;
 import interview.guide.modules.interview.agent.adaptive.application.AdaptiveAgentProperties;
 import org.springframework.ai.tokenizer.JTokkitTokenCountEstimator;
 import org.springframework.ai.tokenizer.TokenCountEstimator;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
 
 /**
@@ -18,6 +19,7 @@ public class AdaptiveInputTokenBudget {
   private final AdaptiveAgentTelemetry telemetry;
   private final TokenCountEstimator estimator;
 
+  @Autowired
   public AdaptiveInputTokenBudget(
       AdaptiveAgentProperties properties,
       AdaptiveAgentTelemetry telemetry

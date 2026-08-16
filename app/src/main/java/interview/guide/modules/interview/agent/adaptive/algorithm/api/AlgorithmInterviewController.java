@@ -2,10 +2,10 @@ package interview.guide.modules.interview.agent.adaptive.algorithm.api;
 
 import interview.guide.common.annotation.RateLimit;
 import interview.guide.common.result.Result;
-import interview.guide.modules.interview.agent.adaptive.algorithm.AlgorithmProblemService;
-import interview.guide.modules.interview.agent.adaptive.algorithm.AlgorithmSubmissionService;
-import interview.guide.modules.interview.agent.adaptive.algorithm.PublicAlgorithmProblem;
-import interview.guide.modules.interview.agent.adaptive.algorithm.SubmitAlgorithmCode;
+import interview.guide.modules.interview.agent.adaptive.algorithm.problem.AlgorithmProblemService;
+import interview.guide.modules.interview.agent.adaptive.algorithm.judge.AlgorithmSubmissionService;
+import interview.guide.modules.interview.agent.adaptive.algorithm.problem.PublicAlgorithmProblem;
+import interview.guide.modules.interview.agent.adaptive.algorithm.judge.SubmitAlgorithmCode;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;

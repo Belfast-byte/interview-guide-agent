@@ -2,8 +2,8 @@ package interview.guide.modules.interview.agent.adaptive.tool;
 
 import interview.guide.common.exception.BusinessException;
 import interview.guide.modules.interview.agent.adaptive.application.AdaptiveAgentProperties;
-import interview.guide.modules.interview.agent.adaptive.core.InterviewerContext;
-import interview.guide.modules.interview.agent.adaptive.core.ToolCallAction;
+import interview.guide.modules.interview.agent.adaptive.core.context.InterviewerContext;
+import interview.guide.modules.interview.agent.adaptive.core.action.ToolCallAction;
 import interview.guide.modules.interview.agent.adaptive.observability.AdaptiveAgentTelemetry;
 import io.micrometer.core.instrument.simple.SimpleMeterRegistry;
 import interview.guide.modules.interview.agent.adaptive.role.AgentRole;
