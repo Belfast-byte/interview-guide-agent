@@ -81,7 +81,6 @@ docker compose -f docker-compose.dev.yml up -d
 - ReAct 循环统一走 `BoundedReActRuntime`（步数/工具数/deadline 三重预算）；工具必须经 `ToolGateway` 白名单执行，禁止模型网关自动注册工具。
 - 「外部调用 → 裁决 → 落库」的串联只发生在 `application` 层；写库统一走 `AdaptiveInterviewPersistenceService`（短事务 + `@Version` 乐观锁），LLM/沙箱/外部 HTTP 调用在事务外。
 - 会话状态全部存 PostgreSQL；Redis 只用于判题、代码分析等异步 Stream。
-- 与旧 MVP（`agent/AgentInterviewController`，开关 `app.interview.agent-loop.enabled`）物理隔离：adaptive 不得依赖旧包，由 `AdaptivePackageIsolationTest` 守护。
 
 ## Config And Data
 

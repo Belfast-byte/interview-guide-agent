@@ -16,7 +16,6 @@ paths:
 - `runtime`（`BoundedReActRuntime`）不调 Repository，只返回建议动作；`persistence` 不决定下一动作。
 - 存储端口由业务模块拥有，`persistence` 提供 `Jpa*Source/Store` 实现；业务模块不得 import Entity/Repository。
 - 大模块内部按职责划二级子包（`persistence.session`、`assessment.depth` 等）；禁止 `m0/` 式阶段包。
-- 与旧 MVP（`agent/AgentInterviewController`、`agent/runtime/InterviewAgentLoop`，开关 `app.interview.agent-loop.enabled`）物理隔离：adaptive 不得 import 旧 MVP 包，`AdaptivePackageIsolationTest` 守护；旧 MVP 只读，不迁移不重构。
 
 ## 模型建议，代码裁决
 
