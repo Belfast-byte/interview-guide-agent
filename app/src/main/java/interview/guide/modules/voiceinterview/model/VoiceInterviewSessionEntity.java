@@ -9,6 +9,7 @@ import lombok.Data;
 import lombok.NoArgsConstructor;
 
 import java.time.LocalDateTime;
+import java.util.UUID;
 
 @Entity
 @Table(name = "voice_interview_sessions")
@@ -22,8 +23,8 @@ public class VoiceInterviewSessionEntity {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    @Column(name = "user_id")
-    private String userId;
+    @Column(name = "candidate_id", nullable = false)
+    private UUID candidateId;
 
     @Column(name = "role_type", nullable = false)
     private String roleType;

@@ -10,6 +10,8 @@ import org.springframework.stereotype.Repository;
 
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.Optional;
+import java.util.UUID;
 
 @Repository
 public interface InterviewScheduleRepository extends JpaRepository<InterviewScheduleEntity, Long> {
@@ -18,6 +20,21 @@ public interface InterviewScheduleRepository extends JpaRepository<InterviewSche
     List<InterviewScheduleEntity> findByStatus(InterviewStatus status);
 
     List<InterviewScheduleEntity> findByInterviewTimeBetween(LocalDateTime start, LocalDateTime end);
+
+    Optional<InterviewScheduleEntity> findByIdAndCandidateId(Long id, UUID candidateId);
+
+    List<InterviewScheduleEntity> findAllByCandidateIdOrderByInterviewTimeAsc(UUID candidateId);
+
+    List<InterviewScheduleEntity> findByCandidateIdAndStatusOrderByInterviewTimeAsc(
+        UUID candidateId,
+        InterviewStatus status
+    );
+
+    List<InterviewScheduleEntity> findByCandidateIdAndInterviewTimeBetweenOrderByInterviewTimeAsc(
+        UUID candidateId,
+        LocalDateTime start,
+        LocalDateTime end
+    );
 
     @Modifying
     @Query("UPDATE InterviewScheduleEntity e SET e.status = :newStatus WHERE e.status = :oldStatus AND e.interviewTime < :cutoff")

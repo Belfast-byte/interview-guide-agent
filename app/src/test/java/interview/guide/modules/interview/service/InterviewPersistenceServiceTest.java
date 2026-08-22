@@ -3,6 +3,7 @@ package interview.guide.modules.interview.service;
 import interview.guide.modules.interview.model.InterviewSessionEntity;
 import interview.guide.modules.interview.repository.InterviewAnswerRepository;
 import interview.guide.modules.interview.repository.InterviewSessionRepository;
+import interview.guide.modules.interview.service.InterviewPersistenceService.SaveSessionCommand;
 import interview.guide.modules.resume.repository.ResumeRepository;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -13,6 +14,7 @@ import org.mockito.junit.jupiter.MockitoExtension;
 import tools.jackson.databind.ObjectMapper;
 
 import java.util.List;
+import java.util.UUID;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
@@ -40,8 +42,9 @@ class InterviewPersistenceServiceTest {
     when(sessionRepository.save(any(InterviewSessionEntity.class)))
         .thenAnswer(invocation -> invocation.getArgument(0));
 
-    service.saveSession("sid1", null, 1, List.of(), "dashscope",
-        "knowledge-base", "mid", "KNOWLEDGE_BASE", 9L, "MySQL");
+    service.saveSession(new SaveSessionCommand(
+        null, "sid1", null, List.of(), "dashscope", "knowledge-base", "mid",
+        "KNOWLEDGE_BASE", 9L, "MySQL"));
 
     ArgumentCaptor<InterviewSessionEntity> captor = ArgumentCaptor.forClass(InterviewSessionEntity.class);
     verify(sessionRepository).save(captor.capture());
@@ -55,10 +58,13 @@ class InterviewPersistenceServiceTest {
   @DisplayName("普通面试保存时 interviewCategory 保持 null")
   void shouldKeepInterviewCategoryNullForNormalSession() {
     InterviewPersistenceService service = newService();
+    UUID candidateId = UUID.randomUUID();
     when(sessionRepository.save(any(InterviewSessionEntity.class)))
         .thenAnswer(invocation -> invocation.getArgument(0));
 
-    service.saveSession("sid2", null, 1, List.of(), "dashscope", "java-backend", "mid");
+    service.saveSession(new SaveSessionCommand(
+        candidateId, "sid2", null, List.of(), "dashscope", "java-backend", "mid",
+        "NORMAL", null, null));
 
     ArgumentCaptor<InterviewSessionEntity> captor = ArgumentCaptor.forClass(InterviewSessionEntity.class);
     verify(sessionRepository).save(captor.capture());
@@ -66,6 +72,18 @@ class InterviewPersistenceServiceTest {
     assertThat(saved.getInterviewCategory()).isNull();
     assertThat(saved.getSourceType()).isEqualTo("NORMAL");
     assertThat(saved.getKnowledgeBaseId()).isNull();
+    assertThat(saved.getCandidateId()).isEqualTo(candidateId);
+  }
+
+  @Test
+  @DisplayName("候选人查询会把归属条件下推到仓储")
+  void shouldQuerySessionWithCandidateOwnership() {
+    InterviewPersistenceService service = newService();
+    UUID candidateId = UUID.randomUUID();
+
+    service.findBySessionId(candidateId, "sid3");
+
+    verify(sessionRepository).findBySessionIdAndCandidateId("sid3", candidateId);
   }
 
   private InterviewPersistenceService newService() {

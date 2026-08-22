@@ -4,27 +4,19 @@ Spring Boot 4.1.0 + Java 21 + Spring AI 2.0.0 + React 面试平台。
 
 本文件是跨工具 Agent 入口，只放长期有效、代码里不容易直接推断、猜错会影响结果的规则。更细的目录规则放在 `.claude/rules/`，需要时再读取。
 
-## Teaching Collaboration
-
-- 默认不仅完成任务，也帮助使用者形成可复用的工程思维；非平凡任务不能只输出代码而不解释业务目标、关键约束和架构取舍。
-- 在设计或修改前，先基于仓库事实说明当前流程、问题边界和必须保持的业务不变量；区分事实、推断、假设和建议。
-- 对功能、重构、集成、数据变更、AI 工作流和疑难问题，选择 1～3 个最相关的失败场景，说明朴素方案如何出错、症状是什么、如何通过设计和测试防住。
-- 解释代码为什么属于当前层和模块，指出至少一个有现实可能的替代方案及其在当前约束下的代价；不要为了展示复杂度而引入模式。
-- 在非平凡决策中，用预测、方案对比、反例或假设检查引导使用者先想一步，增强其思辨能力；思考题默认可选且不阻塞，使用者未回答时继续按最佳判断完成实现与验证，只有需要其授权或明确要求互动练习时才暂停。
-- 用户要求实现时要继续完成实现和验证，不要把任务变成长时间问答；只有会实质改变结果的选择才需要阻塞确认。
-- 验证时说明重要测试证明了什么、没有证明什么；相关时覆盖边界、失败、重试、幂等和并发，而不只验证 happy path。
-- 结束非平凡任务时，简要交付结果、业务/架构心智模型、关键坑、验证证据和一个可继续练习的方向。
-- 提供简洁、基于证据的决策理由，不输出隐藏思维链；简单事实和机械修改保持简洁，避免每次都写成长篇教程。
-- 当用户提出“带我学习”“讲思路/方法论”“像资深工程师指导”“分析业务和架构坑”或明确不想只看代码时，使用项目 Skill：`.agents/skills/mentor-engineering/SKILL.md`。
-
-## Tech Stack
-
-- Backend: Spring Boot 4.1.0 / Java 21 / Gradle / Spring AI 2.0.0
-- Database: PostgreSQL + pgvector，向量维度 1024，距离类型 COSINE
-- Cache & async: Redis / Redisson / Redis Stream
-- Storage & parsing: RustFS/S3 / Apache Tika
-- Mapping & export: MapStruct / iText 8 / SpringDoc OpenAPI
-- Frontend: React 18 / TypeScript / Vite / TailwindCSS 4，代码在 `frontend/`
+# 行为规则
+1.不要假设。不要隐藏困惑。主动暴露权衡取舍。
+2.只写解决当前问题的最小代码，不做任何推测性功能。
+3.只修改必须改的地方，只清理自己产生的问题。
+4.明确定义成功标准，验证通过前持续迭代。
+5.能抄不造：优先复用框架能力和本仓库已有实现；没有内部实现时，优先参考 GitHub 上成熟的开源实现并裁剪，不自行设计协议、格式和机制。
+6.及时提交：每个合适的改动完成后立即按主题拆分提交，不积攒大量未提交文件；提交前确保编译/测试通过。
+## 反过度工程
+- 信任内部代码、框架、数据库约束和编译期保证；只在系统边界（用户输入、外部 API、网络）做校验，同一约束只校验一次，不为「不可能发生」的场景写防御代码。
+- 绝不吞掉错误；优先快速失败，而不是掩盖问题。
+- 禁止重复造轮子：加解密、哈希、JWT、限流、重试等一律用框架/JDK/仓库现有组件，引入新依赖前先确认现有能力做不到。
+- 不做没有真实使用者的角色、配置项、扩展点和预留抽象；只写解决当前问题的最小代码。
+- 落地细则见 `.claude/rules/backend.md`「Minimal Implementation」。
 
 ## Commands
 
@@ -48,8 +40,10 @@ docker compose -f docker-compose.dev.yml up -d
 - `app/src/main/java/interview/guide/common/`: 通用能力，包括限流、AI 调用、异步模板、配置、异常、统一响应。
 - `app/src/main/java/interview/guide/infrastructure/`: 技术基础设施，包括文件、导出、Redis、MapStruct 映射。
 - `app/src/main/java/interview/guide/modules/`: 业务模块，每个模块自包含 MVC 分层。
+- `app/src/main/java/interview/guide/modules/interview/agent/adaptive/`: 自适应面试 Agent，顶层按职责分包（`api`/`application`/`core`/`runtime`/`role`/`tool`/`planning`/`memory`/`assessment`/`persistence`/`algorithm`/`codeanalysis`/`mcp`/`observability`）；大模块内部再按职责划二级子包（如 `persistence.session`、`assessment.depth`），子包划分与依赖方向见 `docs/design/20-implementation-modules.md` §3.2，细则见 `.claude/rules/interview-agent.md`。
 - `app/src/main/resources/prompts/`: StringTemplate Prompt 模板。
 - `frontend/src/`: React 前端页面、组件、API 客户端和类型定义。
+- `docs/`: 设计文档中心，入口 `docs/README.md`。`docs/design/` 是面试 Agent 重实现蓝图（唯一事实源），`docs/archive/` 是历史文档。
 
 ## Architecture
 
@@ -78,6 +72,15 @@ docker compose -f docker-compose.dev.yml up -d
 - Redis Stream 生产/消费使用 `AbstractStreamProducer` / `AbstractStreamConsumer` 模板。
 - 异步处理前先校验实体是否存在；实体已删除时 ACK 丢弃。
 - 限流使用可重复 `@RateLimit`，不要手写散落的 Redis 限流逻辑。
+
+## Interview Agent Rules（自适应面试 Agent）
+
+- 设计唯一事实源是 `docs/design/`；实现细则在 `.claude/rules/interview-agent.md`，改 adaptive 包前必读。
+- 依赖方向：`api → application → {core, runtime}`，`role`/`tool`/`planning`/`memory`/`assessment`/`persistence` 只依赖 `core`；`core` 是纯领域内核，禁止 import Spring AI/JPA/Redis/Web。
+- 模型建议、代码裁决：状态迁移、轮次上限、计划轮次分配由代码确定性裁决（`AdaptiveInterviewSession`、`InterviewPlan.decide`），模型输出只是提案；证据与锚点必须逐字命中回答原文或真实分析产物。
+- ReAct 循环统一走 `BoundedReActRuntime`（步数/工具数/deadline 三重预算）；工具必须经 `ToolGateway` 白名单执行，禁止模型网关自动注册工具。
+- 「外部调用 → 裁决 → 落库」的串联只发生在 `application` 层；写库统一走 `AdaptiveInterviewPersistenceService`（短事务 + `@Version` 乐观锁），LLM/沙箱/外部 HTTP 调用在事务外。
+- 会话状态全部存 PostgreSQL；Redis 只用于判题、代码分析等异步 Stream。
 
 ## Config And Data
 
@@ -119,4 +122,5 @@ docker compose -f docker-compose.dev.yml up -d
 
 - 后端 Java 细则：`.claude/rules/backend.md`
 - AI、限流、异步细则：`.claude/rules/ai-and-async.md`
+- 自适应面试 Agent 细则：`.claude/rules/interview-agent.md`
 - 前端细则：`.claude/rules/frontend.md`

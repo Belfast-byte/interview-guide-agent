@@ -7,6 +7,7 @@ import jakarta.persistence.*;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.UUID;
 
 /**
  * 面试会话实体
@@ -22,6 +23,9 @@ public class InterviewSessionEntity {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
+
+    @Column(name = "candidate_id")
+    private UUID candidateId;
     
     // 会话ID (UUID)
     @Column(nullable = false, unique = true, length = 36)
@@ -132,6 +136,14 @@ public class InterviewSessionEntity {
     
     public void setId(Long id) {
         this.id = id;
+    }
+
+    public UUID getCandidateId() {
+        return candidateId;
+    }
+
+    public void setCandidateId(UUID candidateId) {
+        this.candidateId = candidateId;
     }
     
     public String getSessionId() {

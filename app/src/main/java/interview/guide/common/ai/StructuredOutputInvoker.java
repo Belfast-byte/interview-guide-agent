@@ -103,6 +103,42 @@ public class StructuredOutputInvoker {
         );
     }
 
+    /**
+     * 执行严格单次模型调用，不启用结构化输出重试或 schema validation retry。
+     * 适用于由外层有界循环统一计算模型调用预算的场景。
+     */
+    public <T> T invokeOnce(
+        ChatClient chatClient,
+        String systemPromptWithFormat,
+        String userPrompt,
+        BeanOutputConverter<T> outputConverter,
+        ErrorCode errorCode,
+        String errorPrefix,
+        String logContext,
+        Logger log
+    ) {
+        long startNanos = System.nanoTime();
+        String contextTag = normalizeContextTag(logContext);
+        String securedSystemPrompt = systemPromptWithFormat
+            + PromptSecurityConstants.ANTI_INJECTION_INSTRUCTION;
+        try {
+            String content = chatClient.prompt()
+                .system(securedSystemPrompt)
+                .user(userPrompt)
+                .call()
+                .content();
+            T result = convertWithRepair(content, outputConverter, logContext, log);
+            recordAttempt(contextTag, STATUS_SUCCESS);
+            recordInvocation(contextTag, STATUS_SUCCESS, startNanos);
+            return result;
+        } catch (Exception e) {
+            recordAttempt(contextTag, STATUS_FAILURE);
+            recordInvocation(contextTag, STATUS_FAILURE, startNanos);
+            log.error("{}结构化单次调用失败: error={}", logContext, e.getMessage());
+            throw new BusinessException(errorCode, errorPrefix + e.getMessage(), e);
+        }
+    }
+
     private <T> T callStructuredOutput(
         ChatClient chatClient,
         String systemPrompt,

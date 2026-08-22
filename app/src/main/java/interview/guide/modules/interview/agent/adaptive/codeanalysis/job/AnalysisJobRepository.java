@@ -1,0 +1,26 @@
+package interview.guide.modules.interview.agent.adaptive.codeanalysis.job;
+
+import java.util.Optional;
+import java.time.LocalDateTime;
+import java.util.List;
+import org.springframework.data.jpa.repository.JpaRepository;
+
+/**
+ * 代码分析任务仓储。
+ */
+public interface AnalysisJobRepository extends JpaRepository<AnalysisJobEntity, String> {
+
+  Optional<AnalysisJobEntity> findByIdAndSessionId(String id, String sessionId);
+
+  Optional<AnalysisJobEntity> findTopByRepositoryIdOrderByCreatedAtDesc(String repositoryId);
+
+  Optional<AnalysisJobEntity> findTopBySessionIdAndStatusOrderByCreatedAtDesc(
+      String sessionId,
+      AnalysisJobStatus status
+  );
+
+  List<AnalysisJobEntity> findByStatusInAndCreatedAtBefore(
+      List<AnalysisJobStatus> statuses,
+      LocalDateTime cutoff
+  );
+}

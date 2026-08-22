@@ -4,6 +4,7 @@ import interview.guide.common.model.AsyncTaskStatus;
 import jakarta.persistence.*;
 
 import java.time.LocalDateTime;
+import java.util.UUID;
 
 /**
  * 简历实体
@@ -11,16 +12,19 @@ import java.time.LocalDateTime;
  */
 @Entity
 @Table(name = "resumes", indexes = {
-    @Index(name = "idx_resume_hash", columnList = "fileHash", unique = true)
+    @Index(name = "idx_resume_candidate_hash", columnList = "candidate_id,fileHash", unique = true)
 })
 public class ResumeEntity {
     
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
+
+    @Column(name = "candidate_id", nullable = false)
+    private UUID candidateId;
     
     // 文件内容的SHA-256哈希值，用于去重
-    @Column(nullable = false, unique = true, length = 64)
+    @Column(nullable = false, length = 64)
     private String fileHash;
     
     // 原始文件名
@@ -78,6 +82,14 @@ public class ResumeEntity {
     
     public void setId(Long id) {
         this.id = id;
+    }
+
+    public UUID getCandidateId() {
+        return candidateId;
+    }
+
+    public void setCandidateId(UUID candidateId) {
+        this.candidateId = candidateId;
     }
     
     public String getFileHash() {

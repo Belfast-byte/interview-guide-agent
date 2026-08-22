@@ -16,7 +16,9 @@
 
 ## 项目介绍
 
-InterviewGuide 是一个集成了简历分析、模拟面试（文字 + 语音）、面试安排、知识库管理、知识库题库面试和多模型配置的智能面试辅助平台。系统利用大语言模型（LLM）、向量数据库、Redis Stream 异步任务和实时语音技术，为求职者、HR 和培训机构提供智能化的简历评估、面试练习、知识库问答和面试日程管理能力。
+InterviewGuide 是一个集成了简历分析、模拟面试（文字 + 语音）、自适应面试 Agent、面试安排、知识库管理、知识库题库面试和多模型配置的智能面试辅助平台。系统利用大语言模型（LLM）、向量数据库、Redis Stream 异步任务和实时语音技术，为求职者、HR 和培训机构提供智能化的简历评估、多维度自适应考核、面试练习、知识库问答和日程管理能力。
+
+> 📘 **自适应面试 Agent（Adaptive Agent）完整实现**：本仓库已落地新一代自适应面试 Agent 架构（星型多 Agent 协同、ReAct 有界内核、客观验证工具链与沙箱、分层记忆、100% 证据可追溯评估与确定性报告）。详细设计与实施切片请查阅 [文档中心 docs/README.md](./docs/README.md)。
 
 ## 系统架构
 
@@ -76,6 +78,29 @@ InterviewGuide 是一个集成了简历分析、模拟面试（文字 + 语音�
 | pnpm              | 10.26 | 前端包管理器   |
 
 ## 功能特性
+
+### 自适应面试 Agent 模块 (Adaptive Agent)
+
+面向企业级深度考核的智能面试 Agent，遵循「**模型建议，代码裁决**」和「**评估可后置，证据不可后置**」的确定性架构设计：
+
+- **星型多 Agent 协同体系**：由中央编排器统一调度，包含：
+  - **规划 Agent (Planner)**：解析岗位 JD 与简历，自动生成多维度考察方案（算法、专业基础、项目实战、系统设计等）与轮次预算分配；
+  - **专家面试官 (Interviewer)**：包括算法面试官、基础知识面试官、项目深挖面试官，各角色具备独立 Prompt 模板与受控工具白名单；
+  - **深度评估 Agent (Assessor)**：结合 L0～L4 深度量规与 Probe Gaps 进行深度质检与能力判定；
+  - **报告生成 Agent (Reporter)**：确定性输出面向候选人的薄弱点练习推荐与面向企业的横向对比双视图报告。
+- **有界 ReAct 循环内核**：基于 Reasoning + Acting 范式，受控步预算（Step Budget）、单轮 Deadline 超时中断保护、工具调用上限与防空转/重复调用检测。
+- **客观验证工具链与沙箱执行**：
+  - 本地 Tool SPI，集成向量题库语义检索 (`pgvector`)、评分量规检索（Rubric Lookup）与 Skill 加载；
+  - 算法现场编程与代码沙箱执行，基于 Redis Stream 异步判题，提供客观的沙箱执行证据链。
+- **分层记忆与动态上下文裁剪**：
+  - 短期工作记忆：会话内压缩与维度小结（Dimension Briefs）；
+  - 长期记忆：候选人主张（Claims）自动提取与跨会话能力画像（Profile）；
+  - `ContextAssembler` 根据 Agent 角色与当前轮次动态组装 Prompt 上下文，严格控制 Token 消耗。
+- **100% 证据可追溯评估机制**：
+  - 评估等级严格绑定候选人作答原文子串（`quote`）或沙箱客观证据，报告只引用已落库的不可篡改证据。
+- **代码事实核验与 MCP 开放生态**：
+  - 候选人既有代码仓库（GitHub）异步分析与主张事实核验（Code Fact）；
+  - Model Context Protocol (MCP) 客户端/服务端标准支持，便于对接外部 ATS 系统与远端题库。
 
 ### 简历管理模块
 
@@ -158,6 +183,9 @@ InterviewGuide 是一个集成了简历分析、模拟面试（文字 + 语音�
 - [x] RAG 聊天会话管理 + 虚拟列表优化
 - [x] 可重复注解 API 限流（Global/IP/User 维度）
 - [x] 打通知识库题库与模拟面试（异步出题、严格容量校验、统一评估与记录）
+- [x] 自适应面试 Agent 架构重构（M0～M5 全链路：ReAct 内核、规划、分层记忆、工具与沙箱、证据评估）
+- [x] 算法题沙箱执行与异步判题流（A0～A3）
+- [x] 候选人代码仓库深度分析与主张核验（CA-1～CA-4）
 - [ ] 语音面试接入 WebRTC 降低延迟
 - [ ] 语音面试支持更多 TTS 音色
 
@@ -219,7 +247,7 @@ Skill 出题 + JD 解析：
 
 ## 项目结构
 
-```
+```text
 interview-guide/
 ├── app/                              # 后端应用
 │   ├── src/main/java/interview/guide/
@@ -239,7 +267,24 @@ interview-guide/
 │   │   │   ├── mapper/               # MapStruct 映射器
 │   │   │   └── redis/                # RedisService、面试会话缓存
 │   │   └── modules/                  # 业务模块
-│   │       ├── interview/            # 模拟面试模块
+│   │       ├── interview/            # 模拟面试与自适应面试模块
+│   │       │   ├── agent/adaptive/   # 自适应面试 Agent 核心（星型多 Agent + ReAct 内核）
+│   │       │   │   ├── api/          # REST 接口与 DTO/VO
+│   │       │   │   ├── application/  # 应用编排服务（创建、答题、生成报告、回填）
+│   │       │   │   ├── core/         # 领域内核（状态机、动作、事件、预算）
+│   │       │   │   ├── runtime/      # 有界 ReAct 执行引擎与预算管理
+│   │       │   │   ├── role/         # 专家角色系统（规划者、面试官、网关）
+│   │       │   │   ├── planning/     # 多维度考纲规划与预算分配
+│   │       │   │   ├── tool/         # 工具网关、SPI 与沙箱/题库/量规适配
+│   │       │   │   ├── memory/       # 分层记忆、维度小结与上下文装配
+│   │       │   │   ├── assessment/   # 深度量规判定、原文证据校验与确定性报告
+│   │       │   │   ├── algorithm/    # 算法题出题、沙箱执行与异步判题
+│   │       │   │   ├── codeanalysis/ # 候选人代码仓库分析与主张核验
+│   │       │   │   ├── persistence/  # 会话、轮次、证据、计划持久化
+│   │       │   │   ├── mcp/          # Model Context Protocol 集成
+│   │       │   │   └── observability/# 遥测指标与操作审计
+│   │       │   ├── skill/            # Skill 方向配置与服务
+│   │       │   └── service/          # 经典模拟面试服务
 │   │       ├── interviewschedule/    # 面试安排模块
 │   │       ├── knowledgebase/        # 知识库模块
 │   │       ├── llmprovider/          # 多模型 Provider 与语音配置
@@ -247,6 +292,7 @@ interview-guide/
 │   │       └── voiceinterview/       # 语音面试模块
 │   └── src/main/resources/
 │       ├── application.yml           # 应用配置
+│       ├── db/migration/             # Flyway 数据库迁移脚本
 │       ├── prompts/                  # AI 提示词模板（StringTemplate）
 │       ├── scripts/                  # Redis Lua 脚本
 │       ├── skills/                   # 面试 Skill 定义和参考题库
@@ -265,10 +311,25 @@ interview-guide/
 │
 ├── docker-compose.yml                # 完整部署：前端 + 后端 + PostgreSQL + Redis + MinIO
 ├── docker-compose.dev.yml            # 本地开发依赖：PostgreSQL + Redis + RustFS
-├── docs/                             # 架构设计与改造记录
+├── docs/                             # 设计文档中心（权威架构与实施规范）
+│   ├── README.md                     # 文档导航中心
+│   └── design/                       # 自适应 Agent 重实现设计蓝图（01~30 号文）
 ├── .env.example                      # 环境变量示例
 └── README.md
 ```
+
+## 架构设计与文档索引
+
+关于自适应面试 Agent（Adaptive Agent）的完整架构与技术设计，请查阅 [docs/ 目录](./docs/README.md)：
+
+| 文档 | 说明 |
+|---|---|
+| [docs/design/01-platform-design.md](./docs/design/01-platform-design.md) | **平台演进设计**：星型多 Agent 架构、工具客观验证与 MCP 边界 |
+| [docs/design/10-text-interview.md](./docs/design/10-text-interview.md) | **自适应文本面试**：ReAct 循环内核、分层记忆与上下文装配 |
+| [docs/design/11-algorithm-interview.md](./docs/design/11-algorithm-interview.md) | **算法面试设计**：代码沙箱执行协议、Redis Stream 异步判题与证据链 |
+| [docs/design/12-code-analysis-service.md](./docs/design/12-code-analysis-service.md) | **代码分析服务**：代码仓库分析、主张核验与场景卡机制 |
+| [docs/design/20-implementation-modules.md](./docs/design/20-implementation-modules.md) | **实施模块与交付切片**：包边界规范、M0～M5 切片定义与持久化所有权 |
+| [docs/design/30-improvement-spec-2026-08-16.md](./docs/design/30-improvement-spec-2026-08-16.md) | **改进方案 Spec**：综合审查问题修复与长期增强项（IM-1～IM-12） |
 
 ## 快速开始
 

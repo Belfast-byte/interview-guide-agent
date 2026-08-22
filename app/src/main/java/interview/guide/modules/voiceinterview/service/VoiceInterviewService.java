@@ -17,6 +17,7 @@ import interview.guide.modules.voiceinterview.model.VoiceInterviewSessionStatus;
 import interview.guide.modules.voiceinterview.repository.VoiceInterviewEvaluationRepository;
 import interview.guide.modules.voiceinterview.repository.VoiceInterviewMessageRepository;
 import interview.guide.modules.voiceinterview.repository.VoiceInterviewSessionRepository;
+import interview.guide.modules.resume.repository.ResumeRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.redisson.api.RBucket;
@@ -29,6 +30,7 @@ import org.springframework.transaction.support.TransactionSynchronizationManager
 import java.time.Duration;
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.UUID;
 import java.util.stream.Collectors;
 
 /**
@@ -54,10 +56,10 @@ public class VoiceInterviewService {
     private final VoiceInterviewProperties properties;
     private final VoiceEvaluateStreamProducer voiceEvaluateStreamProducer;
     private final LlmProviderRegistry llmProviderRegistry;
+    private final ResumeRepository resumeRepository;
 
     private static final String SESSION_CACHE_KEY_PREFIX = "voice:interview:session:";
     private static final int CACHE_TTL_HOURS = 1;
-    private static final String DEFAULT_USER_ID = "default";
 
     /**
      * Create a new voice interview session
@@ -67,14 +69,14 @@ public class VoiceInterviewService {
      * @return SessionResponseDTO with session details and WebSocket URL
      */
     @Transactional
-    public SessionResponseDTO createSession(CreateSessionRequest request) {
+    public SessionResponseDTO createSession(UUID candidateId, CreateSessionRequest request) {
         String effectiveSkillId = request.getSkillId() != null ? request.getSkillId() : InterviewDefaults.SKILL_ID;
         String effectiveLlmProvider = (request.getLlmProvider() != null && !request.getLlmProvider().isBlank())
             ? request.getLlmProvider()
             : null;
 
         VoiceInterviewSessionEntity session = VoiceInterviewSessionEntity.builder()
-                .userId(DEFAULT_USER_ID)
+                .candidateId(candidateId)
                 .roleType(effectiveSkillId)
                 .skillId(effectiveSkillId)
                 .difficulty(request.getDifficulty() != null ? request.getDifficulty() : InterviewDefaults.DIFFICULTY)
@@ -88,6 +90,11 @@ public class VoiceInterviewService {
                 .plannedDuration(request.getPlannedDuration())
                 .currentPhase(determineFirstPhase(request))
                 .build();
+
+        if (request.getResumeId() != null
+            && !resumeRepository.findByIdAndCandidateId(request.getResumeId(), candidateId).isPresent()) {
+            throw new BusinessException(ErrorCode.RESUME_NOT_FOUND);
+        }
 
         VoiceInterviewSessionEntity saved = sessionRepository.save(session);
         cacheSession(saved);
@@ -131,6 +138,14 @@ public class VoiceInterviewService {
 
         endSession(session);
         sendEvaluateTaskAfterCommit(sessionIdLong);
+    }
+
+    @Transactional
+    public void endSession(UUID candidateId, String sessionId) {
+        Long id = parseSessionId(sessionId);
+        VoiceInterviewSessionEntity session = getSession(candidateId, id);
+        endSession(session);
+        sendEvaluateTaskAfterCommit(id);
     }
 
     private void endSession(VoiceInterviewSessionEntity session) {
@@ -182,6 +197,12 @@ public class VoiceInterviewService {
 
         // Fallback to database
         return sessionRepository.findById(sessionId).orElse(null);
+    }
+
+    public VoiceInterviewSessionEntity getSession(UUID candidateId, Long sessionId) {
+        return sessionRepository.findByIdAndCandidateId(sessionId, candidateId)
+            .orElseThrow(() -> new BusinessException(
+                ErrorCode.VOICE_SESSION_NOT_FOUND, "会话不存在: " + sessionId));
     }
 
     /**
@@ -316,6 +337,14 @@ public class VoiceInterviewService {
             .collect(Collectors.toList());
     }
 
+    public List<VoiceInterviewMessageDTO> getConversationHistoryDTO(
+        UUID candidateId,
+        String sessionId
+    ) {
+        getSession(candidateId, parseSessionId(sessionId));
+        return getConversationHistoryDTO(sessionId);
+    }
+
     /**
      * Pause interview session
      * 暂停面试会话
@@ -343,6 +372,12 @@ public class VoiceInterviewService {
         invalidateSessionCache(sessionIdLong);
 
         log.info("Session {} paused, reason: {}", sessionId, reason);
+    }
+
+    @Transactional
+    public void pauseSession(UUID candidateId, String sessionId, String reason) {
+        getSession(candidateId, parseSessionId(sessionId));
+        pauseSession(sessionId, reason);
     }
 
     /**
@@ -377,6 +412,12 @@ public class VoiceInterviewService {
         return buildSessionResponse(saved);
     }
 
+    @Transactional
+    public SessionResponseDTO resumeSession(UUID candidateId, String sessionId) {
+        getSession(candidateId, parseSessionId(sessionId));
+        return resumeSession(sessionId);
+    }
+
     /**
      * Get all sessions for a user
      * 获取用户所有会话
@@ -385,16 +426,15 @@ public class VoiceInterviewService {
      * @param status Filter by status (optional)
      * @return List of session metadata
      */
-    public List<SessionMetaDTO> getAllSessions(String userId, String status) {
-        userId = userId != null ? userId : DEFAULT_USER_ID;
-
+    public List<SessionMetaDTO> getAllSessions(UUID candidateId, String status) {
         List<VoiceInterviewSessionEntity> sessions;
         if (status != null && !status.isEmpty()) {
             VoiceInterviewSessionStatus statusEnum =
                 VoiceInterviewSessionStatus.valueOf(status.toUpperCase());
-            sessions = sessionRepository.findByUserIdAndStatusOrderByUpdatedAtDesc(userId, statusEnum);
+            sessions = sessionRepository
+                .findByCandidateIdAndStatusOrderByUpdatedAtDesc(candidateId, statusEnum);
         } else {
-            sessions = sessionRepository.findByUserIdOrderByUpdatedAtDesc(userId);
+            sessions = sessionRepository.findByCandidateIdOrderByUpdatedAtDesc(candidateId);
         }
 
         return sessions.stream()
@@ -420,14 +460,8 @@ public class VoiceInterviewService {
      * @param sessionId Session ID as Long
      * @return SessionResponseDTO with session details or null if not found
      */
-    public SessionResponseDTO getSessionDTO(Long sessionId) {
-        VoiceInterviewSessionEntity session = getSession(sessionId);
-
-        if (session == null) {
-            return null;
-        }
-
-        return buildSessionResponse(session);
+    public SessionResponseDTO getSessionDTO(UUID candidateId, Long sessionId) {
+        return buildSessionResponse(getSession(candidateId, sessionId));
     }
 
     /**
@@ -586,6 +620,12 @@ public class VoiceInterviewService {
         sendEvaluateTaskAfterCommit(sessionId);
     }
 
+    @Transactional
+    public void triggerEvaluation(UUID candidateId, Long sessionId) {
+        getSession(candidateId, sessionId);
+        triggerEvaluation(sessionId);
+    }
+
     private void sendEvaluateTaskAfterCommit(Long sessionId) {
         Runnable sendTask = () -> voiceEvaluateStreamProducer.sendEvaluateTask(sessionId.toString());
         if (!TransactionSynchronizationManager.isSynchronizationActive()) {
@@ -605,13 +645,11 @@ public class VoiceInterviewService {
      * 删除语音面试会话及其关联的消息和评估记录
      */
     @Transactional
-    public void deleteSession(Long sessionId) {
-        if (!sessionRepository.existsById(sessionId)) {
-            throw new BusinessException(ErrorCode.VOICE_SESSION_NOT_FOUND, "会话不存在: " + sessionId);
-        }
+    public void deleteSession(UUID candidateId, Long sessionId) {
+        VoiceInterviewSessionEntity session = getSession(candidateId, sessionId);
         evaluationRepository.findBySessionId(sessionId).ifPresent(evaluationRepository::delete);
         messageRepository.deleteBySessionId(sessionId);
-        sessionRepository.deleteById(sessionId);
+        sessionRepository.delete(session);
         log.info("Deleted voice interview session: {}", sessionId);
     }
 

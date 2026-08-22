@@ -11,6 +11,7 @@
 
 - Backend: `.claude/rules/backend.md`
 - AI / async / rate limit: `.claude/rules/ai-and-async.md`
+- Adaptive interview agent: `.claude/rules/interview-agent.md`
 - Frontend: `.claude/rules/frontend.md`
 
 ## Maintenance

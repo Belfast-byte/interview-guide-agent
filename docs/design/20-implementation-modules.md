@@ -29,7 +29,7 @@
 4. **外部调用不进入事务**：LLM、MCP、S3、HTTP 和沙箱调用在事务外执行；持久化由短事务命令完成。
 5. **同一事实源，多种投影视图**：候选人报告和企业报告只能投影同一组 assessment/evidence，不能各自生成结论。
 6. **不可信输入不能越权成为指令或证据**：JD、简历、回答和代码仓库都是数据；简历主张和代码分析产物不能直接变成能力结论。
-7. **旧 MVP 只读隔离**：`agent-loop-mvp-v1` 不迁移、不重构、不被新实现 import；只吸收 deadline、单问题校验、skill hash、乐观锁四项工程经验。
+7. **旧 MVP 已删除**：`agent-loop-mvp-v1` 已于 2026-08-22 删除；只保留其 deadline、单问题校验、skill hash、乐观锁四项工程经验。
 
 ## 3. 代码边界
 
@@ -41,7 +41,7 @@
 interview.guide.modules.interview.agent.adaptive
 ```
 
-`adaptive` 表达业务能力“自适应 Agent 面试”，不是临时版本号。它与旧 MVP 的根级 `runtime/`、`tool/`、`model/` 物理隔离，禁止新代码依赖旧包。
+`adaptive` 表达业务能力“自适应 Agent 面试”，不是临时版本号。旧 MVP 的根级 `runtime/`、`tool/`、`model/` 已于 2026-08-22 删除。
 
 第一阶段仍保留在现有 Gradle `:app` 模块内，以 package 边界和架构测试约束依赖。此时直接拆成多个 Gradle 子模块会增加 Spring 扫描、测试夹具、迁移脚本和配置装配成本，却还没有独立部署收益。真正需要独立扩缩容和安全边界的沙箱服务、代码分析服务从一开始就是独立部署单元。
 
@@ -63,6 +63,19 @@ interview.guide.modules.interview.agent.adaptive
 | 算法面试 | `adaptive.algorithm` | 题目、提交、异步判题、迟到结果裁决、沙箱证据 | `application`、`tool`、`core` 事件端口 | A0～A3 |
 | 代码分析接入 | `adaptive.codeanalysis` | 仓库任务、三类结构化产物、锚点校验、MCP 薄适配 | `mcp`、`tool`、`planning` 端口 | CA-1～CA-4 |
 | 可观测性 | `adaptive.observability` | 指标、审计字段、trace 关联；不得记录回答/代码等敏感原文 | 各模块发布的稳定事件 | M0 起 |
+
+大文件量模块内部按职责划二级子包（2026-08-16 落地，纯机械移动，不改变顶层依赖方向）：
+
+| 顶层模块 | 二级子包 |
+|---|---|
+| `core` | `session`（会话/轮次/状态机）、`action`（Agent 动作）、`context`（各角色上下文与领域值对象）、`event`（输入事件） |
+| `memory` | `brief`（维度小结）、`claim`（候选人主张）、`profile`（能力画像）；`ContextAssembler` 留根包 |
+| `persistence` | `session`、`plan`、`memory`、`assessment`、`practice`、`algorithm`，按 §4 数据所有权分组 |
+| `assessment` | `depth`（深度评估）、`evidence`（证据校验）、`report`（双视图报告）、`practice`（练习推荐）、`backfill`（历史回填） |
+| `algorithm` | `problem`（题目选题）、`sandbox`（沙箱协议）、`judge`（异步判题流）、`evidence`（沙箱证据）；`api` 原有 |
+| `codeanalysis` | `job`（任务生命周期）、`repo`（仓库快照）、`claim`（主张核验）、`scenario`（场景卡）、`trace`（调用链）；入口服务留根包 |
+
+注意：`persistence.memory.CandidateMemoryClaimStatus`（候选人记忆 claim 状态，仅 `UNVERIFIED`）与 `codeanalysis.claim.ClaimVerificationStatus`（代码事实核验状态）是两个不同概念，不要混用。
 
 ### 3.3 依赖方向
 
@@ -121,7 +134,7 @@ M0 不按“先写完所有 Entity，再写完所有 Service”的横向方式�
 
 | 切片 | 交付 | 主要模块 | 出口验收 |
 |---|---|---|---|
-| M0.0 边界守护 | `adaptive` 根包、旧包依赖禁令、架构测试、feature flag/runtime version | core/test/config | 新包无法 import 旧 MVP；新旧入口可明确区分 |
+| M0.0 边界守护 | `adaptive` 根包、feature flag/runtime version | core/test/config | 新旧入口可明确区分（旧 MVP 已于 2026-08-22 删除，依赖禁令随之移除） |
 | M0.1 领域契约 | Session/Turn/InputEvent/Respond/ToolCall、状态转换、预算值对象 | core | 非法转换、空问题、超预算均由纯单测拒绝 |
 | M0.2 事实落库 | `agent_sessions`、`agent_turns`、决策记录、Repository、短事务写入服务 | persistence | 完整问题/回答可重读；schema 守护测试证明 M5 回填载体存在 |
 | M0.3 有界运行时 | model port、ReAct loop、step/tool/deadline 预算、重复调用检测 | runtime/role | 模型空转被截断；超时和模型失败不推进数据库状态 |
@@ -205,7 +218,7 @@ M0 看起来只需要上下文摘要，若把回答截断或只存摘要，M5 �
 
 ## 9. 第一批执行顺序
 
-从当前分支开始按以下顺序推进，不接触旧 MVP 实现：
+从当前分支开始按以下顺序推进（旧 MVP 实现已于 2026-08-22 删除）：
 
 1. M0.0：建立 `adaptive` 根包、依赖禁令和 runtime feature/version 边界；
 2. M0.1：定义纯领域契约和非法状态转换测试；

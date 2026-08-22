@@ -5,6 +5,7 @@ import interview.guide.common.exception.ErrorCode;
 import interview.guide.modules.interviewschedule.model.CreateInterviewRequest;
 import interview.guide.modules.interviewschedule.model.InterviewScheduleDTO;
 import interview.guide.modules.interviewschedule.model.InterviewScheduleEntity;
+import interview.guide.modules.interviewschedule.model.InterviewScheduleFilter;
 import interview.guide.modules.interviewschedule.model.InterviewStatus;
 import interview.guide.modules.interviewschedule.repository.InterviewScheduleRepository;
 import lombok.RequiredArgsConstructor;
@@ -15,6 +16,7 @@ import org.springframework.transaction.annotation.Transactional;
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.stream.Collectors;
+import java.util.UUID;
 
 @Service
 @RequiredArgsConstructor
@@ -28,42 +30,45 @@ public class InterviewScheduleService {
     };
 
     @Transactional
-    public InterviewScheduleDTO create(CreateInterviewRequest request) {
+    public InterviewScheduleDTO create(UUID candidateId, CreateInterviewRequest request) {
         InterviewScheduleEntity entity = new InterviewScheduleEntity();
         BeanUtils.copyProperties(request, entity);
+        entity.setCandidateId(candidateId);
         entity.setStatus(InterviewStatus.PENDING);
 
         return toDTO(repository.save(entity));
     }
 
     @Transactional
-    public InterviewScheduleDTO update(Long id, CreateInterviewRequest request) {
-        InterviewScheduleEntity entity = getByIdOrThrow(id);
+    public InterviewScheduleDTO update(UUID candidateId, Long id, CreateInterviewRequest request) {
+        InterviewScheduleEntity entity = getByIdOrThrow(candidateId, id);
         BeanUtils.copyProperties(request, entity, "id", "status");
         return toDTO(repository.save(entity));
     }
 
     @Transactional
-    public void delete(Long id) {
-        repository.deleteById(id);
+    public void delete(UUID candidateId, Long id) {
+        repository.delete(getByIdOrThrow(candidateId, id));
     }
 
     @Transactional
-    public InterviewScheduleDTO updateStatus(Long id, InterviewStatus status) {
-        InterviewScheduleEntity entity = getByIdOrThrow(id);
+    public InterviewScheduleDTO updateStatus(UUID candidateId, Long id, InterviewStatus status) {
+        InterviewScheduleEntity entity = getByIdOrThrow(candidateId, id);
         entity.setStatus(status);
         return toDTO(repository.save(entity));
     }
 
-    public List<InterviewScheduleDTO> getAll(String status, LocalDateTime start, LocalDateTime end) {
+    public List<InterviewScheduleDTO> getAll(UUID candidateId, InterviewScheduleFilter filter) {
         List<InterviewScheduleEntity> entities;
 
-        if (start != null && end != null) {
-            entities = repository.findByInterviewTimeBetween(start, end);
-        } else if (status != null) {
-            entities = repository.findByStatus(InterviewStatus.valueOf(status));
+        if (filter.start() != null && filter.end() != null) {
+            entities = repository.findByCandidateIdAndInterviewTimeBetweenOrderByInterviewTimeAsc(
+                candidateId, filter.start(), filter.end());
+        } else if (filter.status() != null) {
+            entities = repository.findByCandidateIdAndStatusOrderByInterviewTimeAsc(
+                candidateId, InterviewStatus.valueOf(filter.status()));
         } else {
-            entities = repository.findAll();
+            entities = repository.findAllByCandidateIdOrderByInterviewTimeAsc(candidateId);
         }
 
         return entities.stream()
@@ -71,12 +76,12 @@ public class InterviewScheduleService {
             .collect(Collectors.toList());
     }
 
-    public InterviewScheduleDTO getById(Long id) {
-        return toDTO(getByIdOrThrow(id));
+    public InterviewScheduleDTO getById(UUID candidateId, Long id) {
+        return toDTO(getByIdOrThrow(candidateId, id));
     }
 
-    private InterviewScheduleEntity getByIdOrThrow(Long id) {
-        return repository.findById(id)
+    private InterviewScheduleEntity getByIdOrThrow(UUID candidateId, Long id) {
+        return repository.findByIdAndCandidateId(id, candidateId)
             .orElseThrow(() -> new BusinessException(ErrorCode.INTERVIEW_SCHEDULE_NOT_FOUND, "面试日程不存在: " + id));
     }
 

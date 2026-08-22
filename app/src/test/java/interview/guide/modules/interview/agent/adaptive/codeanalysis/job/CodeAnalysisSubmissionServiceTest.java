@@ -1,0 +1,66 @@
+package interview.guide.modules.interview.agent.adaptive.codeanalysis.job;
+
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.mockito.Mockito.times;
+import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.when;
+
+import interview.guide.common.exception.BusinessException;
+import java.time.LocalDateTime;
+import interview.guide.modules.interview.agent.adaptive.observability.CodeAnalysisTelemetry;
+import org.junit.jupiter.api.DisplayName;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.InjectMocks;
+import org.mockito.Mock;
+import org.mockito.junit.jupiter.MockitoExtension;
+
+@ExtendWith(MockitoExtension.class)
+class CodeAnalysisSubmissionServiceTest {
+
+  @Mock
+  private CodeAnalysisPersistenceService persistenceService;
+
+  @Mock
+  private CodeAnalysisStreamProducer producer;
+
+  @Mock
+  private CodeAnalysisTelemetry telemetry;
+
+  @InjectMocks
+  private CodeAnalysisSubmissionService service;
+
+  @Test
+  @DisplayName("任务落库后投递 Stream，同步重投一次仍失败才快速失败")
+  void shouldFailFastWhenEnqueueFails() {
+    LocalDateTime expiresAt = LocalDateTime.now().plusDays(30);
+    when(persistenceService.createJob(
+        "session-1",
+        "tenant-1",
+        "s3://repos/one.zip",
+        "abc123",
+        expiresAt
+    )).thenReturn(new CodeAnalysisJob(
+        "job-1",
+        "session-1",
+        "repo-1",
+        AnalysisJobStatus.PENDING,
+        null,
+        null,
+        LocalDateTime.now(),
+        null
+    ));
+    when(producer.send("job-1")).thenReturn(false);
+
+    assertThatThrownBy(() -> service.submit(
+        "session-1",
+        "tenant-1",
+        "s3://repos/one.zip",
+        "abc123",
+        expiresAt
+    )).isInstanceOf(BusinessException.class)
+        .hasMessageContaining("投递失败");
+    verify(producer, times(2)).send("job-1");
+    verify(persistenceService).markFailed("job-1", "代码分析任务投递失败");
+  }
+}
