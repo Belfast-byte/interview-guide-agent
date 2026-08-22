@@ -24,6 +24,7 @@ paths:
 - 轮次用尽时把模型的 ASK 强制改写为 FINISH；维度顺序固定，不允许模型跳维度。
 - 角色只有 `PLANNER`（创建时规划，1 步无工具）和 `INTERVIEWER`；评估不是角色，由 application 层显式调 `DepthAssessmentAgent`。
 - 证据必须锚定真实材料：评估 quote 逐字命中回答原文（`AssessmentEvidenceValidator`）；`ProbeGap` 锚点是回答原文子串且最多 2 个；代码出题必须携带命中真实分析产物的 `CodeQuestionProvenance`，否则拒绝。
+- 裁决层（`InterviewPlan.decide`、`DepthAssessmentAgent` 裁决、`ToolGateway`）已校验的提案，下游代码不再重复校验。
 
 ## Runtime 与工具
 
