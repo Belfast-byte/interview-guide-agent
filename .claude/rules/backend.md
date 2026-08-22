@@ -48,6 +48,8 @@ paths:
 - 归属/存在性校验融进 Repository 查询（`findByIdAndCandidateId`，查不到即抛 `BusinessException`），不写「先 `findById` 判空再比对」的多步防御代码。
 - 每个外部约束只校验一次：Controller 已用 Bean Validation 校验的字段，Service 不重复校验；Filter 层已做的认证，业务层不再怀疑。
 - 设计新模块前先写「不做清单」，范例见 `docs/design/02-auth-permission.md` §1。
+- 写防御性代码前自问三句：防的是什么真实存在的问题？框架或上层是否已经防过了？删掉它测试会红吗？答不上来就不要写。
+- 没有内部实现可复用时，优先参考 GitHub 上成熟的开源实现并裁剪，不自行设计协议、格式和机制。
 
 ## Style
 
