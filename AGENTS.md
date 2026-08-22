@@ -9,13 +9,18 @@ Spring Boot 4.1.0 + Java 21 + Spring AI 2.0.0 + React 面试平台。
 2.只写解决当前问题的最小代码，不做任何推测性功能。
 3.只修改必须改的地方，只清理自己产生的问题。
 4.明确定义成功标准，验证通过前持续迭代。
+5.能抄不造：优先复用框架能力和本仓库已有实现；没有内部实现时，优先参考 GitHub 上成熟的开源实现并裁剪，不自行设计协议、格式和机制。
 ## 反过度工程/反防御性编程
 - 信任内部代码和框架保证。
 - 只在系统边界(用户输入、外部 API、网络）做校验。
 - 禁止为「不可能发生」的场景添加错误处理、回退、空值检查或验证。
 - 绝不吞掉错误（禁止 rescue nil / 宽泛 catch/ 静默默认值)。
 - 禁止为一次性操作创建辅助函数、工具类或抽象。
-- 优先快速失败，而不是掩盖问题
+- 优先快速失败，而不是掩盖问题。
+- 禁止不必要的校验与重复校验：框架已保证的（如 Spring Security 已认证身份、Bean Validation 已校验的入参）不再自写一层；同一约束只在一处校验（如归属校验融进 `findByIdAndCandidateId` 查询，不写「先查再比对」）；哈希、签名等校验只在真实信任边界做一次，不层层加码。
+- 禁止重复造轮子：加解密、哈希、JWT、限流、重试、线程池等机制一律用框架/JDK/仓库现有组件（如 `BCryptPasswordEncoder`、`jjwt`、`@RateLimit`、`StructuredOutputInvoker`），不自写工具类。引入新依赖前先确认 JDK/现有依赖做不到。
+- 设计新功能先做减法：列出「不做清单」，为每一项砍掉的能力写明理由与可接受代价；没有真实使用者的角色、配置项、扩展点、预留抽象一律不实现（字段级预留如 `tenant_id` 可以）。参考范例：`docs/design/02-auth-permission.md` §1。
+- 写代码前自问三句：这段代码防的是什么真实存在的问题？框架或上层是否已经防过了？删掉它测试会红吗？三个问题都答不上来就不要写。
 
 ## Commands
 
@@ -39,7 +44,7 @@ docker compose -f docker-compose.dev.yml up -d
 - `app/src/main/java/interview/guide/common/`: 通用能力，包括限流、AI 调用、异步模板、配置、异常、统一响应。
 - `app/src/main/java/interview/guide/infrastructure/`: 技术基础设施，包括文件、导出、Redis、MapStruct 映射。
 - `app/src/main/java/interview/guide/modules/`: 业务模块，每个模块自包含 MVC 分层。
-- `app/src/main/java/interview/guide/modules/interview/agent/adaptive/`: 自适应面试 Agent，顶层按职责分包（`core`/`runtime`/`role`/`application`/`persistence`/`planning`/`tool`/`memory`/`assessment`/`algorithm`/`codeanalysis`/`mcp` 等）；大模块内部再按职责划二级子包（如 `persistence.session`、`assessment.depth`），子包划分见 `docs/design/20-implementation-modules.md` §3.2。
+- `app/src/main/java/interview/guide/modules/interview/agent/adaptive/`: 自适应面试 Agent，顶层按职责分包（`api`/`application`/`core`/`runtime`/`role`/`tool`/`planning`/`memory`/`assessment`/`persistence`/`algorithm`/`codeanalysis`/`mcp`/`observability`）；大模块内部再按职责划二级子包（如 `persistence.session`、`assessment.depth`），子包划分与依赖方向见 `docs/design/20-implementation-modules.md` §3.2，细则见 `.claude/rules/interview-agent.md`。
 - `app/src/main/resources/prompts/`: StringTemplate Prompt 模板。
 - `frontend/src/`: React 前端页面、组件、API 客户端和类型定义。
 - `docs/`: 设计文档中心，入口 `docs/README.md`。`docs/design/` 是面试 Agent 重实现蓝图（唯一事实源），`docs/archive/` 是历史文档。
@@ -71,6 +76,16 @@ docker compose -f docker-compose.dev.yml up -d
 - Redis Stream 生产/消费使用 `AbstractStreamProducer` / `AbstractStreamConsumer` 模板。
 - 异步处理前先校验实体是否存在；实体已删除时 ACK 丢弃。
 - 限流使用可重复 `@RateLimit`，不要手写散落的 Redis 限流逻辑。
+
+## Interview Agent Rules（自适应面试 Agent）
+
+- 设计唯一事实源是 `docs/design/`；实现细则在 `.claude/rules/interview-agent.md`，改 adaptive 包前必读。
+- 依赖方向：`api → application → {core, runtime}`，`role`/`tool`/`planning`/`memory`/`assessment`/`persistence` 只依赖 `core`；`core` 是纯领域内核，禁止 import Spring AI/JPA/Redis/Web。
+- 模型建议、代码裁决：状态迁移、轮次上限、计划轮次分配由代码确定性裁决（`AdaptiveInterviewSession`、`InterviewPlan.decide`），模型输出只是提案；证据与锚点必须逐字命中回答原文或真实分析产物。
+- ReAct 循环统一走 `BoundedReActRuntime`（步数/工具数/deadline 三重预算）；工具必须经 `ToolGateway` 白名单执行，禁止模型网关自动注册工具。
+- 「外部调用 → 裁决 → 落库」的串联只发生在 `application` 层；写库统一走 `AdaptiveInterviewPersistenceService`（短事务 + `@Version` 乐观锁），LLM/沙箱/外部 HTTP 调用在事务外。
+- 会话状态全部存 PostgreSQL；Redis 只用于判题、代码分析等异步 Stream。
+- 与旧 MVP（`agent/AgentInterviewController`，开关 `app.interview.agent-loop.enabled`）物理隔离：adaptive 不得依赖旧包，由 `AdaptivePackageIsolationTest` 守护。
 
 ## Config And Data
 
@@ -112,4 +127,5 @@ docker compose -f docker-compose.dev.yml up -d
 
 - 后端 Java 细则：`.claude/rules/backend.md`
 - AI、限流、异步细则：`.claude/rules/ai-and-async.md`
+- 自适应面试 Agent 细则：`.claude/rules/interview-agent.md`
 - 前端细则：`.claude/rules/frontend.md`
