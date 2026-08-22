@@ -33,6 +33,7 @@ class LlmProviderSystemIsolationTest {
   @Mock private LlmProviderRepository providerRepository;
   @Mock private LlmGlobalSettingRepository globalSettingRepository;
   @Mock private ApiKeyEncryptionService encryptionService;
+  @Mock private ProviderConnectionTester connectionTester;
   @Mock private VoiceInterviewProperties voiceProperties;
   @Mock private QwenAsrService asrService;
   @Mock private QwenTtsService ttsService;
@@ -47,6 +48,7 @@ class LlmProviderSystemIsolationTest {
         providerRepository,
         globalSettingRepository,
         encryptionService,
+        connectionTester,
         voiceProperties,
         asrService,
         ttsService

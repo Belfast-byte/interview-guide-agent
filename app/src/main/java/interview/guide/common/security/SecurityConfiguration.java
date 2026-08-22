@@ -58,6 +58,7 @@ public class SecurityConfiguration {
             )
             .hasRole("ADMIN")
             .requestMatchers(
+                "/api/me/llm-providers/**",
                 "/api/adaptive-agent-interviews/**",
                 "/api/interview/skills/**",
                 "/api/voice-interview/**",

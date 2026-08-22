@@ -20,12 +20,10 @@ import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
 import java.io.IOException;
-import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
-import java.util.List;
 import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.Map;
@@ -46,6 +44,7 @@ class LlmProviderConfigServiceTest {
 
     @Mock private LlmProviderProperties properties;
     @Mock private LlmProviderRegistry registry;
+    @Mock private ProviderConnectionTester connectionTester;
     @Mock private VoiceInterviewProperties voiceProperties;
     @Mock private QwenAsrService asrService;
     @Mock private QwenTtsService ttsService;
@@ -69,6 +68,7 @@ class LlmProviderConfigServiceTest {
         service = new LlmProviderConfigService(
             properties,
             registry,
+            connectionTester,
             voiceProperties,
             asrService,
             ttsService
@@ -90,7 +90,7 @@ class LlmProviderConfigServiceTest {
             when(properties.getConfigEnvPath()).thenReturn(tempDir.resolve(".env").toString());
 
             LlmProviderConfigService failing = new LlmProviderConfigService(
-                properties, registry, voiceProperties, asrService, ttsService);
+                properties, registry, connectionTester, voiceProperties, asrService, ttsService);
 
             assertThrows(BusinessException.class, failing::validateWritablePaths);
         }
@@ -124,24 +124,6 @@ class LlmProviderConfigServiceTest {
             assertThrows(BusinessException.class, () -> service.getProvider("unknown"));
         }
 
-        @Test
-        @DisplayName("GLM base-url 测试连接不应重复拼接 /v1")
-        void buildConnectivityUrlsAvoidsDoubleVersionForGlm() throws Exception {
-            List<String> urls = invokeConnectivityUrls("https://open.bigmodel.cn/api/coding/paas/v4");
-
-            assertEquals(List.of("https://open.bigmodel.cn/api/coding/paas/v4/chat/completions"), urls);
-        }
-
-        @Test
-        @DisplayName("测试连接请求体不再强制携带 temperature")
-        void connectivityRequestBodyOmitsTemperature() throws Exception {
-            Map<String, Object> body = invokeConnectivityRequestBody("kimi-latest");
-
-            assertEquals("kimi-latest", body.get("model"));
-            assertEquals(1, body.get("max_tokens"));
-            assertTrue(body.containsKey("messages"));
-            assertTrue(!body.containsKey("temperature"));
-        }
     }
 
     @Nested
@@ -280,7 +262,7 @@ class LlmProviderConfigServiceTest {
             when(properties.getConfigYamlPath()).thenReturn(null);
             when(properties.getConfigEnvPath()).thenReturn(envFile.toString());
             return new LlmProviderConfigService(
-                properties, registry, voiceProperties, asrService, ttsService);
+                properties, registry, connectionTester, voiceProperties, asrService, ttsService);
         }
 
         @Test
@@ -331,7 +313,7 @@ class LlmProviderConfigServiceTest {
             when(properties.getConfigEnvPath()).thenReturn(null);
 
             LlmProviderConfigService nullEnvService = new LlmProviderConfigService(
-                properties, registry, voiceProperties, asrService, ttsService);
+                properties, registry, connectionTester, voiceProperties, asrService, ttsService);
 
             assertDoesNotThrow(() -> nullEnvService.createProvider(
                 new CreateProviderRequest("test", "http://localhost", "key", "model", null, null)));
@@ -364,7 +346,7 @@ class LlmProviderConfigServiceTest {
             when(properties.getConfigEnvPath()).thenReturn(null);
 
             LlmProviderConfigService yamlService = new LlmProviderConfigService(
-                properties, registry, voiceProperties, asrService, ttsService);
+                properties, registry, connectionTester, voiceProperties, asrService, ttsService);
 
             when(properties.getProviders()).thenReturn(new HashMap<>());
 
@@ -395,7 +377,7 @@ class LlmProviderConfigServiceTest {
             when(properties.getConfigEnvPath()).thenReturn(null);
 
             LlmProviderConfigService yamlService = new LlmProviderConfigService(
-                properties, registry, voiceProperties, asrService, ttsService);
+                properties, registry, connectionTester, voiceProperties, asrService, ttsService);
 
             when(properties.getProviders()).thenReturn(new HashMap<>());
 
@@ -415,7 +397,7 @@ class LlmProviderConfigServiceTest {
             when(properties.getConfigEnvPath()).thenReturn(null);
 
             LlmProviderConfigService nullYamlService = new LlmProviderConfigService(
-                properties, registry, voiceProperties, asrService, ttsService);
+                properties, registry, connectionTester, voiceProperties, asrService, ttsService);
 
             assertDoesNotThrow(() -> nullYamlService.createProvider(
                 new CreateProviderRequest("test", "http://localhost", "key", "model", null, null)));
@@ -436,17 +418,6 @@ class LlmProviderConfigServiceTest {
         return config;
     }
 
-    @SuppressWarnings("unchecked")
-    private List<String> invokeConnectivityUrls(String baseUrl)
-        throws NoSuchMethodException, InvocationTargetException, IllegalAccessException {
-        Method method = LlmProviderConfigService.class.getDeclaredMethod(
-            "buildConnectivityTestUrls",
-            String.class
-        );
-        method.setAccessible(true);
-        return (List<String>) method.invoke(service, baseUrl);
-    }
-
     private void invokeMethod(Object target, String methodName, Object... args)
         throws Exception {
         Class<?>[] paramTypes = new Class<?>[args.length];
@@ -458,14 +429,4 @@ class LlmProviderConfigServiceTest {
         method.invoke(target, args);
     }
 
-    @SuppressWarnings("unchecked")
-    private Map<String, Object> invokeConnectivityRequestBody(String model)
-        throws NoSuchMethodException, InvocationTargetException, IllegalAccessException {
-        Method method = LlmProviderConfigService.class.getDeclaredMethod(
-            "buildConnectivityTestRequestBody",
-            String.class
-        );
-        method.setAccessible(true);
-        return (Map<String, Object>) method.invoke(service, model);
-    }
 }

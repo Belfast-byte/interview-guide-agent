@@ -31,7 +31,10 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.when;
 
-@SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT)
+@SpringBootTest(
+    webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT,
+    properties = "app.interview.adaptive-agent.enabled=false"
+)
 @ActiveProfiles("test")
 class SecurityBoundaryIntegrationTest {
 
@@ -100,6 +103,24 @@ class SecurityBoundaryIntegrationTest {
   void shouldRejectCandidateFromAdminApi() throws Exception {
     mockMvc.perform(get("/api/llm-provider/providers")
             .header("Authorization", bearer(UserRole.CANDIDATE)))
+        .andExpect(status().isForbidden())
+        .andExpect(jsonPath("$.code").value(403));
+  }
+
+  @Test
+  @DisplayName("候选人可以访问自己的 Provider 接口")
+  void shouldAllowCandidateProviderRequest() throws Exception {
+    mockMvc.perform(get("/api/me/llm-providers")
+            .header("Authorization", bearer(UserRole.CANDIDATE)))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.code").value(200));
+  }
+
+  @Test
+  @DisplayName("管理员不能访问候选人 Provider 接口")
+  void shouldRejectAdminFromCandidateProviderRequest() throws Exception {
+    mockMvc.perform(get("/api/me/llm-providers")
+            .header("Authorization", bearer(UserRole.ADMIN)))
         .andExpect(status().isForbidden())
         .andExpect(jsonPath("$.code").value(403));
   }
