@@ -14,6 +14,7 @@ public record AdaptiveInterviewResponse(
     int currentTurn,
     int maxTurns,
     String currentQuestion,
+    String failureReason,
     List<AdaptiveInterviewDimensionResponse> dimensions,
     List<AdaptiveInterviewTurnResponse> turns
 ) {
@@ -21,6 +22,7 @@ public record AdaptiveInterviewResponse(
   public static AdaptiveInterviewResponse from(PlannedInterview interview) {
     var history = interview.history();
     String currentQuestion = history.session().status() == AdaptiveSessionStatus.COMPLETED
+        || history.turns().isEmpty()
         ? null
         : history.turns().getLast().question();
     return new AdaptiveInterviewResponse(
@@ -30,6 +32,7 @@ public record AdaptiveInterviewResponse(
         history.session().currentTurn(),
         history.session().maxTurns(),
         currentQuestion,
+        history.failureReason(),
         interview.plan().dimensions().stream()
             .map(AdaptiveInterviewDimensionResponse::from)
             .toList(),

@@ -52,6 +52,9 @@ public class AdaptiveAgentSessionEntity {
   @Column(name = "max_turns", nullable = false)
   private int maxTurns;
 
+  @Column(name = "failure_reason", length = 500)
+  private String failureReason;
+
   @Version
   @Column(nullable = false)
   private long version;
@@ -123,9 +126,25 @@ public class AdaptiveAgentSessionEntity {
     return completedAt;
   }
 
+  public String failureReason() {
+    return failureReason;
+  }
+
+  public AdaptiveSessionStatus markFailed(String reason) {
+    if (status != AdaptiveSessionStatus.CREATED) {
+      return status;
+    }
+    status = AdaptiveSessionStatus.FAILED;
+    failureReason = reason != null && reason.length() > 500
+        ? reason.substring(0, 500)
+        : reason;
+    return status;
+  }
+
   public void apply(AdaptiveInterviewSession session) {
     status = session.status();
     currentTurn = session.currentTurn();
+    maxTurns = session.maxTurns();
     if (status == AdaptiveSessionStatus.COMPLETED) {
       completedAt = LocalDateTime.now();
     }

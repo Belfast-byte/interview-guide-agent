@@ -102,6 +102,15 @@ export default function AdaptiveInterviewPage() {
     }
   }, [loadSession, sessionId]);
 
+  // 创建异步化：CREATED 骨架期每 2s 轮询，直到首题就绪、完成或失败
+  useEffect(() => {
+    if (!sessionId || session?.status !== 'CREATED') return;
+    const timer = window.setTimeout(() => {
+      void loadSession(sessionId);
+    }, 2_000);
+    return () => window.clearTimeout(timer);
+  }, [loadSession, session?.status, sessionId]);
+
   const completedTurns = useMemo(
     () => session?.turns.filter(turn => turn.answer !== null).length ?? 0,
     [session?.turns],
@@ -323,7 +332,13 @@ export default function AdaptiveInterviewPage() {
         </div>
         <div className="flex items-center gap-3">
           <span className="rounded-full border border-slate-200 bg-white px-3 py-1.5 text-xs font-semibold text-slate-600 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-300">
-            {session.status === 'COMPLETED' ? '已完成' : `第 ${session.currentTurn} / ${session.maxTurns} 轮`}
+            {session.status === 'CREATED'
+              ? '正在准备'
+              : session.status === 'FAILED'
+                ? '创建失败'
+                : session.status === 'COMPLETED'
+                  ? '已完成'
+                  : `第 ${session.currentTurn} / ${session.maxTurns} 轮`}
           </span>
           <button
             type="button"
@@ -339,7 +354,14 @@ export default function AdaptiveInterviewPage() {
 
       {error && <ErrorBanner message={error} />}
 
-      <DimensionRail dimensions={session.dimensions} />
+      {session.status === 'FAILED' ? (
+        <ErrorBanner
+          message={`面试创建失败：${session.failureReason ?? '未知原因'}`}
+          action={{ label: '重新开始', run: startNew }}
+        />
+      ) : (
+        <DimensionRail dimensions={session.dimensions} />
+      )}
 
       <div className="mt-6 grid items-start gap-6 xl:grid-cols-[minmax(0,1fr)_340px]">
         <section className="overflow-hidden rounded-3xl border border-slate-200/80 bg-white/90 shadow-xl shadow-slate-200/40 dark:border-slate-700/80 dark:bg-slate-800/85 dark:shadow-slate-950/20">
@@ -348,6 +370,14 @@ export default function AdaptiveInterviewPage() {
             <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">已完成 {completedTurns} 轮，问题与回答均作为评估证据保存。</p>
           </div>
           <div className="space-y-6 px-5 py-6 sm:px-7">
+            {session.status === 'CREATED' && (
+              <div className="flex items-center gap-3 rounded-2xl border border-primary-100 bg-primary-50/60 px-4 py-3.5 dark:border-primary-900/60 dark:bg-primary-950/20">
+                <Loader2 className="h-4 w-4 flex-none animate-spin text-primary-500" />
+                <p className="text-sm leading-6 text-slate-700 dark:text-slate-300">
+                  正在根据职位描述与简历规划面试维度并生成首题，完成后自动进入面试。
+                </p>
+              </div>
+            )}
             {session.turns.map(turn => (
               <motion.article
                 key={turn.turnIndex}
@@ -600,7 +630,7 @@ function SetupView(props: SetupViewProps) {
           <ContextField label="候选人简历" icon={FileText} value={props.resume} onChange={props.onResumeChange} placeholder="项目经历、技术能力、职责范围和代表性成果" tall />
         </div>
         <div className="flex flex-col gap-4 border-t border-slate-100 bg-slate-50/80 px-6 py-5 dark:border-slate-700 dark:bg-slate-900/35 sm:flex-row sm:items-center sm:justify-between sm:px-8">
-          <p className="max-w-2xl text-xs leading-5 text-slate-500 dark:text-slate-400">创建前不会写入会话；规划或首题生成失败会直接返回错误，不留下半成品记录。</p>
+          <p className="max-w-2xl text-xs leading-5 text-slate-500 dark:text-slate-400">提交后立即创建会话；规划与首题在后台生成，页面会自动刷新进度，失败时会给出明确原因。</p>
           <button
             type="button"
             onClick={props.onCreate}
@@ -654,6 +684,7 @@ function DimensionRail({ dimensions }: { dimensions: AdaptiveInterviewDimension[
 
 function CurrentFocus({ dimensions }: { dimensions: AdaptiveInterviewDimension[] }) {
   const current = dimensions.find(dimension => dimension.status === 'IN_PROGRESS');
+  if (!current) return null;
   return (
     <div className="rounded-2xl border border-slate-200 bg-white/90 p-5 dark:border-slate-700 dark:bg-slate-800/85">
       <div className="mb-4 flex items-center gap-2"><Target className="h-4 w-4 text-primary-500" /><h2 className="text-sm font-bold text-slate-900 dark:text-white">当前考察重点</h2></div>

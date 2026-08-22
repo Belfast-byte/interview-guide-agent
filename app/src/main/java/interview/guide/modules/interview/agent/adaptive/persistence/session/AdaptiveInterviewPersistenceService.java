@@ -243,6 +243,80 @@ public class AdaptiveInterviewPersistenceService
     ).ifPresent(profile -> profile.replaceAssessment(assessment));
   }
 
+  /**
+   * 落 CREATED 骨架会话：异步创建链路的第一步，立即对前端可见；轮次预算为占位值，
+   * 规划完成后由 {@link #completeCreation} 回填。
+   */
+  @Transactional
+  public PlannedInterview createSkeleton(
+      String tenantId,
+      String sessionId,
+      String candidateId,
+      String jd,
+      String resume,
+      String llmProvider
+  ) {
+    AdaptiveAgentSessionEntity sessionEntity = sessionRepository.save(
+        new AdaptiveAgentSessionEntity(
+            AdaptiveInterviewSession.create(sessionId, AdaptiveInterviewSession.MAX_TURNS),
+            tenantId,
+            candidateId,
+            jd,
+            resume,
+            llmProvider
+        )
+    );
+    return plannedInterview(
+        sessionEntity,
+        new InterviewPlan(sessionId, 0, List.of())
+    );
+  }
+
+  /**
+   * 创建链路完成：回填真实轮次预算、落计划与首题并推进 IN_PROGRESS。
+   */
+  @Transactional
+  public PlannedInterview completeCreation(
+      String sessionId,
+      InterviewPlan plan,
+      RespondAction firstAction,
+      List<ToolExecution> toolExecutions
+  ) {
+    AdaptiveAgentSessionEntity sessionEntity = sessionRepository.findById(sessionId)
+        .orElseThrow(() -> new BusinessException(
+            ErrorCode.INTERVIEW_SESSION_NOT_FOUND,
+            "Agent 面试会话不存在"
+        ));
+    AdaptiveInterviewSession started = sessionEntity.toDomain().start();
+    sessionEntity.apply(new AdaptiveInterviewSession(
+        started.id(),
+        started.runtimeVersion(),
+        started.status(),
+        started.currentTurn(),
+        plan.maxTurns()
+    ));
+    planRepository.saveAll(plan.dimensions().stream()
+        .map(dimension -> new AdaptiveAgentPlanEntity(sessionId, dimension))
+        .toList());
+    turnRepository.save(new AdaptiveAgentTurnEntity(
+        sessionId,
+        1,
+        plan.dimensionForTurn(1).order(),
+        firstAction
+    ));
+    saveToolExecutions(sessionId, toolExecutions);
+    return plannedInterview(sessionEntity, plan);
+  }
+
+  /**
+   * 创建链路失败：把 CREATED 骨架置为 FAILED 并记录可读原因；非创建态会话原样保留。
+   */
+  @Transactional
+  public void failCreation(String sessionId, String reason) {
+    sessionRepository.findById(sessionId)
+        .ifPresent(entity -> entity.markFailed(reason));
+  }
+
   @Transactional
   public PlannedInterview create(
       String tenantId,
@@ -516,7 +590,8 @@ public class AdaptiveInterviewPersistenceService
         sessionEntity.llmProvider(),
         turnRepository.findBySessionIdOrderByTurnIndex(session.id()).stream()
             .map(AdaptiveAgentTurnEntity::toDomain)
-            .toList()
+            .toList(),
+        sessionEntity.failureReason()
     );
   }
 }

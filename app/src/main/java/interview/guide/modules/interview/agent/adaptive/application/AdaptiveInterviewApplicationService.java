@@ -50,8 +50,10 @@ import interview.guide.modules.interview.skill.InterviewSkillService;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
+import java.util.concurrent.RejectedExecutionException;
 import java.util.stream.Stream;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.dao.OptimisticLockingFailureException;
 import org.springframework.stereotype.Service;
@@ -59,6 +61,7 @@ import org.springframework.stereotype.Service;
 /**
  * 自适应面试应用服务，是面试流程的总编排入口，负责创建会话、提交回答和生成报告。
  */
+@Slf4j
 @Service
 @RequiredArgsConstructor
 public class AdaptiveInterviewApplicationService {
@@ -80,15 +83,16 @@ public class AdaptiveInterviewApplicationService {
   private final AlgorithmInterviewTelemetry algorithmTelemetry;
   private final CodeAnalysisInterviewContextService codeAnalysisContextService;
   private final InterviewSkillService skillService;
+  private final AdaptiveInterviewCreationTaskRunner creationExecutor;
 
   /**
-   * 创建一次非租户维度的自适应面试：规划面试计划并生成首轮决策。
+   * 创建一次非租户维度的自适应面试：落 CREATED 骨架后立即返回，规划与首题在后台生成。
    *
    * @param candidateId 候选人 ID
    * @param jd 职位描述
    * @param resume 候选人简历
    * @param llmProvider 使用的 LLM 供应商
-   * @return 已创建的自适应面试
+   * @return CREATED 骨架会话
    */
   public PlannedInterview create(
       String candidateId,
@@ -107,7 +111,7 @@ public class AdaptiveInterviewApplicationService {
    * @param jd 职位描述
    * @param resume 候选人简历
    * @param llmProvider 使用的 LLM 供应商
-   * @return 已创建的自适应面试
+   * @return CREATED 骨架会话
    */
   public PlannedInterview createForTenant(
       String tenantId,
@@ -127,6 +131,42 @@ public class AdaptiveInterviewApplicationService {
       String llmProvider
   ) {
     String sessionId = UUID.randomUUID().toString();
+    PlannedInterview skeleton = persistenceService.createSkeleton(
+        tenantId,
+        sessionId,
+        candidateId,
+        jd,
+        resume,
+        llmProvider
+    );
+    try {
+      creationExecutor.submit(() -> {
+        try {
+          generateFirstTurn(tenantId, sessionId, candidateId, jd, resume, llmProvider);
+        } catch (Exception e) {
+          log.error("自适应面试创建失败: sessionId={}", sessionId, e);
+          persistenceService.failCreation(sessionId, readableFailure(e));
+        }
+      });
+    } catch (RejectedExecutionException e) {
+      persistenceService.failCreation(sessionId, "创建队列已满，请稍后重试");
+      throw new BusinessException(ErrorCode.INTERNAL_ERROR, "自适应面试创建任务提交失败", e);
+    }
+    return skeleton;
+  }
+
+  /**
+   * 创建链路的后半段：规划面试计划并生成首轮决策（LLM 调用全部在事务外）。
+   * 包内可见以便测试同步驱动。
+   */
+  void generateFirstTurn(
+      String tenantId,
+      String sessionId,
+      String candidateId,
+      String jd,
+      String resume,
+      String llmProvider
+  ) {
     PlanProposal proposal = planningAgent.propose(
         new PlanningRequest(sessionId, contextAssembler.planner(
             jd,
@@ -162,17 +202,19 @@ public class AdaptiveInterviewApplicationService {
         List.of(),
         List.of()
     ));
-    return persistenceService.create(
-        tenantId,
+    persistenceService.completeCreation(
         sessionId,
-        candidateId,
-        jd,
-        resume,
-        llmProvider,
         plan,
         firstDecision.response(),
         firstDecision.toolExecutions()
     );
+  }
+
+  private String readableFailure(Exception e) {
+    String message = e instanceof BusinessException businessException
+        ? businessException.getMessage()
+        : e.getMessage();
+    return message == null || message.isBlank() ? "创建链路未知异常" : message;
   }
 
   /**

@@ -11,5 +11,22 @@ public record AdaptiveInterviewHistory(
     String jd,
     String resume,
     String llmProvider,
-    List<AdaptiveInterviewTurn> turns
-) {}
+    List<AdaptiveInterviewTurn> turns,
+    String failureReason
+) {
+
+  public AdaptiveInterviewHistory {
+    turns = List.copyOf(turns);
+  }
+
+  public AdaptiveInterviewHistory(
+      AdaptiveInterviewSession session,
+      String candidateId,
+      String jd,
+      String resume,
+      String llmProvider,
+      List<AdaptiveInterviewTurn> turns
+  ) {
+    this(session, candidateId, jd, resume, llmProvider, turns, null);
+  }
+}

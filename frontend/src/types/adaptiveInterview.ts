@@ -1,4 +1,4 @@
-export type AdaptiveSessionStatus = 'CREATED' | 'IN_PROGRESS' | 'COMPLETED';
+export type AdaptiveSessionStatus = 'CREATED' | 'IN_PROGRESS' | 'COMPLETED' | 'FAILED';
 export type AdaptiveDimensionStatus = 'PENDING' | 'IN_PROGRESS' | 'COMPLETED';
 export type AdaptiveDepthLevel = 'L0' | 'L1' | 'L2' | 'L3' | 'L4';
 
@@ -25,6 +25,7 @@ export interface AdaptiveInterviewSession {
   currentTurn: number;
   maxTurns: number;
   currentQuestion: string | null;
+  failureReason: string | null;
   dimensions: AdaptiveInterviewDimension[];
   turns: AdaptiveInterviewTurn[];
 }

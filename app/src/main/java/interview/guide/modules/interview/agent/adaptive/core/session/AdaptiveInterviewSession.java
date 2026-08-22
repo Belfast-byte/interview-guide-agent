@@ -52,6 +52,22 @@ public record AdaptiveInterviewSession(
     );
   }
 
+  /**
+   * 创建链路失败时的终态迁移：只有 CREATED 骨架可以标记失败。
+   */
+  public AdaptiveInterviewSession fail() {
+    if (status != AdaptiveSessionStatus.CREATED) {
+      throw new BusinessException(ErrorCode.BAD_REQUEST, "只有创建中的会话可以标记失败");
+    }
+    return new AdaptiveInterviewSession(
+        id,
+        runtimeVersion,
+        AdaptiveSessionStatus.FAILED,
+        currentTurn,
+        maxTurns
+    );
+  }
+
   public SessionTransition apply(CandidateAnswer answer, RespondAction proposedAction) {
     assertCanAnswer(answer);
 
@@ -91,6 +107,9 @@ public record AdaptiveInterviewSession(
   public void assertCanAnswer(CandidateAnswer answer) {
     if (status == AdaptiveSessionStatus.COMPLETED) {
       throw new BusinessException(ErrorCode.INTERVIEW_ALREADY_COMPLETED, "Agent 面试已经结束");
+    }
+    if (status == AdaptiveSessionStatus.FAILED) {
+      throw new BusinessException(ErrorCode.BAD_REQUEST, "Agent 面试创建失败，无法继续作答");
     }
     if (status != AdaptiveSessionStatus.IN_PROGRESS) {
       throw new BusinessException(ErrorCode.BAD_REQUEST, "Agent 面试尚未开始");

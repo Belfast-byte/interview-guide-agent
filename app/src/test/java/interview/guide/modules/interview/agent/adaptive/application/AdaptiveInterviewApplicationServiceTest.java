@@ -148,13 +148,41 @@ class AdaptiveInterviewApplicationServiceTest {
         algorithmAssessmentEvidenceService,
         algorithmTelemetry,
         codeAnalysisContextService,
-        skillService
+        skillService,
+        task -> task.run()
+    );
+  }
+
+  private AdaptiveInterviewApplicationService serviceWithAssessmentAgent(
+      DepthAssessmentAgent assessmentAgent,
+      AdaptiveInterviewCreationTaskRunner creationExecutor
+  ) {
+    AdaptiveAgentProperties properties = new AdaptiveAgentProperties();
+    return new AdaptiveInterviewApplicationService(
+        persistenceService,
+        runtime,
+        new AgentRoleRegistry(properties),
+        telemetry,
+        planningAgent,
+        new ContextAssembler(),
+        dimensionBriefService,
+        candidateMemoryService,
+        planningTaxonomy,
+        candidateClaimExtractionService,
+        assessmentAgent,
+        evidenceValidator(),
+        practiceRecommendationService,
+        algorithmAssessmentEvidenceService,
+        algorithmTelemetry,
+        codeAnalysisContextService,
+        skillService,
+        creationExecutor
     );
   }
 
   @Test
-  @DisplayName("创建会话时先在事务外生成首题再写入事实")
-  void shouldCallModelBeforeCreatingSession() {
+  @DisplayName("创建立即返回骨架，后台按骨架→规划→首题→落库顺序完成")
+  void shouldReturnSkeletonThenGenerateFirstTurnInBackground() {
     CoveredTopic coveredTopic = new CoveredTopic("java-backend", "REDIS");
     UnverifiedClaim unverifiedClaim = new UnverifiedClaim(
         CandidateClaimType.PROJECT_EXPERIENCE,
@@ -173,19 +201,14 @@ class AdaptiveInterviewApplicationServiceTest {
     when(planningAgent.propose(any(), any())).thenReturn(proposal());
     RespondAction firstQuestion = RespondAction.ask("第一题？", "验证基础");
     PlannedInterview expected = interviewAtTurn(1);
+    when(persistenceService.createSkeleton(
+        isNull(), anyString(), eq("candidate-1"), eq("JD"), eq("Resume"), isNull()
+    )).thenReturn(expected);
+    when(persistenceService.completeCreation(
+        anyString(), any(InterviewPlan.class), any(RespondAction.class), anyList()
+    )).thenReturn(expected);
     when(runtime.run(any(ReActRequest.class), any(ReActBudget.class)))
         .thenReturn(ReActResult.withoutTools(firstQuestion));
-    when(persistenceService.create(
-        any(),
-        anyString(),
-        anyString(),
-        anyString(),
-        anyString(),
-        any(),
-        any(InterviewPlan.class),
-        any(RespondAction.class),
-        anyList()
-    )).thenReturn(expected);
 
     PlannedInterview actual = service.create("candidate-1", "JD", "Resume", null);
 
@@ -202,48 +225,100 @@ class AdaptiveInterviewApplicationServiceTest {
         .containsExactly(unverifiedClaim);
     verify(planningTaxonomy).validate(any(InterviewPlan.class));
     verify(telemetry).decisionSucceeded(eq(AgentResponseType.ASK), anyLong());
-    InOrder order = inOrder(planningAgent, runtime, persistenceService);
+    InOrder order = inOrder(persistenceService, planningAgent, runtime);
+    order.verify(persistenceService).createSkeleton(
+        isNull(), anyString(), eq("candidate-1"), eq("JD"), eq("Resume"), isNull()
+    );
     order.verify(planningAgent).propose(any(), any());
     order.verify(runtime).run(any(ReActRequest.class), any(ReActBudget.class));
-    order.verify(persistenceService).create(
-        any(),
-        anyString(),
-        anyString(),
-        anyString(),
-        anyString(),
-        any(),
-        any(InterviewPlan.class),
-        any(RespondAction.class),
-        anyList()
+    order.verify(persistenceService).completeCreation(
+        anyString(), any(InterviewPlan.class), any(RespondAction.class), anyList()
     );
   }
 
   @Test
-  @DisplayName("规划失败时不调用面试官也不创建会话")
-  void shouldNotCreateSessionWhenPlanningFails() {
+  @DisplayName("骨架落库后创建请求立即返回，不等规划完成")
+  void shouldReturnSkeletonBeforePlanningRuns() {
+    PlannedInterview skeleton = interviewAtTurn(1);
+    when(persistenceService.createSkeleton(
+        isNull(), anyString(), eq("candidate-1"), eq("JD"), eq("Resume"), isNull()
+    )).thenReturn(skeleton);
+    AdaptiveInterviewApplicationService lazyService = serviceWithAssessmentAgent(
+        assessmentAgent(),
+        task -> {
+        }
+    );
+
+    PlannedInterview actual = lazyService.create("candidate-1", "JD", "Resume", null);
+
+    assertThat(actual).isSameAs(skeleton);
+    verifyNoInteractions(planningAgent);
+    verify(persistenceService, never()).completeCreation(
+        anyString(), any(), any(), anyList()
+    );
+  }
+
+  @Test
+  @DisplayName("创建队列打满时骨架置 FAILED 并向调用方报错")
+  void shouldFailSkeletonWhenCreationQueueIsFull() {
+    when(persistenceService.createSkeleton(
+        isNull(), anyString(), eq("candidate-1"), eq("JD"), eq("Resume"), isNull()
+    )).thenReturn(interviewAtTurn(1));
+    AdaptiveInterviewApplicationService rejectingService = serviceWithAssessmentAgent(
+        assessmentAgent(),
+        task -> {
+          throw new java.util.concurrent.RejectedExecutionException("queue full");
+        }
+    );
+
+    assertThatThrownBy(() -> rejectingService.create("candidate-1", "JD", "Resume", null))
+        .isInstanceOf(BusinessException.class)
+        .hasMessageContaining("创建任务提交失败");
+
+    verify(persistenceService).failCreation(anyString(), eq("创建队列已满，请稍后重试"));
+    verifyNoInteractions(planningAgent);
+  }
+
+  @Test
+  @DisplayName("规划失败时骨架置为 FAILED 且不生成首题")
+  void shouldFailSkeletonWhenPlanningFails() {
+    when(persistenceService.createSkeleton(
+        isNull(), anyString(), eq("candidate-1"), eq("JD"), eq("Resume"), isNull()
+    )).thenReturn(interviewAtTurn(1));
     when(planningAgent.propose(any(), any())).thenThrow(new BusinessException(
         ErrorCode.AI_SERVICE_ERROR,
         "规划失败"
     ));
 
-    assertThatThrownBy(() -> service.create("candidate-1", "JD", "Resume", null))
-        .isInstanceOf(BusinessException.class)
-        .hasMessage("规划失败");
+    PlannedInterview created = service.create("candidate-1", "JD", "Resume", null);
 
-    verifyNoInteractions(runtime, persistenceService);
+    assertThat(created).isNotNull();
+    verify(persistenceService).failCreation(anyString(), eq("规划失败"));
+    verify(runtime, never()).run(any(ReActRequest.class), any(ReActBudget.class));
+    verify(persistenceService, never()).completeCreation(
+        anyString(), any(), any(), anyList()
+    );
   }
 
   @Test
-  @DisplayName("非法规划被代码拒绝且不调用面试官或创建会话")
-  void shouldRejectInvalidPlanBeforeCreatingSession() {
+  @DisplayName("非法规划被代码拒绝并把骨架置为 FAILED")
+  void shouldRejectInvalidPlanAndFailSkeleton() {
+    when(persistenceService.createSkeleton(
+        isNull(), anyString(), eq("candidate-1"), eq("JD"), eq("Resume"), isNull()
+    )).thenReturn(interviewAtTurn(1));
     when(planningAgent.propose(any(), any())).thenReturn(new PlanProposal(List.of()));
 
-    assertThatThrownBy(() -> service.create("candidate-1", "JD", "Resume", null))
-        .isInstanceOf(BusinessException.class)
-        .hasMessageContaining("1 到 12");
+    PlannedInterview created = service.create("candidate-1", "JD", "Resume", null);
 
+    assertThat(created).isNotNull();
     verify(telemetry).planRejected(anyString(), anyInt());
-    verifyNoInteractions(runtime, persistenceService);
+    verify(persistenceService).failCreation(
+        anyString(),
+        org.mockito.ArgumentMatchers.contains("1 到 12")
+    );
+    verify(persistenceService, never()).completeCreation(
+        anyString(), any(), any(), anyList()
+    );
   }
 
   @Test

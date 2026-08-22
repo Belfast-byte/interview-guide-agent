@@ -15,9 +15,7 @@ const MODEL_CALL_TIMEOUT_MS = 45_000;
 
 export const adaptiveInterviewApi = {
   create(payload: CreateAdaptiveInterviewRequest): Promise<AdaptiveInterviewSession> {
-    return request.post<AdaptiveInterviewSession>(BASE_PATH, payload, {
-      timeout: MODEL_CALL_TIMEOUT_MS,
-    });
+    return request.post<AdaptiveInterviewSession>(BASE_PATH, payload);
   },
 
   get(sessionId: string): Promise<AdaptiveInterviewSession> {

@@ -1,5 +1,7 @@
 package interview.guide.modules.interview.agent.adaptive.application;
 
+import interview.guide.common.exception.BusinessException;
+import interview.guide.common.exception.ErrorCode;
 import interview.guide.modules.interview.agent.adaptive.codeanalysis.CodeAnalysisInterviewContextService;
 import io.micrometer.core.instrument.simple.SimpleMeterRegistry;
 import interview.guide.modules.interview.agent.adaptive.assessment.evidence.AssessmentEvidenceValidator;
@@ -27,6 +29,7 @@ import interview.guide.modules.interview.agent.adaptive.planning.DimensionPropos
 import interview.guide.modules.interview.agent.adaptive.planning.PlanDimensionStatus;
 import interview.guide.modules.interview.agent.adaptive.planning.PlanProposal;
 import interview.guide.modules.interview.agent.adaptive.planning.PlannedInterview;
+import interview.guide.modules.interview.agent.adaptive.planning.PlanningAgent;
 import interview.guide.modules.interview.agent.adaptive.planning.PlanningTaxonomy;
 import interview.guide.modules.interview.agent.adaptive.role.AgentRoleRegistry;
 import interview.guide.modules.interview.agent.adaptive.runtime.BoundedReActRuntime;
@@ -89,7 +92,8 @@ class AdaptiveInterviewFlowIntegrationTest {
         mock(AlgorithmAssessmentEvidenceService.class),
         mock(AlgorithmInterviewTelemetry.class),
         mock(CodeAnalysisInterviewContextService.class),
-        mock(InterviewSkillService.class)
+        mock(InterviewSkillService.class),
+        task -> task.run()
     );
 
     PlannedInterview created = service.create("candidate-1", "JD", "Resume", null);
@@ -163,7 +167,8 @@ class AdaptiveInterviewFlowIntegrationTest {
         mock(AlgorithmAssessmentEvidenceService.class),
         mock(AlgorithmInterviewTelemetry.class),
         mock(CodeAnalysisInterviewContextService.class),
-        mock(InterviewSkillService.class)
+        mock(InterviewSkillService.class),
+        task -> task.run()
     );
 
     PlannedInterview interview = service.create("candidate-1", "JD", "Resume", null);
@@ -198,6 +203,87 @@ class AdaptiveInterviewFlowIntegrationTest {
         .flatExtracting(brief -> brief.turnIndexes())
         .containsExactly(1, 2, 3, 4, 5, 6);
     assertThat(modelCalls).hasValue(6);
+  }
+
+  @Test
+  @DisplayName("创建立即返回 CREATED 空骨架，后台完成后进入 IN_PROGRESS 并带首题")
+  void shouldExposeCreatedSkeletonThenFirstTurn() {
+    AdaptiveInterviewApplicationService lazyService = service(
+        (request, provider) -> proposal(1),
+        task -> {
+        }
+    );
+
+    PlannedInterview skeleton = lazyService.create("candidate-async", "JD", "Resume", null);
+
+    assertThat(skeleton.history().session().status()).isEqualTo(AdaptiveSessionStatus.CREATED);
+    assertThat(skeleton.history().turns()).isEmpty();
+    assertThat(skeleton.plan().dimensions()).isEmpty();
+
+    AdaptiveInterviewApplicationService syncService = service(
+        (request, provider) -> proposal(1),
+        task -> task.run()
+    );
+    PlannedInterview returned = syncService.create("candidate-sync", "JD", "Resume", null);
+    assertThat(returned.history().session().status()).isEqualTo(AdaptiveSessionStatus.CREATED);
+
+    PlannedInterview created = persistenceService.get(returned.history().session().id());
+    assertThat(created.history().session().status()).isEqualTo(AdaptiveSessionStatus.IN_PROGRESS);
+    assertThat(created.history().session().maxTurns()).isEqualTo(2);
+    assertThat(created.history().turns()).hasSize(1);
+    assertThat(created.history().turns().getFirst().question()).isEqualTo("第一题？");
+  }
+
+  @Test
+  @DisplayName("创建链路失败时会话置为 FAILED 并记录可读原因")
+  void shouldMarkSessionFailedWhenCreationFails() {
+    AdaptiveInterviewApplicationService failingService = service(
+        (request, provider) -> {
+          throw new BusinessException(ErrorCode.AI_SERVICE_ERROR, "规划模型不可用");
+        },
+        task -> task.run()
+    );
+
+    PlannedInterview skeleton = failingService.create("candidate-fail", "JD", "Resume", null);
+
+    assertThat(skeleton.history().session().status()).isEqualTo(AdaptiveSessionStatus.CREATED);
+    PlannedInterview failed = persistenceService.get(skeleton.history().session().id());
+    assertThat(failed.history().session().status()).isEqualTo(AdaptiveSessionStatus.FAILED);
+    assertThat(failed.history().failureReason()).isEqualTo("规划模型不可用");
+    assertThat(failed.history().turns()).isEmpty();
+  }
+
+  private AdaptiveInterviewApplicationService service(
+      PlanningAgent planningAgent,
+      AdaptiveInterviewCreationTaskRunner creationExecutor
+  ) {
+    BoundedReActRuntime runtime = new BoundedReActRuntime(
+        context -> RespondAction.ask("第一题？", "开始考察"),
+        (request, action) -> {
+          throw new AssertionError("不应执行工具");
+        },
+        new DeadlineExecutor()
+    );
+    return new AdaptiveInterviewApplicationService(
+        persistenceService,
+        runtime,
+        new AgentRoleRegistry(new AdaptiveAgentProperties()),
+        new AdaptiveAgentTelemetry(new SimpleMeterRegistry()),
+        planningAgent,
+        new ContextAssembler(),
+        briefService(),
+        candidateMemoryService,
+        mock(PlanningTaxonomy.class),
+        claimService(),
+        assessmentAgent(),
+        evidenceValidator(),
+        mock(PracticeRecommendationService.class),
+        mock(AlgorithmAssessmentEvidenceService.class),
+        mock(AlgorithmInterviewTelemetry.class),
+        mock(CodeAnalysisInterviewContextService.class),
+        mock(InterviewSkillService.class),
+        creationExecutor
+    );
   }
 
   private PlanProposal proposal(int dimensionCount) {
