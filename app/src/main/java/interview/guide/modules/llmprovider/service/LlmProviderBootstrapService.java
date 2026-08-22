@@ -26,7 +26,7 @@ public class LlmProviderBootstrapService {
   @PostConstruct
   @Transactional
   public void seedProvidersIfNecessary() {
-    if (providerRepository.count() == 0) {
+    if (providerRepository.countByCandidateIdIsNull() == 0) {
       seedProviders();
     }
     ensureGlobalSetting();
@@ -64,7 +64,10 @@ public class LlmProviderBootstrapService {
           .build();
       providerRepository.save(entity);
     });
-    log.info("Seeded {} LLM providers from application configuration", providerRepository.count());
+    log.info(
+        "Seeded {} LLM providers from application configuration",
+        providerRepository.countByCandidateIdIsNull()
+    );
   }
 
   private void ensureGlobalSetting() {
@@ -73,7 +76,9 @@ public class LlmProviderBootstrapService {
     }
     String defaultChatProvider = resolveExistingProvider(
         properties.getDefaultProvider(),
-        providerRepository.findAll().stream().findFirst().map(LlmProviderEntity::getId).orElse("dashscope")
+        providerRepository.findFirstByCandidateIdIsNullOrderByIdAsc()
+            .map(LlmProviderEntity::getId)
+            .orElse("dashscope")
     );
     String configuredEmbeddingProvider = !isBlank(properties.getDefaultEmbeddingProvider())
         ? properties.getDefaultEmbeddingProvider()
@@ -90,17 +95,18 @@ public class LlmProviderBootstrapService {
   }
 
   private String resolveExistingProvider(String preferredProvider, String fallbackProvider) {
-    if (!isBlank(preferredProvider) && providerRepository.existsById(preferredProvider)) {
+    if (!isBlank(preferredProvider)
+        && providerRepository.findByIdAndCandidateIdIsNull(preferredProvider).isPresent()) {
       return preferredProvider;
     }
     return fallbackProvider;
   }
 
   private String resolveExistingEmbeddingProvider(String preferredProvider, String fallbackProvider) {
-    return providerRepository.findById(preferredProvider)
+    return providerRepository.findByIdAndCandidateIdIsNull(preferredProvider)
         .filter(this::canProvideEmbedding)
         .map(LlmProviderEntity::getId)
-        .orElseGet(() -> providerRepository.findAll().stream()
+        .orElseGet(() -> providerRepository.findByCandidateIdIsNullOrderByIdAsc().stream()
             .filter(this::canProvideEmbedding)
             .findFirst()
             .map(LlmProviderEntity::getId)

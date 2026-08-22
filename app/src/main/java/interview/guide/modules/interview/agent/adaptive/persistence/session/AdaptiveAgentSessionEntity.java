@@ -42,6 +42,12 @@ public class AdaptiveAgentSessionEntity {
   @Column(name = "llm_provider", length = 64)
   private String llmProvider;
 
+  @Column(name = "llm_provider_name_snapshot", length = 128)
+  private String llmProviderNameSnapshot;
+
+  @Column(name = "llm_model_snapshot", length = 128)
+  private String llmModelSnapshot;
+
   @Enumerated(EnumType.STRING)
   @Column(nullable = false, length = 20)
   private AdaptiveSessionStatus status;
@@ -116,6 +122,14 @@ public class AdaptiveAgentSessionEntity {
 
   public String llmProvider() {
     return llmProvider;
+  }
+
+  public String llmProviderNameSnapshot() {
+    return llmProviderNameSnapshot;
+  }
+
+  public String llmModelSnapshot() {
+    return llmModelSnapshot;
   }
 
   public AdaptiveSessionStatus status() {

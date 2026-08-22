@@ -6,7 +6,9 @@ import jakarta.persistence.Id;
 import jakarta.persistence.PrePersist;
 import jakarta.persistence.PreUpdate;
 import jakarta.persistence.Table;
+import jakarta.persistence.UniqueConstraint;
 import java.time.LocalDateTime;
+import java.util.UUID;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
@@ -17,12 +19,30 @@ import lombok.NoArgsConstructor;
 @NoArgsConstructor
 @AllArgsConstructor
 @Entity
-@Table(name = "llm_provider_config")
+@Table(
+    name = "llm_provider_config",
+    uniqueConstraints = {
+        @UniqueConstraint(
+            name = "uk_llm_provider_candidate_name",
+            columnNames = {"candidate_id", "display_name"}
+        ),
+        @UniqueConstraint(
+            name = "uk_llm_provider_candidate_id",
+            columnNames = {"candidate_id", "id"}
+        )
+    }
+)
 public class LlmProviderEntity {
 
   @Id
   @Column(length = 64)
   private String id;
+
+  @Column(name = "candidate_id")
+  private UUID candidateId;
+
+  @Column(name = "display_name", length = 128)
+  private String displayName;
 
   @Column(name = "base_url", nullable = false, length = 512)
   private String baseUrl;

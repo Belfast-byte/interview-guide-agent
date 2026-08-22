@@ -162,7 +162,7 @@ public class LlmProviderConfigService {
             .toList();
       }
       LlmGlobalSettingEntity setting = getGlobalSettingOrThrow();
-      return providerRepository.findAll().stream()
+      return providerRepository.findByCandidateIdIsNullOrderByIdAsc().stream()
           .map(provider -> ProviderDTO.builder()
               .id(provider.getId())
               .baseUrl(provider.getBaseUrl())
@@ -681,7 +681,7 @@ public class LlmProviderConfigService {
   }
 
   LlmProviderEntity getProviderEntityOrThrow(String id) {
-    return providerRepository.findById(id)
+    return providerRepository.findByIdAndCandidateIdIsNull(id)
         .orElseThrow(() -> new BusinessException(ErrorCode.PROVIDER_NOT_FOUND,
             "Provider '" + id + "' 不存在"));
   }
