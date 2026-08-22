@@ -84,7 +84,8 @@ class AlgorithmJudgeStreamConsumerTest {
         0,
         0,
         null,
-        List.of()
+        List.of(),
+        null
     );
     when(persistenceService.getExecution("execution-1")).thenReturn(execution);
     when(persistenceService.getProblem("two-sum")).thenReturn(problem);
@@ -174,7 +175,6 @@ class AlgorithmJudgeStreamConsumerTest {
         null,
         null,
         null,
-        false,
         0,
         LocalDateTime.now(),
         null,
@@ -194,7 +194,8 @@ class AlgorithmJudgeStreamConsumerTest {
         100,
         1024,
         null,
-        List.of()
+        List.of(),
+        null
     );
     when(persistenceService.getExecution("execution-2")).thenReturn(execution);
     when(sandboxWorker.execute(execution, spec)).thenReturn(result);
@@ -215,23 +216,25 @@ class AlgorithmJudgeStreamConsumerTest {
         100,
         1024,
         null,
-        List.of()
+        List.of(),
+        null
     );
   }
 
   private SandboxExecution execution() {
     return new SandboxExecution(
-        "execution-1", "session-1", 10L, 1, "two-sum",
+        "execution-1", "session-1", 10L, 1, SandboxWorkloadType.ALGORITHM,
+        "two-sum", null, null, null,
         SandboxLanguage.JAVA, "source-ref", "a".repeat(64), SandboxRunMode.FULL,
         SandboxExecutionStatus.RUNNING, null, null, null, null, null, null,
-        null, false, 0, LocalDateTime.now().minusSeconds(1), LocalDateTime.now()
+        null, 0, LocalDateTime.now().minusSeconds(1), LocalDateTime.now(), null
     );
   }
 
   private AlgorithmProblem problem() {
     return new AlgorithmProblem(
         "two-sum", "两数之和", "题干", AlgorithmDifficulty.EASY, "array,hash",
-        "cases/sample.json", "cases/hidden.json", 2_000, 262_144
+        "cases/sample.json", "cases/hidden.json", 2_000, 262_144, null
     );
   }
 }

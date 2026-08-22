@@ -21,6 +21,7 @@ import interview.guide.modules.interview.agent.adaptive.codeanalysis.scenario.Sc
 import interview.guide.modules.interview.agent.adaptive.persistence.session.AdaptiveAgentSessionRepository;
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.Optional;
 import java.util.UUID;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
@@ -65,6 +66,7 @@ public class CodeAnalysisPersistenceService {
             expiresAt
         )));
     return jobRepository.findTopByRepositoryIdOrderByCreatedAtDesc(repository.id())
+        .filter(job -> !job.toDomain().status().isResubmittable())
         .map(AnalysisJobEntity::toDomain)
         .orElseGet(() -> jobRepository.save(new AnalysisJobEntity(
             UUID.randomUUID().toString(),
@@ -76,6 +78,9 @@ public class CodeAnalysisPersistenceService {
   @Transactional
   public void complete(String jobId, CodeAnalysisResult result) {
     AnalysisJobEntity job = findJob(jobId);
+    if (job.toDomain().status().isTerminal()) {
+      return;
+    }
     ProjectRepoEntity repository = repoRepository.findById(job.toDomain().repositoryId())
         .orElseThrow(() -> new BusinessException(ErrorCode.NOT_FOUND, "代码仓库快照不存在"));
     if (!repository.commitHash().equals(result.digest().commitHash())) {
@@ -162,14 +167,19 @@ public class CodeAnalysisPersistenceService {
   }
 
   @Transactional(readOnly = true)
-  public PatchScenarioTarget getPatchTarget(String sessionId, String scenarioId) {
-    CodeAnalysisJob job = jobRepository
+  public Optional<CodeAnalysisJob> findLatestCompletedJob(String sessionId) {
+    return jobRepository
         .findTopBySessionIdAndStatusOrderByCreatedAtDesc(
             sessionId,
             AnalysisJobStatus.COMPLETED
         )
-        .orElseThrow(() -> new BusinessException(ErrorCode.NOT_FOUND, "代码分析尚未完成"))
-        .toDomain();
+        .map(AnalysisJobEntity::toDomain);
+  }
+
+  @Transactional(readOnly = true)
+  public PatchScenarioTarget getPatchTarget(String sessionId, String scenarioId) {
+    CodeAnalysisJob job = findLatestCompletedJob(sessionId)
+        .orElseThrow(() -> new BusinessException(ErrorCode.NOT_FOUND, "代码分析尚未完成"));
     ScenarioCard scenario = deserialize(
         scenarioRepository.findByRepositoryIdAndScenarioId(job.repositoryId(), scenarioId)
             .orElseThrow(() -> new BusinessException(ErrorCode.NOT_FOUND, "PATCH 场景不存在"))
@@ -190,13 +200,8 @@ public class CodeAnalysisPersistenceService {
 
   @Transactional(readOnly = true)
   public String getTraceRepositoryRef(String sessionId) {
-    CodeAnalysisJob job = jobRepository
-        .findTopBySessionIdAndStatusOrderByCreatedAtDesc(
-            sessionId,
-            AnalysisJobStatus.COMPLETED
-        )
-        .orElseThrow(() -> new BusinessException(ErrorCode.NOT_FOUND, "代码分析尚未完成"))
-        .toDomain();
+    CodeAnalysisJob job = findLatestCompletedJob(sessionId)
+        .orElseThrow(() -> new BusinessException(ErrorCode.NOT_FOUND, "代码分析尚未完成"));
     return repoRepository.findById(job.repositoryId())
         .orElseThrow(() -> new BusinessException(ErrorCode.NOT_FOUND, "代码仓库快照不存在"))
         .repositoryRef();

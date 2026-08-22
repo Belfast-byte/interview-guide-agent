@@ -6,7 +6,6 @@ import interview.guide.modules.knowledgebase.repository.KnowledgeBaseQuestionRep
 import java.util.List;
 import java.util.Map;
 import org.springframework.ai.tool.ToolCallback;
-import org.springframework.ai.tool.function.FunctionToolCallback;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.stereotype.Component;
 
@@ -28,11 +27,11 @@ public class RubricLookupTool implements AdaptiveAgentTool {
   ) {
     this.questionRepository = questionRepository;
     this.limit = properties.getQuestionBankLimit();
-    this.callback = FunctionToolCallback
-        .builder(NAME, (RubricLookupInput input) -> unsupportedDirectCall())
-        .description("Load only the reviewed scoring rubric fragments relevant to one dimension")
-        .inputType(RubricLookupInput.class)
-        .build();
+    this.callback = ToolCallbacks.gatewayOnly(
+        NAME,
+        "Load only the reviewed scoring rubric fragments relevant to one dimension",
+        RubricLookupInput.class
+    );
   }
 
   @Override
@@ -74,10 +73,6 @@ public class RubricLookupTool implements AdaptiveAgentTool {
         question.getCategory(),
         question.getScoringRubric()
     );
-  }
-
-  private String unsupportedDirectCall() {
-    throw new IllegalStateException("Tool execution must go through ToolGateway");
   }
 
   record RubricLookupInput(String dimension) {}

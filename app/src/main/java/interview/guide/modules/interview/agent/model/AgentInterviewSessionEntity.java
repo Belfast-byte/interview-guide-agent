@@ -15,6 +15,7 @@ import jakarta.persistence.Table;
 import jakarta.persistence.Version;
 
 import java.time.LocalDateTime;
+import java.util.UUID;
 
 /**
  * Agent 面试会话 JPA 实体（agent-loop-v2）。
@@ -28,6 +29,9 @@ public class AgentInterviewSessionEntity {
   @Id
   @GeneratedValue(strategy = GenerationType.IDENTITY)
   private Long id;
+
+  @Column(name = "candidate_id", nullable = false)
+  private UUID candidateId;
 
   @Column(nullable = false, unique = true, length = 36)
   private String sessionId;
@@ -97,6 +101,14 @@ public class AgentInterviewSessionEntity {
 
   public Long getId() {
     return id;
+  }
+
+  public UUID getCandidateId() {
+    return candidateId;
+  }
+
+  public void setCandidateId(UUID candidateId) {
+    this.candidateId = candidateId;
   }
 
   public String getSessionId() {

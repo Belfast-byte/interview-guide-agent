@@ -11,6 +11,7 @@ import interview.guide.modules.interview.agent.adaptive.algorithm.sandbox.Sandbo
 import interview.guide.modules.interview.agent.adaptive.algorithm.sandbox.SandboxPolicyViolation;
 import interview.guide.modules.interview.agent.adaptive.algorithm.sandbox.SandboxRunMode;
 import interview.guide.modules.interview.agent.adaptive.algorithm.sandbox.SandboxVerdict;
+import interview.guide.modules.interview.agent.adaptive.algorithm.sandbox.SandboxWorkloadType;
 import io.micrometer.core.instrument.simple.SimpleMeterRegistry;
 import java.time.LocalDateTime;
 import org.junit.jupiter.api.DisplayName;
@@ -35,10 +36,11 @@ class AlgorithmInterviewTelemetryTest {
     );
     LocalDateTime finishedAt = LocalDateTime.now();
     SandboxExecution execution = new SandboxExecution(
-        "execution-1", "session-1", 10L, 1, "two-sum",
+        "execution-1", "session-1", 10L, 1, SandboxWorkloadType.ALGORITHM,
+        "two-sum", null, null, null,
         SandboxLanguage.JAVA, "source-ref", "a".repeat(64), SandboxRunMode.FULL,
         SandboxExecutionStatus.DONE, SandboxVerdict.WA, 4, 10, 120L, 32_768L, 7,
-        null, false, 0, finishedAt.minusSeconds(2), finishedAt
+        null, 0, finishedAt.minusSeconds(2), finishedAt, null
     );
 
     telemetry.submissionAccepted();

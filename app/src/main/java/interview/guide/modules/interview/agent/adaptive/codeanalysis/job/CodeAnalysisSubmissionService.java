@@ -33,6 +33,7 @@ public class CodeAnalysisSubmissionService {
         expiresAt
     );
     if (job.status() == AnalysisJobStatus.PENDING && !producer.send(job.id())) {
+      persistenceService.markFailed(job.id(), "代码分析任务投递失败");
       throw new BusinessException(ErrorCode.INTERNAL_ERROR, "代码分析任务投递失败");
     }
     telemetry.jobSubmitted();

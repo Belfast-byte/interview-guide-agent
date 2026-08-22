@@ -10,6 +10,7 @@ import org.springframework.stereotype.Repository;
 
 import java.util.List;
 import java.util.Optional;
+import java.util.UUID;
 
 /**
  * 面试会话Repository
@@ -21,6 +22,8 @@ public interface InterviewSessionRepository extends JpaRepository<InterviewSessi
      * 根据会话ID查找
      */
     Optional<InterviewSessionEntity> findBySessionId(String sessionId);
+
+    Optional<InterviewSessionEntity> findBySessionIdAndCandidateId(String sessionId, UUID candidateId);
 
     /**
      * 根据会话ID查找（同时加载关联的简历）
@@ -38,6 +41,11 @@ public interface InterviewSessionRepository extends JpaRepository<InterviewSessi
      */
     List<InterviewSessionEntity> findByResumeIdOrderByCreatedAtDesc(Long resumeId);
 
+    List<InterviewSessionEntity> findByResumeIdAndCandidateIdOrderByCreatedAtDesc(
+        Long resumeId,
+        UUID candidateId
+    );
+
     /**
      * 根据简历ID查找最近的面试记录（用于历史题去重）
      */
@@ -48,6 +56,12 @@ public interface InterviewSessionRepository extends JpaRepository<InterviewSessi
      */
     Optional<InterviewSessionEntity> findFirstByResumeIdAndStatusInOrderByCreatedAtDesc(
         Long resumeId, 
+        List<SessionStatus> statuses
+    );
+
+    Optional<InterviewSessionEntity> findFirstByResumeIdAndCandidateIdAndStatusInOrderByCreatedAtDesc(
+        Long resumeId,
+        UUID candidateId,
         List<SessionStatus> statuses
     );
     
@@ -64,13 +78,26 @@ public interface InterviewSessionRepository extends JpaRepository<InterviewSessi
      */
     List<InterviewSessionEntity> findAllByOrderByCreatedAtDesc();
 
+    List<InterviewSessionEntity> findAllByCandidateIdOrderByCreatedAtDesc(UUID candidateId);
+
     /**
      * 根据 skillId 查找最近的面试记录（用于通用模式历史题去重）
      */
     List<InterviewSessionEntity> findTop10BySkillIdOrderByCreatedAtDesc(String skillId);
 
+    List<InterviewSessionEntity> findTop10ByCandidateIdAndSkillIdOrderByCreatedAtDesc(
+        UUID candidateId,
+        String skillId
+    );
+
     /**
      * 根据 resumeId + skillId 查找最近的面试记录（精确匹配）
      */
     List<InterviewSessionEntity> findTop10ByResumeIdAndSkillIdOrderByCreatedAtDesc(Long resumeId, String skillId);
+
+    List<InterviewSessionEntity> findTop10ByCandidateIdAndResumeIdAndSkillIdOrderByCreatedAtDesc(
+        UUID candidateId,
+        Long resumeId,
+        String skillId
+    );
 }

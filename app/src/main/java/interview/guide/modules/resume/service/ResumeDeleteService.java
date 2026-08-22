@@ -9,6 +9,8 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 
+import java.util.UUID;
+
 /**
  * 简历删除服务
  * 处理简历删除的业务逻辑
@@ -28,28 +30,23 @@ public class ResumeDeleteService {
      * @param id 简历ID
      * @throws interview.guide.common.exception.BusinessException 如果简历不存在
      */
-    public void deleteResume(Long id) {
+    public void deleteResume(UUID candidateId, Long id) {
         log.info("收到删除简历请求: id={}", id);
         
         // 获取简历信息（用于删除存储文件）
-        ResumeEntity resume = persistenceService.findById(id)
+        ResumeEntity resume = persistenceService.findById(candidateId, id)
             .orElseThrow(() -> new BusinessException(
                 ErrorCode.RESUME_NOT_FOUND));
         
         // 1. 删除存储的文件（FileStorageService 已内置存在性检查）
-        try {
-            storageService.deleteResume(resume.getStorageKey());
-        } catch (Exception e) {
-            log.warn("删除存储文件失败，继续删除数据库记录: {}", e.getMessage());
-        }
+        storageService.deleteResume(resume.getStorageKey());
         
         // 2. 删除面试会话（会自动删除面试答案）
-        interviewPersistenceService.deleteSessionsByResumeId(id);
+        interviewPersistenceService.deleteSessionsByResumeId(candidateId, id);
         
         // 3. 删除数据库记录（包括分析记录）
-        persistenceService.deleteResume(id);
+        persistenceService.deleteResume(candidateId, id);
         
         log.info("简历删除完成: id={}", id);
     }
 }
-

@@ -11,7 +11,7 @@ import interview.guide.modules.interview.agent.adaptive.runtime.DeadlineExecutor
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.util.Map;
-import org.slf4j.helpers.NOPLogger;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.ai.chat.client.ChatClient;
 import org.springframework.ai.chat.prompt.PromptTemplate;
 import org.springframework.ai.converter.BeanOutputConverter;
@@ -24,6 +24,7 @@ import tools.jackson.databind.ObjectMapper;
  * 基于 Spring AI 的评估建议生成器。
  */
 @Component
+@Slf4j
 public class SpringAiAssessmentProposalGenerator
     implements AssessmentProposalGenerator {
 
@@ -102,7 +103,7 @@ public class SpringAiAssessmentProposalGenerator
               ErrorCode.AI_SERVICE_ERROR,
               "回答深度评估失败",
               "adaptive_depth_assessment",
-              NOPLogger.NOP_LOGGER
+              log
           ),
           System.nanoTime() + properties.getAssessmentDeadline().toNanos(),
           "回答深度评估"
@@ -110,6 +111,8 @@ public class SpringAiAssessmentProposalGenerator
       telemetry.modelCallSucceeded("depth_assessor", "ASSESS", startedNanos);
       return proposal;
     } catch (BusinessException e) {
+      log.warn("回答深度评估底层调用失败: sessionId={}, turnIndex={}, code={}, message={}",
+          request.sessionId(), request.turnIndex(), e.getCode(), e.getMessage(), e);
       telemetry.modelCallFailed(
           "depth_assessor",
           request.sessionId(),

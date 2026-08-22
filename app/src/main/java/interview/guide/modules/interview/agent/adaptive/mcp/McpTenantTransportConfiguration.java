@@ -6,6 +6,7 @@ import java.util.Map;
 import org.springframework.ai.mcp.server.common.autoconfigure.properties.McpServerStreamableHttpProperties;
 import org.springframework.ai.mcp.server.webmvc.transport.WebMvcStreamableServerTransportProvider;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
+import org.springframework.boot.context.properties.EnableConfigurationProperties;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import tools.jackson.databind.json.JsonMapper;
@@ -14,6 +15,7 @@ import tools.jackson.databind.json.JsonMapper;
  * MCP 租户传输配置。
  */
 @Configuration(proxyBeanMethods = false)
+@EnableConfigurationProperties(McpServerStreamableHttpProperties.class)
 @ConditionalOnProperty(
     prefix = "app.interview.adaptive-agent",
     name = "enabled",

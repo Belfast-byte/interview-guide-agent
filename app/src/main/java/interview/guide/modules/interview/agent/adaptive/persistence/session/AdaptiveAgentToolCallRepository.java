@@ -10,8 +10,6 @@ import org.springframework.data.jpa.repository.JpaRepository;
 public interface AdaptiveAgentToolCallRepository
     extends JpaRepository<AdaptiveAgentToolCallEntity, Long> {
 
-  List<AdaptiveAgentToolCallEntity> findBySessionIdOrderByTurnIndexAscIdAsc(String sessionId);
-
   List<AdaptiveAgentToolCallEntity> findBySessionIdAndTurnIndexAndResultIdIn(
       String sessionId,
       int turnIndex,

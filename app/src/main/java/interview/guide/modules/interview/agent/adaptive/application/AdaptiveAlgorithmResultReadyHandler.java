@@ -8,12 +8,18 @@ import interview.guide.modules.interview.agent.adaptive.algorithm.sandbox.Sandbo
 import interview.guide.modules.interview.agent.adaptive.core.event.ToolResultEvent;
 import interview.guide.modules.interview.agent.adaptive.observability.AlgorithmInterviewTelemetry;
 import lombok.RequiredArgsConstructor;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.stereotype.Component;
 
 /**
  * 算法评测结果就绪事件处理器，负责将异步评测结果回写并触发重新评估。
  */
 @Component
+@ConditionalOnProperty(
+    prefix = "app.interview.adaptive-agent",
+    name = "enabled",
+    havingValue = "true"
+)
 @RequiredArgsConstructor
 class AdaptiveAlgorithmResultReadyHandler implements AlgorithmResultReadyHandler {
 

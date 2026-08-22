@@ -84,36 +84,12 @@ public class AdaptiveAgentToolCallEntity {
     this.durationMillis = execution.durationMillis();
   }
 
-  public String invocationId() {
-    return invocationId;
-  }
-
   public Long id() {
     return id;
   }
 
-  public String sessionId() {
-    return sessionId;
-  }
-
-  public int turnIndex() {
-    return turnIndex;
-  }
-
-  public String role() {
-    return role;
-  }
-
   public String toolName() {
     return toolName;
-  }
-
-  public String reason() {
-    return reason;
-  }
-
-  public String inputSummary() {
-    return inputSummary;
   }
 
   public String outputSummary() {
@@ -122,14 +98,6 @@ public class AdaptiveAgentToolCallEntity {
 
   public String resultId() {
     return resultId;
-  }
-
-  public long durationMillis() {
-    return durationMillis;
-  }
-
-  public ToolExecutionOutcome outcome() {
-    return outcome;
   }
 
   @PrePersist

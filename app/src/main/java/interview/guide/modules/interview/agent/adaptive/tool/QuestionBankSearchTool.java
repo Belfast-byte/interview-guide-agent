@@ -3,7 +3,6 @@ package interview.guide.modules.interview.agent.adaptive.tool;
 import java.util.List;
 import java.util.Map;
 import org.springframework.ai.tool.ToolCallback;
-import org.springframework.ai.tool.function.FunctionToolCallback;
 import org.springframework.stereotype.Component;
 
 /**
@@ -19,11 +18,11 @@ public class QuestionBankSearchTool implements AdaptiveAgentTool {
 
   public QuestionBankSearchTool(QuestionBankSearchSource searchSource) {
     this.searchSource = searchSource;
-    this.callback = FunctionToolCallback
-        .builder(NAME, (QuestionSearchInput input) -> unsupportedDirectCall())
-        .description("Semantically search active reviewed interview questions")
-        .inputType(QuestionSearchInput.class)
-        .build();
+    this.callback = ToolCallbacks.gatewayOnly(
+        NAME,
+        "Semantically search active reviewed interview questions",
+        QuestionSearchInput.class
+    );
   }
 
   @Override
@@ -51,10 +50,6 @@ public class QuestionBankSearchTool implements AdaptiveAgentTool {
         questions,
         "matchedQuestionIds=" + questions.stream().map(QuestionBankQuestion::id).toList()
     );
-  }
-
-  private String unsupportedDirectCall() {
-    throw new IllegalStateException("Tool execution must go through ToolGateway");
   }
 
   record QuestionSearchInput(String query, String difficulty) {}

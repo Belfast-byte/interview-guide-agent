@@ -12,6 +12,7 @@ import org.mockito.junit.jupiter.MockitoExtension;
 import tools.jackson.databind.ObjectMapper;
 
 import java.util.Optional;
+import java.util.UUID;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
@@ -90,6 +91,18 @@ class AgentInterviewPersistenceServiceTest {
         "new-hash"
     ))).isInstanceOf(BusinessException.class)
         .hasMessageContaining("冻结");
+  }
+
+  @Test
+  @DisplayName("候选人读取会话时把归属条件下推到仓储")
+  void shouldQuerySessionWithCandidateOwnership() {
+    UUID candidateId = UUID.randomUUID();
+    when(sessionRepository.findBySessionIdAndCandidateId("sid", candidateId))
+        .thenReturn(Optional.of(activeEntity()));
+
+    service().get(candidateId, "sid");
+
+    verify(sessionRepository).findBySessionIdAndCandidateId("sid", candidateId);
   }
 
   private AgentInterviewPersistenceService service() {

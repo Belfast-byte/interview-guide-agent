@@ -7,6 +7,7 @@ import io.modelcontextprotocol.client.McpSyncClient;
 import io.modelcontextprotocol.spec.McpSchema.CallToolRequest;
 import io.modelcontextprotocol.spec.McpSchema.CallToolResult;
 import io.modelcontextprotocol.spec.McpSchema.Implementation;
+import io.modelcontextprotocol.spec.McpSchema.TextContent;
 import java.time.Duration;
 import java.util.List;
 import org.junit.jupiter.api.BeforeEach;
@@ -21,6 +22,7 @@ import tools.jackson.databind.ObjectMapper;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
@@ -111,6 +113,34 @@ class McpQuestionBankGatewayTest {
         .isInstanceOfSatisfying(McpQuestionBankException.class, exception ->
             assertThat(exception.reason())
                 .isEqualTo(McpQuestionBankFailureReason.TIMEOUT)
+        );
+  }
+
+  @Test
+  @DisplayName("远端 MCP 返回 null 文本按格式不合法处理而非抛出 NPE")
+  void shouldRejectNullTextContent() {
+    TextContent content = mock(TextContent.class);
+    when(content.text()).thenReturn(null);
+    when(client.callTool(any())).thenReturn(
+        CallToolResult.builder().addContent(content).build()
+    );
+
+    assertThatThrownBy(() -> gateway.search("缓存", null))
+        .isInstanceOfSatisfying(McpQuestionBankException.class, exception ->
+            assertThat(exception.reason())
+                .isEqualTo(McpQuestionBankFailureReason.MALFORMED_RESPONSE)
+        );
+  }
+
+  @Test
+  @DisplayName("MCP Server 信息读取异常按未找到 Server 处理以触发本地回退")
+  void shouldFallbackWhenServerInfoReadFails() {
+    when(client.getServerInfo()).thenThrow(new RuntimeException("连接中断"));
+
+    assertThatThrownBy(() -> gateway.search("缓存", null))
+        .isInstanceOfSatisfying(McpQuestionBankException.class, exception ->
+            assertThat(exception.reason())
+                .isEqualTo(McpQuestionBankFailureReason.SERVER_NOT_FOUND)
         );
   }
 

@@ -13,7 +13,6 @@ import org.springframework.stereotype.Component;
 @ConfigurationProperties(prefix = "app.interview.adaptive-agent")
 public class AdaptiveAgentProperties {
 
-  private boolean enabled;
   private int maxSteps = 4;
   private int maxToolCalls = 2;
   private Duration deadline = Duration.ofSeconds(30);

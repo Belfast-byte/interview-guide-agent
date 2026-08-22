@@ -35,27 +35,17 @@ public class CandidateClaimExtractionService {
       List<PlanningSkill> skillCatalog,
       String llmProvider
   ) {
-    List<DimensionBriefTurn> dimensionTurns = turns.stream()
-        .filter(turn -> turn.dimensionOrder() == dimension.order())
-        .map(turn -> new DimensionBriefTurn(
-            turn.turnIndex(),
-            turn.question(),
-            turn.turnIndex() == answer.turnIndex() ? answer.content() : turn.answer()
-        ))
-        .toList();
+    List<DimensionBriefTurn> dimensionTurns = DimensionBriefTurn.forDimension(
+        turns,
+        dimension,
+        answer
+    );
     CandidateClaimsProposal proposal = generator.generate(
         new CandidateClaimExtractionRequest(sessionId, dimensionTurns, skillCatalog),
         llmProvider
     );
     validate(proposal, dimensionTurns, skillCatalog);
-    return proposal.claims().stream()
-        .map(claim -> new CandidateClaim(
-            claim.type(),
-            claim.skillId(),
-            claim.focusId(),
-            claim.sourceTurnIndex()
-        ))
-        .toList();
+    return proposal.claims();
   }
 
   private void validate(
@@ -76,7 +66,7 @@ public class CandidateClaimExtractionService {
         .collect(Collectors.toSet());
     Map<String, PlanningSkill> skills = skillCatalog.stream()
         .collect(Collectors.toMap(PlanningSkill::skillId, Function.identity()));
-    for (CandidateClaimProposal claim : proposal.claims()) {
+    for (CandidateClaim claim : proposal.claims()) {
       if (claim == null
           || claim.type() == null
           || !turnIndexes.contains(claim.sourceTurnIndex())) {

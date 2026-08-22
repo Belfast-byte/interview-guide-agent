@@ -133,7 +133,7 @@ class AlgorithmPersistenceServiceTest {
   }
 
   @Test
-  @DisplayName("RUNNING 超龄执行被回收为排队超时并标记基础设施失败待重判")
+  @DisplayName("RUNNING 超龄执行被回收为排队超时并标记基础设施失败")
   void shouldRecycleStuckRunningBeforeCutoff() {
     SandboxExecutionEntity running = new SandboxExecutionEntity(
         "execution-stuck",
@@ -154,7 +154,6 @@ class AlgorithmPersistenceServiceTest {
     assertThat(recycled.get(0)).satisfies(execution -> {
       assertThat(execution.status()).isEqualTo(SandboxExecutionStatus.TIMEOUT_QUEUED);
       assertThat(execution.verdict()).isEqualTo(SandboxVerdict.IE);
-      assertThat(execution.pendingRejudge()).isTrue();
     });
   }
 

@@ -10,10 +10,6 @@ public record PendingToolResult(
     Integer targetTurnIndex
 ) implements ToolResult {
 
-  public PendingToolResult(String handle, Object value, String summary) {
-    this(handle, value, summary, null);
-  }
-
   @Override
   public String resultId() {
     return handle;

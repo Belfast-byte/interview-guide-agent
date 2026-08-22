@@ -16,7 +16,7 @@ import interview.guide.modules.interview.agent.adaptive.runtime.DeadlineExecutor
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.util.Map;
-import org.slf4j.helpers.NOPLogger;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.ai.chat.client.ChatClient;
 import org.springframework.ai.chat.prompt.PromptTemplate;
 import org.springframework.ai.converter.BeanOutputConverter;
@@ -29,6 +29,7 @@ import tools.jackson.databind.ObjectMapper;
  * 基于 Spring AI 的规划 Agent 实现，将 JD/简历/记忆转换为结构化面试计划。
  */
 @Component
+@Slf4j
 public class SpringAiPlanningAgent implements PlanningAgent {
 
   private final LlmProviderRegistry llmProviderRegistry;
@@ -95,12 +96,14 @@ public class SpringAiPlanningAgent implements PlanningAgent {
               ErrorCode.AI_SERVICE_ERROR,
               "Agent 规划失败：",
               "adaptive_agent_planning",
-              NOPLogger.NOP_LOGGER
+              log
           ),
           System.nanoTime() + properties.getPlannerDeadline().toNanos(),
           "Agent 规划执行"
       );
     } catch (BusinessException e) {
+      log.warn("Agent 规划底层调用失败: sessionId={}, code={}, message={}",
+          request.sessionId(), e.getCode(), e.getMessage(), e);
       telemetry.modelCallFailed(
           "planner",
           request.sessionId(),
@@ -108,7 +111,9 @@ public class SpringAiPlanningAgent implements PlanningAgent {
           e.getCode(),
           startedNanos
       );
-      throw new BusinessException(e.getCode(), "Agent 规划失败");
+      BusinessException sanitized = new BusinessException(e.getCode(), "Agent 规划失败");
+      sanitized.initCause(e);
+      throw sanitized;
     }
 
     telemetry.modelCallSucceeded("planner", "PLAN", startedNanos);

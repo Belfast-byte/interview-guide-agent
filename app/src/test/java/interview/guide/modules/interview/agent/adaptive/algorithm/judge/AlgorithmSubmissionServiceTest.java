@@ -13,6 +13,7 @@ import interview.guide.modules.interview.agent.adaptive.algorithm.sandbox.Sandbo
 import interview.guide.modules.interview.agent.adaptive.algorithm.sandbox.SandboxExecutionStatus;
 import interview.guide.modules.interview.agent.adaptive.algorithm.sandbox.SandboxLanguage;
 import interview.guide.modules.interview.agent.adaptive.algorithm.sandbox.SandboxRunMode;
+import interview.guide.modules.interview.agent.adaptive.algorithm.sandbox.SandboxWorkloadType;
 import java.time.LocalDateTime;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
@@ -97,7 +98,11 @@ class AlgorithmSubmissionServiceTest {
         "session-1",
         10L,
         1,
+        SandboxWorkloadType.ALGORITHM,
         "two-sum",
+        null,
+        null,
+        null,
         SandboxLanguage.JAVA,
         "source-ref",
         "a".repeat(64),
@@ -110,9 +115,9 @@ class AlgorithmSubmissionServiceTest {
         null,
         null,
         null,
-        false,
         0,
         LocalDateTime.now(),
+        null,
         null
     );
   }

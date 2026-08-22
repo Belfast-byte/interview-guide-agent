@@ -4,10 +4,12 @@ import interview.guide.common.exception.BusinessException;
 import interview.guide.common.exception.ErrorCode;
 import interview.guide.modules.interview.agent.tool.InterviewToolGateway;
 import interview.guide.modules.interview.agent.tool.ToolResult;
+import interview.guide.modules.interview.agent.runtime.AgentInterviewPersistenceService.CreateAgentSessionCommand;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 
 import java.time.Duration;
+import java.util.UUID;
 import java.util.concurrent.Callable;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.FutureTask;
@@ -41,10 +43,12 @@ public class InterviewAgentLoop {
    * @param resume 候选人简历
    * @return 创建后的会话状态
    */
-  public AgentLoopState createSession(String jd, String resume) {
-    AgentLoopState created = persistenceService.create(jd, resume, MAX_TURNS);
+  public AgentLoopState createSession(UUID candidateId, String jd, String resume) {
+    AgentLoopState created = persistenceService.create(
+        new CreateAgentSessionCommand(candidateId, jd, resume, MAX_TURNS));
     try {
       TerminalStep terminal = runBounded(
+          candidateId,
           created.sessionId(),
           null,
           null,
@@ -72,8 +76,8 @@ public class InterviewAgentLoop {
    * @param answer 候选人回答原文
    * @return 推进后的会话状态
    */
-  public AgentLoopState submitAnswer(String sessionId, String answer) {
-    AgentLoopState snapshot = persistenceService.get(sessionId);
+  public AgentLoopState submitAnswer(UUID candidateId, String sessionId, String answer) {
+    AgentLoopState snapshot = persistenceService.get(candidateId, sessionId);
     if (snapshot.status() == AgentLoopStatus.COMPLETED) {
       throw new BusinessException(ErrorCode.INTERVIEW_ALREADY_COMPLETED);
     }
@@ -84,7 +88,7 @@ public class InterviewAgentLoop {
     long totalDeadlineNanos = deadlineFromNow(runtimeProperties.getDeadline());
     AssessmentContext assessmentContext = contextBuilder.buildAssessment(sessionId, answer);
     AssessmentResult assessment = validateEvidence(
-        assessmentWithinDeadline(assessmentContext, totalDeadlineNanos),
+        assessmentWithinDeadline(candidateId, assessmentContext, totalDeadlineNanos),
         answer
     );
     long decisionDeadlineNanos = Math.min(
@@ -92,6 +96,7 @@ public class InterviewAgentLoop {
         deadlineFromNow(runtimeProperties.getDecisionTimeout())
     );
     TerminalStep terminal = runBounded(
+        candidateId,
         sessionId,
         answer,
         assessment,
@@ -130,11 +135,12 @@ public class InterviewAgentLoop {
    * @param sessionId 会话 ID
    * @return 当前会话状态
    */
-  public AgentLoopState getSession(String sessionId) {
-    return persistenceService.get(sessionId);
+  public AgentLoopState getSession(UUID candidateId, String sessionId) {
+    return persistenceService.get(candidateId, sessionId);
   }
 
   private TerminalStep runBounded(
+      UUID candidateId,
       String sessionId,
       String currentAnswer,
       AssessmentResult currentAssessment,
@@ -147,7 +153,8 @@ public class InterviewAgentLoop {
           currentAnswer,
           currentAssessment
       );
-      AgentStep next = nextStepWithinDeadline(context, budget.deadlineNanos());
+      AgentStep next = nextStepWithinDeadline(
+          candidateId, context, budget.deadlineNanos());
       switch (next) {
         case AgentStep.CallTool call -> {
           if (context.loadedSkill() != null || budget.toolCalls() >= MAX_TOOL_CALLS) {
@@ -174,11 +181,12 @@ public class InterviewAgentLoop {
   }
 
   private AgentStep nextStepWithinDeadline(
+      UUID candidateId,
       InterviewAgentContext context,
       long deadlineNanos
   ) {
     return executeWithinDeadline(
-        () -> modelGateway.nextStep(context),
+        () -> modelGateway.nextStep(candidateId, context),
         deadlineNanos,
         "agent-interview-model-step",
         "Agent 单轮决策"
@@ -186,6 +194,7 @@ public class InterviewAgentLoop {
   }
 
   private AssessmentResult assessmentWithinDeadline(
+      UUID candidateId,
       AssessmentContext context,
       long totalDeadlineNanos
   ) {
@@ -194,7 +203,7 @@ public class InterviewAgentLoop {
         deadlineFromNow(runtimeProperties.getAssessmentTimeout())
     );
     return executeWithinDeadline(
-        () -> modelGateway.assess(context),
+        () -> modelGateway.assess(candidateId, context),
         assessmentDeadlineNanos,
         "agent-interview-assessment",
         "Agent 回答评估"

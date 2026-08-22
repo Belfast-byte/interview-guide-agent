@@ -18,8 +18,6 @@ import org.springframework.validation.annotation.Validated;
 @ConfigurationProperties(prefix = "app.interview.adaptive-agent.mcp.question-bank")
 public class McpQuestionBankProperties {
 
-  private boolean enabled;
-
   @NotBlank
   private String serverName = "question-bank";
 

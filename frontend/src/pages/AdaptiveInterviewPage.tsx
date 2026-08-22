@@ -16,12 +16,12 @@ import {
   Send,
   Sparkles,
   Target,
-  UserRound,
 } from 'lucide-react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { adaptiveInterviewApi } from '../api/adaptiveInterview';
 import { getErrorMessage } from '../api/request';
 import { ROUTES } from '../constants/routes';
+import { ADAPTIVE_INTERVIEW_TEST_SAMPLE } from './adaptiveInterviewTestSample';
 import type {
   AdaptiveAssessmentReport,
   AdaptiveInterviewDimension,
@@ -47,7 +47,6 @@ export default function AdaptiveInterviewPage() {
   const reduceMotion = useReducedMotion();
   const [session, setSession] = useState<AdaptiveInterviewSession | null>(null);
   const [report, setReport] = useState<AdaptiveAssessmentReport | null>(null);
-  const [candidateId, setCandidateId] = useState('');
   const [jd, setJd] = useState('');
   const [resume, setResume] = useState('');
   const [llmProvider, setLlmProvider] = useState('');
@@ -149,13 +148,12 @@ export default function AdaptiveInterviewPage() {
 
   const createInterview = async () => {
     const request = {
-      candidateId: candidateId.trim(),
       jd: jd.trim(),
       resume: resume.trim(),
       ...(llmProvider.trim() ? { llmProvider: llmProvider.trim() } : {}),
     };
-    if (!request.candidateId || !request.jd || !request.resume) {
-      setError('请填写候选人标识、职位描述和简历内容。');
+    if (!request.jd || !request.resume) {
+      setError('请填写职位描述和简历内容。');
       return;
     }
 
@@ -280,17 +278,19 @@ export default function AdaptiveInterviewPage() {
   if (!session) {
     return (
       <SetupView
-        candidateId={candidateId}
         jd={jd}
         resume={resume}
         llmProvider={llmProvider}
         working={working}
         error={error}
         hasSessionId={Boolean(sessionId)}
-        onCandidateIdChange={setCandidateId}
         onJdChange={setJd}
         onResumeChange={setResume}
         onProviderChange={setLlmProvider}
+        onFillSample={() => {
+          setJd(ADAPTIVE_INTERVIEW_TEST_SAMPLE.jd);
+          setResume(ADAPTIVE_INTERVIEW_TEST_SAMPLE.resume);
+        }}
         onCreate={() => void createInterview()}
         onRetry={() => void loadSession(sessionId!)}
       />
@@ -547,7 +547,6 @@ function JudgeResult({ execution }: { execution: SandboxExecution }) {
       {execution.total !== null && <p className="mt-2">cases {execution.passed}/{execution.total}</p>}
       {execution.timeMs !== null && <p>time {execution.timeMs} ms · memory {execution.memoryKb} KB</p>}
       {execution.firstFailedCase !== null && <p>first failed case #{execution.firstFailedCase}</p>}
-      {execution.pendingRejudge && <p className="mt-2 text-amber-300">平台故障，已进入待重判；不计入能力证据。</p>}
       {execution.policyViolation && <p className="mt-2 text-red-300">沙箱策略已阻止：{execution.policyViolation}</p>}
       {execution.status === 'TIMEOUT_QUEUED' && <p className="mt-2 text-amber-300">判题暂不可用，面试将改为代码走读。</p>}
     </div>
@@ -555,17 +554,16 @@ function JudgeResult({ execution }: { execution: SandboxExecution }) {
 }
 
 interface SetupViewProps {
-  candidateId: string;
   jd: string;
   resume: string;
   llmProvider: string;
   working: boolean;
   error: string;
   hasSessionId: boolean;
-  onCandidateIdChange: (value: string) => void;
   onJdChange: (value: string) => void;
   onResumeChange: (value: string) => void;
   onProviderChange: (value: string) => void;
+  onFillSample: () => void;
   onCreate: () => void;
   onRetry: () => void;
 }
@@ -593,9 +591,9 @@ function SetupView(props: SetupViewProps) {
       )}
 
       <section className="overflow-hidden rounded-3xl border border-slate-200 bg-white/90 shadow-xl shadow-slate-200/35 dark:border-slate-700 dark:bg-slate-800/85 dark:shadow-slate-950/20">
+        <SampleFillToolbar disabled={props.working} onFill={props.onFillSample} />
         <div className="grid gap-6 p-6 sm:p-8 lg:grid-cols-2">
           <div className="space-y-5">
-            <TextField label="候选人标识" icon={UserRound} value={props.candidateId} onChange={props.onCandidateIdChange} placeholder="例如 candidate-2026-001" maxLength={64} />
             <TextField label="LLM Provider（可选）" icon={BrainCircuit} value={props.llmProvider} onChange={props.onProviderChange} placeholder="留空使用默认 Provider" maxLength={64} />
             <ContextField label="职位描述" icon={Target} value={props.jd} onChange={props.onJdChange} placeholder="岗位职责、技术栈、业务场景和候选人级别" />
           </div>
@@ -606,7 +604,7 @@ function SetupView(props: SetupViewProps) {
           <button
             type="button"
             onClick={props.onCreate}
-            disabled={props.working || !props.candidateId.trim() || !props.jd.trim() || !props.resume.trim()}
+            disabled={props.working || !props.jd.trim() || !props.resume.trim()}
             className="btn-primary inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-xl px-6 py-3 text-sm disabled:cursor-not-allowed disabled:opacity-50"
           >
             {props.working ? <Loader2 className="h-4 w-4 animate-spin" /> : <BrainCircuit className="h-4 w-4" />}
@@ -614,6 +612,23 @@ function SetupView(props: SetupViewProps) {
           </button>
         </div>
       </section>
+    </div>
+  );
+}
+
+function SampleFillToolbar(props: { disabled: boolean; onFill: () => void }) {
+  return (
+    <div className="flex items-center justify-between gap-4 border-b border-slate-100 px-6 py-4 dark:border-slate-700 sm:px-8">
+      <p className="text-xs text-slate-500 dark:text-slate-400">可填入模拟岗位和候选人经历快速测试完整流程。</p>
+      <button
+        type="button"
+        onClick={props.onFill}
+        disabled={props.disabled}
+        className="inline-flex flex-none items-center gap-2 rounded-lg border border-primary-200 bg-primary-50 px-3 py-2 text-xs font-semibold text-primary-700 transition-colors hover:border-primary-300 hover:bg-primary-100 disabled:cursor-not-allowed disabled:opacity-50 dark:border-primary-800 dark:bg-primary-900/30 dark:text-primary-300 dark:hover:bg-primary-900/50"
+      >
+        <Sparkles className="h-3.5 w-3.5" />
+        填入测试样例
+      </button>
     </div>
   );
 }

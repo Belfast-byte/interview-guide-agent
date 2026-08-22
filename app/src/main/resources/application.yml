@@ -83,6 +83,7 @@ spring:
     mcp:
       server:
         enabled: ${APP_INTERVIEW_ADAPTIVE_AGENT_ENABLED:false}
+        protocol: STREAMABLE
         name: adaptive-interview-platform
         version: 1.0.0
     # 禁用自动重试机制，让异常立即返回
@@ -100,6 +101,10 @@ spring:
 
 # Application custom configuration
 app:
+  auth:
+    jwt:
+      secret: ${JWT_SECRET}
+      ttl: 7d
   ai:
     default-provider: siliconflow
     default-embedding-provider: siliconflow
@@ -189,9 +194,34 @@ app:
       assessment-timeout: ${APP_INTERVIEW_AGENT_LOOP_ASSESSMENT_TIMEOUT:10s}
       decision-timeout: ${APP_INTERVIEW_AGENT_LOOP_DECISION_TIMEOUT:20s}
     adaptive-agent:
-      enabled: ${APP_INTERVIEW_ADAPTIVE_AGENT_ENABLED:false}
+      enabled: ${APP_INTERVIEW_ADAPTIVE_AGENT_ENABLED:true}
+      planner-deadline: ${APP_INTERVIEW_ADAPTIVE_AGENT_PLANNER_DEADLINE:60s}
+      deadline: ${APP_INTERVIEW_ADAPTIVE_AGENT_DEADLINE:60s}
+      brief-deadline: ${APP_INTERVIEW_ADAPTIVE_AGENT_BRIEF_DEADLINE:30s}
+      claim-deadline: ${APP_INTERVIEW_ADAPTIVE_AGENT_CLAIM_DEADLINE:30s}
+      assessment-deadline: ${APP_INTERVIEW_ADAPTIVE_AGENT_ASSESSMENT_DEADLINE:30s}
+      # MCP server 租户凭证：启用 adaptive-agent 后 MCP 端点默认要求凭证，
+      # 未配置 credentials 时所有 MCP 调用返回 401。每个凭证包含：
+      #   tenant-id 租户标识；api-key 调用方密钥；
+      #   scopes 允许的工具范围（INTERVIEW_CREATE / INTERVIEW_READ /
+      #   CODE_ANALYSIS_SUBMIT / CODE_ANALYSIS_READ / CODE_ANALYSIS_TRACE）
+      # mcp:
+      #   server:
+      #     credentials:
+      #       demo-credential:
+      #         tenant-id: demo-tenant
+      #         api-key: ${APP_INTERVIEW_ADAPTIVE_AGENT_MCP_API_KEY:}
+      #         scopes: INTERVIEW_CREATE,INTERVIEW_READ,CODE_ANALYSIS_SUBMIT,CODE_ANALYSIS_READ,CODE_ANALYSIS_TRACE
     evaluation:
       batch-size: ${APP_INTERVIEW_EVALUATION_BATCH_SIZE:8}
+    code-analysis:
+      worker-enabled: ${APP_INTERVIEW_CODE_ANALYSIS_WORKER_ENABLED:false}
+      retention: ${APP_INTERVIEW_CODE_ANALYSIS_RETENTION:30d}
+      timeout: ${APP_INTERVIEW_CODE_ANALYSIS_TIMEOUT:10m}
+      max-snapshot-bytes: ${APP_INTERVIEW_CODE_ANALYSIS_MAX_SNAPSHOT_BYTES:104857600}
+      max-snapshot-files: ${APP_INTERVIEW_CODE_ANALYSIS_MAX_SNAPSHOT_FILES:20000}
+      max-token-cost: ${APP_INTERVIEW_CODE_ANALYSIS_MAX_TOKEN_COST:200000}
+      worker-token: ${APP_INTERVIEW_CODE_ANALYSIS_WORKER_TOKEN:}
   resume:
     upload-dir: ${java.io.tmpdir}/ai-interview/resumes
     allowed-types:

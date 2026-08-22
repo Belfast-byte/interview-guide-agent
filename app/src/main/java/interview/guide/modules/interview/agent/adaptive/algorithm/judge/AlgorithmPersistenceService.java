@@ -76,26 +76,19 @@ public class AlgorithmPersistenceService {
     );
   }
 
+  /**
+   * 提交前置校验：轮次归属、题目存在性与执行配额。在源码上传前调用，避免被拒提交留下孤儿文件。
+   */
+  @Transactional
+  public void validateSubmission(CreateSandboxExecution command) {
+    sessionFacts.lockCurrentTurn(command.sessionId(), command.turnIndex());
+    validateProblemAndQuota(command);
+  }
+
   @Transactional
   public SandboxExecution createPending(CreateSandboxExecution command) {
     long turnId = sessionFacts.lockCurrentTurn(command.sessionId(), command.turnIndex());
-    if (command.workloadType() == SandboxWorkloadType.ALGORITHM
-        && !problemRepository.existsById(command.problemId())) {
-      throw new BusinessException(ErrorCode.NOT_FOUND, "算法题不存在");
-    }
-    long submitted = executionRepository.countBySessionId(command.sessionId());
-    if (submitted >= properties.getMaxExecutionsPerSession()) {
-      telemetry.quotaRejected();
-      throw new BusinessException(ErrorCode.RATE_LIMIT_EXCEEDED, "本场面试代码执行次数已达上限");
-    }
-    if (command.workloadType() == SandboxWorkloadType.PATCH
-        && executionRepository.countBySessionIdAndWorkloadType(
-            command.sessionId(),
-            SandboxWorkloadType.PATCH
-        ) >= properties.getMaxPatchExecutionsPerSession()) {
-      telemetry.quotaRejected();
-      throw new BusinessException(ErrorCode.RATE_LIMIT_EXCEEDED, "本场面试 PATCH 实操次数已达上限");
-    }
+    validateProblemAndQuota(command);
     int submissionSeq = executionRepository
         .findTopBySessionIdOrderBySubmissionSeqDesc(command.sessionId())
         .map(entity -> entity.toDomain().submissionSeq() + 1)
@@ -176,6 +169,7 @@ public class AlgorithmPersistenceService {
     SandboxExecutionEntity execution = executionRepository.findLockedById(executionId)
         .orElseThrow(() -> new BusinessException(ErrorCode.NOT_FOUND, "判题提交不存在"));
     execution.markInfrastructureFailure();
+    updateQueueDepth();
     return execution.toDomain();
   }
 
@@ -203,6 +197,26 @@ public class AlgorithmPersistenceService {
         .toList();
     updateQueueDepth();
     return timedOut;
+  }
+
+  private void validateProblemAndQuota(CreateSandboxExecution command) {
+    if (command.workloadType() == SandboxWorkloadType.ALGORITHM
+        && !problemRepository.existsById(command.problemId())) {
+      throw new BusinessException(ErrorCode.NOT_FOUND, "算法题不存在");
+    }
+    long submitted = executionRepository.countBySessionId(command.sessionId());
+    if (submitted >= properties.getMaxExecutionsPerSession()) {
+      telemetry.quotaRejected();
+      throw new BusinessException(ErrorCode.RATE_LIMIT_EXCEEDED, "本场面试代码执行次数已达上限");
+    }
+    if (command.workloadType() == SandboxWorkloadType.PATCH
+        && executionRepository.countBySessionIdAndWorkloadType(
+            command.sessionId(),
+            SandboxWorkloadType.PATCH
+        ) >= properties.getMaxPatchExecutionsPerSession()) {
+      telemetry.quotaRejected();
+      throw new BusinessException(ErrorCode.RATE_LIMIT_EXCEEDED, "本场面试 PATCH 实操次数已达上限");
+    }
   }
 
   private void updateQueueDepth() {

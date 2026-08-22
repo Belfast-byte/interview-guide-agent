@@ -4,6 +4,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
 
 import interview.guide.common.exception.BusinessException;
@@ -101,6 +102,91 @@ class CodeAnalysisPersistenceServiceTest {
 
       assertThat(job.id()).isEqualTo("job-1");
       assertThat(job.status()).isEqualTo(AnalysisJobStatus.PENDING);
+    }
+
+    @Test
+    @DisplayName("最近任务为 FAILED/TIMED_OUT 终态时新建任务以便重新投递")
+    void shouldCreateNewJobWhenLatestIsFailedTerminal() {
+      ProjectRepoEntity repository = new ProjectRepoEntity(
+          "repo-1",
+          "session-1",
+          "tenant-1",
+          "s3://repos/one.zip",
+          "abc123",
+          LocalDateTime.now().plusDays(30)
+      );
+      AnalysisJobEntity failed = new AnalysisJobEntity("job-1", "session-1", "repo-1");
+      failed.fail("worker crashed");
+      when(sessionRepository.existsById("session-1")).thenReturn(true);
+      when(repoRepository.findBySessionIdAndCommitHash("session-1", "abc123"))
+          .thenReturn(Optional.of(repository));
+      when(jobRepository.findTopByRepositoryIdOrderByCreatedAtDesc("repo-1"))
+          .thenReturn(Optional.of(failed));
+      when(jobRepository.save(any())).thenAnswer(invocation -> invocation.getArgument(0));
+
+      CodeAnalysisJob job = service.createJob(
+          "session-1",
+          "tenant-1",
+          "s3://repos/one.zip",
+          "abc123",
+          LocalDateTime.now().plusDays(30)
+      );
+
+      assertThat(job.id()).isNotEqualTo("job-1");
+      assertThat(job.status()).isEqualTo(AnalysisJobStatus.PENDING);
+      verify(jobRepository).save(any(AnalysisJobEntity.class));
+    }
+  }
+
+  @Nested
+  @DisplayName("任务状态机守卫")
+  class StateMachineGuards {
+
+    @Test
+    @DisplayName("超时任务的迟到 started 回调被幂等忽略")
+    void shouldIgnoreLateStartedOnTimedOutJob() {
+      AnalysisJobEntity job = new AnalysisJobEntity("job-1", "session-1", "repo-1");
+      job.timeout();
+      when(jobRepository.findById("job-1")).thenReturn(Optional.of(job));
+
+      service.markRunning("job-1");
+
+      assertThat(job.toDomain().status()).isEqualTo(AnalysisJobStatus.TIMED_OUT);
+    }
+
+    @Test
+    @DisplayName("已完成任务的迟到 failed 回调不覆盖终态和已完成产物")
+    void shouldIgnoreLateFailureOnCompletedJob() {
+      AnalysisJobEntity job = new AnalysisJobEntity("job-1", "session-1", "repo-1");
+      job.complete(100, 20);
+      when(jobRepository.findById("job-1")).thenReturn(Optional.of(job));
+
+      service.markFailed("job-1", "worker crashed");
+
+      assertThat(job.toDomain().status()).isEqualTo(AnalysisJobStatus.COMPLETED);
+      assertThat(job.toDomain().durationMs()).isEqualTo(100);
+      assertThat(job.toDomain().tokenCost()).isEqualTo(20);
+    }
+
+    @Test
+    @DisplayName("终态任务的迟到结果不写入产物也不翻转状态")
+    void shouldIgnoreLateResultOnTerminalJob() {
+      AnalysisJobEntity job = new AnalysisJobEntity("job-1", "session-1", "repo-1");
+      job.timeout();
+      when(jobRepository.findById("job-1")).thenReturn(Optional.of(job));
+      ProjectDigest digest = new ProjectDigest(
+          "digest-1",
+          "abc123",
+          List.of("Java"),
+          List.of(),
+          List.of(),
+          List.of()
+      );
+
+      service.complete("job-1", new CodeAnalysisResult(digest, List.of(), List.of(), 100, 20));
+
+      assertThat(job.toDomain().status()).isEqualTo(AnalysisJobStatus.TIMED_OUT);
+      verifyNoInteractions(repoRepository, digestRepository, claimRepository, scenarioRepository);
     }
   }
 

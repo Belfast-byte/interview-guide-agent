@@ -45,6 +45,7 @@ class AdaptiveInterviewConcurrencyIntegrationTest {
   void shouldAdvanceOnceForConcurrentAnswers()
       throws InterruptedException, TimeoutException {
     persistenceService.create(
+        null,
         "concurrent-session",
         "candidate-1",
         "JD",

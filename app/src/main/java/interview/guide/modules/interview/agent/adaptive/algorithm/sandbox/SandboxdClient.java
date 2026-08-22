@@ -4,6 +4,7 @@ import interview.guide.common.exception.BusinessException;
 import interview.guide.common.exception.ErrorCode;
 import interview.guide.modules.interview.agent.adaptive.algorithm.AlgorithmInterviewProperties;
 import java.util.List;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.http.client.SimpleClientHttpRequestFactory;
 import org.springframework.stereotype.Component;
 import org.springframework.web.client.RestClient;
@@ -12,6 +13,11 @@ import org.springframework.web.client.RestClient;
  * Sandboxd 客户端，封装与沙箱服务的通信。
  */
 @Component
+@ConditionalOnProperty(
+    prefix = "app.interview.adaptive-agent",
+    name = "enabled",
+    havingValue = "true"
+)
 class SandboxdClient implements SandboxWorker {
 
   private final RestClient restClient;

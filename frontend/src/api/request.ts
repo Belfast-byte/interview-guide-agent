@@ -1,8 +1,10 @@
 import axios, { AxiosInstance, AxiosRequestConfig } from 'axios';
+import { clearAccessToken, getAccessToken, notifyAuthenticationChanged } from '../auth/token';
 
 declare module 'axios' {
   interface AxiosRequestConfig {
     skipResultTransform?: boolean;
+    skipAuth?: boolean;
   }
 }
 
@@ -24,6 +26,22 @@ const instance: AxiosInstance = axios.create({
   baseURL: API_BASE_URL,
   timeout: 60000,
 });
+
+instance.interceptors.request.use((config) => {
+  if (config.skipAuth) {
+    return config;
+  }
+  const token = getAccessToken();
+  if (token) {
+    config.headers.Authorization = `Bearer ${token}`;
+  }
+  return config;
+});
+
+function expireAuthentication(): void {
+  clearAccessToken();
+  notifyAuthenticationChanged();
+}
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return value !== null && typeof value === 'object';
@@ -125,6 +143,9 @@ instance.interceptors.response.use(
         response.data = result.data;
         return response;
       }
+      if (result.code === 401) {
+        expireAuthentication();
+      }
       // 失败：直接抛出 message
       return Promise.reject(new Error(result.message || '请求失败'));
     }
@@ -135,6 +156,9 @@ instance.interceptors.response.use(
   async (error) => {
     // 有响应的情况：后端返回了结果（即使是错误）
     if (error.response) {
+      if (error.response.status === 401) {
+        expireAuthentication();
+      }
       const { data } = error.response;
       // 尝试解析 Result 格式
       const responseError = await getErrorFromResponseData(data);

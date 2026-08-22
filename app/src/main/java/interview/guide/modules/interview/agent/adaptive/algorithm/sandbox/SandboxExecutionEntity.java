@@ -87,9 +87,6 @@ public class SandboxExecutionEntity {
   @Column(name = "superseded_by", length = 36)
   private String supersededBy;
 
-  @Column(name = "pending_rejudge", nullable = false)
-  private boolean pendingRejudge;
-
   @Column(name = "retry_count", nullable = false)
   private int retryCount;
 
@@ -144,7 +141,7 @@ public class SandboxExecutionEntity {
   }
 
   public boolean apply(SandboxExecutionResult result) {
-    if (result.verdict() == SandboxVerdict.IE && retryCount == 0) {
+    if (result.verdict() == SandboxVerdict.IE && retryCount == 0 && supersededBy == null) {
       retryCount = 1;
       status = SandboxExecutionStatus.PENDING;
       startedAt = null;
@@ -158,7 +155,6 @@ public class SandboxExecutionEntity {
     firstFailedCase = result.firstFailedCase();
     policyViolation = result.policyViolation();
     status = SandboxExecutionStatus.DONE;
-    pendingRejudge = verdict == SandboxVerdict.IE;
     finishedAt = LocalDateTime.now();
     return false;
   }
@@ -173,9 +169,12 @@ public class SandboxExecutionEntity {
   }
 
   public void markInfrastructureFailure() {
+    if (status != SandboxExecutionStatus.PENDING
+        && status != SandboxExecutionStatus.RUNNING) {
+      return;
+    }
     verdict = SandboxVerdict.IE;
     status = SandboxExecutionStatus.DONE;
-    pendingRejudge = true;
     finishedAt = LocalDateTime.now();
   }
 
@@ -194,7 +193,6 @@ public class SandboxExecutionEntity {
     }
     verdict = SandboxVerdict.IE;
     status = SandboxExecutionStatus.TIMEOUT_QUEUED;
-    pendingRejudge = true;
     finishedAt = LocalDateTime.now();
     return true;
   }
@@ -222,7 +220,6 @@ public class SandboxExecutionEntity {
         memoryKb,
         firstFailedCase,
         supersededBy,
-        pendingRejudge,
         retryCount,
         createdAt,
         finishedAt,

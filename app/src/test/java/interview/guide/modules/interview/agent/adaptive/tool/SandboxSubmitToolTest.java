@@ -12,6 +12,7 @@ import interview.guide.modules.interview.agent.adaptive.algorithm.sandbox.Sandbo
 import interview.guide.modules.interview.agent.adaptive.algorithm.sandbox.SandboxExecutionStatus;
 import interview.guide.modules.interview.agent.adaptive.algorithm.sandbox.SandboxLanguage;
 import interview.guide.modules.interview.agent.adaptive.algorithm.sandbox.SandboxRunMode;
+import interview.guide.modules.interview.agent.adaptive.algorithm.sandbox.SandboxWorkloadType;
 import interview.guide.modules.interview.agent.adaptive.algorithm.judge.SubmitAlgorithmCode;
 import interview.guide.modules.interview.agent.adaptive.codeanalysis.scenario.CodePatchSubmissionService;
 import interview.guide.modules.interview.agent.adaptive.core.event.CandidateAnswer;
@@ -127,10 +128,11 @@ class SandboxSubmitToolTest {
 
   private SandboxExecution pendingExecution() {
     return new SandboxExecution(
-        "execution-1", "session-1", 10L, 1, "two-sum",
+        "execution-1", "session-1", 10L, 1, SandboxWorkloadType.ALGORITHM,
+        "two-sum", null, null, null,
         SandboxLanguage.JAVA, "source-ref", "a".repeat(64), SandboxRunMode.FULL,
         SandboxExecutionStatus.PENDING, null, null, null, null, null, null,
-        null, false, 0, LocalDateTime.now(), null
+        null, 0, LocalDateTime.now(), null, null
     );
   }
 }

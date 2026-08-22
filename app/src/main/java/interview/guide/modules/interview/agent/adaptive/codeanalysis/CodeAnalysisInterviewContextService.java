@@ -4,10 +4,8 @@ import interview.guide.common.exception.BusinessException;
 import interview.guide.common.exception.ErrorCode;
 import interview.guide.modules.interview.agent.adaptive.codeanalysis.claim.ClaimVerification;
 import interview.guide.modules.interview.agent.adaptive.codeanalysis.claim.ClaimVerificationRepository;
-import interview.guide.modules.interview.agent.adaptive.codeanalysis.job.AnalysisJobEntity;
-import interview.guide.modules.interview.agent.adaptive.codeanalysis.job.AnalysisJobRepository;
-import interview.guide.modules.interview.agent.adaptive.codeanalysis.job.AnalysisJobStatus;
 import interview.guide.modules.interview.agent.adaptive.codeanalysis.job.CodeAnalysisJob;
+import interview.guide.modules.interview.agent.adaptive.codeanalysis.job.CodeAnalysisPersistenceService;
 import interview.guide.modules.interview.agent.adaptive.codeanalysis.repo.ProjectDigest;
 import interview.guide.modules.interview.agent.adaptive.codeanalysis.repo.ProjectDigestRepository;
 import interview.guide.modules.interview.agent.adaptive.codeanalysis.scenario.ScenarioCard;
@@ -28,7 +26,7 @@ import tools.jackson.databind.ObjectMapper;
 @RequiredArgsConstructor
 public class CodeAnalysisInterviewContextService {
 
-  private final AnalysisJobRepository jobRepository;
+  private final CodeAnalysisPersistenceService persistenceService;
   private final ProjectDigestRepository digestRepository;
   private final ClaimVerificationRepository claimRepository;
   private final ScenarioCardRepository scenarioRepository;
@@ -36,19 +34,13 @@ public class CodeAnalysisInterviewContextService {
 
   @Transactional(readOnly = true)
   public Optional<ProjectInterviewContext> findForSession(String sessionId) {
-    return jobRepository.findTopBySessionIdAndStatusOrderByCreatedAtDesc(
-        sessionId,
-        AnalysisJobStatus.COMPLETED
-    ).map(AnalysisJobEntity::toDomain)
+    return persistenceService.findLatestCompletedJob(sessionId)
         .map(this::map);
   }
 
   @Transactional(readOnly = true)
   public Optional<ProjectPlanningContext> findPlanningForSession(String sessionId) {
-    return jobRepository.findTopBySessionIdAndStatusOrderByCreatedAtDesc(
-        sessionId,
-        AnalysisJobStatus.COMPLETED
-    ).map(AnalysisJobEntity::toDomain)
+    return persistenceService.findLatestCompletedJob(sessionId)
         .map(job -> read(
             digestRepository.findByRepositoryId(job.repositoryId()).orElseThrow().payloadJson(),
             ProjectDigest.class

@@ -36,6 +36,7 @@ class AssessmentBackfillServiceTest {
             "provider-a",
             null,
             null,
+            null,
             null
         )
     ));
@@ -50,11 +51,7 @@ class AssessmentBackfillServiceTest {
           List.of("一致性取舍")
       );
     });
-    AssessmentEvidenceValidator validator = new AssessmentEvidenceValidator(
-        (sessionId, turnIndex, ids) -> {
-          throw new AssertionError("quote 回填不应加载工具结果");
-        }
-    );
+    AssessmentEvidenceValidator validator = new AssessmentEvidenceValidator();
     AlgorithmAssessmentEvidenceService algorithmEvidenceService =
         mock(AlgorithmAssessmentEvidenceService.class);
     CandidateAbilityProfileWriter abilityProfileWriter =
@@ -86,6 +83,54 @@ class AssessmentBackfillServiceTest {
     });
     verify(algorithmEvidenceService).attachAvailable("session-old");
     verify(abilityProfileWriter).refresh("session-old");
+  }
+
+  @Test
+  @DisplayName("算法题历史轮次回填时携带判题结果重新评估")
+  void shouldBackfillAlgorithmTurnWithToolResult() {
+    RecordingStore store = new RecordingStore(List.of(
+        new AssessmentBackfillTurn(
+            "session-old",
+            2,
+            1,
+            "算法设计",
+            "二分边界",
+            "实现二分查找？",
+            "代码实现包含边界处理",
+            "provider-a",
+            null,
+            null,
+            null,
+            "sandbox: 全部测试用例通过"
+        )
+    ));
+    List<AssessmentRequest> requests = new ArrayList<>();
+    DepthAssessmentAgent agent = new DepthAssessmentAgent((request, provider) -> {
+      requests.add(request);
+      return new AssessmentProposal(
+          DepthLevel.L3,
+          0.9,
+          "判题全部通过",
+          true,
+          List.of("边界处理")
+      );
+    });
+    AssessmentEvidenceValidator validator = new AssessmentEvidenceValidator();
+    AssessmentBackfillService service = new AssessmentBackfillService(
+        store,
+        agent,
+        validator,
+        mock(AlgorithmAssessmentEvidenceService.class),
+        mock(CandidateAbilityProfileWriter.class)
+    );
+
+    assertThat(service.backfill("session-old")).isEqualTo(1);
+
+    assertThat(requests).singleElement().satisfies(request -> {
+      assertThat(request.context().question()).isEqualTo("实现二分查找？");
+      assertThat(request.context().answer()).isEqualTo("代码实现包含边界处理");
+      assertThat(request.context().toolResult()).isEqualTo("sandbox: 全部测试用例通过");
+    });
   }
 
   private static final class RecordingStore implements AssessmentBackfillStore {

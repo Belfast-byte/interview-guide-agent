@@ -33,13 +33,21 @@ class JpaAlgorithmSessionFacts implements AlgorithmSessionFacts {
       throw new BusinessException(ErrorCode.BAD_REQUEST, "只能为当前进行中的轮次提交代码");
     }
     return turnRepository.findBySessionIdAndTurnIndex(sessionId, turnIndex)
-        .orElseThrow()
+        .orElseThrow(() -> new BusinessException(
+            ErrorCode.NOT_FOUND,
+            "面试轮次不存在"
+        ))
         .id();
   }
 
   @Override
   public int turnIndex(long turnId) {
-    return turnRepository.findById(turnId).orElseThrow().turnIndex();
+    return turnRepository.findById(turnId)
+        .orElseThrow(() -> new BusinessException(
+            ErrorCode.NOT_FOUND,
+            "面试轮次不存在"
+        ))
+        .turnIndex();
   }
 
   @Override

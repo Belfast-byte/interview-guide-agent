@@ -46,12 +46,7 @@ public class AssessmentBackfillService {
           new AssessmentRequest(
               turn.sessionId(),
               turn.turnIndex(),
-              AssessmentContext.currentAnswer(
-                  turn.dimension(),
-                  turn.focus(),
-                  turn.question(),
-                  turn.answer()
-              )
+              contextOf(turn)
           ),
           turn.llmProvider()
       );
@@ -68,5 +63,23 @@ public class AssessmentBackfillService {
     algorithmEvidenceService.attachAvailable(sessionId);
     abilityProfileWriter.refresh(sessionId);
     return missingTurns.size();
+  }
+
+  private AssessmentContext contextOf(AssessmentBackfillTurn turn) {
+    if (turn.toolResult() != null) {
+      return AssessmentContext.algorithmResult(
+          turn.dimension(),
+          turn.focus(),
+          turn.question(),
+          turn.answer(),
+          turn.toolResult()
+      );
+    }
+    return AssessmentContext.currentAnswer(
+        turn.dimension(),
+        turn.focus(),
+        turn.question(),
+        turn.answer()
+    );
   }
 }

@@ -12,6 +12,7 @@ import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.test.context.ActiveProfiles;
 
 import java.time.LocalDateTime;
+import java.util.UUID;
 
 import static org.junit.jupiter.api.Assertions.*;
 
@@ -36,6 +37,8 @@ import static org.junit.jupiter.api.Assertions.*;
 )
 @DisplayName("语音面试集成测试（待修复）")
 class VoiceInterviewIntegrationTest {
+
+    private static final UUID CANDIDATE_ID = UUID.randomUUID();
 
     @Autowired
     private VoiceInterviewService voiceInterviewService;
@@ -69,7 +72,8 @@ class VoiceInterviewIntegrationTest {
                 .plannedDuration(30)
                 .build();
 
-            SessionResponseDTO sessionResponse = voiceInterviewService.createSession(createRequest);
+            SessionResponseDTO sessionResponse = voiceInterviewService
+                .createSession(CANDIDATE_ID, createRequest);
 
             assertNotNull(sessionResponse);
             assertNotNull(sessionResponse.getSessionId());
@@ -116,7 +120,8 @@ class VoiceInterviewIntegrationTest {
                 .plannedDuration(20)
                 .build();
 
-            SessionResponseDTO sessionResponse = voiceInterviewService.createSession(request);
+            SessionResponseDTO sessionResponse = voiceInterviewService
+                .createSession(CANDIDATE_ID, request);
             Long sessionId = sessionResponse.getSessionId();
 
             // Initial phase should be INTRO
@@ -145,7 +150,8 @@ class VoiceInterviewIntegrationTest {
                 .plannedDuration(25)
                 .build();
 
-            SessionResponseDTO sessionResponse = voiceInterviewService.createSession(request);
+            SessionResponseDTO sessionResponse = voiceInterviewService
+                .createSession(CANDIDATE_ID, request);
             Long sessionId = sessionResponse.getSessionId();
 
             // Verify database persistence
@@ -172,7 +178,8 @@ class VoiceInterviewIntegrationTest {
                 .plannedDuration(45)
                 .build();
 
-            SessionResponseDTO sessionResponse = voiceInterviewService.createSession(request);
+            SessionResponseDTO sessionResponse = voiceInterviewService
+                .createSession(CANDIDATE_ID, request);
             Long sessionId = sessionResponse.getSessionId();
 
             VoiceInterviewSessionEntity session = sessionRepository.findById(sessionId).orElseThrow();
@@ -225,7 +232,8 @@ class VoiceInterviewIntegrationTest {
                 .roleType("ali-p8")
                 .build();
 
-            SessionResponseDTO sessionResponse = voiceInterviewService.createSession(request);
+            SessionResponseDTO sessionResponse = voiceInterviewService
+                .createSession(CANDIDATE_ID, request);
 
             assertNotNull(sessionResponse);
             assertNotNull(sessionResponse.getSessionId());
@@ -242,7 +250,8 @@ class VoiceInterviewIntegrationTest {
                     .plannedDuration(30)
                     .build();
 
-                SessionResponseDTO sessionResponse = voiceInterviewService.createSession(request);
+                SessionResponseDTO sessionResponse = voiceInterviewService
+                    .createSession(CANDIDATE_ID, request);
 
                 assertNotNull(sessionResponse, "Session should be created for role: " + roleType);
                 assertEquals(roleType, sessionResponse.getRoleType());

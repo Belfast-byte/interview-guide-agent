@@ -1,4 +1,5 @@
 import { request } from './request';
+import { getAccessToken } from '../auth/token';
 
 // ========== 类型定义 ==========
 
@@ -223,9 +224,8 @@ export const voiceInterviewApi = {
   /**
    * Get all sessions
    */
-  async getAllSessions(userId?: string, status?: string): Promise<SessionMeta[]> {
+  async getAllSessions(status?: string): Promise<SessionMeta[]> {
     const params = new URLSearchParams();
-    if (userId) params.append('userId', userId);
     if (status) params.append('status', status);
 
     return request.get<SessionMeta[]>(
@@ -262,7 +262,11 @@ export class VoiceInterviewWebSocket {
    */
   connect(): void {
     try {
-      this.ws = new WebSocket(this.url);
+      const token = getAccessToken();
+      if (!token) {
+        throw new Error('登录状态已失效');
+      }
+      this.ws = new WebSocket(this.url, ['bearer', token]);
 
       this.ws.onopen = () => {
         this.reconnectAttempts = 0;

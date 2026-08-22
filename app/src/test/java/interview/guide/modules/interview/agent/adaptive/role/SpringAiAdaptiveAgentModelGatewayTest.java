@@ -23,14 +23,17 @@ import interview.guide.modules.interview.agent.adaptive.tool.ToolGateway;
 import java.io.IOException;
 import java.util.List;
 import java.util.Map;
+import java.util.function.Consumer;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.ArgumentCaptor;
+import org.mockito.ArgumentMatchers;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.ai.chat.client.ChatClient;
+import org.springframework.ai.chat.client.ChatClientAttributes;
 import org.springframework.ai.chat.messages.AssistantMessage;
 import org.springframework.ai.chat.model.ChatResponse;
 import org.springframework.ai.chat.model.Generation;
@@ -45,6 +48,7 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.lenient;
+import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.spy;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
@@ -100,6 +104,8 @@ class SpringAiAdaptiveAgentModelGatewayTest {
     when(requestSpec.system(anyString())).thenReturn(requestSpec);
     when(requestSpec.user(anyString())).thenReturn(requestSpec);
     when(requestSpec.options(any())).thenReturn(requestSpec);
+    when(requestSpec.advisors(ArgumentMatchers.<Consumer<ChatClient.AdvisorSpec>>any()))
+        .thenReturn(requestSpec);
     when(requestSpec.call()).thenReturn(responseSpec);
     when(toolGateway.callbacksFor(any())).thenReturn(List.of());
   }
@@ -340,6 +346,27 @@ class SpringAiAdaptiveAgentModelGatewayTest {
     assertThat(output).doesNotContain(sensitiveAnswer);
   }
 
+  @Test
+  @DisplayName("关闭 ChatClient 自动工具执行，tool call 交回手动 ReAct 循环")
+  void shouldDisableAutoToolExecution() {
+    respondWith("""
+        {"type":"ASK","content":"Redis 缓存失效有哪些取舍？","reason":"继续验证"}
+        """);
+
+    gateway.nextAction(context(null));
+
+    @SuppressWarnings("unchecked")
+    ArgumentCaptor<Consumer<ChatClient.AdvisorSpec>> advisorsCaptor =
+        ArgumentCaptor.forClass(Consumer.class);
+    verify(requestSpec).advisors(advisorsCaptor.capture());
+    ChatClient.AdvisorSpec advisorSpec = mock(ChatClient.AdvisorSpec.class);
+    advisorsCaptor.getValue().accept(advisorSpec);
+    verify(advisorSpec).param(
+        ChatClientAttributes.TOOL_CALLING_ADVISOR_AUTO_REGISTER.getKey(),
+        false
+    );
+  }
+
   private void respondWith(String content) {
     when(responseSpec.chatResponse()).thenReturn(response(new AssistantMessage(content)));
   }
@@ -373,7 +400,11 @@ class SpringAiAdaptiveAgentModelGatewayTest {
                 null,
                 List.of(),
                 answer,
-                List.of()
+                List.of(),
+                List.of(),
+                null,
+                null,
+                null
             )
         ),
         observations
@@ -411,6 +442,7 @@ class SpringAiAdaptiveAgentModelGatewayTest {
                 null,
                 List.of(),
                 null,
+                List.of(),
                 List.of(),
                 null,
                 null,

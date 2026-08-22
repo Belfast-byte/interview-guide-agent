@@ -101,7 +101,8 @@ class SpringAiCandidateClaimGeneratorTest {
 
     assertThatThrownBy(() -> generator.generate(request(), "provider-1"))
         .isInstanceOf(BusinessException.class)
-        .hasMessage("候选人声明抽取失败");
+        .hasMessage("候选人声明抽取失败")
+        .hasCauseInstanceOf(BusinessException.class);
   }
 
   @Test
@@ -166,7 +167,7 @@ class SpringAiCandidateClaimGeneratorTest {
   }
 
   private CandidateClaimsProposal proposal() {
-    return new CandidateClaimsProposal(List.of(new CandidateClaimProposal(
+    return new CandidateClaimsProposal(List.of(new CandidateClaim(
         CandidateClaimType.PROJECT_EXPERIENCE,
         "java-backend",
         "REDIS",

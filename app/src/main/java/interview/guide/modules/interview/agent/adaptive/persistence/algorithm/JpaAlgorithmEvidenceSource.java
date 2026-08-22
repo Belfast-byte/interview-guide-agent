@@ -34,23 +34,7 @@ public class JpaAlgorithmEvidenceSource implements AlgorithmEvidenceSource {
     if (resultIds.isEmpty()) {
       return Map.of();
     }
-    return entityManager.createQuery("""
-        select execution.id
-        from SandboxExecutionEntity execution, AdaptiveAgentTurnEntity turn
-        where execution.turnId = turn.id
-          and execution.sessionId = :sessionId
-          and turn.turnIndex = :turnIndex
-          and execution.id in :resultIds
-          and execution.status = :status
-          and execution.verdict is not null
-          and execution.verdict <> :internalError
-          and execution.supersededBy is null
-        """, String.class)
-        .setParameter("sessionId", sessionId)
-        .setParameter("turnIndex", turnIndex)
-        .setParameter("resultIds", resultIds)
-        .setParameter("status", SandboxExecutionStatus.DONE)
-        .setParameter("internalError", SandboxVerdict.IE)
+    return candidateEvidenceQuery(sessionId, turnIndex, resultIds)
         .getResultStream()
         .collect(Collectors.toMap(id -> id, id -> id));
   }
@@ -61,7 +45,7 @@ public class JpaAlgorithmEvidenceSource implements AlgorithmEvidenceSource {
       String sessionId,
       int turnIndex
   ) {
-    return candidateEvidenceQuery(sessionId, turnIndex)
+    return candidateEvidenceQuery(sessionId, turnIndex, null)
         .getResultStream()
         .collect(Collectors.toMap(id -> id, id -> id));
   }
@@ -116,9 +100,10 @@ public class JpaAlgorithmEvidenceSource implements AlgorithmEvidenceSource {
 
   private TypedQuery<String> candidateEvidenceQuery(
       String sessionId,
-      int turnIndex
+      int turnIndex,
+      Set<String> resultIds
   ) {
-    return entityManager.createQuery("""
+    TypedQuery<String> query = entityManager.createQuery("""
         select execution.id
         from SandboxExecutionEntity execution, AdaptiveAgentTurnEntity turn
         where execution.turnId = turn.id
@@ -128,10 +113,14 @@ public class JpaAlgorithmEvidenceSource implements AlgorithmEvidenceSource {
           and execution.verdict is not null
           and execution.verdict <> :internalError
           and execution.supersededBy is null
-        """, String.class)
+        """ + (resultIds == null ? "" : " and execution.id in :resultIds"), String.class)
         .setParameter("sessionId", sessionId)
         .setParameter("turnIndex", turnIndex)
         .setParameter("status", SandboxExecutionStatus.DONE)
         .setParameter("internalError", SandboxVerdict.IE);
+    if (resultIds != null) {
+      query.setParameter("resultIds", resultIds);
+    }
+    return query;
   }
 }

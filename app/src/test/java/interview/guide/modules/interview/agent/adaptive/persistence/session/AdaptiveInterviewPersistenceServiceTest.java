@@ -27,6 +27,7 @@ import interview.guide.modules.interview.agent.adaptive.planning.DimensionPropos
 import interview.guide.modules.interview.agent.adaptive.planning.InterviewPlan;
 import interview.guide.modules.interview.agent.adaptive.planning.PlanProposal;
 import interview.guide.modules.interview.agent.adaptive.runtime.ToolExecution;
+import interview.guide.modules.interview.agent.adaptive.runtime.ToolExecutionOutcome;
 import interview.guide.modules.interview.agent.adaptive.planning.PlannedInterview;
 import interview.guide.modules.interview.agent.adaptive.persistence.algorithm.JpaAlgorithmEvidenceSource;
 import interview.guide.modules.interview.agent.adaptive.persistence.assessment.AdaptiveAgentAssessmentRepository;
@@ -82,10 +83,36 @@ class AdaptiveInterviewPersistenceServiceTest {
   private CandidateAbilityProfileRepository abilityProfileRepository;
 
   @Test
+  @DisplayName("候选人只能读取归属于自己的会话")
+  void shouldRequireCandidateOwnershipInQuery() {
+    String sessionId = "session-owned";
+    service.create(
+        null,
+        sessionId,
+        "candidate-owner",
+        "JD",
+        "Resume",
+        null,
+        plan(sessionId, 1),
+        RespondAction.ask("问题？", "初始问题"),
+        List.of()
+    );
+
+    service.requireCandidateSession("candidate-owner", sessionId);
+
+    assertThatThrownBy(() -> service.requireCandidateSession(
+        "candidate-other",
+        sessionId
+    )).isInstanceOf(BusinessException.class)
+        .hasMessage("Agent 面试会话不存在");
+  }
+
+  @Test
   @DisplayName("审核题稳定 ID 与难度随问题轮次一起落库")
   void shouldPersistQuestionProvenance() {
     String sessionId = "session-question-source";
     service.create(
+        null,
         sessionId,
         "candidate-source",
         "JD",
@@ -112,6 +139,7 @@ class AdaptiveInterviewPersistenceServiceTest {
   void shouldReplaceInitialPlanBeforeFirstAnswer() {
     String sessionId = "session-code-replan";
     service.create(
+        null,
         sessionId,
         "candidate-1",
         "JD",
@@ -141,6 +169,7 @@ class AdaptiveInterviewPersistenceServiceTest {
   void shouldPersistCodeQuestionProvenance() {
     String sessionId = "session-code-source";
     service.create(
+        null,
         sessionId,
         "candidate-source",
         "JD",
@@ -208,6 +237,7 @@ class AdaptiveInterviewPersistenceServiceTest {
   void shouldBuildReportFromOriginalTurns() {
     String sessionId = "session-report";
     service.create(
+        null,
         sessionId,
         "candidate-report",
         "JD",
@@ -302,7 +332,7 @@ class AdaptiveInterviewPersistenceServiceTest {
   @Test
   @DisplayName("租户会话只能由所属租户读取且旧 REST 不可旁路")
   void shouldIsolateTenantSession() {
-    service.createForTenant(
+    service.create(
         "tenant-b",
         "tenant-session",
         "candidate-1",
@@ -327,6 +357,7 @@ class AdaptiveInterviewPersistenceServiceTest {
   @DisplayName("未验证声明与来源回答在维度完成事务中一起落库")
   void shouldPersistUnverifiedClaimWithSourceTurn() {
     service.create(
+        null,
         "session-claim",
         "candidate-claim",
         "JD",
@@ -376,7 +407,7 @@ class AdaptiveInterviewPersistenceServiceTest {
   }
 
   @Test
-  @DisplayName("工具调用摘要、角色、轮次和稳定结果 ID 与问题事实一起落库")
+  @DisplayName("工具调用摘要和稳定结果 ID 与问题事实一起落库")
   void shouldPersistToolCallAuditWithQuestionFact() {
     ToolExecution execution = new ToolExecution(
         "a".repeat(64),
@@ -388,10 +419,12 @@ class AdaptiveInterviewPersistenceServiceTest {
         "matchedQuestionIds=[42]",
         "question:42",
         "{\"stableId\":\"question:42\"}",
+        ToolExecutionOutcome.COMPLETED,
         8
     );
 
     service.create(
+        null,
         "session-tool-audit",
         "candidate-1",
         "JD",
@@ -403,14 +436,9 @@ class AdaptiveInterviewPersistenceServiceTest {
     );
 
     AdaptiveAgentToolCallEntity audit = toolCallRepository
-        .findBySessionIdOrderByTurnIndexAscIdAsc("session-tool-audit")
+        .findAll()
         .getFirst();
-    assertThat(audit.invocationId()).isEqualTo("a".repeat(64));
-    assertThat(audit.role()).isEqualTo("INTERVIEWER");
-    assertThat(audit.turnIndex()).isEqualTo(1);
     assertThat(audit.toolName()).isEqualTo("question_bank_search");
-    assertThat(audit.reason()).isEqualTo("读取审核题");
-    assertThat(audit.inputSummary()).isEqualTo("keys=[query]");
     assertThat(audit.outputSummary()).isEqualTo("matchedQuestionIds=[42]");
     assertThat(audit.resultId()).isEqualTo("question:42");
   }
@@ -431,6 +459,7 @@ class AdaptiveInterviewPersistenceServiceTest {
     );
 
     service.create(
+        null,
         "session-plan-tools",
         "candidate-1",
         "JD",
@@ -453,6 +482,7 @@ class AdaptiveInterviewPersistenceServiceTest {
   @DisplayName("维度小结与回答和下一题在同一事务中保存并可重读")
   void shouldPersistDimensionBriefWithDecision() {
     service.create(
+        null,
         "session-brief",
         "candidate-1",
         "JD",
@@ -494,6 +524,7 @@ class AdaptiveInterviewPersistenceServiceTest {
   void shouldPersistFullTurnAndNextQuestion() {
     String answer = "候选人的完整回答。".repeat(2000);
     service.create(
+        null,
         "session-1",
         "candidate-1",
         "JD",
@@ -537,6 +568,7 @@ class AdaptiveInterviewPersistenceServiceTest {
   @DisplayName("追问缺少上一轮评估事实时快速失败")
   void shouldFailFastWhenPreviousAssessmentIsMissing() {
     service.create(
+        null,
         "session-without-assessment",
         "candidate-1",
         "JD",
@@ -558,6 +590,7 @@ class AdaptiveInterviewPersistenceServiceTest {
   @DisplayName("轮次预算覆盖模型建议后只保存结束裁决")
   void shouldPersistBudgetDecision() {
     service.create(
+        null,
         "session-2",
         "candidate-1",
         "JD",
@@ -597,6 +630,7 @@ class AdaptiveInterviewPersistenceServiceTest {
     assertThat(history.turns().getLast().decisionReason()).isEqualTo("轮次预算已用尽");
 
     service.create(
+        null,
         "session-2-retest",
         "candidate-1",
         "JD",
@@ -646,6 +680,7 @@ class AdaptiveInterviewPersistenceServiceTest {
   @DisplayName("全部维度覆盖前拒绝模型提前结束")
   void shouldRejectEarlyFinish() {
     service.create(
+        null,
         "session-early-finish",
         "candidate-1",
         "JD",
@@ -678,6 +713,7 @@ class AdaptiveInterviewPersistenceServiceTest {
   @DisplayName("过期回答失败时不写入轮次事实")
   void shouldNotPersistStaleAnswer() {
     service.create(
+        null,
         "session-3",
         "candidate-1",
         "JD",

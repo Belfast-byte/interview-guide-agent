@@ -4,6 +4,7 @@ import interview.guide.common.exception.BusinessException;
 import interview.guide.common.exception.ErrorCode;
 import interview.guide.modules.interview.agent.tool.InterviewToolGateway;
 import interview.guide.modules.interview.agent.tool.ToolResult;
+import interview.guide.modules.interview.agent.runtime.AgentInterviewPersistenceService.CreateAgentSessionCommand;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
@@ -16,6 +17,7 @@ import org.mockito.junit.jupiter.MockitoExtension;
 import java.time.Duration;
 import java.util.List;
 import java.util.Map;
+import java.util.UUID;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
@@ -28,6 +30,8 @@ import static org.mockito.Mockito.when;
 
 @ExtendWith(MockitoExtension.class)
 class InterviewAgentLoopTest {
+
+  private static final UUID CANDIDATE_ID = UUID.randomUUID();
 
   private static final LoadedSkill JAVA_SKILL = new LoadedSkill(
       "java-backend",
@@ -91,16 +95,18 @@ class InterviewAgentLoopTest {
           Map.of("skillId", "java-backend")
       );
 
-      when(persistenceService.create("JD", "Resume", 6)).thenReturn(created);
+      when(persistenceService.create(
+          new CreateAgentSessionCommand(CANDIDATE_ID, "JD", "Resume", 6)))
+          .thenReturn(created);
       when(contextBuilder.build("sid", null, null))
           .thenReturn(descriptorsOnly, withLoadedSkill);
-      when(modelGateway.nextStep(descriptorsOnly)).thenReturn(call);
+      when(modelGateway.nextStep(CANDIDATE_ID, descriptorsOnly)).thenReturn(call);
       when(toolGateway.execute(call)).thenReturn(new ToolResult("load_skill", JAVA_SKILL));
-      when(modelGateway.nextStep(withLoadedSkill))
+      when(modelGateway.nextStep(CANDIDATE_ID, withLoadedSkill))
           .thenReturn(new AgentStep.Ask("请介绍一次你解决并发问题的经历？"));
       when(persistenceService.get("sid")).thenReturn(saved);
 
-      AgentLoopState result = loop.createSession("JD", "Resume");
+      AgentLoopState result = loop.createSession(CANDIDATE_ID, "JD", "Resume");
 
       assertThat(result.currentQuestion()).isEqualTo("请介绍一次你解决并发问题的经历？");
       InOrder order = inOrder(
@@ -109,11 +115,11 @@ class InterviewAgentLoopTest {
           persistenceService,
           contextBuilder
       );
-      order.verify(modelGateway).nextStep(descriptorsOnly);
+      order.verify(modelGateway).nextStep(CANDIDATE_ID, descriptorsOnly);
       order.verify(toolGateway).execute(call);
       order.verify(persistenceService).freezeSkill("sid", JAVA_SKILL);
       order.verify(contextBuilder).build("sid", null, null);
-      order.verify(modelGateway).nextStep(withLoadedSkill);
+      order.verify(modelGateway).nextStep(CANDIDATE_ID, withLoadedSkill);
       order.verify(persistenceService)
           .saveInitialQuestion("sid", "请介绍一次你解决并发问题的经历？");
     }
@@ -129,18 +135,20 @@ class InterviewAgentLoopTest {
           Map.of("skillId", "java-backend")
       );
 
-      when(persistenceService.create("JD", "Resume", 6)).thenReturn(created);
+      when(persistenceService.create(
+          new CreateAgentSessionCommand(CANDIDATE_ID, "JD", "Resume", 6)))
+          .thenReturn(created);
       when(contextBuilder.build("sid", null, null))
           .thenReturn(descriptorsOnly, withLoadedSkill, withLoadedSkill);
-      when(modelGateway.nextStep(any())).thenReturn(call);
+      when(modelGateway.nextStep(any(), any())).thenReturn(call);
       when(toolGateway.execute(call)).thenReturn(new ToolResult("load_skill", JAVA_SKILL));
 
-      assertThatThrownBy(() -> loop.createSession("JD", "Resume"))
+      assertThatThrownBy(() -> loop.createSession(CANDIDATE_ID, "JD", "Resume"))
           .isInstanceOf(BusinessException.class)
           .extracting("code")
           .isEqualTo(ErrorCode.AGENT_INTERVIEW_DECISION_FAILED.getCode());
 
-      verify(modelGateway, times(3)).nextStep(any());
+      verify(modelGateway, times(3)).nextStep(any(), any());
       verify(toolGateway, times(1)).execute(call);
       verify(persistenceService, never()).saveInitialQuestion(any(), any());
       verify(persistenceService).markFailed("sid", "Agent超过单轮最大执行步骤");
@@ -178,22 +186,24 @@ class InterviewAgentLoopTest {
           AgentLoopStatus.IN_PROGRESS
       );
 
-      when(persistenceService.get("sid")).thenReturn(before, after);
+      when(persistenceService.get(CANDIDATE_ID, "sid")).thenReturn(before);
+      when(persistenceService.get("sid")).thenReturn(after);
       when(contextBuilder.buildAssessment(
           "sid",
           "我使用延迟双删，并让删除操作可重试"
       )).thenReturn(assessmentContext);
-      when(modelGateway.assess(assessmentContext)).thenReturn(ASSESSMENT);
+      when(modelGateway.assess(CANDIDATE_ID, assessmentContext)).thenReturn(ASSESSMENT);
       when(contextBuilder.build(
           "sid",
           "我使用延迟双删，并让删除操作可重试",
           ASSESSMENT
       ))
           .thenReturn(answerContext);
-      when(modelGateway.nextStep(answerContext))
+      when(modelGateway.nextStep(CANDIDATE_ID, answerContext))
           .thenReturn(new AgentStep.Ask("如果第二次删除失败，你如何保证最终一致性？"));
 
       AgentLoopState result = loop.submitAnswer(
+          CANDIDATE_ID,
           "sid",
           "我使用延迟双删，并让删除操作可重试"
       );
@@ -248,14 +258,15 @@ class InterviewAgentLoopTest {
           AgentLoopStatus.COMPLETED
       );
 
-      when(persistenceService.get("sid")).thenReturn(before, after);
+      when(persistenceService.get(CANDIDATE_ID, "sid")).thenReturn(before);
+      when(persistenceService.get("sid")).thenReturn(after);
       when(contextBuilder.buildAssessment("sid", "回答6")).thenReturn(assessmentContext);
-      when(modelGateway.assess(assessmentContext)).thenReturn(sixthAssessment);
+      when(modelGateway.assess(CANDIDATE_ID, assessmentContext)).thenReturn(sixthAssessment);
       when(contextBuilder.build("sid", "回答6", sixthAssessment)).thenReturn(answerContext);
-      when(modelGateway.nextStep(answerContext))
+      when(modelGateway.nextStep(CANDIDATE_ID, answerContext))
           .thenReturn(new AgentStep.Finish("已完成六轮面试"));
 
-      AgentLoopState result = loop.submitAnswer("sid", "回答6");
+      AgentLoopState result = loop.submitAnswer(CANDIDATE_ID, "sid", "回答6");
 
       assertThat(result.status()).isEqualTo(AgentLoopStatus.COMPLETED);
       verify(persistenceService)
@@ -305,21 +316,22 @@ class InterviewAgentLoopTest {
           sanitized
       );
 
-      when(persistenceService.get("sid")).thenReturn(before, before);
+      when(persistenceService.get(CANDIDATE_ID, "sid")).thenReturn(before);
+      when(persistenceService.get("sid")).thenReturn(before);
       when(contextBuilder.buildAssessment(
           "sid",
           "外部调用不应放在数据库事务内"
       )).thenReturn(assessmentContext);
-      when(modelGateway.assess(assessmentContext)).thenReturn(fabricated);
+      when(modelGateway.assess(CANDIDATE_ID, assessmentContext)).thenReturn(fabricated);
       when(contextBuilder.build(
           "sid",
           "外部调用不应放在数据库事务内",
           sanitized
       )).thenReturn(answerContext);
-      when(modelGateway.nextStep(answerContext))
+      when(modelGateway.nextStep(CANDIDATE_ID, answerContext))
           .thenReturn(new AgentStep.Ask("如果调用超时，你会如何恢复？"));
 
-      loop.submitAnswer("sid", "外部调用不应放在数据库事务内");
+      loop.submitAnswer(CANDIDATE_ID, "sid", "外部调用不应放在数据库事务内");
 
       verify(persistenceService).saveAnswerAndQuestion(
           "sid",
@@ -341,16 +353,17 @@ class InterviewAgentLoopTest {
           "外部调用不应放在数据库事务内",
           List.of()
       );
-      when(persistenceService.get("sid")).thenReturn(before);
+      when(persistenceService.get(CANDIDATE_ID, "sid")).thenReturn(before);
       when(contextBuilder.buildAssessment(
           "sid",
           "外部调用不应放在数据库事务内"
       )).thenReturn(assessmentContext);
-      when(modelGateway.assess(assessmentContext)).thenThrow(
+      when(modelGateway.assess(CANDIDATE_ID, assessmentContext)).thenThrow(
           new BusinessException(ErrorCode.AGENT_INTERVIEW_DECISION_FAILED, "评估失败")
       );
 
       assertThatThrownBy(() -> loop.submitAnswer(
+          CANDIDATE_ID,
           "sid",
           "外部调用不应放在数据库事务内"
       )).isInstanceOf(BusinessException.class)
@@ -372,7 +385,7 @@ class InterviewAgentLoopTest {
           any(),
           any()
       );
-      verify(modelGateway, never()).nextStep(any());
+      verify(modelGateway, never()).nextStep(any(), any());
     }
 
     @Test
@@ -386,17 +399,18 @@ class InterviewAgentLoopTest {
           "外部调用不应放在数据库事务内",
           List.of()
       );
-      when(persistenceService.get("sid")).thenReturn(before);
+      when(persistenceService.get(CANDIDATE_ID, "sid")).thenReturn(before);
       when(contextBuilder.buildAssessment(
           "sid",
           "外部调用不应放在数据库事务内"
       )).thenReturn(assessmentContext);
-      when(modelGateway.assess(assessmentContext)).thenAnswer(invocation -> {
+      when(modelGateway.assess(CANDIDATE_ID, assessmentContext)).thenAnswer(invocation -> {
         Thread.sleep(5_000);
         return ASSESSMENT;
       });
 
       assertThatThrownBy(() -> loop.submitAnswer(
+          CANDIDATE_ID,
           "sid",
           "外部调用不应放在数据库事务内"
       )).isInstanceOf(BusinessException.class)

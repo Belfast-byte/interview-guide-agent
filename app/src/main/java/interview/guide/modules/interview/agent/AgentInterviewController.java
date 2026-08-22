@@ -2,6 +2,7 @@ package interview.guide.modules.interview.agent;
 
 import interview.guide.common.annotation.RateLimit;
 import interview.guide.common.result.Result;
+import interview.guide.common.security.AuthenticatedUser;
 import interview.guide.modules.interview.agent.model.AgentInterviewSessionResponse;
 import interview.guide.modules.interview.agent.model.CreateAgentInterviewRequest;
 import interview.guide.modules.interview.agent.model.SubmitAgentAnswerRequest;
@@ -9,6 +10,7 @@ import interview.guide.modules.interview.agent.runtime.InterviewAgentLoop;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -35,28 +37,33 @@ public class AgentInterviewController {
   @RateLimit(dimension = RateLimit.Dimension.GLOBAL, count = 5)
   @RateLimit(dimension = RateLimit.Dimension.IP, count = 5)
   public Result<AgentInterviewSessionResponse> createSession(
+      @AuthenticationPrincipal AuthenticatedUser principal,
       @Valid @RequestBody CreateAgentInterviewRequest request
   ) {
     return Result.success(AgentInterviewSessionResponse.from(
-        interviewAgentLoop.createSession(request.jd(), request.resume())
+        interviewAgentLoop.createSession(principal.candidateId(), request.jd(), request.resume())
     ));
   }
 
   @PostMapping("/{sessionId}/answers")
   @RateLimit(dimension = RateLimit.Dimension.GLOBAL, count = 10)
   public Result<AgentInterviewSessionResponse> submitAnswer(
+      @AuthenticationPrincipal AuthenticatedUser principal,
       @PathVariable String sessionId,
       @Valid @RequestBody SubmitAgentAnswerRequest request
   ) {
     return Result.success(AgentInterviewSessionResponse.from(
-        interviewAgentLoop.submitAnswer(sessionId, request.answer())
+        interviewAgentLoop.submitAnswer(principal.candidateId(), sessionId, request.answer())
     ));
   }
 
   @GetMapping("/{sessionId}")
-  public Result<AgentInterviewSessionResponse> getSession(@PathVariable String sessionId) {
+  public Result<AgentInterviewSessionResponse> getSession(
+      @AuthenticationPrincipal AuthenticatedUser principal,
+      @PathVariable String sessionId
+  ) {
     return Result.success(AgentInterviewSessionResponse.from(
-        interviewAgentLoop.getSession(sessionId)
+        interviewAgentLoop.getSession(principal.candidateId(), sessionId)
     ));
   }
 }

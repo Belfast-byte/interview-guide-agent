@@ -162,7 +162,8 @@ class JpaAlgorithmResultReadyDeliveryStoreIntegrationTest {
         100,
         1024,
         null,
-        List.of()
+        List.of(),
+        null
     ));
     return execution;
   }

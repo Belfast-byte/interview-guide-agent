@@ -13,14 +13,6 @@ public record ReActRequest(
     InterviewerContext interviewerContext
 ) {
 
-  public String dimension() {
-    return interviewerContext.targetDimension();
-  }
-
-  public String suggestedSkill() {
-    return interviewerContext.suggestedSkill();
-  }
-
   public int inputTurnIndex() {
     if (interviewerContext.currentToolResult() != null) {
       return interviewerContext.currentToolResult().turnIndex();

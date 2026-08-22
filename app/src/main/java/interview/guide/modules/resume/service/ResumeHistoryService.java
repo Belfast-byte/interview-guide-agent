@@ -22,6 +22,7 @@ import tools.jackson.databind.ObjectMapper;
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Optional;
+import java.util.UUID;
 
 /**
  * 简历历史服务
@@ -42,8 +43,8 @@ public class ResumeHistoryService {
     /**
      * 获取所有简历列表
      */
-    public List<ResumeListItemDTO> getAllResumes() {
-        List<ResumeEntity> resumes = resumePersistenceService.findAllResumes();
+    public List<ResumeListItemDTO> getAllResumes(UUID candidateId) {
+        List<ResumeEntity> resumes = resumePersistenceService.findAllResumes(candidateId);
 
         return resumes.stream().map(resume -> {
             // 获取最新分析结果的分数
@@ -57,7 +58,8 @@ public class ResumeHistoryService {
             }
 
             // 获取面试次数
-            int interviewCount = interviewPersistenceService.findByResumeId(resume.getId()).size();
+            int interviewCount = interviewPersistenceService
+                .findByResumeId(candidateId, resume.getId()).size();
 
             // 使用 MapStruct 映射
             return new ResumeListItemDTO(
@@ -78,8 +80,8 @@ public class ResumeHistoryService {
     /**
      * 获取简历详情（包含分析历史）
      */
-    public ResumeDetailDTO getResumeDetail(Long id) {
-        Optional<ResumeEntity> resumeOpt = resumePersistenceService.findById(id);
+    public ResumeDetailDTO getResumeDetail(UUID candidateId, Long id) {
+        Optional<ResumeEntity> resumeOpt = resumePersistenceService.findById(candidateId, id);
         if (resumeOpt.isEmpty()) {
             throw new BusinessException(ErrorCode.RESUME_NOT_FOUND);
         }
@@ -96,7 +98,7 @@ public class ResumeHistoryService {
 
         // 使用 InterviewMapper 转换面试历史
         List<InterviewHistoryItemDTO> interviewHistory = interviewMapper.toInterviewHistoryList(
-            interviewPersistenceService.findByResumeId(id)
+            interviewPersistenceService.findByResumeId(candidateId, id)
         );
 
         return new ResumeDetailDTO(
@@ -154,8 +156,8 @@ public class ResumeHistoryService {
     /**
      * 导出简历分析报告为PDF
      */
-    public ExportResult exportAnalysisPdf(Long resumeId) {
-        Optional<ResumeEntity> resumeOpt = resumePersistenceService.findById(resumeId);
+    public ExportResult exportAnalysisPdf(UUID candidateId, Long resumeId) {
+        Optional<ResumeEntity> resumeOpt = resumePersistenceService.findById(candidateId, resumeId);
         if (resumeOpt.isEmpty()) {
             throw new BusinessException(ErrorCode.RESUME_NOT_FOUND);
         }
@@ -182,4 +184,3 @@ public class ResumeHistoryService {
      */
     public record ExportResult(byte[] pdfBytes, String filename) {}
 }
-

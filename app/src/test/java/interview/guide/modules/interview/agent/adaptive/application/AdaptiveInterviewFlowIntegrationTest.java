@@ -30,6 +30,7 @@ import interview.guide.modules.interview.agent.adaptive.planning.PlannedIntervie
 import interview.guide.modules.interview.agent.adaptive.planning.PlanningTaxonomy;
 import interview.guide.modules.interview.agent.adaptive.role.AgentRoleRegistry;
 import interview.guide.modules.interview.agent.adaptive.runtime.BoundedReActRuntime;
+import interview.guide.modules.interview.agent.adaptive.runtime.DeadlineExecutor;
 import interview.guide.modules.interview.skill.InterviewSkillService;
 import java.util.ArrayList;
 import java.util.List;
@@ -68,7 +69,8 @@ class AdaptiveInterviewFlowIntegrationTest {
         },
         (request, action) -> {
           throw new AssertionError("不应执行工具");
-        }
+        },
+        new DeadlineExecutor()
     );
     AdaptiveInterviewApplicationService service = new AdaptiveInterviewApplicationService(
         persistenceService,
@@ -125,7 +127,9 @@ class AdaptiveInterviewFlowIntegrationTest {
     List<Integer> visibleBriefCounts = new ArrayList<>();
     BoundedReActRuntime runtime = new BoundedReActRuntime(
         context -> {
-          questionDimensions.add(context.request().dimension());
+          questionDimensions.add(
+              context.request().interviewerContext().targetDimension()
+          );
           visibleHistorySizes.add(
               context.request().interviewerContext().currentDimensionTurns().size()
           );
@@ -139,7 +143,8 @@ class AdaptiveInterviewFlowIntegrationTest {
         },
         (request, action) -> {
           throw new AssertionError("不应执行工具");
-        }
+        },
+        new DeadlineExecutor()
     );
     AdaptiveInterviewApplicationService service = new AdaptiveInterviewApplicationService(
         persistenceService,
@@ -232,8 +237,6 @@ class AdaptiveInterviewFlowIntegrationTest {
   }
 
   private AssessmentEvidenceValidator evidenceValidator() {
-    return new AssessmentEvidenceValidator((sessionId, turnIndex, resultIds) -> {
-      throw new AssertionError("纯文本引用不应查询工具结果");
-    });
+    return new AssessmentEvidenceValidator();
   }
 }

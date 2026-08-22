@@ -8,8 +8,7 @@ import interview.guide.modules.interview.agent.adaptive.codeanalysis.claim.Claim
 import interview.guide.modules.interview.agent.adaptive.codeanalysis.claim.ClaimVerificationRepository;
 import interview.guide.modules.interview.agent.adaptive.codeanalysis.claim.ClaimVerificationStatus;
 import interview.guide.modules.interview.agent.adaptive.codeanalysis.job.AnalysisJobEntity;
-import interview.guide.modules.interview.agent.adaptive.codeanalysis.job.AnalysisJobRepository;
-import interview.guide.modules.interview.agent.adaptive.codeanalysis.job.AnalysisJobStatus;
+import interview.guide.modules.interview.agent.adaptive.codeanalysis.job.CodeAnalysisPersistenceService;
 import interview.guide.modules.interview.agent.adaptive.codeanalysis.repo.ProjectDigest;
 import interview.guide.modules.interview.agent.adaptive.codeanalysis.repo.ProjectDigestEntity;
 import interview.guide.modules.interview.agent.adaptive.codeanalysis.repo.ProjectDigestRepository;
@@ -32,7 +31,7 @@ import tools.jackson.databind.ObjectMapper;
 class CodeAnalysisInterviewContextServiceTest {
 
   @Mock
-  private AnalysisJobRepository jobRepository;
+  private CodeAnalysisPersistenceService persistenceService;
 
   @Mock
   private ProjectDigestRepository digestRepository;
@@ -50,7 +49,7 @@ class CodeAnalysisInterviewContextServiceTest {
   void setUp() {
     objectMapper = new ObjectMapper();
     service = new CodeAnalysisInterviewContextService(
-        jobRepository,
+        persistenceService,
         digestRepository,
         claimRepository,
         scenarioRepository,
@@ -61,10 +60,8 @@ class CodeAnalysisInterviewContextServiceTest {
   @Test
   @DisplayName("没有已完成分析时保持简历问答降级路径")
   void shouldReturnEmptyWithoutCompletedAnalysis() {
-    when(jobRepository.findTopBySessionIdAndStatusOrderByCreatedAtDesc(
-        "session-1",
-        AnalysisJobStatus.COMPLETED
-    )).thenReturn(Optional.empty());
+    when(persistenceService.findLatestCompletedJob("session-1"))
+        .thenReturn(Optional.empty());
 
     assertThat(service.findForSession("session-1")).isEmpty();
   }
@@ -98,10 +95,8 @@ class CodeAnalysisInterviewContextServiceTest {
         "保持接口不变",
         null
     );
-    when(jobRepository.findTopBySessionIdAndStatusOrderByCreatedAtDesc(
-        "session-1",
-        AnalysisJobStatus.COMPLETED
-    )).thenReturn(Optional.of(job));
+    when(persistenceService.findLatestCompletedJob("session-1"))
+        .thenReturn(Optional.of(job.toDomain()));
     when(digestRepository.findByRepositoryId("repo-1")).thenReturn(Optional.of(
         new ProjectDigestEntity(
             "digest-1",

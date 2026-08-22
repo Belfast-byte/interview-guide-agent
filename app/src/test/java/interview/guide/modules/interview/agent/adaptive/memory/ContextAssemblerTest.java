@@ -59,7 +59,9 @@ class ContextAssemblerTest {
         null,
         List.of(previousDimension, currentDimension),
         answer,
-        List.of()
+        List.of(),
+        List.of(),
+        null
     );
 
     assertThat(context.currentDimensionTurns()).containsExactly(currentDimension);
@@ -86,7 +88,8 @@ class ContextAssemblerTest {
         List.of(turn(1, 0, "上一维度问题", "上一维度回答"), currentDimension),
         answer,
         List.of(gap),
-        List.of()
+        List.of(),
+        null
     );
 
     assertThat(context.currentAnswerGaps()).containsExactly(gap);
@@ -110,7 +113,8 @@ class ContextAssemblerTest {
         List.of(answeredTurn),
         new CandidateAnswer(1, "上一维度回答"),
         List.of(gap),
-        List.of()
+        List.of(),
+        null
     );
 
     assertThat(context.currentAnswerGaps()).isEmpty();
@@ -140,7 +144,9 @@ class ContextAssemblerTest {
         null,
         List.of(answeredTurn),
         new CandidateAnswer(1, "包含敏感锚定内容的上一维度回答"),
-        List.of(completedBrief)
+        List.of(),
+        List.of(completedBrief),
+        null
     );
 
     assertThat(context.currentDimensionTurns()).isEmpty();

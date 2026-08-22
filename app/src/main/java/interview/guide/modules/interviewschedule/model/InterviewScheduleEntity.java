@@ -3,6 +3,7 @@ package interview.guide.modules.interviewschedule.model;
 import jakarta.persistence.*;
 import lombok.Data;
 import java.time.LocalDateTime;
+import java.util.UUID;
 
 @Entity
 @Table(name = "interview_schedule")
@@ -11,6 +12,9 @@ public class InterviewScheduleEntity {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
+
+    @Column(name = "candidate_id", nullable = false)
+    private UUID candidateId;
 
     @Column(name = "company_name", nullable = false)
     private String companyName;

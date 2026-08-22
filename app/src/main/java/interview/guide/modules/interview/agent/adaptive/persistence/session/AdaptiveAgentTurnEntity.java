@@ -81,9 +81,6 @@ public class AdaptiveAgentTurnEntity {
   @Column(name = "created_at", nullable = false)
   private LocalDateTime createdAt;
 
-  @Column(name = "answered_at")
-  private LocalDateTime answeredAt;
-
   protected AdaptiveAgentTurnEntity() {}
 
   public AdaptiveAgentTurnEntity(
@@ -95,16 +92,32 @@ public class AdaptiveAgentTurnEntity {
     this.sessionId = sessionId;
     this.turnIndex = turnIndex;
     this.dimensionOrder = dimensionOrder;
-    this.question = questionAction.content();
-    this.questionReason = questionAction.reason();
+    applyQuestion(questionAction);
+  }
+
+  /**
+   * 用基于工具结果的追问替换尚未作答的占位问题。
+   */
+  public void replaceQuestion(RespondAction questionAction) {
+    applyQuestion(questionAction);
+  }
+
+  private void applyQuestion(RespondAction questionAction) {
+    question = questionAction.content();
+    questionReason = questionAction.reason();
+    questionSourceId = null;
+    questionDifficulty = null;
+    codeSourceId = null;
+    codeAnchor = null;
+    codeFactUsage = null;
     if (questionAction.questionProvenance() != null) {
-      this.questionSourceId = questionAction.questionProvenance().stableId();
-      this.questionDifficulty = questionAction.questionProvenance().difficulty();
+      questionSourceId = questionAction.questionProvenance().stableId();
+      questionDifficulty = questionAction.questionProvenance().difficulty();
     }
     if (questionAction.codeProvenance() != null) {
-      this.codeSourceId = questionAction.codeProvenance().sourceId();
-      this.codeAnchor = questionAction.codeProvenance().anchor();
-      this.codeFactUsage = questionAction.codeProvenance().usage();
+      codeSourceId = questionAction.codeProvenance().sourceId();
+      codeAnchor = questionAction.codeProvenance().anchor();
+      codeFactUsage = questionAction.codeProvenance().usage();
     }
   }
 
@@ -113,7 +126,6 @@ public class AdaptiveAgentTurnEntity {
     responseType = action.type();
     responseContent = action.content();
     decisionReason = action.reason();
-    answeredAt = LocalDateTime.now();
   }
 
   public AdaptiveInterviewTurn toDomain() {

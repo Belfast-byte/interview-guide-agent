@@ -1,288 +1,66 @@
-import {Link, Outlet, useLocation, useNavigate} from 'react-router-dom';
-import {motion} from 'framer-motion';
-import {Bot, BookOpen, BrainCircuit, Calendar, ChevronRight, Database, FileStack, Menu, MessageSquare, Moon, Settings, Sparkles, Sun, Users, X,} from 'lucide-react';
-import {useTheme} from '../hooks/useTheme';
-import {useState} from 'react';
-import UnifiedInterviewModal, {UnifiedInterviewConfig} from './UnifiedInterviewModal';
+import { Bot, Home, LogOut, Menu, Moon, Sparkles, Sun, X } from 'lucide-react';
+import { useState } from 'react';
+import { Link, Outlet, useLocation } from 'react-router-dom';
+import { useAuth } from '../auth/AuthContext';
+import { ROUTES } from '../constants/routes';
+import { useTheme } from '../hooks/useTheme';
 
-interface NavItem {
-  id: string;
-  path: string;
-  label: string;
-  icon: React.ComponentType<{ className?: string }>;
-  description?: string;
-}
-
-interface NavGroup {
-  id: string;
-  title: string;
-  items: NavItem[];
-}
+const NAV_ITEMS = [
+  { path: ROUTES.home, label: '首页', description: '开始候选人面试', icon: Home },
+  {
+    path: ROUTES.adaptiveInterview,
+    label: '自适应面试',
+    description: '按能力维度动态追问',
+    icon: Bot,
+  },
+] as const;
 
 export default function Layout() {
   const location = useLocation();
-  const currentPath = location.pathname;
-  const {theme, toggleTheme} = useTheme();
-  const navigate = useNavigate();
-  const [mobileNavigationOpen, setMobileNavigationOpen] = useState(false);
-  const [interviewModalPreset, setInterviewModalPreset] = useState<{
-    defaultMode: 'text' | 'voice';
-    defaultResumeId?: number;
-    title: string;
-    subtitle: string;
-    startButtonText: string;
-  } | null>(null);
-
-  const openInterviewModalWithResume = (resumeId: number) => {
-    setInterviewModalPreset({
-      defaultMode: 'text',
-      defaultResumeId: resumeId,
-      title: '开始模拟面试',
-      subtitle: '配置面试参数，开始练习',
-      startButtonText: '开始面试',
-    });
-  };
-
-  const handleInterviewStart = (config: UnifiedInterviewConfig) => {
-    setInterviewModalPreset(null);
-    if (config.mode === 'text') {
-      navigate('/interview', {
-        state: {
-          resumeId: config.resumeId,
-          interviewConfig: {
-            skillId: config.skillId,
-            difficulty: config.difficulty,
-            questionCount: config.questionCount,
-            llmProvider: config.llmProvider,
-          },
-        },
-      });
-      return;
-    }
-
-    const params = new URLSearchParams({
-      skillId: config.skillId,
-      difficulty: config.difficulty,
-    });
-    navigate(`/voice-interview?${params.toString()}`, {
-      state: {
-        voiceConfig: {
-          skillId: config.skillId,
-          difficulty: config.difficulty,
-          techEnabled: true,
-          projectEnabled: true,
-          hrEnabled: true,
-          plannedDuration: config.plannedDuration,
-          resumeId: config.resumeId,
-          llmProvider: config.llmProvider,
-        },
-      },
-    });
-  };
-
-  // 按业务模块组织的导航项
-  const navGroups: NavGroup[] = [
-    {
-      id: 'interview',
-      title: '面试准备',
-      items: [
-        { id: 'resumes', path: '/history', label: '简历管理', icon: FileStack, description: '管理简历，AI 分析' },
-        { id: 'interview-hub', path: '/interview-hub', label: '模拟面试', icon: Sparkles, description: '文字/语音面试练习' },
-        { id: 'adaptive-interview', path: '/adaptive-interview', label: '自适应面试', icon: BrainCircuit, description: '多维追问与证据报告' },
-        { id: 'agent-interview', path: '/agent-interview', label: 'Agent 面试', icon: Bot, description: '6 轮自适应面试' },
-        { id: 'interviews', path: '/interviews', label: '面试记录', icon: Users, description: '查看面试历史' },
-        { id: 'interview-schedule', path: '/interview-schedule', label: '面试日程', icon: Calendar, description: '管理面试安排' },
-      ],
-    },
-    {
-      id: 'knowledge',
-      title: '知识库',
-      items: [
-        { id: 'kb-manage', path: '/knowledgebase', label: '知识库管理', icon: Database, description: '管理知识文档' },
-        { id: 'kb-interview', path: '/knowledgebase-interview', label: '知识库面试', icon: BookOpen, description: '题库维护与面试' },
-        { id: 'chat', path: '/knowledgebase/chat', label: '问答助手', icon: MessageSquare, description: '基于知识库问答' },
-      ],
-    },
-    {
-      id: 'system',
-      title: '系统',
-      items: [
-        { id: 'settings', path: '/settings', label: '设置', icon: Settings, description: '管理模型和语音服务' },
-      ],
-    },
-  ];
-
-  // 判断当前页面是否匹配导航项
-  const isActive = (path: string) => {
-    if (path.startsWith('#')) return false;
-    if (path === '/history') {
-      return currentPath === '/history'
-        || currentPath === '/'
-        || currentPath.startsWith('/history/')
-        || currentPath === '/upload';
-    }
-    if (path === '/interview-hub') {
-      return currentPath === '/interview-hub'
-        || currentPath === '/interview'
-        || currentPath.startsWith('/interview/')
-        || currentPath.startsWith('/voice-interview');
-    }
-    if (path === '/knowledgebase') {
-      return currentPath === '/knowledgebase' || currentPath === '/knowledgebase/upload';
-    }
-    return currentPath.startsWith(path);
-  };
+  const { theme, toggleTheme } = useTheme();
+  const { user, logout } = useAuth();
+  const [navigationOpen, setNavigationOpen] = useState(false);
 
   return (
-    <div className="flex min-h-screen bg-gradient-to-br from-slate-50 to-indigo-50 dark:from-slate-900 dark:to-slate-800">
-      <button
-        type="button"
-        onClick={() => setMobileNavigationOpen(true)}
-        className="fixed left-4 top-4 z-40 flex h-11 w-11 items-center justify-center rounded-xl border border-slate-200 bg-white/95 text-slate-700 shadow-lg backdrop-blur lg:hidden dark:border-slate-700 dark:bg-slate-900/95 dark:text-slate-200"
-        aria-label="打开导航"
-      >
+    <div className="flex min-h-screen bg-gradient-to-br from-slate-50 to-indigo-50 dark:from-slate-950 dark:to-slate-900">
+      <button type="button" onClick={() => setNavigationOpen(true)} className="fixed left-4 top-4 z-40 flex h-11 w-11 items-center justify-center rounded-xl border border-slate-200 bg-white shadow-lg lg:hidden dark:border-slate-700 dark:bg-slate-900" aria-label="打开导航">
         <Menu className="h-5 w-5" />
       </button>
+      {navigationOpen && <button type="button" onClick={() => setNavigationOpen(false)} className="fixed inset-0 z-40 bg-slate-950/45 lg:hidden" aria-label="关闭导航" />}
 
-      {mobileNavigationOpen && (
-        <button
-          type="button"
-          onClick={() => setMobileNavigationOpen(false)}
-          className="fixed inset-0 z-40 bg-slate-950/45 backdrop-blur-sm lg:hidden"
-          aria-label="关闭导航"
-        />
-      )}
-
-      {/* 左侧边栏 */}
-      <aside className={`${mobileNavigationOpen ? 'flex' : 'hidden'} w-64 bg-white dark:bg-slate-900 border-r border-slate-100 dark:border-slate-700 fixed h-screen left-0 top-0 z-50 flex-col lg:flex`}>
-        {/* Logo */}
-        <div className="p-6 border-b border-slate-100 dark:border-slate-700 flex items-center justify-between">
-          <Link to="/history" className="flex items-center gap-3">
-            <div className="w-10 h-10 bg-gradient-to-br from-primary-500 to-primary-600 rounded-xl flex items-center justify-center text-white shadow-lg shadow-primary-500/30">
-              <Sparkles className="w-5 h-5" />
-            </div>
-            <div>
-              <span className="text-lg font-bold text-slate-800 dark:text-white tracking-tight block">AI Interview</span>
-              <span className="text-xs text-slate-400 dark:text-slate-500">智能面试助手</span>
-            </div>
+      <aside className={`${navigationOpen ? 'flex' : 'hidden'} fixed left-0 top-0 z-50 h-screen w-64 flex-col border-r border-slate-200 bg-white lg:flex dark:border-slate-800 dark:bg-slate-950`}>
+        <div className="flex items-center justify-between border-b border-slate-100 p-6 dark:border-slate-800">
+          <Link to="/" className="flex items-center gap-3" onClick={() => setNavigationOpen(false)}>
+            <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-primary-600 text-white"><Sparkles className="h-5 w-5" /></span>
+            <span><strong className="block text-slate-900 dark:text-white">AI Interview</strong><small className="text-slate-400">Agent 面试平台</small></span>
           </Link>
-          <button
-            type="button"
-            onClick={() => setMobileNavigationOpen(false)}
-            className="flex h-9 w-9 items-center justify-center rounded-lg text-slate-400 hover:bg-slate-100 hover:text-slate-700 lg:hidden dark:hover:bg-slate-800 dark:hover:text-white"
-            aria-label="关闭导航"
-          >
-            <X className="h-5 w-5" />
-          </button>
+          <button type="button" onClick={() => setNavigationOpen(false)} className="lg:hidden" aria-label="关闭导航"><X className="h-5 w-5" /></button>
         </div>
 
-        {/* 主题切换按钮 */}
-        <div className="px-4 pb-2">
-          <button
-            onClick={toggleTheme}
-            className="w-full flex items-center justify-center gap-2 px-3 py-2 rounded-lg bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-700 transition-colors"
-          >
-            {theme === 'dark' ? (
-              <>
-                <Sun className="w-4 h-4" />
-                <span className="text-sm font-medium">浅色模式</span>
-              </>
-            ) : (
-              <>
-                <Moon className="w-4 h-4" />
-                <span className="text-sm font-medium">深色模式</span>
-              </>
-            )}
-          </button>
-        </div>
-
-        {/* 导航菜单 */}
-        <nav className="flex-1 p-4 overflow-y-auto">
-          <div className="space-y-6">
-            {navGroups.map((group) => (
-              <div key={group.id}>
-                <div className="px-3 mb-2">
-                  <span className="text-xs font-semibold text-slate-400 dark:text-slate-500 uppercase tracking-wider">
-                    {group.title}
-                  </span>
-                </div>
-                <div className="space-y-1">
-                  {group.items.map((item) => {
-                    const active = isActive(item.path);
-
-                    return (
-                      <Link
-                        key={item.id}
-                        to={item.path}
-                        onClick={() => setMobileNavigationOpen(false)}
-                        className={`group relative flex items-center gap-3 px-3 py-2.5 rounded-xl transition-all duration-200
-                          ${active
-                            ? 'bg-primary-50 dark:bg-primary-900/30 text-primary-600 dark:text-primary-400'
-                            : 'text-slate-600 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-800 hover:text-slate-900 dark:hover:text-white'
-                          }`}
-                      >
-                        <div className={`w-9 h-9 rounded-lg flex items-center justify-center transition-colors
-                          ${active
-                            ? 'bg-primary-100 dark:bg-primary-900/50 text-primary-600 dark:text-primary-400'
-                            : 'bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-400 group-hover:bg-slate-200 dark:group-hover:bg-slate-700 group-hover:text-slate-700 dark:group-hover:text-white'
-                          }`}
-                        >
-                          <item.icon className="w-5 h-5" />
-                        </div>
-                        <div className="flex-1 min-w-0">
-                          <span className={`text-sm block ${active ? 'font-semibold' : 'font-medium'}`}>
-                            {item.label}
-                          </span>
-                          {item.description && (
-                            <span className="text-xs text-slate-400 dark:text-slate-500 truncate block">
-                              {item.description}
-                            </span>
-                          )}
-                        </div>
-                        {active && <ChevronRight className="w-4 h-4 text-primary-400" />}
-                      </Link>
-                    );
-                  })}
-                </div>
-              </div>
-            ))}
-          </div>
+        <nav className="flex-1 space-y-2 p-4">
+          {NAV_ITEMS.map(item => {
+            const active = item.path === '/' ? location.pathname === '/' : location.pathname.startsWith(item.path);
+            return (
+              <Link key={item.path} to={item.path} onClick={() => setNavigationOpen(false)} className={`flex items-center gap-3 rounded-xl px-3 py-3 ${active ? 'bg-primary-50 text-primary-700 dark:bg-primary-950/50 dark:text-primary-300' : 'text-slate-600 hover:bg-slate-50 dark:text-slate-300 dark:hover:bg-slate-900'}`}>
+                <item.icon className="h-5 w-5" />
+                <span><strong className="block text-sm">{item.label}</strong><small className="text-xs text-slate-400">{item.description}</small></span>
+              </Link>
+            );
+          })}
         </nav>
 
-        {/* 底部信息 */}
-        <div className="p-4 border-t border-slate-100 dark:border-slate-700">
-          <div className="px-3 py-2 bg-gradient-to-r from-primary-50 to-indigo-50 dark:from-primary-900/30 dark:to-slate-800 rounded-xl">
-            <p className="text-xs text-primary-600 dark:text-primary-400 font-medium">AI 面试助手 v1.0</p>
-            <p className="text-xs text-slate-400 dark:text-slate-500 mt-0.5">Powered by AI</p>
+        <div className="space-y-3 border-t border-slate-100 p-4 dark:border-slate-800">
+          <button type="button" onClick={toggleTheme} className="flex w-full items-center gap-2 rounded-lg px-3 py-2 text-sm text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-900">
+            {theme === 'dark' ? <Sun className="h-4 w-4" /> : <Moon className="h-4 w-4" />}{theme === 'dark' ? '浅色模式' : '深色模式'}
+          </button>
+          <div className="rounded-xl bg-slate-50 px-3 py-3 dark:bg-slate-900">
+            <p className="truncate text-xs text-slate-500">{user?.email}</p>
+            <button type="button" onClick={logout} className="mt-2 flex items-center gap-1.5 text-xs text-slate-500 hover:text-red-600"><LogOut className="h-3.5 w-3.5" />退出登录</button>
           </div>
         </div>
       </aside>
 
-      {/* 主内容区 */}
-      <main className="min-h-screen flex-1 overflow-y-auto p-4 pt-20 sm:p-6 sm:pt-20 lg:ml-64 lg:p-10">
-        <motion.div
-          key={currentPath}
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          exit={{ opacity: 0, y: -20 }}
-          transition={{ duration: 0.3 }}
-        >
-          <Outlet context={{ openInterviewModalWithResume }} />
-        </motion.div>
-      </main>
-
-      {/* 统一面试弹窗 */}
-      <UnifiedInterviewModal
-        isOpen={interviewModalPreset !== null}
-        onClose={() => setInterviewModalPreset(null)}
-        onStart={handleInterviewStart}
-        defaultMode={interviewModalPreset?.defaultMode || 'text'}
-        defaultResumeId={interviewModalPreset?.defaultResumeId}
-        hideModeSwitch={interviewModalPreset?.defaultResumeId == null}
-        title={interviewModalPreset?.title || '开始模拟面试'}
-        subtitle={interviewModalPreset?.subtitle || '选择面试模式和主题，快速开始'}
-        startButtonText={interviewModalPreset?.startButtonText || '开始面试'}
-      />
+      <main className="min-h-screen flex-1 p-4 pt-20 sm:p-8 sm:pt-20 lg:ml-64 lg:p-10"><Outlet /></main>
     </div>
   );
 }

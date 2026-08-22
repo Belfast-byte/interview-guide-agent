@@ -20,7 +20,6 @@ public record SandboxExecutionResponse(
     Long timeMs,
     Long memoryKb,
     Integer firstFailedCase,
-    boolean pendingRejudge,
     SandboxPolicyViolation policyViolation
 ) {
 
@@ -36,7 +35,6 @@ public record SandboxExecutionResponse(
         execution.timeMs(),
         execution.memoryKb(),
         execution.firstFailedCase(),
-        execution.pendingRejudge(),
         execution.policyViolation()
     );
   }

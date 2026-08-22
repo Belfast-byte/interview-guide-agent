@@ -27,3 +27,18 @@ export interface CreateAgentInterviewRequest {
 export interface SubmitAgentAnswerRequest {
   answer: string;
 }
+
+export interface CandidateAgentModelConfig {
+  configured: boolean;
+  baseUrl: string | null;
+  maskedApiKey: string | null;
+  model: string | null;
+  temperature: number | null;
+}
+
+export interface SaveCandidateAgentModelConfigRequest {
+  baseUrl: string;
+  apiKey?: string;
+  model: string;
+  temperature: number;
+}

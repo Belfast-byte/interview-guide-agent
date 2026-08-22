@@ -20,7 +20,7 @@ class CandidateClaimExtractionServiceTest {
   @DisplayName("候选人原文只被映射为白名单 ID 与未验证声明类型")
   void shouldMapCandidateTextToGovernedClaim() {
     CandidateClaimExtractionService service = service(new CandidateClaimsProposal(List.of(
-        new CandidateClaimProposal(
+        new CandidateClaim(
             CandidateClaimType.PROJECT_EXPERIENCE,
             "java-backend",
             "REDIS",
@@ -49,7 +49,7 @@ class CandidateClaimExtractionServiceTest {
   @DisplayName("抽取器生成的未知主题 ID 被拒绝")
   void shouldRejectUnknownTopic() {
     CandidateClaimExtractionService service = service(new CandidateClaimsProposal(List.of(
-        new CandidateClaimProposal(
+        new CandidateClaim(
             CandidateClaimType.SKILL,
             "java-backend",
             "EXPERT",
@@ -72,7 +72,7 @@ class CandidateClaimExtractionServiceTest {
   @DisplayName("声明只能引用当前维度的真实回答轮次")
   void shouldRejectUnknownTurnIndex() {
     CandidateClaimExtractionService service = service(new CandidateClaimsProposal(List.of(
-        new CandidateClaimProposal(
+        new CandidateClaim(
             CandidateClaimType.SKILL,
             "java-backend",
             "REDIS",

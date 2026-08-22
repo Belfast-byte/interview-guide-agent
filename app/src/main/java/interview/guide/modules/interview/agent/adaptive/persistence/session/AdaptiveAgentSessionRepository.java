@@ -15,6 +15,11 @@ public interface AdaptiveAgentSessionRepository
 
   Optional<AdaptiveAgentSessionEntity> findByIdAndTenantIdIsNull(String id);
 
+  Optional<AdaptiveAgentSessionEntity> findByIdAndCandidateIdAndTenantIdIsNull(
+      String id,
+      String candidateId
+  );
+
   @Lock(LockModeType.PESSIMISTIC_WRITE)
   Optional<AdaptiveAgentSessionEntity> findLockedByIdAndTenantIdIsNull(String id);
 

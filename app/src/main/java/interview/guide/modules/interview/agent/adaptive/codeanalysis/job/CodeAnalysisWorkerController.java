@@ -24,7 +24,8 @@ import org.springframework.web.bind.annotation.RestController;
 @RequiredArgsConstructor
 @ConditionalOnProperty(
     prefix = "app.interview.code-analysis",
-    name = "worker-token"
+    name = "worker-enabled",
+    havingValue = "true"
 )
 public class CodeAnalysisWorkerController {
 

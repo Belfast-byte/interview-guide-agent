@@ -37,15 +37,7 @@ public class McpQuestionBankGateway {
   private final ToolProperties toolProperties;
 
   public List<QuestionBankQuestion> search(String query, String difficulty) {
-    McpSyncClient client = clients.stream()
-        .filter(candidate -> properties.getServerName().equals(
-            candidate.getServerInfo().name()
-        ))
-        .findFirst()
-        .orElseThrow(() -> new McpQuestionBankException(
-            McpQuestionBankFailureReason.SERVER_NOT_FOUND,
-            "未找到配置的远端题库 MCP Server"
-        ));
+    McpSyncClient client = findClient();
     Map<String, Object> arguments = difficulty == null
         ? Map.of("query", query)
         : Map.of("query", query, "difficulty", difficulty);
@@ -67,10 +59,36 @@ public class McpQuestionBankGateway {
     return parse(result);
   }
 
+  private McpSyncClient findClient() {
+    McpSyncClient client;
+    try {
+      client = clients.stream()
+          .filter(candidate -> properties.getServerName().equals(
+              candidate.getServerInfo().name()
+          ))
+          .findFirst()
+          .orElse(null);
+    } catch (RuntimeException e) {
+      throw new McpQuestionBankException(
+          McpQuestionBankFailureReason.SERVER_NOT_FOUND,
+          "远端题库 MCP Server 信息读取失败",
+          e
+      );
+    }
+    if (client == null) {
+      throw new McpQuestionBankException(
+          McpQuestionBankFailureReason.SERVER_NOT_FOUND,
+          "未找到配置的远端题库 MCP Server"
+      );
+    }
+    return client;
+  }
+
   private List<QuestionBankQuestion> parse(CallToolResult result) {
     if (Boolean.TRUE.equals(result.isError())
         || result.content().size() != 1
         || !(result.content().getFirst() instanceof TextContent textContent)
+        || textContent.text() == null
         || textContent.text().length() > properties.getMaxResponseChars()) {
       throw new McpQuestionBankException(
           McpQuestionBankFailureReason.MALFORMED_RESPONSE,

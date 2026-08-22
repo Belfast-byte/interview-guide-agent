@@ -26,9 +26,6 @@ public class CodeAnalysisResultAcceptanceService {
 
   public void accept(String jobId, CodeAnalysisResult result) {
     ProjectRepositorySnapshot snapshot = persistenceService.getRepositorySnapshot(jobId);
-    if (!snapshot.commitHash().equals(result.digest().commitHash())) {
-      throw new BusinessException(ErrorCode.BAD_REQUEST, "分析产物 commitHash 不匹配");
-    }
     if (result.tokenCost() > properties.getMaxTokenCost()) {
       throw new BusinessException(ErrorCode.BAD_REQUEST, "代码分析 token 成本超过上限");
     }

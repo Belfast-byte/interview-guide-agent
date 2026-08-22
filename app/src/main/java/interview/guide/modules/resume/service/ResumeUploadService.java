@@ -11,12 +11,14 @@ import interview.guide.modules.interview.model.ResumeAnalysisResponse;
 import interview.guide.modules.resume.listener.AnalyzeStreamProducer;
 import interview.guide.modules.resume.model.ResumeEntity;
 import interview.guide.modules.resume.repository.ResumeRepository;
+import interview.guide.modules.resume.service.ResumePersistenceService.SaveResumeCommand;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 
 import java.util.Map;
 import java.util.Optional;
+import java.util.UUID;
 
 /**
  * 简历上传服务
@@ -45,7 +47,8 @@ public class ResumeUploadService {
      * @param file 简历文件
      * @return 上传结果（分析将异步进行）
      */
-    public Map<String, Object> uploadAndAnalyze(org.springframework.web.multipart.MultipartFile file) {
+    public Map<String, Object> uploadAndAnalyze(UUID candidateId,
+                                                org.springframework.web.multipart.MultipartFile file) {
         long startTime = System.currentTimeMillis();
 
         // 1. 验证文件
@@ -61,7 +64,7 @@ public class ResumeUploadService {
         validateContentType(contentType);
 
         // 3. 检查简历是否已存在（去重）
-        Optional<ResumeEntity> existingResume = persistenceService.findExistingResume(file);
+        Optional<ResumeEntity> existingResume = persistenceService.findExistingResume(candidateId, file);
         if (existingResume.isPresent()) {
             log.info("简历上传处理完成（重复）: {} - 耗时: {}ms",
                 fileName, System.currentTimeMillis() - startTime);
@@ -85,7 +88,8 @@ public class ResumeUploadService {
             fileKey, System.currentTimeMillis() - storageStart);
 
         // 6. 保存简历到数据库（状态为 PENDING）
-        ResumeEntity savedResume = persistenceService.saveResume(file, resumeText, fileKey, fileUrl);
+        ResumeEntity savedResume = persistenceService.saveResume(
+            new SaveResumeCommand(candidateId, file, resumeText, fileKey, fileUrl));
 
         // 7. 发送分析任务到 Redis Stream（异步处理）
         analyzeStreamProducer.sendAnalyzeTask(savedResume.getId(), resumeText);
@@ -170,8 +174,8 @@ public class ResumeUploadService {
      *
      * @param resumeId 简历ID
      */
-    public void reanalyze(Long resumeId) {
-        ResumeReanalyzeSource source = loadReanalyzeSource(resumeId);
+    public void reanalyze(UUID candidateId, Long resumeId) {
+        ResumeReanalyzeSource source = loadReanalyzeSource(candidateId, resumeId);
 
         log.info("开始重新分析简历: resumeId={}, filename={}", resumeId, source.originalFilename());
 
@@ -187,8 +191,9 @@ public class ResumeUploadService {
         }
 
         String taskContent = resumeText;
-        transactionalExecutor.run(
-            () -> updateResumeForReanalysis(resumeId, taskContent, shouldCacheResumeText));
+        var command = new ResumeReanalysisCommand(
+            candidateId, resumeId, taskContent, shouldCacheResumeText);
+        transactionalExecutor.run(() -> updateResumeForReanalysis(command));
 
         // 事务提交后再发送分析任务到 Stream
         analyzeStreamProducer.sendAnalyzeTask(resumeId, taskContent);
@@ -196,8 +201,8 @@ public class ResumeUploadService {
         log.info("重新分析任务已发送: resumeId={}", resumeId);
     }
 
-    private ResumeReanalyzeSource loadReanalyzeSource(Long resumeId) {
-        ResumeEntity resume = resumeRepository.findById(resumeId)
+    private ResumeReanalyzeSource loadReanalyzeSource(UUID candidateId, Long resumeId) {
+        ResumeEntity resume = resumeRepository.findByIdAndCandidateId(resumeId, candidateId)
             .orElseThrow(() -> new BusinessException(ErrorCode.RESUME_NOT_FOUND, "简历不存在"));
         return new ResumeReanalyzeSource(
             resume.getOriginalFilename(),
@@ -206,16 +211,13 @@ public class ResumeUploadService {
         );
     }
 
-    private void updateResumeForReanalysis(
-        Long resumeId,
-        String resumeText,
-        boolean shouldCacheResumeText
-    ) {
-        ResumeEntity resume = resumeRepository.findById(resumeId)
+    private void updateResumeForReanalysis(ResumeReanalysisCommand command) {
+        ResumeEntity resume = resumeRepository
+            .findByIdAndCandidateId(command.resumeId(), command.candidateId())
             .orElseThrow(() -> new BusinessException(ErrorCode.RESUME_NOT_FOUND, "简历不存在"));
 
-        if (shouldCacheResumeText || !hasText(resume.getResumeText())) {
-            resume.setResumeText(resumeText);
+        if (command.shouldCacheResumeText() || !hasText(resume.getResumeText())) {
+            resume.setResumeText(command.resumeText());
         }
         resume.setAnalyzeStatus(AsyncTaskStatus.PENDING);
         resume.setAnalyzeError(null);
@@ -230,6 +232,14 @@ public class ResumeUploadService {
         String originalFilename,
         String storageKey,
         String resumeText
+    ) {
+    }
+
+    private record ResumeReanalysisCommand(
+        UUID candidateId,
+        Long resumeId,
+        String resumeText,
+        boolean shouldCacheResumeText
     ) {
     }
 }

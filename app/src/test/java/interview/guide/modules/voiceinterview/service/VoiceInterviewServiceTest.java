@@ -29,6 +29,7 @@ import java.time.LocalDateTime;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Optional;
+import java.util.UUID;
 
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.ArgumentMatchers.*;
@@ -55,6 +56,8 @@ import static org.mockito.Mockito.*;
 )
 @DisplayName("语音面试服务测试（待重写）")
 class VoiceInterviewServiceTest {
+
+    private static final UUID CANDIDATE_ID = UUID.randomUUID();
 
     @Mock
     private VoiceInterviewSessionRepository sessionRepository;
@@ -124,7 +127,7 @@ class VoiceInterviewServiceTest {
             when(sessionRepository.save(any(VoiceInterviewSessionEntity.class))).thenReturn(savedSession);
 
             // When
-            SessionResponseDTO response = voiceInterviewService.createSession(request);
+            SessionResponseDTO response = voiceInterviewService.createSession(CANDIDATE_ID, request);
 
             // Then
             assertNotNull(response);
@@ -161,7 +164,7 @@ class VoiceInterviewServiceTest {
             when(sessionRepository.save(any(VoiceInterviewSessionEntity.class))).thenReturn(savedSession);
 
             // When
-            SessionResponseDTO response = voiceInterviewService.createSession(request);
+            SessionResponseDTO response = voiceInterviewService.createSession(CANDIDATE_ID, request);
 
             // Then
             assertEquals("TECH", response.getCurrentPhase());
@@ -193,7 +196,7 @@ class VoiceInterviewServiceTest {
                     ArgumentCaptor.forClass(VoiceInterviewSessionEntity.class);
             when(sessionRepository.save(captor.capture())).thenReturn(savedSession);
 
-            voiceInterviewService.createSession(request);
+            voiceInterviewService.createSession(CANDIDATE_ID, request);
 
             // Then
             VoiceInterviewSessionEntity captured = captor.getValue();
@@ -654,7 +657,7 @@ class VoiceInterviewServiceTest {
             when(bucket.get()).thenReturn(session);
 
             // When
-            SessionResponseDTO dto = voiceInterviewService.getSessionDTO(sessionId);
+            SessionResponseDTO dto = voiceInterviewService.getSessionDTO(CANDIDATE_ID, sessionId);
 
             // Then
             assertNotNull(dto);

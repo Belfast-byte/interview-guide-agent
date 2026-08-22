@@ -16,5 +16,6 @@ public record AssessmentBackfillTurn(
     String llmProvider,
     String codeSourceId,
     String codeAnchor,
-    CodeFactUsage codeFactUsage
+    CodeFactUsage codeFactUsage,
+    String toolResult
 ) {}

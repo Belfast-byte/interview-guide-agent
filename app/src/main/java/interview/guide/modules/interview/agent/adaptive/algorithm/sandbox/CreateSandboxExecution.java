@@ -40,4 +40,20 @@ public record CreateSandboxExecution(
         runMode
     );
   }
+
+  public CreateSandboxExecution withSource(String sourceRef, String sourceHash) {
+    return new CreateSandboxExecution(
+        sessionId,
+        turnIndex,
+        workloadType,
+        problemId,
+        scenarioId,
+        workspaceRef,
+        testsRef,
+        language,
+        sourceRef,
+        sourceHash,
+        runMode
+    );
+  }
 }

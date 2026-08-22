@@ -20,6 +20,7 @@ import tools.jackson.databind.ObjectMapper;
 
 import java.util.List;
 import java.util.Optional;
+import java.util.UUID;
 
 /**
  * 简历持久化服务
@@ -42,10 +43,10 @@ public class ResumePersistenceService {
      * @param file 上传的文件
      * @return 如果存在返回已有的简历实体，否则返回空
      */
-    public Optional<ResumeEntity> findExistingResume(MultipartFile file) {
+    public Optional<ResumeEntity> findExistingResume(UUID candidateId, MultipartFile file) {
         try {
             String fileHash = fileHashService.calculateHash(file);
-            Optional<ResumeEntity> existing = resumeRepository.findByFileHash(fileHash);
+            Optional<ResumeEntity> existing = resumeRepository.findByCandidateIdAndFileHash(candidateId, fileHash);
             
             if (existing.isPresent()) {
                 log.info("检测到重复简历: hash={}", fileHash);
@@ -55,9 +56,11 @@ public class ResumePersistenceService {
             }
             
             return existing;
-        } catch (Exception e) {
-            log.error("检查简历重复时出错: {}", e.getMessage());
-            return Optional.empty();
+        } catch (BusinessException exception) {
+            throw exception;
+        } catch (Exception exception) {
+            log.error("检查简历重复时出错", exception);
+            throw new BusinessException(ErrorCode.RESUME_UPLOAD_FAILED, "计算简历文件哈希失败");
         }
     }
     
@@ -65,19 +68,20 @@ public class ResumePersistenceService {
      * 保存新简历
      */
     @Transactional(rollbackFor = Exception.class)
-    public ResumeEntity saveResume(MultipartFile file, String resumeText,
-                                   String storageKey, String storageUrl) {
+    public ResumeEntity saveResume(SaveResumeCommand command) {
         try {
+            MultipartFile file = command.file();
             String fileHash = fileHashService.calculateHash(file);
             
             ResumeEntity resume = new ResumeEntity();
+            resume.setCandidateId(command.candidateId());
             resume.setFileHash(fileHash);
             resume.setOriginalFilename(file.getOriginalFilename());
             resume.setFileSize(file.getSize());
             resume.setContentType(file.getContentType());
-            resume.setStorageKey(storageKey);
-            resume.setStorageUrl(storageUrl);
-            resume.setResumeText(resumeText);
+            resume.setStorageKey(command.storageKey());
+            resume.setStorageUrl(command.storageUrl());
+            resume.setResumeText(command.resumeText());
             
             ResumeEntity saved = resumeRepository.save(resume);
             log.info("简历已保存: id={}, hash={}", saved.getId(), fileHash);
@@ -131,8 +135,8 @@ public class ResumePersistenceService {
     /**
      * 获取所有简历列表
      */
-    public List<ResumeEntity> findAllResumes() {
-        return resumeRepository.findAll();
+    public List<ResumeEntity> findAllResumes(UUID candidateId) {
+        return resumeRepository.findAllByCandidateIdOrderByUploadedAtDesc(candidateId);
     }
     
     /**
@@ -176,8 +180,8 @@ public class ResumePersistenceService {
     /**
      * 根据ID获取简历
      */
-    public Optional<ResumeEntity> findById(Long id) {
-        return resumeRepository.findById(id);
+    public Optional<ResumeEntity> findById(UUID candidateId, Long id) {
+        return resumeRepository.findByIdAndCandidateId(id, candidateId);
     }
     
     /**
@@ -185,8 +189,8 @@ public class ResumePersistenceService {
      * 包括：简历分析记录、面试会话（会自动删除面试答案）
      */
     @Transactional(rollbackFor = Exception.class)
-    public void deleteResume(Long id) {
-        Optional<ResumeEntity> resumeOpt = resumeRepository.findById(id);
+    public void deleteResume(UUID candidateId, Long id) {
+        Optional<ResumeEntity> resumeOpt = resumeRepository.findByIdAndCandidateId(id, candidateId);
         if (resumeOpt.isEmpty()) {
             throw new BusinessException(ErrorCode.RESUME_NOT_FOUND);
         }
@@ -203,5 +207,14 @@ public class ResumePersistenceService {
         // 2. 删除简历实体（面试会话会在服务层删除）
         resumeRepository.delete(resume);
         log.info("简历已删除: id={}, filename={}", id, resume.getOriginalFilename());
+    }
+
+    public record SaveResumeCommand(
+        UUID candidateId,
+        MultipartFile file,
+        String resumeText,
+        String storageKey,
+        String storageUrl
+    ) {
     }
 }

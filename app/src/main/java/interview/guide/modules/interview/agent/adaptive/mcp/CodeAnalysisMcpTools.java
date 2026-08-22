@@ -155,13 +155,7 @@ public class CodeAnalysisMcpTools {
       String toolName,
       McpInterviewScope scope
   ) {
-    McpTenantPrincipal principal = (McpTenantPrincipal) context.transportContext()
-        .get(McpTenantTransportConfiguration.PRINCIPAL_KEY);
-    if (!principal.allows(scope)) {
-      auditService.record(principal, toolName, null, McpAuditOutcome.FORBIDDEN);
-      throw new BusinessException(ErrorCode.FORBIDDEN, "MCP scope 不足");
-    }
-    return principal;
+    return McpScopeGuard.requireScope(context, toolName, scope, auditService);
   }
 
   private void validateSubmitInput(String sessionId, String repositoryRef, String commitHash) {

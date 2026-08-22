@@ -176,6 +176,7 @@ class AdaptiveInterviewApplicationServiceTest {
     when(runtime.run(any(ReActRequest.class), any(ReActBudget.class)))
         .thenReturn(ReActResult.withoutTools(firstQuestion));
     when(persistenceService.create(
+        any(),
         anyString(),
         anyString(),
         anyString(),
@@ -205,6 +206,7 @@ class AdaptiveInterviewApplicationServiceTest {
     order.verify(planningAgent).propose(any(), any());
     order.verify(runtime).run(any(ReActRequest.class), any(ReActBudget.class));
     order.verify(persistenceService).create(
+        any(),
         anyString(),
         anyString(),
         anyString(),
@@ -700,9 +702,7 @@ class AdaptiveInterviewApplicationServiceTest {
   }
 
   private AssessmentEvidenceValidator evidenceValidator() {
-    return new AssessmentEvidenceValidator((sessionId, turnIndex, resultIds) -> {
-      throw new AssertionError("纯文本引用不应查询工具结果");
-    });
+    return new AssessmentEvidenceValidator();
   }
 
   @Test

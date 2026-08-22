@@ -2,6 +2,7 @@ package interview.guide.modules.interview.agent.adaptive.tool;
 
 import interview.guide.common.exception.BusinessException;
 import interview.guide.common.exception.ErrorCode;
+import interview.guide.common.util.Sha256;
 import interview.guide.modules.interview.agent.adaptive.core.action.ToolCallAction;
 import interview.guide.modules.interview.agent.adaptive.observability.AdaptiveAgentTelemetry;
 import interview.guide.modules.interview.agent.adaptive.role.AgentRoleDefinition;
@@ -10,11 +11,7 @@ import interview.guide.modules.interview.agent.adaptive.runtime.AgentToolExecuto
 import interview.guide.modules.interview.agent.adaptive.runtime.ReActRequest;
 import interview.guide.modules.interview.agent.adaptive.runtime.ToolExecution;
 import interview.guide.modules.interview.agent.adaptive.runtime.ToolExecutionOutcome;
-import java.nio.charset.StandardCharsets;
-import java.security.MessageDigest;
-import java.security.NoSuchAlgorithmException;
 import java.util.Comparator;
-import java.util.HexFormat;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -116,7 +113,7 @@ public class ToolGateway implements AgentToolExecutor {
     }
 
     String argumentsJson = writeJson(canonicalize(action.arguments()));
-    String invocationId = sha256(String.join(
+    String invocationId = Sha256.hex(String.join(
         "\n",
         request.sessionId(),
         Integer.toString(request.targetTurnIndex()),
@@ -188,16 +185,6 @@ public class ToolGateway implements AgentToolExecutor {
           "Agent tool data serialization failed",
           e
       );
-    }
-  }
-
-  private String sha256(String value) {
-    try {
-      byte[] digest = MessageDigest.getInstance("SHA-256")
-          .digest(value.getBytes(StandardCharsets.UTF_8));
-      return HexFormat.of().formatHex(digest);
-    } catch (NoSuchAlgorithmException e) {
-      throw new BusinessException(ErrorCode.INTERNAL_ERROR, "SHA-256 is unavailable", e);
     }
   }
 }

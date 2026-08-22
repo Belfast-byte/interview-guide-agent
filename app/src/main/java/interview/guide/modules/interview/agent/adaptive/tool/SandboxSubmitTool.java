@@ -13,7 +13,6 @@ import interview.guide.modules.interview.agent.adaptive.core.event.CandidateCode
 import interview.guide.modules.interview.agent.adaptive.runtime.ReActRequest;
 import java.util.Map;
 import org.springframework.ai.tool.ToolCallback;
-import org.springframework.ai.tool.function.FunctionToolCallback;
 import org.springframework.stereotype.Component;
 
 /**
@@ -34,11 +33,11 @@ public class SandboxSubmitTool implements AdaptiveAgentTool {
   ) {
     this.submissionService = submissionService;
     this.patchSubmissionService = patchSubmissionService;
-    callback = FunctionToolCallback
-        .builder(NAME, (SandboxSubmitInput input) -> unsupportedDirectCall())
-        .description("Submit the candidate's exact current code answer for asynchronous judging")
-        .inputType(SandboxSubmitInput.class)
-        .build();
+    callback = ToolCallbacks.gatewayOnly(
+        NAME,
+        "Submit the candidate's exact current code answer for asynchronous judging",
+        SandboxSubmitInput.class
+    );
   }
 
   @Override
@@ -103,10 +102,6 @@ public class SandboxSubmitTool implements AdaptiveAgentTool {
         ErrorCode.AI_SERVICE_ERROR,
         "sandbox_submit requires interview context"
     );
-  }
-
-  private String unsupportedDirectCall() {
-    throw new IllegalStateException("Tool execution must go through ToolGateway");
   }
 
   record SandboxSubmitInput(String problemId, String scenarioId, String runMode) {}

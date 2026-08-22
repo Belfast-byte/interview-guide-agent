@@ -58,7 +58,7 @@ public record InterviewPlan(
           proposed.focusId().trim(),
           proposed.suggestedTurns(),
           proposed.suggestedTools().stream().map(String::trim).toList(),
-          proposed.suggestedSkill() == null ? null : proposed.suggestedSkill().trim(),
+          proposed.suggestedSkill().trim(),
           allocatedTurns[index],
           0,
           index == 0 ? PlanDimensionStatus.IN_PROGRESS : PlanDimensionStatus.PENDING

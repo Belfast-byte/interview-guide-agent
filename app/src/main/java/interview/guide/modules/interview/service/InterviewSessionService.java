@@ -18,6 +18,7 @@ import interview.guide.modules.interview.model.InterviewSessionEntity;
 import interview.guide.modules.interview.model.SubmitAnswerRequest;
 import interview.guide.modules.interview.model.SubmitAnswerResponse;
 import interview.guide.modules.interview.model.InterviewSessionDTO.SessionStatus;
+import interview.guide.modules.interview.service.InterviewPersistenceService.SaveSessionCommand;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.ai.chat.client.ChatClient;
@@ -52,10 +53,14 @@ public class InterviewSessionService {
      * 注意：如果已有未完成的会话，不会创建新的，而是返回现有会话
      * 前端应该先调用 findUnfinishedSession 检查，或者使用 forceCreate 参数强制创建
      */
-    public InterviewSessionDTO createSession(CreateInterviewRequest request) {
+    public InterviewSessionDTO createSession(UUID candidateId, CreateInterviewRequest request) {
+        if (request.resumeId() != null) {
+            persistenceService.requireResumeOwnership(candidateId, request.resumeId());
+        }
         // 如果指定了resumeId且未强制创建，检查是否有未完成的会话
         if (request.resumeId() != null && !Boolean.TRUE.equals(request.forceCreate())) {
-            Optional<InterviewSessionDTO> unfinishedOpt = findUnfinishedSession(request.resumeId());
+            Optional<InterviewSessionDTO> unfinishedOpt =
+                findUnfinishedSession(candidateId, request.resumeId());
             if (unfinishedOpt.isPresent()) {
                 log.info("检测到未完成的面试会话，返回现有会话: resumeId={}, sessionId={}",
                     request.resumeId(), unfinishedOpt.get().sessionId());
@@ -72,7 +77,7 @@ public class InterviewSessionService {
 
         // 获取历史问题（通用模式按 skillId 查询，有简历时按 resumeId + skillId 精确匹配）
         List<HistoricalQuestion> historicalQuestions =
-            persistenceService.getHistoricalQuestions(skillId, request.resumeId());
+            persistenceService.getHistoricalQuestions(candidateId, skillId, request.resumeId());
 
         // 基于 Skill 生成面试问题
         List<InterviewQuestionDTO> questions = questionService.generateQuestionsBySkill(
@@ -86,7 +91,10 @@ public class InterviewSessionService {
             request.jdText()
         );
 
-        // 保存到 Redis 缓存
+        persistenceService.saveSession(new SaveSessionCommand(
+            candidateId, sessionId, request.resumeId(), questions, request.llmProvider(),
+            skillId, difficulty, "NORMAL", null, null));
+
         sessionCache.saveSession(
             sessionId,
             request.resumeText() != null ? request.resumeText() : "",
@@ -97,14 +105,6 @@ public class InterviewSessionService {
             0,
             SessionStatus.CREATED
         );
-
-        // 保存到数据库
-        try {
-            persistenceService.saveSession(sessionId, request.resumeId(),
-                questions.size(), questions, request.llmProvider(), skillId, difficulty);
-        } catch (Exception e) {
-            log.warn("保存面试会话到数据库失败: {}", e.getMessage());
-        }
 
         return new InterviewSessionDTO(
             sessionId,
@@ -129,9 +129,9 @@ public class InterviewSessionService {
         }
 
         String sessionId = UUID.randomUUID().toString().replace("-", "").substring(0, 16);
-        persistenceService.saveSession(
-            sessionId, null, questions.size(), questions, llmProvider, skillId, difficulty,
-            "KNOWLEDGE_BASE", knowledgeBaseId, interviewCategory);
+        persistenceService.saveSession(new SaveSessionCommand(
+            null, sessionId, null, questions, llmProvider, skillId, difficulty,
+            "KNOWLEDGE_BASE", knowledgeBaseId, interviewCategory));
         sessionCache.saveSession(sessionId, "", null, knowledgeBaseId, interviewCategory,
             questions, 0, SessionStatus.CREATED);
 
@@ -166,44 +166,25 @@ public class InterviewSessionService {
         return toDTO(restoredSession);
     }
 
+    public InterviewSessionDTO getSession(UUID candidateId, String sessionId) {
+        requireOwnership(candidateId, sessionId);
+        return getSession(sessionId);
+    }
+
     /**
      * 查找并恢复未完成的面试会话
      */
-    public Optional<InterviewSessionDTO> findUnfinishedSession(Long resumeId) {
-        try {
-            // 1. 先从 Redis 缓存查找
-            Optional<String> cachedSessionIdOpt = sessionCache.findUnfinishedSessionId(resumeId);
-            if (cachedSessionIdOpt.isPresent()) {
-                String sessionId = cachedSessionIdOpt.get();
-                Optional<CachedSession> cachedOpt = sessionCache.getSession(sessionId);
-                if (cachedOpt.isPresent()) {
-                    log.debug("从 Redis 缓存找到未完成会话: resumeId={}, sessionId={}", resumeId, sessionId);
-                    return Optional.of(toDTO(cachedOpt.get()));
-                }
-            }
-
-            // 2. 缓存未命中，从数据库查找
-            Optional<InterviewSessionEntity> entityOpt = persistenceService.findUnfinishedSession(resumeId);
-            if (entityOpt.isEmpty()) {
-                return Optional.empty();
-            }
-
-            InterviewSessionEntity entity = entityOpt.get();
-            CachedSession restoredSession = restoreSessionFromEntity(entity);
-            if (restoredSession != null) {
-                return Optional.of(toDTO(restoredSession));
-            }
-        } catch (Exception e) {
-            log.error("恢复未完成会话失败: {}", e.getMessage(), e);
-        }
-        return Optional.empty();
+    public Optional<InterviewSessionDTO> findUnfinishedSession(UUID candidateId, Long resumeId) {
+        return persistenceService.findUnfinishedSession(candidateId, resumeId)
+            .map(this::restoreSessionFromEntity)
+            .map(this::toDTO);
     }
 
     /**
      * 查找并恢复未完成的面试会话，如果不存在则抛出异常
      */
-    public InterviewSessionDTO findUnfinishedSessionOrThrow(Long resumeId) {
-        return findUnfinishedSession(resumeId)
+    public InterviewSessionDTO findUnfinishedSessionOrThrow(UUID candidateId, Long resumeId) {
+        return findUnfinishedSession(candidateId, resumeId)
             .orElseThrow(() -> new BusinessException(ErrorCode.INTERVIEW_SESSION_NOT_FOUND, "未找到未完成的面试会话"));
     }
 
@@ -292,6 +273,11 @@ public class InterviewSessionService {
         );
     }
 
+    public Map<String, Object> getCurrentQuestionResponse(UUID candidateId, String sessionId) {
+        requireOwnership(candidateId, sessionId);
+        return getCurrentQuestionResponse(sessionId);
+    }
+
     /**
      * 获取当前问题
      */
@@ -368,6 +354,11 @@ public class InterviewSessionService {
         );
     }
 
+    public SubmitAnswerResponse submitAnswer(UUID candidateId, SubmitAnswerRequest request) {
+        requireOwnership(candidateId, request.sessionId());
+        return submitAnswer(request);
+    }
+
     private void persistSubmittedAnswer(SubmitAnswerRequest request, int index,
                                         InterviewQuestionDTO question, int newIndex,
                                         SessionStatus newStatus) {
@@ -439,6 +430,11 @@ public class InterviewSessionService {
         log.info("会话 {} 暂存答案: 问题{}", request.sessionId(), index);
     }
 
+    public void saveAnswer(UUID candidateId, SubmitAnswerRequest request) {
+        requireOwnership(candidateId, request.sessionId());
+        saveAnswer(request);
+    }
+
     /**
      * 提前交卷（触发异步评估）
      */
@@ -466,6 +462,11 @@ public class InterviewSessionService {
         evaluateStreamProducer.sendEvaluateTask(sessionId);
 
         log.info("会话 {} 提前交卷，评估任务已入队", sessionId);
+    }
+
+    public void completeInterview(UUID candidateId, String sessionId) {
+        requireOwnership(candidateId, sessionId);
+        completeInterview(sessionId);
     }
 
     /**
@@ -529,6 +530,16 @@ public class InterviewSessionService {
         }
 
         return report;
+    }
+
+    public InterviewReportDTO generateReport(UUID candidateId, String sessionId) {
+        requireOwnership(candidateId, sessionId);
+        return generateReport(sessionId);
+    }
+
+    private void requireOwnership(UUID candidateId, String sessionId) {
+        persistenceService.findBySessionId(candidateId, sessionId)
+            .orElseThrow(() -> new BusinessException(ErrorCode.INTERVIEW_SESSION_NOT_FOUND));
     }
 
     /**

@@ -30,7 +30,8 @@ class BoundedReActRuntimeTest {
       RespondAction expected = RespondAction.ask("下一题？", "继续验证");
       BoundedReActRuntime runtime = new BoundedReActRuntime(
           context -> expected,
-          (request, action) -> execution(action)
+          (request, action) -> execution(action),
+          new DeadlineExecutor()
       );
 
       ReActResult actual = runtime.run(request(), budget(3, 1));
@@ -58,7 +59,8 @@ class BoundedReActRuntimeTest {
       };
       BoundedReActRuntime runtime = new BoundedReActRuntime(
           model,
-          (request, action) -> execution(action)
+          (request, action) -> execution(action),
+          new DeadlineExecutor()
       );
 
       ReActResult result = runtime.run(request(), budget(3, 1));
@@ -95,7 +97,8 @@ class BoundedReActRuntimeTest {
               "{\"submissionId\":\"submission-1\",\"status\":\"PENDING\"}",
               ToolExecutionOutcome.PENDING,
               1
-          )
+          ),
+          new DeadlineExecutor()
       );
 
       ReActResult result = runtime.run(request(), budget(3, 1));
@@ -122,7 +125,7 @@ class BoundedReActRuntimeTest {
       BoundedReActRuntime runtime = new BoundedReActRuntime(model, (request, action) -> {
         executions.incrementAndGet();
         return execution(action);
-      });
+      }, new DeadlineExecutor());
 
       ReActResult result = runtime.run(request(), budget(3, 2));
 
@@ -131,11 +134,86 @@ class BoundedReActRuntimeTest {
     }
 
     @Test
-    @DisplayName("模型持续空转时由步预算快速失败")
+    @DisplayName("工具预算耗尽时拒绝本次调用并让模型直接给出最终回复")
+    void shouldDemandFinalReplyWhenToolBudgetExhausted() {
+      AtomicInteger modelSteps = new AtomicInteger();
+      AtomicInteger executions = new AtomicInteger();
+      AgentModelGateway model = context -> switch (modelSteps.getAndIncrement()) {
+        case 0 -> toolCall("question_bank_search", "redis");
+        case 1 -> toolCall("question_bank_search", "kafka");
+        default -> {
+          ToolObservation rejected = context.observations().get(1);
+          assertThat(rejected.accepted()).isFalse();
+          assertThat(rejected.output()).contains("预算", "最终回复");
+          yield RespondAction.ask("聊聊 Redis 缓存穿透？", "工具预算已耗尽，直接提问");
+        }
+      };
+      BoundedReActRuntime runtime = new BoundedReActRuntime(model, (request, action) -> {
+        executions.incrementAndGet();
+        return execution(action);
+      }, new DeadlineExecutor());
+
+      ReActResult result = runtime.run(request(), budget(3, 1));
+
+      assertThat(result.response().content()).isEqualTo("聊聊 Redis 缓存穿透？");
+      assertThat(executions).hasValue(1);
+      assertThat(result.toolExecutions()).hasSize(1);
+    }
+
+    @Test
+    @DisplayName("步预算耗尽时给模型一次直接回复的机会")
+    void shouldGrantFinalReplyStepWhenStepBudgetExhausted() {
+      AtomicInteger modelSteps = new AtomicInteger();
+      AgentModelGateway model = context -> switch (modelSteps.getAndIncrement()) {
+        case 0 -> toolCall("question_bank_search", "redis");
+        case 1 -> toolCall("question_bank_search", "kafka");
+        default -> {
+          ToolObservation rejected = context.observations().get(1);
+          assertThat(rejected.accepted()).isFalse();
+          assertThat(rejected.output()).contains("预算", "最终回复");
+          yield RespondAction.finish("面试结束", "步预算耗尽后直接收尾");
+        }
+      };
+      BoundedReActRuntime runtime = new BoundedReActRuntime(
+          model,
+          (request, action) -> execution(action),
+          new DeadlineExecutor()
+      );
+
+      ReActResult result = runtime.run(request(), budget(2, 5));
+
+      assertThat(result.response().content()).isEqualTo("面试结束");
+      assertThat(result.toolExecutions()).hasSize(1);
+      assertThat(modelSteps).hasValue(3);
+    }
+
+    @Test
+    @DisplayName("模型在收到预算耗尽通知后仍坚持调用工具时快速失败")
+    void shouldFailWhenModelInsistsOnToolCallAfterBudgetExhausted() {
+      AtomicInteger modelSteps = new AtomicInteger();
+      AgentModelGateway model = context -> switch (modelSteps.getAndIncrement()) {
+        case 0 -> toolCall("question_bank_search", "redis");
+        case 1 -> toolCall("question_bank_search", "kafka");
+        default -> toolCall("question_bank_search", "mysql");
+      };
+      BoundedReActRuntime runtime = new BoundedReActRuntime(
+          model,
+          (request, action) -> execution(action),
+          new DeadlineExecutor()
+      );
+
+      assertThatThrownBy(() -> runtime.run(request(), budget(3, 1)))
+          .isInstanceOf(BusinessException.class)
+          .hasMessageContaining("仍坚持调用工具");
+    }
+
+    @Test
+    @DisplayName("模型持续重复调用同一工具时由步预算快速失败")
     void shouldStopAtStepBudget() {
       BoundedReActRuntime runtime = new BoundedReActRuntime(
           context -> toolCall("question_bank_search", "redis"),
-          (request, action) -> execution(action)
+          (request, action) -> execution(action),
+          new DeadlineExecutor()
       );
 
       assertThatThrownBy(() -> runtime.run(request(), budget(2, 1)))
@@ -156,7 +234,8 @@ class BoundedReActRuntimeTest {
             }
             return RespondAction.finish("结束", "不应返回");
           },
-          (request, action) -> execution(action)
+          (request, action) -> execution(action),
+          new DeadlineExecutor()
       );
 
       assertThatThrownBy(() -> runtime.run(
@@ -184,7 +263,11 @@ class BoundedReActRuntimeTest {
             null,
             List.of(),
             new CandidateAnswer(1, "候选人回答"),
-            List.of()
+            List.of(),
+            List.of(),
+            null,
+            null,
+            null
         )
     );
   }
@@ -208,6 +291,7 @@ class BoundedReActRuntimeTest {
         "matchedQuestionIds=[42]",
         "question:42",
         "{\"id\":42}",
+        ToolExecutionOutcome.COMPLETED,
         1
     );
   }

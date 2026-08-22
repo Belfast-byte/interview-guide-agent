@@ -9,14 +9,4 @@ public record ReportToolResult(
     String toolName,
     String resultId,
     String output
-) {
-
-  public ReportToolResult(
-      long toolCallId,
-      String toolName,
-      String resultId,
-      String output
-  ) {
-    this(toolCallId, null, toolName, resultId, output);
-  }
-}
+) {}

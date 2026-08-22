@@ -41,23 +41,26 @@ public class CodePatchSubmissionService {
     if (target.testsRef() == null || target.testsRef().isBlank()) {
       throw new BusinessException(ErrorCode.BAD_REQUEST, "PATCH 场景缺少预置测试");
     }
+    CreateSandboxExecution command = new CreateSandboxExecution(
+        sessionId,
+        turnIndex,
+        SandboxWorkloadType.PATCH,
+        null,
+        target.scenarioId(),
+        target.workspaceRef(),
+        target.testsRef(),
+        language,
+        null,
+        null,
+        SandboxRunMode.FULL
+    );
+    sandboxPersistenceService.validateSubmission(command);
     StoredAlgorithmSource source = sourceStorage.store(sessionId, language, patch);
     SandboxExecution execution = sandboxPersistenceService.createPending(
-        new CreateSandboxExecution(
-            sessionId,
-            turnIndex,
-            SandboxWorkloadType.PATCH,
-            null,
-            target.scenarioId(),
-            target.workspaceRef(),
-            target.testsRef(),
-            language,
-            source.codeRef(),
-            source.codeHash(),
-            SandboxRunMode.FULL
-        )
+        command.withSource(source.codeRef(), source.codeHash())
     );
     if (!producer.sendExecution(execution.id())) {
+      sandboxPersistenceService.markInfrastructureFailure(execution.id());
       throw new BusinessException(ErrorCode.INTERNAL_ERROR, "PATCH 沙箱任务入队失败");
     }
     return execution;

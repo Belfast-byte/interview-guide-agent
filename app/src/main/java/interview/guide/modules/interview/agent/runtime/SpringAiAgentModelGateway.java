@@ -1,6 +1,5 @@
 package interview.guide.modules.interview.agent.runtime;
 
-import interview.guide.common.ai.LlmProviderRegistry;
 import interview.guide.common.ai.StructuredOutputInvoker;
 import interview.guide.common.exception.BusinessException;
 import interview.guide.common.exception.ErrorCode;
@@ -16,6 +15,7 @@ import tools.jackson.databind.ObjectMapper;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.util.Map;
+import java.util.UUID;
 
 /**
  * 基于 Spring AI 的 Agent 模型网关实现，负责组装 Prompt 并调用 LLM 获取结构化决策。
@@ -24,7 +24,7 @@ import java.util.Map;
 @Component
 public class SpringAiAgentModelGateway implements AgentModelGateway {
 
-  private final LlmProviderRegistry llmProviderRegistry;
+  private final CandidateAgentChatClientProvider chatClientProvider;
   private final StructuredOutputInvoker structuredOutputInvoker;
   private final ObjectMapper objectMapper;
   private final BeanOutputConverter<AgentStepOutput> outputConverter;
@@ -35,7 +35,7 @@ public class SpringAiAgentModelGateway implements AgentModelGateway {
   private final PromptTemplate assessmentUserPromptTemplate;
 
   public SpringAiAgentModelGateway(
-      LlmProviderRegistry llmProviderRegistry,
+      CandidateAgentChatClientProvider chatClientProvider,
       StructuredOutputInvoker structuredOutputInvoker,
       ObjectMapper objectMapper,
       @Value("classpath:prompts/agent-interview-loop-system.st") Resource systemPrompt,
@@ -45,7 +45,7 @@ public class SpringAiAgentModelGateway implements AgentModelGateway {
       @Value("classpath:prompts/agent-interview-assessment-user.st")
       Resource assessmentUserPrompt
   ) throws IOException {
-    this.llmProviderRegistry = llmProviderRegistry;
+    this.chatClientProvider = chatClientProvider;
     this.structuredOutputInvoker = structuredOutputInvoker;
     this.objectMapper = objectMapper;
     this.outputConverter = new BeanOutputConverter<>(AgentStepOutput.class) {};
@@ -65,7 +65,7 @@ public class SpringAiAgentModelGateway implements AgentModelGateway {
   }
 
   @Override
-  public AssessmentResult assess(AssessmentContext context) {
+  public AssessmentResult assess(UUID candidateId, AssessmentContext context) {
     try {
       String systemPrompt = assessmentSystemPromptTemplate.render(Map.of(
           "format", assessmentOutputConverter.getFormat()
@@ -74,7 +74,7 @@ public class SpringAiAgentModelGateway implements AgentModelGateway {
           "contextJson", objectMapper.writeValueAsString(context)
       ));
 
-      ChatClient chatClient = llmProviderRegistry.getPlainChatClient(null);
+      ChatClient chatClient = chatClientProvider.get(candidateId);
       AssessmentOutput output = structuredOutputInvoker.invokeOnce(
           chatClient,
           systemPrompt,
@@ -99,7 +99,7 @@ public class SpringAiAgentModelGateway implements AgentModelGateway {
   }
 
   @Override
-  public AgentStep nextStep(InterviewAgentContext context) {
+  public AgentStep nextStep(UUID candidateId, InterviewAgentContext context) {
     try {
       String systemPrompt = systemPromptTemplate.render(Map.of(
           "format", outputConverter.getFormat()
@@ -108,7 +108,7 @@ public class SpringAiAgentModelGateway implements AgentModelGateway {
           "contextJson", objectMapper.writeValueAsString(context)
       ));
 
-      ChatClient chatClient = llmProviderRegistry.getPlainChatClient(null);
+      ChatClient chatClient = chatClientProvider.get(candidateId);
       AgentStepOutput output = structuredOutputInvoker.invokeOnce(
           chatClient,
           systemPrompt,

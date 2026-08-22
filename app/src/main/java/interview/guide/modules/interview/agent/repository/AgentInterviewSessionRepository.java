@@ -5,6 +5,7 @@ import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.stereotype.Repository;
 
 import java.util.Optional;
+import java.util.UUID;
 
 /**
  * Agent 面试会话仓储。
@@ -14,4 +15,9 @@ public interface AgentInterviewSessionRepository
     extends JpaRepository<AgentInterviewSessionEntity, Long> {
 
   Optional<AgentInterviewSessionEntity> findBySessionId(String sessionId);
+
+  Optional<AgentInterviewSessionEntity> findBySessionIdAndCandidateId(
+      String sessionId,
+      UUID candidateId
+  );
 }

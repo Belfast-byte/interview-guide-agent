@@ -60,5 +60,6 @@ class CodeAnalysisSubmissionServiceTest {
     )).isInstanceOf(BusinessException.class)
         .hasMessageContaining("投递失败");
     verify(producer).send("job-1");
+    verify(persistenceService).markFailed("job-1", "代码分析任务投递失败");
   }
 }

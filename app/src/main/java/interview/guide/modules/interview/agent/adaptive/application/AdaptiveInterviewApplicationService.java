@@ -161,19 +161,7 @@ public class AdaptiveInterviewApplicationService {
         List.of(),
         List.of()
     ));
-    if (tenantId == null) {
-      return persistenceService.create(
-          sessionId,
-          candidateId,
-          jd,
-          resume,
-          llmProvider,
-          plan,
-          firstDecision.response(),
-          firstDecision.toolExecutions()
-      );
-    }
-    return persistenceService.createForTenant(
+    return persistenceService.create(
         tenantId,
         sessionId,
         candidateId,
@@ -331,6 +319,15 @@ public class AdaptiveInterviewApplicationService {
     }
   }
 
+  public PlannedInterview submitAnswerForCandidate(
+      String candidateId,
+      String sessionId,
+      CandidateAnswer answer
+  ) {
+    persistenceService.requireCandidateSession(candidateId, sessionId);
+    return submitAnswer(sessionId, answer);
+  }
+
   /**
    * 获取指定自适应面试的当前状态。
    *
@@ -339,6 +336,15 @@ public class AdaptiveInterviewApplicationService {
    */
   public PlannedInterview get(String sessionId) {
     return persistenceService.get(sessionId);
+  }
+
+  public PlannedInterview getForCandidate(String candidateId, String sessionId) {
+    persistenceService.requireCandidateSession(candidateId, sessionId);
+    return get(sessionId);
+  }
+
+  public void requireCandidateSession(String candidateId, String sessionId) {
+    persistenceService.requireCandidateSession(candidateId, sessionId);
   }
 
   /**
@@ -368,8 +374,14 @@ public class AdaptiveInterviewApplicationService {
         ),
         history.llmProvider()
     );
-    InterviewPlan plan = InterviewPlan.decide(sessionId, proposal);
-    planningTaxonomy.validate(plan);
+    InterviewPlan plan;
+    try {
+      plan = InterviewPlan.decide(sessionId, proposal);
+      planningTaxonomy.validate(plan);
+    } catch (BusinessException e) {
+      telemetry.planRejected(sessionId, e.getCode());
+      throw e;
+    }
     PlannedDimension firstDimension = plan.dimensionForTurn(1);
     ReActResult firstDecision = runDecision(request(
         sessionId,
@@ -470,7 +482,7 @@ public class AdaptiveInterviewApplicationService {
     AdaptiveInterviewTurn turn = interview.history().turns().stream()
         .filter(candidate -> candidate.turnIndex() == turnIndex)
         .findFirst()
-        .orElseThrow();
+        .orElseThrow(() -> new BusinessException(ErrorCode.NOT_FOUND, "面试轮次不存在"));
     PlannedDimension dimension = interview.plan().dimensionForTurn(turnIndex);
     AssessmentDecision assessment = assessmentAgent.assess(
         new AssessmentRequest(
@@ -513,6 +525,14 @@ public class AdaptiveInterviewApplicationService {
    */
   public List<ToolResultFollowUp> toolResultFollowUps(String sessionId) {
     return persistenceService.toolResultFollowUps(sessionId);
+  }
+
+  public List<ToolResultFollowUp> toolResultFollowUpsForCandidate(
+      String candidateId,
+      String sessionId
+  ) {
+    persistenceService.requireCandidateSession(candidateId, sessionId);
+    return toolResultFollowUps(sessionId);
   }
 
   private ReActRequest request(

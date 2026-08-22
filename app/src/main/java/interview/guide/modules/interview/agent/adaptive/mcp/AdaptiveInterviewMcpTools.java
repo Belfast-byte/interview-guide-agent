@@ -7,6 +7,7 @@ import interview.guide.modules.interview.agent.adaptive.assessment.report.Assess
 import interview.guide.modules.interview.agent.adaptive.assessment.report.EnterpriseAssessmentReport;
 import interview.guide.modules.interview.agent.adaptive.planning.PlannedInterview;
 import java.util.List;
+import java.util.function.Supplier;
 import lombok.RequiredArgsConstructor;
 import org.springframework.ai.mcp.annotation.McpTool;
 import org.springframework.ai.mcp.annotation.McpToolParam;
@@ -130,30 +131,19 @@ public class AdaptiveInterviewMcpTools {
         REPORT_TOOL,
         McpInterviewScope.INTERVIEW_READ
     );
-    try {
-      EnterpriseAssessmentReport report = reportService.enterpriseReport(
-          principal.tenantId(),
-          sessionId
-      );
-      auditService.record(
-          principal,
-          REPORT_TOOL,
-          sessionId,
-          McpAuditOutcome.SUCCEEDED
-      );
-      return report;
-    } catch (BusinessException e) {
-      if (!ErrorCode.INTERVIEW_SESSION_NOT_FOUND.getCode().equals(e.getCode())) {
-        throw e;
-      }
-      auditService.record(
-          principal,
-          REPORT_TOOL,
-          sessionId,
-          McpAuditOutcome.NOT_FOUND
-      );
-      throw e;
-    }
+    EnterpriseAssessmentReport report = withNotFoundAudit(
+        principal,
+        REPORT_TOOL,
+        sessionId,
+        () -> reportService.enterpriseReport(principal.tenantId(), sessionId)
+    );
+    auditService.record(
+        principal,
+        REPORT_TOOL,
+        sessionId,
+        McpAuditOutcome.SUCCEEDED
+    );
+    return report;
   }
 
   private PlannedInterview findInterview(
@@ -161,8 +151,22 @@ public class AdaptiveInterviewMcpTools {
       String toolName,
       String sessionId
   ) {
+    return withNotFoundAudit(
+        principal,
+        toolName,
+        sessionId,
+        () -> applicationService.getForTenant(principal.tenantId(), sessionId)
+    );
+  }
+
+  private <T> T withNotFoundAudit(
+      McpTenantPrincipal principal,
+      String toolName,
+      String sessionId,
+      Supplier<T> operation
+  ) {
     try {
-      return applicationService.getForTenant(principal.tenantId(), sessionId);
+      return operation.get();
     } catch (BusinessException e) {
       if (!ErrorCode.INTERVIEW_SESSION_NOT_FOUND.getCode().equals(e.getCode())) {
         throw e;
@@ -177,13 +181,7 @@ public class AdaptiveInterviewMcpTools {
       String toolName,
       McpInterviewScope scope
   ) {
-    McpTenantPrincipal principal = (McpTenantPrincipal) context.transportContext()
-        .get(McpTenantTransportConfiguration.PRINCIPAL_KEY);
-    if (!principal.allows(scope)) {
-      auditService.record(principal, toolName, null, McpAuditOutcome.FORBIDDEN);
-      throw new BusinessException(ErrorCode.FORBIDDEN, "MCP scope 不足");
-    }
-    return principal;
+    return McpScopeGuard.requireScope(context, toolName, scope, auditService);
   }
 
   private void validateCreateInput(

@@ -10,6 +10,7 @@ import interview.guide.modules.interview.agent.adaptive.persistence.plan.Adaptiv
 import interview.guide.modules.interview.agent.adaptive.persistence.plan.AdaptiveAgentPlanRepository;
 import interview.guide.modules.interview.agent.adaptive.persistence.session.AdaptiveAgentSessionEntity;
 import interview.guide.modules.interview.agent.adaptive.persistence.session.AdaptiveAgentSessionRepository;
+import interview.guide.modules.interview.agent.adaptive.persistence.session.AdaptiveAgentToolResultEventRepository;
 import interview.guide.modules.interview.agent.adaptive.persistence.session.AdaptiveAgentTurnEntity;
 import interview.guide.modules.interview.agent.adaptive.persistence.session.AdaptiveAgentTurnRepository;
 import java.util.List;
@@ -31,19 +32,22 @@ public class JpaAssessmentBackfillStore implements AssessmentBackfillStore {
   private final AdaptiveAgentTurnRepository turnRepository;
   private final AdaptiveAgentAssessmentRepository assessmentRepository;
   private final AdaptiveAgentEvidenceRepository evidenceRepository;
+  private final AdaptiveAgentToolResultEventRepository toolResultEventRepository;
 
   public JpaAssessmentBackfillStore(
       AdaptiveAgentSessionRepository sessionRepository,
       AdaptiveAgentPlanRepository planRepository,
       AdaptiveAgentTurnRepository turnRepository,
       AdaptiveAgentAssessmentRepository assessmentRepository,
-      AdaptiveAgentEvidenceRepository evidenceRepository
+      AdaptiveAgentEvidenceRepository evidenceRepository,
+      AdaptiveAgentToolResultEventRepository toolResultEventRepository
   ) {
     this.sessionRepository = sessionRepository;
     this.planRepository = planRepository;
     this.turnRepository = turnRepository;
     this.assessmentRepository = assessmentRepository;
     this.evidenceRepository = evidenceRepository;
+    this.toolResultEventRepository = toolResultEventRepository;
   }
 
   @Override
@@ -89,16 +93,14 @@ public class JpaAssessmentBackfillStore implements AssessmentBackfillStore {
             evidence
         ))
         .toList());
-    if (turn.codeFactUsage() != null) {
-      evidenceRepository.save(new AdaptiveAgentEvidenceEntity(
-          entity,
-          turn.sessionId(),
-          turn.turnIndex(),
-          turn.codeSourceId(),
-          turn.codeAnchor(),
-          turn.codeFactUsage()
-      ));
-    }
+    AdaptiveAgentEvidenceEntity.codeFact(
+        entity,
+        turn.sessionId(),
+        turn.turnIndex(),
+        turn.codeSourceId(),
+        turn.codeAnchor(),
+        turn.codeFactUsage()
+    ).ifPresent(evidenceRepository::save);
   }
 
   private AssessmentBackfillTurn backfillTurn(
@@ -118,7 +120,11 @@ public class JpaAssessmentBackfillStore implements AssessmentBackfillStore {
         session.llmProvider(),
         turn.codeSourceId(),
         turn.codeAnchor(),
-        turn.codeFactUsage()
+        turn.codeFactUsage(),
+        toolResultEventRepository.findResultOutputsBySessionIdAndTurnIndex(
+            session.id(),
+            turn.turnIndex()
+        ).stream().findFirst().orElse(null)
     );
   }
 }

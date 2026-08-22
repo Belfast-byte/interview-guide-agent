@@ -167,7 +167,8 @@ class SpringAiPlanningAgentTest {
 
     assertThatThrownBy(() -> planningAgent.propose(request(), "provider-1"))
         .isInstanceOf(BusinessException.class)
-        .hasMessage("Agent 规划失败");
+        .hasMessage("Agent 规划失败")
+        .hasCauseInstanceOf(BusinessException.class);
   }
 
   @Test

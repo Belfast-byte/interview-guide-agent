@@ -2,9 +2,9 @@ package interview.guide.modules.interview.agent.adaptive.api;
 
 import interview.guide.common.annotation.RateLimit;
 import interview.guide.common.result.Result;
+import interview.guide.common.security.AuthenticatedUser;
 import interview.guide.modules.interview.agent.adaptive.application.AdaptiveInterviewApplicationService;
 import interview.guide.modules.interview.agent.adaptive.assessment.report.AssessmentReportService;
-import interview.guide.modules.interview.agent.adaptive.assessment.backfill.AssessmentBackfillService;
 import interview.guide.modules.interview.agent.adaptive.assessment.report.CandidateAssessmentReport;
 import interview.guide.modules.interview.agent.adaptive.core.event.CandidateAnswer;
 import interview.guide.modules.interview.agent.adaptive.core.event.CandidateCodeSubmission;
@@ -13,6 +13,7 @@ import interview.guide.modules.interview.agent.adaptive.memory.profile.Candidate
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -36,18 +37,18 @@ public class AdaptiveInterviewController {
 
   private final AdaptiveInterviewApplicationService applicationService;
   private final AssessmentReportService reportService;
-  private final AssessmentBackfillService assessmentBackfillService;
   private final CandidateAbilityProfileService abilityProfileService;
 
   @PostMapping
   @RateLimit(dimension = RateLimit.Dimension.GLOBAL, count = 5)
   @RateLimit(dimension = RateLimit.Dimension.IP, count = 5)
   public Result<AdaptiveInterviewResponse> create(
+      @AuthenticationPrincipal AuthenticatedUser principal,
       @Valid @RequestBody CreateAdaptiveInterviewRequest request
   ) {
     return Result.success(AdaptiveInterviewResponse.from(
         applicationService.create(
-            request.candidateId(),
+            candidateId(principal),
             request.jd(),
             request.resume(),
             request.llmProvider()
@@ -60,10 +61,12 @@ public class AdaptiveInterviewController {
   @RateLimit(dimension = RateLimit.Dimension.IP, count = 10)
   public Result<AdaptiveInterviewResponse> submitAnswer(
       @PathVariable String sessionId,
+      @AuthenticationPrincipal AuthenticatedUser principal,
       @Valid @RequestBody SubmitAdaptiveAnswerRequest request
   ) {
     return Result.success(AdaptiveInterviewResponse.from(
-        applicationService.submitAnswer(
+        applicationService.submitAnswerForCandidate(
+            candidateId(principal),
             sessionId,
             new CandidateAnswer(
                 request.turnIndex(),
@@ -82,36 +85,20 @@ public class AdaptiveInterviewController {
   }
 
   @GetMapping("/{sessionId}")
-  public Result<AdaptiveInterviewResponse> get(@PathVariable String sessionId) {
-    return Result.success(AdaptiveInterviewResponse.from(applicationService.get(sessionId)));
-  }
-
-  @PostMapping("/{sessionId}/assessment-backfill")
-  @RateLimit(dimension = RateLimit.Dimension.GLOBAL, count = 2)
-  @RateLimit(dimension = RateLimit.Dimension.IP, count = 2)
-  public Result<AssessmentBackfillResponse> backfillAssessment(
-      @PathVariable String sessionId
-  ) {
-    return Result.success(new AssessmentBackfillResponse(
-        assessmentBackfillService.backfill(sessionId)
-    ));
-  }
-
-  @PostMapping("/{sessionId}/code-analysis/replan")
-  @RateLimit(dimension = RateLimit.Dimension.GLOBAL, count = 2)
-  @RateLimit(dimension = RateLimit.Dimension.IP, count = 2)
-  public Result<AdaptiveInterviewResponse> replanWithCodeAnalysis(
-      @PathVariable String sessionId
+  public Result<AdaptiveInterviewResponse> get(
+      @PathVariable String sessionId,
+      @AuthenticationPrincipal AuthenticatedUser principal
   ) {
     return Result.success(AdaptiveInterviewResponse.from(
-        applicationService.replanWithCodeAnalysis(sessionId)
+        applicationService.getForCandidate(candidateId(principal), sessionId)
     ));
   }
 
-  @GetMapping("/candidates/{candidateId}/ability-profile")
+  @GetMapping("/me/ability-profile")
   public Result<CandidateAbilityProfileResponse> getAbilityProfile(
-      @PathVariable String candidateId
+      @AuthenticationPrincipal AuthenticatedUser principal
   ) {
+    String candidateId = candidateId(principal);
     return Result.success(CandidateAbilityProfileResponse.from(
         candidateId,
         abilityProfileService.trajectory(candidateId)
@@ -120,15 +107,25 @@ public class AdaptiveInterviewController {
 
   @GetMapping("/{sessionId}/report")
   public Result<CandidateAssessmentReport> getReport(
-      @PathVariable String sessionId
+      @PathVariable String sessionId,
+      @AuthenticationPrincipal AuthenticatedUser principal
   ) {
+    applicationService.requireCandidateSession(candidateId(principal), sessionId);
     return Result.success(reportService.candidateReport(sessionId));
   }
 
   @GetMapping("/{sessionId}/tool-result-follow-ups")
   public Result<List<ToolResultFollowUp>> getToolResultFollowUps(
-      @PathVariable String sessionId
+      @PathVariable String sessionId,
+      @AuthenticationPrincipal AuthenticatedUser principal
   ) {
-    return Result.success(applicationService.toolResultFollowUps(sessionId));
+    return Result.success(applicationService.toolResultFollowUpsForCandidate(
+        candidateId(principal),
+        sessionId
+    ));
+  }
+
+  private String candidateId(AuthenticatedUser principal) {
+    return principal.candidateId().toString();
   }
 }

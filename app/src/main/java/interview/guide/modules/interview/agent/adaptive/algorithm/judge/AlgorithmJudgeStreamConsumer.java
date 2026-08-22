@@ -15,12 +15,18 @@ import interview.guide.modules.interview.agent.adaptive.algorithm.sandbox.Sandbo
 import interview.guide.modules.interview.agent.adaptive.observability.AlgorithmInterviewTelemetry;
 import java.util.Map;
 import org.redisson.api.stream.StreamMessageId;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.stereotype.Component;
 
 /**
  * 算法判题结果流消费者，消费沙箱评测结果并更新执行状态。
  */
 @Component
+@ConditionalOnProperty(
+    prefix = "app.interview.adaptive-agent",
+    name = "enabled",
+    havingValue = "true"
+)
 class AlgorithmJudgeStreamConsumer
     extends AbstractStreamConsumer<AlgorithmJudgeStreamConsumer.ExecutionTask> {
 

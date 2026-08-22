@@ -503,7 +503,7 @@ function SetupView({
               <h3 className="text-sm font-bold">联调前确认</h3>
             </div>
             <p className="text-xs leading-5 text-amber-700 dark:text-amber-400">
-              后端需设置 <code className="font-mono font-semibold">APP_INTERVIEW_AGENT_LOOP_ENABLED=true</code>，并配置可用的默认模型。
+              Agent Loop 已默认启用；开始面试前，请先在“模型配置”中保存你自己的模型。
             </p>
           </div>
         </aside>

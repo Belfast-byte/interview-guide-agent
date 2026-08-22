@@ -9,4 +9,4 @@ public record ToolResultEvent(
     String resultId,
     String summary,
     String output
-) implements InterviewInputEvent {}
+) {}

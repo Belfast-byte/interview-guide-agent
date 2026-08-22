@@ -71,6 +71,9 @@ public class AnalysisJobEntity {
   }
 
   public void complete(long durationMs, long tokenCost) {
+    if (status.isTerminal()) {
+      return;
+    }
     this.status = AnalysisJobStatus.COMPLETED;
     this.durationMs = durationMs;
     this.tokenCost = tokenCost;
@@ -78,17 +81,26 @@ public class AnalysisJobEntity {
   }
 
   void markRunning() {
+    if (status.isTerminal()) {
+      return;
+    }
     status = AnalysisJobStatus.RUNNING;
     startedAt = LocalDateTime.now();
   }
 
   void fail(String reason) {
+    if (status.isTerminal()) {
+      return;
+    }
     status = AnalysisJobStatus.FAILED;
     failureReason = reason;
     finishedAt = LocalDateTime.now();
   }
 
   void timeout() {
+    if (status.isTerminal()) {
+      return;
+    }
     status = AnalysisJobStatus.TIMED_OUT;
     failureReason = "analysis timeout";
     finishedAt = LocalDateTime.now();

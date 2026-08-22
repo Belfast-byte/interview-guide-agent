@@ -120,7 +120,8 @@ class SpringAiDimensionBriefGeneratorTest {
 
     assertThatThrownBy(() -> generator.generate(request(), "provider-1"))
         .isInstanceOf(BusinessException.class)
-        .hasMessage("维度小结生成失败");
+        .hasMessage("维度小结生成失败")
+        .hasCauseInstanceOf(BusinessException.class);
   }
 
   private DimensionBriefProposal invoke() {

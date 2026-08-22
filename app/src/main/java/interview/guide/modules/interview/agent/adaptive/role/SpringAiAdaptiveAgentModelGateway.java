@@ -25,7 +25,9 @@ import java.nio.charset.StandardCharsets;
 import java.util.List;
 import java.util.stream.Stream;
 import java.util.Map;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.ai.chat.client.ChatClient;
+import org.springframework.ai.chat.client.ChatClientAttributes;
 import org.springframework.ai.chat.messages.AssistantMessage;
 import org.springframework.ai.chat.model.ChatResponse;
 import org.springframework.ai.chat.prompt.PromptTemplate;
@@ -41,6 +43,7 @@ import tools.jackson.databind.ObjectMapper;
  * 基于 Spring AI 的自适应 Agent 模型网关，按角色组装 Prompt 并调用 LLM。
  */
 @Component
+@Slf4j
 public class SpringAiAdaptiveAgentModelGateway implements AgentModelGateway {
 
   private static final int MAX_RESPONSE_LENGTH = 500;
@@ -119,6 +122,8 @@ public class SpringAiAdaptiveAgentModelGateway implements AgentModelGateway {
       recordFailure(context, startedNanos, e.getCode());
       throw e;
     } catch (Exception e) {
+      log.warn("Agent interview 决策底层失败: sessionId={}, message={}",
+          context.request().sessionId(), e.getMessage(), e);
       recordFailure(context, startedNanos, ErrorCode.AI_SERVICE_ERROR.getCode());
       throw new BusinessException(
           ErrorCode.AI_SERVICE_ERROR,
@@ -166,6 +171,13 @@ public class SpringAiAdaptiveAgentModelGateway implements AgentModelGateway {
             .toolCallbacks(toolGateway.callbacksFor(
                 roleRegistry.get(context.request().role())
             )))
+        // 关闭 Spring AI 2.0 自动注册的 ToolCallingAdvisor：
+        // 工具必须由 BoundedReActRuntime 经 ToolGateway 手动执行，
+        // 不能让 ChatClient 在内部消化 tool call（占位 callback 会抛异常）。
+        .advisors(advisor -> advisor.param(
+            ChatClientAttributes.TOOL_CALLING_ADVISOR_AUTO_REGISTER.getKey(),
+            false
+        ))
         .call()
         .chatResponse();
   }

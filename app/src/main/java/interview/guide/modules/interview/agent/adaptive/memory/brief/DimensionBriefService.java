@@ -31,14 +31,11 @@ public class DimensionBriefService {
       CandidateAnswer answer,
       String llmProvider
   ) {
-    List<DimensionBriefTurn> dimensionTurns = turns.stream()
-        .filter(turn -> turn.dimensionOrder() == dimension.order())
-        .map(turn -> new DimensionBriefTurn(
-            turn.turnIndex(),
-            turn.question(),
-            turn.turnIndex() == answer.turnIndex() ? answer.content() : turn.answer()
-        ))
-        .toList();
+    List<DimensionBriefTurn> dimensionTurns = DimensionBriefTurn.forDimension(
+        turns,
+        dimension,
+        answer
+    );
     DimensionBriefProposal proposal = generator.generate(
         new DimensionBriefRequest(
             sessionId,

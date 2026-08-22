@@ -21,6 +21,15 @@ public class AlgorithmSubmissionService {
   private final AlgorithmJudgeStreamProducer producer;
 
   public SandboxExecution submit(SubmitAlgorithmCode submission) {
+    persistenceService.validateSubmission(new CreateSandboxExecution(
+        submission.sessionId(),
+        submission.turnIndex(),
+        submission.problemId(),
+        submission.language(),
+        null,
+        null,
+        submission.runMode()
+    ));
     StoredAlgorithmSource source = sourceStorage.store(
         submission.sessionId(),
         submission.language(),
@@ -38,6 +47,7 @@ public class AlgorithmSubmissionService {
         )
     );
     if (!producer.sendExecution(execution.id())) {
+      persistenceService.markInfrastructureFailure(execution.id());
       throw new BusinessException(ErrorCode.INTERNAL_ERROR, "判题任务入队失败");
     }
     return execution;

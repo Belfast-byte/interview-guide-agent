@@ -27,14 +27,15 @@ public class AgentInterviewPersistenceService {
   private final ObjectMapper objectMapper;
 
   @Transactional
-  public AgentLoopState create(String jd, String resume, int maxTurns) {
+  public AgentLoopState create(CreateAgentSessionCommand command) {
     AgentInterviewSessionEntity entity = new AgentInterviewSessionEntity();
+    entity.setCandidateId(command.candidateId());
     entity.setSessionId(UUID.randomUUID().toString());
     entity.setRuntimeVersion(InterviewAgentLoop.RUNTIME_VERSION);
-    entity.setJd(jd);
-    entity.setResume(resume);
+    entity.setJd(command.jd());
+    entity.setResume(command.resume());
     entity.setCurrentTurn(0);
-    entity.setMaxTurns(maxTurns);
+    entity.setMaxTurns(command.maxTurns());
     entity.setTurnsJson("[]");
     entity.setStatus(AgentLoopStatus.CREATED);
     return toState(sessionRepository.save(entity));
@@ -43,6 +44,12 @@ public class AgentInterviewPersistenceService {
   @Transactional(readOnly = true)
   public AgentLoopState get(String sessionId) {
     return toState(find(sessionId));
+  }
+
+  @Transactional(readOnly = true)
+  public AgentLoopState get(UUID candidateId, String sessionId) {
+    return toState(sessionRepository.findBySessionIdAndCandidateId(sessionId, candidateId)
+        .orElseThrow(() -> new BusinessException(ErrorCode.INTERVIEW_SESSION_NOT_FOUND)));
   }
 
   @Transactional
@@ -243,5 +250,13 @@ public class AgentInterviewPersistenceService {
 
   private BusinessException decisionFailed(String message) {
     return new BusinessException(ErrorCode.AGENT_INTERVIEW_DECISION_FAILED, message);
+  }
+
+  public record CreateAgentSessionCommand(
+      UUID candidateId,
+      String jd,
+      String resume,
+      int maxTurns
+  ) {
   }
 }

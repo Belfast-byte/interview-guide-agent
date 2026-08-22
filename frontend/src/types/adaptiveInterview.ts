@@ -30,7 +30,6 @@ export interface AdaptiveInterviewSession {
 }
 
 export interface CreateAdaptiveInterviewRequest {
-  candidateId: string;
   jd: string;
   resume: string;
   llmProvider?: string;

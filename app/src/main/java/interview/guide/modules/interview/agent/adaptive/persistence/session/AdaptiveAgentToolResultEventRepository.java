@@ -3,11 +3,12 @@ package interview.guide.modules.interview.agent.adaptive.persistence.session;
 import java.util.Optional;
 import java.util.List;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Query;
 
 /**
  * AdaptiveAgentToolResultEventRepository 数据访问接口，提供相关实体的 Spring Data Repository。
  */
-interface AdaptiveAgentToolResultEventRepository
+public interface AdaptiveAgentToolResultEventRepository
     extends JpaRepository<AdaptiveAgentToolResultEventEntity, Long> {
 
   boolean existsByToolNameAndResultId(String toolName, String resultId);
@@ -20,5 +21,16 @@ interface AdaptiveAgentToolResultEventRepository
   List<AdaptiveAgentToolResultEventEntity> findBySessionIdAndStatusOrderById(
       String sessionId,
       ToolResultEventStatus status
+  );
+
+  @Query("""
+      select event.resultOutput
+      from AdaptiveAgentToolResultEventEntity event
+      where event.sessionId = :sessionId and event.turnIndex = :turnIndex
+      order by event.id desc
+      """)
+  List<String> findResultOutputsBySessionIdAndTurnIndex(
+      String sessionId,
+      int turnIndex
   );
 }

@@ -67,6 +67,15 @@ public class AdaptiveInterviewPersistenceService
   private final AdaptiveAgentToolResultEventRepository toolResultEventRepository;
   private final CandidateAbilityProfileRepository abilityProfileRepository;
 
+  @Transactional(readOnly = true)
+  public void requireCandidateSession(String candidateId, String sessionId) {
+    sessionRepository.findByIdAndCandidateIdAndTenantIdIsNull(sessionId, candidateId)
+        .orElseThrow(() -> new BusinessException(
+            ErrorCode.INTERVIEW_SESSION_NOT_FOUND,
+            "Agent 面试会话不存在"
+        ));
+  }
+
   @Transactional
   public boolean reserveToolResultEvent(String sessionId, ToolResultEvent event) {
     AdaptiveAgentSessionEntity session = sessionRepository
@@ -75,7 +84,7 @@ public class AdaptiveInterviewPersistenceService
             ErrorCode.INTERVIEW_SESSION_NOT_FOUND,
             "Agent 面试会话不存在"
         ));
-    if (session.status() != AdaptiveSessionStatus.IN_PROGRESS) {
+    if (session.status() == AdaptiveSessionStatus.CREATED) {
       return false;
     }
     if (toolResultEventRepository.existsByToolNameAndResultId(
@@ -85,7 +94,10 @@ public class AdaptiveInterviewPersistenceService
       return false;
     }
     turnRepository.findBySessionIdAndTurnIndex(sessionId, event.turnIndex())
-        .orElseThrow();
+        .orElseThrow(() -> new BusinessException(
+            ErrorCode.NOT_FOUND,
+            "面试轮次不存在"
+        ));
     toolResultEventRepository.save(new AdaptiveAgentToolResultEventEntity(sessionId, event));
     return true;
   }
@@ -99,9 +111,43 @@ public class AdaptiveInterviewPersistenceService
   ) {
     AdaptiveAgentToolResultEventEntity entity = toolResultEventRepository
         .findByToolNameAndResultId(event.toolName(), event.resultId())
-        .orElseThrow();
+        .orElseThrow(() -> new BusinessException(
+            ErrorCode.NOT_FOUND,
+            "工具结果事件不存在"
+        ));
     entity.complete(response);
+    applyFollowUpQuestion(sessionId, event, response);
     saveToolExecutions(sessionId, toolExecutions);
+  }
+
+  /**
+   * 把基于工具结果的追问落为面试问题：结果属于更早的已答轮次时（完整判题/补丁），
+   * 当前待答轮次的问题是在判题结果未知时生成的占位问题，用追问替换它，使候选人
+   * 回答追问时评估上下文使用追问本身；结果属于当前待答轮次（公开样例试跑）或会话
+   * 已结束（最后一轮提交后判题才返回）时，只保留追问事件记录。
+   */
+  private void applyFollowUpQuestion(
+      String sessionId,
+      ToolResultEvent event,
+      RespondAction followUp
+  ) {
+    AdaptiveAgentSessionEntity session = sessionRepository
+        .findByIdAndTenantIdIsNull(sessionId)
+        .orElseThrow(() -> new BusinessException(
+            ErrorCode.INTERVIEW_SESSION_NOT_FOUND,
+            "Agent 面试会话不存在"
+        ));
+    if (session.status() != AdaptiveSessionStatus.IN_PROGRESS) {
+      return;
+    }
+    int currentTurn = session.toDomain().currentTurn();
+    if (event.turnIndex() == currentTurn) {
+      return;
+    }
+    turnRepository
+        .findBySessionIdAndTurnIndex(sessionId, currentTurn)
+        .orElseThrow(() -> new BusinessException(ErrorCode.NOT_FOUND, "面试轮次不存在"))
+        .replaceQuestion(followUp);
   }
 
   @Transactional
@@ -157,7 +203,7 @@ public class AdaptiveInterviewPersistenceService
             dimensionOrder
         )
         .orElseThrow(() -> new BusinessException(
-            ErrorCode.AI_SERVICE_ERROR,
+            ErrorCode.NOT_FOUND,
             "追问缺少上一轮评估事实"
         ))
         .depthLevel();
@@ -188,7 +234,7 @@ public class AdaptiveInterviewPersistenceService
         .toList());
     AdaptiveAgentTurnEntity sourceTurn = turnRepository
         .findBySessionIdAndTurnIndex(sessionId, turnIndex)
-        .orElseThrow();
+        .orElseThrow(() -> new BusinessException(ErrorCode.NOT_FOUND, "面试轮次不存在"));
     saveCodeFactEvidence(assessment, sourceTurn);
     abilityProfileRepository.findBySourceSessionIdAndDimensionOrder(
         sessionId,
@@ -198,79 +244,6 @@ public class AdaptiveInterviewPersistenceService
 
   @Transactional
   public PlannedInterview create(
-      String sessionId,
-      String candidateId,
-      String jd,
-      String resume,
-      String llmProvider,
-      InterviewPlan plan,
-      RespondAction firstAction,
-      List<ToolExecution> toolExecutions
-  ) {
-    return createInterview(
-        null, sessionId, candidateId, jd, resume, llmProvider,
-        plan, firstAction, toolExecutions
-    );
-  }
-
-  @Transactional
-  public PlannedInterview createForTenant(
-      String tenantId,
-      String sessionId,
-      String candidateId,
-      String jd,
-      String resume,
-      String llmProvider,
-      InterviewPlan plan,
-      RespondAction firstAction,
-      List<ToolExecution> toolExecutions
-  ) {
-    return createInterview(
-        tenantId, sessionId, candidateId, jd, resume, llmProvider,
-        plan, firstAction, toolExecutions
-    );
-  }
-
-  @Transactional
-  public PlannedInterview replaceInitialPlan(
-      String sessionId,
-      InterviewPlan plan,
-      RespondAction firstAction,
-      List<ToolExecution> toolExecutions
-  ) {
-    AdaptiveAgentSessionEntity session = sessionRepository
-        .findByIdAndTenantIdIsNull(sessionId)
-        .orElseThrow(() -> new BusinessException(
-            ErrorCode.INTERVIEW_SESSION_NOT_FOUND,
-            "Agent 面试会话不存在"
-        ));
-    AdaptiveAgentTurnEntity firstTurn = turnRepository
-        .findBySessionIdAndTurnIndex(sessionId, 1)
-        .orElseThrow();
-    if (session.status() != AdaptiveSessionStatus.IN_PROGRESS
-        || session.toDomain().currentTurn() != 1
-        || firstTurn.answer() != null) {
-      throw new BusinessException(ErrorCode.BAD_REQUEST, "只能在回答第一题前刷新项目面试计划");
-    }
-    turnRepository.delete(firstTurn);
-    turnRepository.flush();
-    planRepository.deleteAll(planRepository.findBySessionIdOrderByDimensionOrder(sessionId));
-    planRepository.flush();
-    session.replaceInitialPlan(plan.maxTurns());
-    planRepository.saveAll(plan.dimensions().stream()
-        .map(dimension -> new AdaptiveAgentPlanEntity(sessionId, dimension))
-        .toList());
-    turnRepository.save(new AdaptiveAgentTurnEntity(
-        sessionId,
-        1,
-        plan.dimensionForTurn(1).order(),
-        firstAction
-    ));
-    saveToolExecutions(sessionId, toolExecutions);
-    return plannedInterview(session, plan);
-  }
-
-  private PlannedInterview createInterview(
       String tenantId,
       String sessionId,
       String candidateId,
@@ -303,6 +276,45 @@ public class AdaptiveInterviewPersistenceService
   }
 
   @Transactional
+  public PlannedInterview replaceInitialPlan(
+      String sessionId,
+      InterviewPlan plan,
+      RespondAction firstAction,
+      List<ToolExecution> toolExecutions
+  ) {
+    AdaptiveAgentSessionEntity session = sessionRepository
+        .findByIdAndTenantIdIsNull(sessionId)
+        .orElseThrow(() -> new BusinessException(
+            ErrorCode.INTERVIEW_SESSION_NOT_FOUND,
+            "Agent 面试会话不存在"
+        ));
+    AdaptiveAgentTurnEntity firstTurn = turnRepository
+        .findBySessionIdAndTurnIndex(sessionId, 1)
+        .orElseThrow(() -> new BusinessException(ErrorCode.NOT_FOUND, "面试轮次不存在"));
+    if (session.status() != AdaptiveSessionStatus.IN_PROGRESS
+        || session.toDomain().currentTurn() != 1
+        || firstTurn.answer() != null) {
+      throw new BusinessException(ErrorCode.BAD_REQUEST, "只能在回答第一题前刷新项目面试计划");
+    }
+    turnRepository.delete(firstTurn);
+    turnRepository.flush();
+    planRepository.deleteAll(planRepository.findBySessionIdOrderByDimensionOrder(sessionId));
+    planRepository.flush();
+    session.replaceInitialPlan(plan.maxTurns());
+    planRepository.saveAll(plan.dimensions().stream()
+        .map(dimension -> new AdaptiveAgentPlanEntity(sessionId, dimension))
+        .toList());
+    turnRepository.save(new AdaptiveAgentTurnEntity(
+        sessionId,
+        1,
+        plan.dimensionForTurn(1).order(),
+        firstAction
+    ));
+    saveToolExecutions(sessionId, toolExecutions);
+    return plannedInterview(session, plan);
+  }
+
+  @Transactional
   public PlannedInterview recordDecision(
       String sessionId,
       CandidateAnswer answer,
@@ -332,7 +344,7 @@ public class AdaptiveInterviewPersistenceService
     SessionTransition transition = sessionEntity.toDomain().apply(answer, proposedAction);
     AdaptiveAgentTurnEntity turnEntity = turnRepository
         .findBySessionIdAndTurnIndex(sessionId, answer.turnIndex())
-        .orElseThrow();
+        .orElseThrow(() -> new BusinessException(ErrorCode.NOT_FOUND, "面试轮次不存在"));
 
     turnEntity.complete(answer, transition.appliedAction());
     sessionEntity.apply(transition.session());
@@ -362,6 +374,9 @@ public class AdaptiveInterviewPersistenceService
       ));
     }
     candidateMemoryClaimRepository.saveAll(candidateClaims.stream()
+        .filter(claim -> claim.skillId() != null && !claim.skillId().isBlank()
+            && claim.focusId() != null && !claim.focusId().isBlank())
+        .distinct()
         .map(claim -> new CandidateMemoryClaimEntity(
             sessionEntity.tenantId(),
             sessionEntity.candidateId(),
@@ -420,7 +435,10 @@ public class AdaptiveInterviewPersistenceService
               session.id(),
               dimension.dimensionOrder()
           )
-          .orElseThrow();
+          .orElseThrow(() -> new BusinessException(
+              ErrorCode.NOT_FOUND,
+              "维度评估事实不存在"
+          ));
       CandidateAbilityProfileEntity existing = abilityProfileRepository
           .findBySourceSessionIdAndDimensionOrder(
               session.id(),
@@ -462,16 +480,14 @@ public class AdaptiveInterviewPersistenceService
       AdaptiveAgentAssessmentEntity assessment,
       AdaptiveAgentTurnEntity turn
   ) {
-    if (turn.codeFactUsage() != null) {
-      evidenceRepository.save(new AdaptiveAgentEvidenceEntity(
-          assessment,
-          assessment.sessionId(),
-          turn.turnIndex(),
-          turn.codeSourceId(),
-          turn.codeAnchor(),
-          turn.codeFactUsage()
-      ));
-    }
+    AdaptiveAgentEvidenceEntity.codeFact(
+        assessment,
+        assessment.sessionId(),
+        turn.turnIndex(),
+        turn.codeSourceId(),
+        turn.codeAnchor(),
+        turn.codeFactUsage()
+    ).ifPresent(evidenceRepository::save);
   }
 
   @Transactional(readOnly = true)

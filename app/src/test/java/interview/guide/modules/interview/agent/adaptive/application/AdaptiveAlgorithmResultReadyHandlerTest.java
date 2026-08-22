@@ -12,6 +12,7 @@ import interview.guide.modules.interview.agent.adaptive.algorithm.sandbox.Sandbo
 import interview.guide.modules.interview.agent.adaptive.algorithm.sandbox.SandboxLanguage;
 import interview.guide.modules.interview.agent.adaptive.algorithm.sandbox.SandboxRunMode;
 import interview.guide.modules.interview.agent.adaptive.algorithm.sandbox.SandboxVerdict;
+import interview.guide.modules.interview.agent.adaptive.algorithm.sandbox.SandboxWorkloadType;
 import interview.guide.modules.interview.agent.adaptive.core.event.ToolResultEvent;
 import interview.guide.modules.interview.agent.adaptive.observability.AlgorithmInterviewTelemetry;
 import java.time.LocalDateTime;
@@ -87,11 +88,12 @@ class AdaptiveAlgorithmResultReadyHandlerTest {
       SandboxExecutionStatus status
   ) {
     return new SandboxExecution(
-        "execution-1", "session-1", 10L, 1, "two-sum",
+        "execution-1", "session-1", 10L, 1, SandboxWorkloadType.ALGORITHM,
+        "two-sum", null, null, null,
         SandboxLanguage.JAVA, "source-ref", "a".repeat(64), SandboxRunMode.FULL,
         status, SandboxVerdict.WA, 4, 10, 120L, 32_768L, 7,
-        supersededBy, false, 0,
-        LocalDateTime.now().minusSeconds(1), LocalDateTime.now()
+        supersededBy, 0,
+        LocalDateTime.now().minusSeconds(1), LocalDateTime.now(), null
     );
   }
 }

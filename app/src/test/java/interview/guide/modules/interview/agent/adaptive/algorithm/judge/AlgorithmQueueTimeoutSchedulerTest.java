@@ -13,6 +13,7 @@ import interview.guide.modules.interview.agent.adaptive.algorithm.sandbox.Sandbo
 import interview.guide.modules.interview.agent.adaptive.algorithm.sandbox.SandboxExecutionStatus;
 import interview.guide.modules.interview.agent.adaptive.algorithm.sandbox.SandboxLanguage;
 import interview.guide.modules.interview.agent.adaptive.algorithm.sandbox.SandboxRunMode;
+import interview.guide.modules.interview.agent.adaptive.algorithm.sandbox.SandboxWorkloadType;
 import interview.guide.modules.interview.agent.adaptive.observability.AlgorithmInterviewTelemetry;
 import java.time.LocalDateTime;
 import java.util.List;
@@ -179,10 +180,11 @@ class AlgorithmQueueTimeoutSchedulerTest {
       SandboxExecutionStatus status
   ) {
     return new SandboxExecution(
-        id, "session-1", 10L, 1, "two-sum",
+        id, "session-1", 10L, 1, SandboxWorkloadType.ALGORITHM,
+        "two-sum", null, null, null,
         SandboxLanguage.JAVA, "source-ref", "a".repeat(64), SandboxRunMode.FULL,
         status, null, null, null, null, null, null,
-        null, false, 0, LocalDateTime.now().minusMinutes(2), LocalDateTime.now()
+        null, 0, LocalDateTime.now().minusMinutes(2), LocalDateTime.now(), null
     );
   }
 }

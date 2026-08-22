@@ -9,7 +9,7 @@ import org.junit.jupiter.api.Test;
 class SandboxExecutionEntityTest {
 
   @Test
-  @DisplayName("沙箱内部错误自动重试一次，第二次内部错误进入待重判")
+  @DisplayName("沙箱内部错误自动重试一次，第二次内部错误进入终态")
   void shouldRetryInternalErrorOnce() {
     SandboxExecutionEntity execution = execution();
     SandboxExecutionResult internalError = new SandboxExecutionResult(
@@ -19,7 +19,8 @@ class SandboxExecutionEntityTest {
         0,
         0,
         null,
-        List.of()
+        List.of(),
+        null
     );
 
     assertThat(execution.markRunning()).isTrue();
@@ -32,7 +33,6 @@ class SandboxExecutionEntityTest {
     assertThat(execution.apply(internalError)).isFalse();
     assertThat(execution.toDomain().status()).isEqualTo(SandboxExecutionStatus.DONE);
     assertThat(execution.toDomain().verdict()).isEqualTo(SandboxVerdict.IE);
-    assertThat(execution.toDomain().pendingRejudge()).isTrue();
   }
 
   @Test
@@ -62,7 +62,6 @@ class SandboxExecutionEntityTest {
       assertThat(saved.passed()).isEqualTo(4);
       assertThat(saved.total()).isEqualTo(10);
       assertThat(saved.firstFailedCase()).isEqualTo(7);
-      assertThat(saved.pendingRejudge()).isFalse();
       assertThat(saved.policyViolation()).isEqualTo(SandboxPolicyViolation.NETWORK_ACCESS);
     });
   }
@@ -98,7 +97,6 @@ class SandboxExecutionEntityTest {
     assertThat(execution.toDomain()).satisfies(recycled -> {
       assertThat(recycled.status()).isEqualTo(SandboxExecutionStatus.TIMEOUT_QUEUED);
       assertThat(recycled.verdict()).isEqualTo(SandboxVerdict.IE);
-      assertThat(recycled.pendingRejudge()).isTrue();
       assertThat(recycled.finishedAt()).isNotNull();
     });
   }
@@ -118,9 +116,35 @@ class SandboxExecutionEntityTest {
         100,
         1024,
         null,
-        List.of()
+        List.of(),
+        null
     ));
     assertThat(done.markStuckRunningTimeout()).isFalse();
+  }
+
+  @Test
+  @DisplayName("结果已落库后通知失败不得把真实判题覆盖为基础设施错误")
+  void shouldPreserveCompletedVerdictWhenNotificationFails() {
+    SandboxExecutionEntity execution = execution();
+    execution.markRunning();
+    execution.apply(new SandboxExecutionResult(
+        SandboxVerdict.AC,
+        3,
+        3,
+        100,
+        1024,
+        null,
+        List.of(),
+        null
+    ));
+
+    execution.markInfrastructureFailure();
+
+    assertThat(execution.toDomain()).satisfies(completed -> {
+      assertThat(completed.status()).isEqualTo(SandboxExecutionStatus.DONE);
+      assertThat(completed.verdict()).isEqualTo(SandboxVerdict.AC);
+      assertThat(completed.passed()).isEqualTo(3);
+    });
   }
 
   private SandboxExecutionEntity execution() {

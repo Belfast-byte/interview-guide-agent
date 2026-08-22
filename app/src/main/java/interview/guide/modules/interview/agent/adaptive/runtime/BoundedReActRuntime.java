@@ -21,13 +21,6 @@ public class BoundedReActRuntime {
 
   public BoundedReActRuntime(
       AgentModelGateway modelGateway,
-      AgentToolExecutor toolExecutor
-  ) {
-    this(modelGateway, toolExecutor, new DeadlineExecutor());
-  }
-
-  public BoundedReActRuntime(
-      AgentModelGateway modelGateway,
       AgentToolExecutor toolExecutor,
       DeadlineExecutor deadlineExecutor
   ) {
@@ -37,7 +30,8 @@ public class BoundedReActRuntime {
   }
 
   /**
-   * 执行一个有界的 ReAct 循环：在步数/工具调用数/deadline 限制内反复“模型决策→工具执行→观察反馈”，直到回复或预算耗尽。
+   * 执行一个有界的 ReAct 循环：在步数/工具调用数/deadline 限制内反复“模型决策→工具执行→观察反馈”，直到模型给出回复。
+   * 步数或工具调用预算耗尽时先拒绝本次工具调用并要求模型立即给出最终回复，仅当模型仍坚持调用工具时才失败。
    *
    * @param request ReAct 执行请求
    * @param budget 执行预算
@@ -49,8 +43,10 @@ public class BoundedReActRuntime {
     var toolExecutions = new ArrayList<ToolExecution>();
     Set<ToolInvocation> toolInvocations = new HashSet<>();
     int toolCalls = 0;
+    int maxSteps = budget.maxSteps();
+    boolean finalReplyDemanded = false;
 
-    for (int step = 0; step < budget.maxSteps(); step++) {
+    for (int step = 0; step < maxSteps; step++) {
       AgentAction action = deadlineExecutor.invoke(
           () -> modelGateway.nextAction(new ReActModelContext(request, observations)),
           deadlineNanos,
@@ -72,8 +68,23 @@ public class BoundedReActRuntime {
         ));
         continue;
       }
-      if (toolCalls == budget.maxToolCalls()) {
-        throw new BusinessException(ErrorCode.AI_SERVICE_ERROR, "Agent 工具调用预算已用尽");
+      if (toolCalls == budget.maxToolCalls() || step == maxSteps - 1) {
+        if (finalReplyDemanded) {
+          throw new BusinessException(
+              ErrorCode.AI_SERVICE_ERROR,
+              "Agent 执行预算已用尽，且模型在收到预算耗尽通知后仍坚持调用工具"
+          );
+        }
+        finalReplyDemanded = true;
+        maxSteps = budget.maxSteps() + 1;
+        observations.add(new ToolObservation(
+            toolCall.toolName(),
+            toolCall.arguments(),
+            false,
+            null,
+            "执行预算已用完，本次工具调用被拒绝，请立即给出最终回复，不要再调用任何工具"
+        ));
+        continue;
       }
 
       ToolExecution execution = deadlineExecutor.invoke(

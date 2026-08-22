@@ -18,14 +18,6 @@ public record CandidateCodeSubmissionRequest(
     @NotNull(message = "运行模式不能为空") SandboxRunMode runMode
 ) {
 
-  public CandidateCodeSubmissionRequest(
-      String problemId,
-      SandboxLanguage language,
-      SandboxRunMode runMode
-  ) {
-    this(problemId, null, language, runMode);
-  }
-
   @AssertTrue(message = "算法题标识和场景标识必须且只能提供一个")
   public boolean hasSingleTarget() {
     return (problemId == null) != (scenarioId == null);
