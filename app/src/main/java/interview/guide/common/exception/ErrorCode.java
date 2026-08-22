@@ -37,8 +37,6 @@ public enum ErrorCode {
     INTERVIEW_NOT_COMPLETED(3007, "面试尚未完成"),
     INTERVIEW_ANSWER_SAVE_FAILED(3008, "面试答案保存失败"),
     INTERVIEW_QUESTION_INSUFFICIENT(3009, "符合条件的面试问题不足"),
-    AGENT_INTERVIEW_DECISION_FAILED(3010, "Agent 面试决策失败"),
-    AGENT_INTERVIEW_DEADLINE_EXCEEDED(3011, "Agent 面试执行超时"),
     
     // ========== 存储模块错误 4xxx ==========
     STORAGE_UPLOAD_FAILED(4001, "文件上传失败"),

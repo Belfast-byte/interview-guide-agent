@@ -59,7 +59,6 @@ public class SecurityConfiguration {
             .hasRole("ADMIN")
             .requestMatchers(
                 "/api/adaptive-agent-interviews/**",
-                "/api/interview/agent-loop/**",
                 "/api/interview/skills/**",
                 "/api/voice-interview/**",
                 "/api/interview-schedule/**",

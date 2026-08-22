@@ -188,11 +188,6 @@ app:
 
   interview:
     follow-up-count: ${APP_INTERVIEW_FOLLOW_UP_COUNT:1}
-    agent-loop:
-      enabled: ${APP_INTERVIEW_AGENT_LOOP_ENABLED:false}
-      deadline: ${APP_INTERVIEW_AGENT_LOOP_DEADLINE:30s}
-      assessment-timeout: ${APP_INTERVIEW_AGENT_LOOP_ASSESSMENT_TIMEOUT:10s}
-      decision-timeout: ${APP_INTERVIEW_AGENT_LOOP_DECISION_TIMEOUT:20s}
     adaptive-agent:
       enabled: ${APP_INTERVIEW_ADAPTIVE_AGENT_ENABLED:true}
       planner-deadline: ${APP_INTERVIEW_ADAPTIVE_AGENT_PLANNER_DEADLINE:60s}

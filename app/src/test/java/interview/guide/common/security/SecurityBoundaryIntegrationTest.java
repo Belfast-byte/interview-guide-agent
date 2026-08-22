@@ -105,25 +105,6 @@ class SecurityBoundaryIntegrationTest {
   }
 
   @Test
-  @DisplayName("候选人可以访问自己的 Agent 模型配置")
-  void shouldAllowCandidateAgentModelConfig() throws Exception {
-    mockMvc.perform(get("/api/interview/agent-loop/model-config")
-            .header("Authorization", bearer(UserRole.CANDIDATE)))
-        .andExpect(status().isOk())
-        .andExpect(jsonPath("$.code").value(200))
-        .andExpect(jsonPath("$.data.configured").value(false));
-  }
-
-  @Test
-  @DisplayName("管理员不能访问候选人的 Agent 模型配置")
-  void shouldRejectAdminAgentModelConfig() throws Exception {
-    mockMvc.perform(get("/api/interview/agent-loop/model-config")
-            .header("Authorization", bearer(UserRole.ADMIN)))
-        .andExpect(status().isForbidden())
-        .andExpect(jsonPath("$.code").value(403));
-  }
-
-  @Test
   @DisplayName("候选人可以通过 HTTP 注册并登录")
   void shouldRegisterAndLoginThroughHttp() throws Exception {
     String credentials = "{\"email\":\"http-user@example.com\",\"password\":\"password123\"}";
