@@ -73,8 +73,9 @@ public class SpringAiPlanningAgent implements PlanningAgent {
           + outputConverter.getFormat();
       String userPrompt = userPromptTemplate.render(Map.of("inputJson", inputJson));
       inputTokenBudget.verify("planner", systemPrompt, userPrompt);
+      // 规划是无工具的结构化输出：使用 plain client，避免默认工具 advisor 引入隐藏的额外往返
       ChatClient chatClient = telemetry.observeTokenUsage(
-          llmProviderRegistry.getChatClientOrDefault(llmProvider),
+          llmProviderRegistry.getPlainChatClient(llmProvider),
           "planner",
           request.sessionId()
       );

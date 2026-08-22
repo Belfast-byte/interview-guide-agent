@@ -70,7 +70,7 @@ class SpringAiPlanningAgentTest {
         new AdaptiveAgentProperties(),
         new PromptLoader(new DefaultResourceLoader())
     );
-    when(llmProviderRegistry.getChatClientOrDefault("provider-1"))
+    when(llmProviderRegistry.getPlainChatClient("provider-1"))
         .thenReturn(chatClient);
     when(telemetry.observeTokenUsage(chatClient, "planner", "session-1"))
         .thenReturn(chatClient);

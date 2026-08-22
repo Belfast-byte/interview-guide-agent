@@ -154,6 +154,28 @@ class ContextAssemblerTest {
     assertThat(context.completedDimensionBriefs()).containsExactly(completedBrief);
   }
 
+  @Test
+  @DisplayName("JD 和简历超长时截断并标注，短文档原样注入")
+  void shouldTruncateLongDocumentsWithMarker() {
+    String longJd = "岗位要求：熟悉分布式系统。".repeat(800);
+    String shortResume = "三行简历";
+
+    PlannerContext plannerContext = assembler.planner(
+        longJd, longJd, List.of(), List.of(), List.of()
+    );
+    InterviewerContext interviewerContext = assembler.interviewer(
+        longJd, shortResume, 6, 0, "专业基础", "缓存与并发",
+        List.of(), "java-backend", List.of(), null, List.of(), List.of(), null
+    );
+
+    assertThat(plannerContext.jd())
+        .startsWith(longJd.substring(0, 50))
+        .endsWith("已截断]")
+        .hasSizeLessThan(longJd.length());
+    assertThat(interviewerContext.jd()).endsWith("已截断]");
+    assertThat(interviewerContext.resume()).isEqualTo("三行简历");
+  }
+
   private AdaptiveInterviewTurn turn(
       int turnIndex,
       int dimensionOrder,
