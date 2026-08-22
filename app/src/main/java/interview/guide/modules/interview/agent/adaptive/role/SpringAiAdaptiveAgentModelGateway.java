@@ -1,6 +1,7 @@
 package interview.guide.modules.interview.agent.adaptive.role;
 
 import interview.guide.common.ai.LlmProviderRegistry;
+import interview.guide.common.ai.PromptLoader;
 import interview.guide.common.exception.BusinessException;
 import interview.guide.common.exception.ErrorCode;
 import interview.guide.modules.interview.agent.adaptive.application.AdaptiveAgentProperties;
@@ -20,12 +21,9 @@ import interview.guide.modules.interview.agent.adaptive.runtime.ToolObservation;
 import interview.guide.modules.interview.agent.adaptive.tool.QuestionBankQuestion;
 import interview.guide.modules.interview.agent.adaptive.tool.QuestionBankSearchTool;
 import interview.guide.modules.interview.agent.adaptive.tool.ToolGateway;
-import java.io.IOException;
-import java.nio.charset.StandardCharsets;
 import java.util.List;
 import java.util.stream.Stream;
 import java.util.Map;
-import lombok.extern.slf4j.Slf4j;
 import org.springframework.ai.chat.client.ChatClient;
 import org.springframework.ai.chat.client.ChatClientAttributes;
 import org.springframework.ai.chat.messages.AssistantMessage;
@@ -33,7 +31,6 @@ import org.springframework.ai.chat.model.ChatResponse;
 import org.springframework.ai.chat.prompt.PromptTemplate;
 import org.springframework.ai.converter.BeanOutputConverter;
 import org.springframework.ai.model.tool.ToolCallingChatOptions;
-import org.springframework.core.io.ResourceLoader;
 import org.springframework.stereotype.Component;
 import tools.jackson.core.JacksonException;
 import tools.jackson.core.type.TypeReference;
@@ -43,7 +40,6 @@ import tools.jackson.databind.ObjectMapper;
  * 基于 Spring AI 的自适应 Agent 模型网关，按角色组装 Prompt 并调用 LLM。
  */
 @Component
-@Slf4j
 public class SpringAiAdaptiveAgentModelGateway implements AgentModelGateway {
 
   private static final int MAX_RESPONSE_LENGTH = 500;
@@ -70,22 +66,16 @@ public class SpringAiAdaptiveAgentModelGateway implements AgentModelGateway {
       AgentRoleRegistry roleRegistry,
       ToolGateway toolGateway,
       AdaptiveAgentProperties properties,
-      ResourceLoader resourceLoader
-  ) throws IOException {
+      PromptLoader promptLoader
+  ) {
     this.llmProviderRegistry = llmProviderRegistry;
     this.objectMapper = objectMapper;
     this.telemetry = telemetry;
     this.inputTokenBudget = inputTokenBudget;
     this.roleRegistry = roleRegistry;
     this.toolGateway = toolGateway;
-    this.systemPromptTemplate = new PromptTemplate(
-        resourceLoader.getResource(properties.getSystemPromptPath())
-            .getContentAsString(StandardCharsets.UTF_8)
-    );
-    this.userPromptTemplate = new PromptTemplate(
-        resourceLoader.getResource(properties.getUserPromptPath())
-            .getContentAsString(StandardCharsets.UTF_8)
-    );
+    this.systemPromptTemplate = promptLoader.loadTemplate(properties.getSystemPromptPath());
+    this.userPromptTemplate = promptLoader.loadTemplate(properties.getUserPromptPath());
     this.outputConverter = new BeanOutputConverter<>(AgentStepOutput.class);
   }
 
@@ -108,8 +98,8 @@ public class SpringAiAdaptiveAgentModelGateway implements AgentModelGateway {
       AgentAction action;
       try {
         action = mapResponse(response, context);
-      } catch (CodeQuestionProvenanceException e) {
-        ReActModelContext retryContext = withCodeProvenanceRejection(context, e.getMessage());
+      } catch (ModelOutputRejectionException e) {
+        ReActModelContext retryContext = withOutputRejection(context, e.getMessage());
         action = mapResponse(callModel(retryContext), retryContext);
       }
       telemetry.modelCallSucceeded(
@@ -122,8 +112,6 @@ public class SpringAiAdaptiveAgentModelGateway implements AgentModelGateway {
       recordFailure(context, startedNanos, e.getCode());
       throw e;
     } catch (Exception e) {
-      log.warn("Agent interview 决策底层失败: sessionId={}, message={}",
-          context.request().sessionId(), e.getMessage(), e);
       recordFailure(context, startedNanos, ErrorCode.AI_SERVICE_ERROR.getCode());
       throw new BusinessException(
           ErrorCode.AI_SERVICE_ERROR,
@@ -133,16 +121,16 @@ public class SpringAiAdaptiveAgentModelGateway implements AgentModelGateway {
     }
   }
 
-  private ReActModelContext withCodeProvenanceRejection(
+  private ReActModelContext withOutputRejection(
       ReActModelContext context,
       String reason
   ) {
     ToolObservation rejection = new ToolObservation(
-        "code_provenance_validation",
+        "model_output_validation",
         Map.of(),
         false,
         null,
-        reason + "; choose an exact sourceId and anchor from project context"
+        reason + "; fix the output and respond again"
     );
     return new ReActModelContext(
         context.request(),
@@ -263,15 +251,14 @@ public class SpringAiAdaptiveAgentModelGateway implements AgentModelGateway {
         || output.content().isBlank()
         || output.reason() == null
         || output.reason().isBlank()) {
-      throw new BusinessException(ErrorCode.AI_SERVICE_ERROR, "Agent response is incomplete");
+      throw new ModelOutputRejectionException("Agent response is incomplete");
     }
     if (output.content().length() > MAX_RESPONSE_LENGTH
         || output.reason().length() > MAX_RESPONSE_LENGTH) {
-      throw new BusinessException(ErrorCode.AI_SERVICE_ERROR, "Agent response is too long");
+      throw new ModelOutputRejectionException("Agent response is too long");
     }
     if (output.type() != AgentResponseType.ASK) {
-      throw new BusinessException(
-          ErrorCode.AI_SERVICE_ERROR,
+      throw new ModelOutputRejectionException(
           "Agent must ask until the planned turns are complete"
       );
     }
@@ -281,8 +268,7 @@ public class SpringAiAdaptiveAgentModelGateway implements AgentModelGateway {
     if (questionMarks != 1
         || output.content().contains("\n")
         || output.content().contains("\r")) {
-      throw new BusinessException(
-          ErrorCode.AI_SERVICE_ERROR,
+      throw new ModelOutputRejectionException(
           "Agent must return exactly one single-line question"
       );
     }
@@ -300,10 +286,7 @@ public class SpringAiAdaptiveAgentModelGateway implements AgentModelGateway {
     if (output.sourceQuestionId() == null
         || output.sourceDifficulty() == null
         || codeProvenance != null) {
-      throw new BusinessException(
-          ErrorCode.AI_SERVICE_ERROR,
-          "Question provenance is incomplete"
-      );
+      throw new ModelOutputRejectionException("Question provenance is incomplete");
     }
     QuestionBankQuestion sourceQuestion = context.observations().stream()
         .filter(ToolObservation::accepted)
@@ -315,8 +298,7 @@ public class SpringAiAdaptiveAgentModelGateway implements AgentModelGateway {
         .filter(question -> question.difficulty().equals(output.sourceDifficulty()))
         .filter(question -> question.question().equals(output.content()))
         .findFirst()
-        .orElseThrow(() -> new BusinessException(
-            ErrorCode.AI_SERVICE_ERROR,
+        .orElseThrow(() -> new ModelOutputRejectionException(
             "Question provenance does not match an accepted tool result"
         ));
     return RespondAction.ask(
@@ -342,7 +324,7 @@ public class SpringAiAdaptiveAgentModelGateway implements AgentModelGateway {
         || output.codeAnchor() == null
         || output.codeFactUsage() == null
         || context.request().interviewerContext().project() == null) {
-      throw new CodeQuestionProvenanceException("Code question provenance is incomplete");
+      throw new ModelOutputRejectionException("Code question provenance is incomplete");
     }
     ProjectInterviewContext project = context.request().interviewerContext().project();
     boolean matched = switch (output.codeFactUsage()) {
@@ -355,7 +337,7 @@ public class SpringAiAdaptiveAgentModelGateway implements AgentModelGateway {
           .anyMatch(fact -> output.codeAnchor().equals(fact.anchor()));
     };
     if (!matched) {
-      throw new CodeQuestionProvenanceException(
+      throw new ModelOutputRejectionException(
           "Code question provenance does not match an accepted analysis artifact"
       );
     }
@@ -389,9 +371,13 @@ public class SpringAiAdaptiveAgentModelGateway implements AgentModelGateway {
       CodeFactUsage codeFactUsage
   ) {}
 
-  private static final class CodeQuestionProvenanceException extends BusinessException {
+  /**
+   * 模型输出校验失败（格式/来源不匹配等）时抛出，触发一次带拒绝原因的改写重试；
+   * 重写后仍失败才作为普通业务异常向上抛。
+   */
+  private static final class ModelOutputRejectionException extends BusinessException {
 
-    private CodeQuestionProvenanceException(String message) {
+    private ModelOutputRejectionException(String message) {
       super(ErrorCode.AI_SERVICE_ERROR, message);
     }
   }

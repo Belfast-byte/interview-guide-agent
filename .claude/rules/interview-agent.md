@@ -23,7 +23,7 @@ paths:
 - 状态迁移、轮次上限（1-12）、维度完成、计划轮次分配由代码确定性裁决：`AdaptiveInterviewSession`、`InterviewPlan.decide`、`PlanningTaxonomy.validate`。模型输出一律视为提案。
 - 轮次用尽时把模型的 ASK 强制改写为 FINISH；维度顺序固定，不允许模型跳维度。
 - 角色只有 `PLANNER`（创建时规划，1 步无工具）和 `INTERVIEWER`；评估不是角色，由 application 层显式调 `DepthAssessmentAgent`。
-- 证据必须锚定真实材料：评估 quote 逐字命中回答原文（`AssessmentEvidenceValidator`）；`ProbeGap` 锚点是回答原文子串且最多 2 个；代码出题必须携带命中真实分析产物的 `CodeQuestionProvenance`，否则拒绝。
+- 证据必须锚定真实材料：评估 quote 经全半角/空白归一化后命中回答原文，单条不命中丢弃该条而非整轮失败（`AssessmentEvidenceValidator`）；`ProbeGap` 锚点按同一归一化匹配、超 2 条截断而非拒绝；代码出题必须携带命中真实分析产物的 `CodeQuestionProvenance`，否则注入 rejection observation 让模型重写一次，重写仍失败才拒绝。
 - 裁决层（`InterviewPlan.decide`、`DepthAssessmentAgent` 裁决、`ToolGateway`）已校验的提案，下游代码不再重复校验。
 
 ## Runtime 与工具

@@ -92,8 +92,8 @@ class SpringAiCandidateClaimGeneratorTest {
   }
 
   @Test
-  @DisplayName("底层声明抽取失败不向调用方暴露解析内容")
-  void shouldSanitizeModelFailure() {
+  @DisplayName("底层声明抽取失败时原样抛出并记录失败遥测")
+  void shouldPropagateModelFailure() {
     when(invoke()).thenThrow(new BusinessException(
         ErrorCode.AI_SERVICE_ERROR,
         "底层解析内容"
@@ -101,8 +101,14 @@ class SpringAiCandidateClaimGeneratorTest {
 
     assertThatThrownBy(() -> generator.generate(request(), "provider-1"))
         .isInstanceOf(BusinessException.class)
-        .hasMessage("候选人声明抽取失败")
-        .hasCauseInstanceOf(BusinessException.class);
+        .hasMessage("底层解析内容");
+    verify(telemetry).modelCallFailed(
+        eq("memory_claim_extractor"),
+        eq("session-1"),
+        eq(1),
+        eq(ErrorCode.AI_SERVICE_ERROR.getCode()),
+        anyLong()
+    );
   }
 
   @Test
@@ -118,7 +124,7 @@ class SpringAiCandidateClaimGeneratorTest {
 
     assertThatThrownBy(() -> boundedGenerator.generate(request(), "provider-1"))
         .isInstanceOf(BusinessException.class)
-        .hasMessage("候选人声明抽取失败");
+        .hasMessageContaining("超时");
   }
 
   private SpringAiCandidateClaimGenerator generator(AdaptiveAgentProperties properties)

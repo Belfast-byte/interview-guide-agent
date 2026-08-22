@@ -11,7 +11,6 @@ import interview.guide.modules.interview.agent.adaptive.role.AgentRoleRegistry;
 import interview.guide.modules.interview.agent.adaptive.runtime.ReActRequest;
 import interview.guide.modules.interview.agent.adaptive.runtime.ToolExecution;
 import interview.guide.modules.interview.agent.adaptive.runtime.ToolExecutionOutcome;
-import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.atomic.AtomicInteger;
@@ -47,20 +46,14 @@ class ToolGatewayTest {
         new StubTool("question_bank_search", new AtomicInteger(), "ok"),
         100
     );
-    Map<String, Object> firstArguments = new LinkedHashMap<>();
-    firstArguments.put("query", "Redis");
-    firstArguments.put("difficulty", "MEDIUM");
-    Map<String, Object> reorderedArguments = new LinkedHashMap<>();
-    reorderedArguments.put("difficulty", "MEDIUM");
-    reorderedArguments.put("query", "Redis");
 
     ToolExecution first = gateway.execute(
         request(AgentRole.INTERVIEWER),
-        call(firstArguments)
+        call(Map.of("query", "Redis", "difficulty", "MEDIUM"))
     );
     ToolExecution second = gateway.execute(
         request(AgentRole.INTERVIEWER),
-        call(reorderedArguments)
+        call(Map.of("query", "Redis", "difficulty", "MEDIUM"))
     );
 
     assertThat(first.invocationId()).isEqualTo(second.invocationId());
@@ -68,18 +61,20 @@ class ToolGatewayTest {
   }
 
   @Test
-  @DisplayName("工具结果超过配置上限时失败而不静默截断")
-  void shouldRejectOversizedResult() {
+  @DisplayName("工具结果超过配置上限时截断并追加标注而非失败")
+  void shouldTruncateOversizedResult() {
     ToolGateway gateway = gateway(
         new StubTool("question_bank_search", new AtomicInteger(), "x".repeat(100)),
         20
     );
 
-    assertThatThrownBy(() -> gateway.execute(
+    ToolExecution execution = gateway.execute(
         request(AgentRole.INTERVIEWER),
         call(Map.of("query", "Redis"))
-    )).isInstanceOf(BusinessException.class)
-        .hasMessageContaining("too large");
+    );
+
+    assertThat(execution.output()).hasSize(20 + "[truncated]".length());
+    assertThat(execution.output()).endsWith("[truncated]");
   }
 
   @Test

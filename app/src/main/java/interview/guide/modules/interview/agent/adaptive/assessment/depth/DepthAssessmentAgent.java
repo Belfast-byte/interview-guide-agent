@@ -2,6 +2,7 @@ package interview.guide.modules.interview.agent.adaptive.assessment.depth;
 
 import interview.guide.common.exception.BusinessException;
 import interview.guide.common.exception.ErrorCode;
+import interview.guide.modules.interview.agent.adaptive.assessment.evidence.AnswerTextNormalizer;
 import interview.guide.modules.interview.agent.adaptive.core.context.ProbeGap;
 import java.util.List;
 import lombok.RequiredArgsConstructor;
@@ -9,6 +10,7 @@ import org.springframework.stereotype.Service;
 
 /**
  * 深度评估 Agent，按深度量规对候选人回答进行评级并提取证据和追问点。
+ * 模型输出校验失败时让模型重写一次，重写仍失败才抛出业务异常；追问点超量截断而非拒绝。
  */
 @Service
 @RequiredArgsConstructor
@@ -25,8 +27,13 @@ public class DepthAssessmentAgent {
       AssessmentRequest request,
       String llmProvider
   ) {
-    AssessmentProposal proposal = generator.generate(request, llmProvider);
-    validate(proposal, request);
+    AssessmentProposal proposal = truncateProbeGaps(generator.generate(request, llmProvider));
+    try {
+      validate(proposal, request);
+    } catch (BusinessException e) {
+      proposal = truncateProbeGaps(generator.generate(request, llmProvider));
+      validate(proposal, request);
+    }
     return new AssessmentDecision(
         request.sessionId(),
         request.turnIndex(),
@@ -39,6 +46,20 @@ public class DepthAssessmentAgent {
     );
   }
 
+  private AssessmentProposal truncateProbeGaps(AssessmentProposal proposal) {
+    if (proposal == null || proposal.probeGaps().size() <= MAX_PROBE_GAPS) {
+      return proposal;
+    }
+    return new AssessmentProposal(
+        proposal.depthLevel(),
+        proposal.confidence(),
+        proposal.rationaleSummary(),
+        proposal.recommendSwitchQuestion(),
+        proposal.evidenceQuotes(),
+        proposal.probeGaps().subList(0, MAX_PROBE_GAPS)
+    );
+  }
+
   private void validate(AssessmentProposal proposal, AssessmentRequest request) {
     if (proposal == null
         || proposal.depthLevel() == null
@@ -47,24 +68,27 @@ public class DepthAssessmentAgent {
         || proposal.confidence() > 1
         || proposal.rationaleSummary() == null
         || proposal.rationaleSummary().isBlank()
-        || proposal.rationaleSummary().length() > MAX_RATIONALE_LENGTH
-        || proposal.evidenceQuotes() == null
-        || proposal.evidenceQuotes().isEmpty()
-        || proposal.evidenceQuotes().stream().anyMatch(
-            quote -> quote == null || quote.isBlank()
-        )) {
+        || proposal.rationaleSummary().length() > MAX_RATIONALE_LENGTH) {
       throw new BusinessException(ErrorCode.AI_SERVICE_ERROR, "回答深度评估结果不完整");
     }
+    validateEvidenceQuotes(proposal);
     validateProbeGaps(proposal.probeGaps(), request.context().answer());
   }
 
-  private void validateProbeGaps(List<ProbeGap> probeGaps, String answer) {
-    if (probeGaps == null || probeGaps.size() > MAX_PROBE_GAPS) {
-      throw new BusinessException(ErrorCode.AI_SERVICE_ERROR, "回答追问点数量或结构不合法");
+  private void validateEvidenceQuotes(AssessmentProposal proposal) {
+    // L0 语义是「无证据」，允许证据引用为空；其余等级必须至少有一条非空引用
+    if (proposal.evidenceQuotes().stream().anyMatch(String::isBlank)) {
+      throw new BusinessException(ErrorCode.AI_SERVICE_ERROR, "回答深度评估结果不完整");
     }
+    if (proposal.depthLevel() != DepthLevel.L0 && proposal.evidenceQuotes().isEmpty()) {
+      throw new BusinessException(ErrorCode.AI_SERVICE_ERROR, "回答深度评估结果不完整");
+    }
+  }
+
+  private void validateProbeGaps(List<ProbeGap> probeGaps, String answer) {
+    String normalizedAnswer = AnswerTextNormalizer.normalize(answer);
     for (ProbeGap gap : probeGaps) {
-      if (gap == null
-          || gap.anchor() == null
+      if (gap.anchor() == null
           || gap.anchor().isBlank()
           || gap.anchor().length() > MAX_ANCHOR_LENGTH
           || gap.missingPoint() == null
@@ -72,7 +96,7 @@ public class DepthAssessmentAgent {
           || gap.missingPoint().length() > MAX_MISSING_POINT_LENGTH) {
         throw new BusinessException(ErrorCode.AI_SERVICE_ERROR, "回答追问点必须包含锚点和缺失点");
       }
-      if (answer == null || !answer.contains(gap.anchor())) {
+      if (!normalizedAnswer.contains(AnswerTextNormalizer.normalize(gap.anchor()))) {
         throw new BusinessException(ErrorCode.AI_SERVICE_ERROR, "回答追问点锚定内容不存在于回答原文");
       }
     }

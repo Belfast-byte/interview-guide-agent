@@ -55,4 +55,13 @@ public enum DepthLevel {
   public String actionTendency() {
     return actionTendency;
   }
+
+  /**
+   * 量规条目文本，注入评估上下文供模型按级评定。
+   *
+   * @return 单行量规描述
+   */
+  public String rubricLine() {
+    return name() + "（" + meaning + "）：" + typicalPerformance + "；行动倾向：" + actionTendency;
+  }
 }

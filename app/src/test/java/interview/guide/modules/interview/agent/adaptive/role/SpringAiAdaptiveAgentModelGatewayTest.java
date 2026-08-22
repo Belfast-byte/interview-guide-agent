@@ -2,6 +2,7 @@ package interview.guide.modules.interview.agent.adaptive.role;
 
 import io.micrometer.core.instrument.simple.SimpleMeterRegistry;
 import interview.guide.common.ai.LlmProviderRegistry;
+import interview.guide.common.ai.PromptLoader;
 import interview.guide.common.exception.BusinessException;
 import interview.guide.common.exception.ErrorCode;
 import interview.guide.modules.interview.agent.adaptive.application.AdaptiveAgentProperties;
@@ -91,7 +92,7 @@ class SpringAiAdaptiveAgentModelGatewayTest {
         new AgentRoleRegistry(properties),
         toolGateway,
         properties,
-        new DefaultResourceLoader()
+        new PromptLoader(new DefaultResourceLoader())
     );
     when(llmProviderRegistry.getPlainChatClient("provider-1")).thenReturn(chatClient);
     lenient().when(telemetry.observeTokenUsage(
@@ -190,9 +191,9 @@ class SpringAiAdaptiveAgentModelGatewayTest {
   }
 
   @Test
-  @DisplayName("模型伪造或改写题库来源时快速失败")
-  void shouldRejectUnverifiedQuestionProvenance() {
-    respondWith("""
+  @DisplayName("模型伪造或改写题库来源时注入拒绝原因重写，重写仍不匹配才快速失败")
+  void shouldRejectUnverifiedQuestionProvenanceAfterRetry() {
+    String invalid = """
         {
           "type":"ASK",
           "content":"被改写的问题？",
@@ -200,7 +201,11 @@ class SpringAiAdaptiveAgentModelGatewayTest {
           "sourceQuestionId":"question:42",
           "sourceDifficulty":"MEDIUM"
         }
-        """);
+        """;
+    when(responseSpec.chatResponse()).thenReturn(
+        response(new AssistantMessage(invalid)),
+        response(new AssistantMessage(invalid))
+    );
     ReActModelContext context = context(
         null,
         List.of(new ToolObservation(
@@ -218,6 +223,27 @@ class SpringAiAdaptiveAgentModelGatewayTest {
     assertThatThrownBy(() -> gateway.nextAction(context))
         .isInstanceOf(BusinessException.class)
         .hasMessageContaining("does not match");
+    verify(responseSpec, times(2)).chatResponse();
+  }
+
+  @Test
+  @DisplayName("问题格式违规时注入拒绝原因重写，重写成功后正常出题")
+  void shouldRegenerateAfterQuestionFormatViolation() {
+    String invalid = """
+        {"type":"ASK","content":"你用过 Redis 吗？为什么使用它？","reason":"继续"}
+        """;
+    String corrected = """
+        {"type":"ASK","content":"你在什么场景下使用 Redis？","reason":"继续验证"}
+        """;
+    when(responseSpec.chatResponse()).thenReturn(
+        response(new AssistantMessage(invalid)),
+        response(new AssistantMessage(corrected))
+    );
+
+    AgentAction action = gateway.nextAction(context(new CandidateAnswer(1, "回答")));
+
+    assertThat(action).isEqualTo(RespondAction.ask("你在什么场景下使用 Redis？", "继续验证"));
+    verify(responseSpec, times(2)).chatResponse();
   }
 
   @Test
@@ -289,28 +315,38 @@ class SpringAiAdaptiveAgentModelGatewayTest {
   }
 
   @Test
-  @DisplayName("首次调用返回结束动作时快速失败")
-  void shouldRejectFinishAsFirstAction() {
-    respondWith("""
+  @DisplayName("模型两次返回结束动作时才快速失败")
+  void shouldRejectFinishAfterRetry() {
+    String finish = """
         {"type":"FINISH","content":"结束","reason":"不应结束"}
-        """);
+        """;
+    when(responseSpec.chatResponse()).thenReturn(
+        response(new AssistantMessage(finish)),
+        response(new AssistantMessage(finish))
+    );
 
     assertThatThrownBy(() -> gateway.nextAction(context(null)))
         .isInstanceOf(BusinessException.class)
         .hasMessageContaining("planned turns");
+    verify(responseSpec, times(2)).chatResponse();
   }
 
   @Test
-  @DisplayName("包含多个问题的模型响应被拒绝")
-  void shouldRejectMultipleQuestions() {
-    respondWith("""
+  @DisplayName("模型两次返回多个问题时才快速失败")
+  void shouldRejectMultipleQuestionsAfterRetry() {
+    String invalid = """
         {"type":"ASK","content":"你用过 Redis 吗？为什么使用它？","reason":"继续"}
-        """);
+        """;
+    when(responseSpec.chatResponse()).thenReturn(
+        response(new AssistantMessage(invalid)),
+        response(new AssistantMessage(invalid))
+    );
 
     assertThatThrownBy(() -> gateway.nextAction(
         context(new CandidateAnswer(1, "回答"))
     )).isInstanceOf(BusinessException.class)
         .hasMessageContaining("one single-line question");
+    verify(responseSpec, times(2)).chatResponse();
   }
 
   @Test
@@ -336,7 +372,7 @@ class SpringAiAdaptiveAgentModelGatewayTest {
             new AgentRoleRegistry(properties),
             toolGateway,
             properties,
-            new DefaultResourceLoader()
+            new PromptLoader(new DefaultResourceLoader())
         );
 
     assertThatThrownBy(() -> observableGateway.nextAction(

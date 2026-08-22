@@ -111,8 +111,8 @@ class SpringAiDimensionBriefGeneratorTest {
   }
 
   @Test
-  @DisplayName("维度小结模型失败时不暴露底层解析内容")
-  void shouldSanitizeModelFailure() {
+  @DisplayName("维度小结模型失败时原样抛出并记录失败遥测")
+  void shouldPropagateModelFailure() {
     when(invoke()).thenThrow(new BusinessException(
         ErrorCode.AI_SERVICE_ERROR,
         "底层解析内容"
@@ -120,8 +120,14 @@ class SpringAiDimensionBriefGeneratorTest {
 
     assertThatThrownBy(() -> generator.generate(request(), "provider-1"))
         .isInstanceOf(BusinessException.class)
-        .hasMessage("维度小结生成失败")
-        .hasCauseInstanceOf(BusinessException.class);
+        .hasMessage("底层解析内容");
+    verify(telemetry).modelCallFailed(
+        eq("memory_summarizer"),
+        eq("session-1"),
+        eq(2),
+        eq(ErrorCode.AI_SERVICE_ERROR.getCode()),
+        anyLong()
+    );
   }
 
   private DimensionBriefProposal invoke() {

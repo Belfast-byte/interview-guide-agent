@@ -1,13 +1,13 @@
 package interview.guide.modules.interview.agent.adaptive.assessment.depth;
 
 import interview.guide.common.ai.LlmProviderRegistry;
+import interview.guide.common.ai.PromptLoader;
 import interview.guide.common.ai.StructuredOutputInvoker;
 import interview.guide.common.exception.ErrorCode;
 import interview.guide.modules.interview.agent.adaptive.application.AdaptiveAgentProperties;
 import interview.guide.modules.interview.agent.adaptive.observability.AdaptiveAgentTelemetry;
 import interview.guide.modules.interview.agent.adaptive.observability.AdaptiveInputTokenBudget;
 import interview.guide.modules.interview.agent.adaptive.runtime.DeadlineExecutor;
-import java.io.IOException;
 import java.util.List;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
@@ -52,7 +52,7 @@ class SpringAiAssessmentProposalGeneratorTest {
   private SpringAiAssessmentProposalGenerator generator;
 
   @BeforeEach
-  void setUp() throws IOException {
+  void setUp() {
     generator = new SpringAiAssessmentProposalGenerator(
         llmProviderRegistry,
         structuredOutputInvoker,
@@ -61,7 +61,7 @@ class SpringAiAssessmentProposalGeneratorTest {
         inputTokenBudget,
         new DeadlineExecutor(),
         new AdaptiveAgentProperties(),
-        new DefaultResourceLoader()
+        new PromptLoader(new DefaultResourceLoader())
     );
     when(llmProviderRegistry.getChatClientOrDefault("provider-1"))
         .thenReturn(chatClient);
@@ -100,7 +100,7 @@ class SpringAiAssessmentProposalGeneratorTest {
         any(Logger.class)
     );
     assertThat(userPrompt.getValue())
-        .contains("如何保证缓存一致性", "重要数据使用版本号", "L0", "L4")
+        .contains("如何保证缓存一致性", "重要数据使用版本号", "L0", "L4", "无证据", "迁移洞察")
         .doesNotContain("private-session-id");
   }
 

@@ -11,8 +11,6 @@ import interview.guide.modules.interview.agent.adaptive.runtime.AgentToolExecuto
 import interview.guide.modules.interview.agent.adaptive.runtime.ReActRequest;
 import interview.guide.modules.interview.agent.adaptive.runtime.ToolExecution;
 import interview.guide.modules.interview.agent.adaptive.runtime.ToolExecutionOutcome;
-import java.util.Comparator;
-import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.function.Function;
@@ -27,6 +25,8 @@ import tools.jackson.databind.ObjectMapper;
  */
 @Component
 public class ToolGateway implements AgentToolExecutor {
+
+  private static final String TRUNCATED_MARKER = "[truncated]";
 
   private final Map<String, AdaptiveAgentTool> tools;
   private final AgentRoleRegistry roleRegistry;
@@ -112,7 +112,7 @@ public class ToolGateway implements AgentToolExecutor {
       );
     }
 
-    String argumentsJson = writeJson(canonicalize(action.arguments()));
+    String argumentsJson = writeJson(action.arguments());
     String invocationId = Sha256.hex(String.join(
         "\n",
         request.sessionId(),
@@ -123,7 +123,7 @@ public class ToolGateway implements AgentToolExecutor {
     ToolResult result = tool.execute(request, action.arguments());
     String output = writeJson(result.value());
     if (output.length() > maxResultChars) {
-      throw new BusinessException(ErrorCode.AI_SERVICE_ERROR, "Agent tool result is too large");
+      output = output.substring(0, maxResultChars) + TRUNCATED_MARKER;
     }
     return new ToolExecution(
         invocationId,
@@ -156,24 +156,6 @@ public class ToolGateway implements AgentToolExecutor {
         .map(tools::get)
         .map(AdaptiveAgentTool::callback)
         .toList();
-  }
-
-  private Object canonicalize(Object value) {
-    if (value instanceof Map<?, ?> map) {
-      Map<String, Object> sorted = map.entrySet().stream()
-          .sorted(Comparator.comparing(entry -> String.valueOf(entry.getKey())))
-          .collect(Collectors.toMap(
-              entry -> String.valueOf(entry.getKey()),
-              entry -> canonicalize(entry.getValue()),
-              (left, right) -> left,
-              LinkedHashMap::new
-          ));
-      return sorted;
-    }
-    if (value instanceof List<?> list) {
-      return list.stream().map(this::canonicalize).toList();
-    }
-    return value;
   }
 
   private String writeJson(Object value) {

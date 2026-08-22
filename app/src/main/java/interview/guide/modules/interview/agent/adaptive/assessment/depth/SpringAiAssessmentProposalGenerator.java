@@ -1,6 +1,7 @@
 package interview.guide.modules.interview.agent.adaptive.assessment.depth;
 
 import interview.guide.common.ai.LlmProviderRegistry;
+import interview.guide.common.ai.PromptLoader;
 import interview.guide.common.ai.StructuredOutputInvoker;
 import interview.guide.common.exception.BusinessException;
 import interview.guide.common.exception.ErrorCode;
@@ -8,14 +9,11 @@ import interview.guide.modules.interview.agent.adaptive.application.AdaptiveAgen
 import interview.guide.modules.interview.agent.adaptive.observability.AdaptiveAgentTelemetry;
 import interview.guide.modules.interview.agent.adaptive.observability.AdaptiveInputTokenBudget;
 import interview.guide.modules.interview.agent.adaptive.runtime.DeadlineExecutor;
-import java.io.IOException;
-import java.nio.charset.StandardCharsets;
 import java.util.Map;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.ai.chat.client.ChatClient;
 import org.springframework.ai.chat.prompt.PromptTemplate;
 import org.springframework.ai.converter.BeanOutputConverter;
-import org.springframework.core.io.ResourceLoader;
 import org.springframework.stereotype.Component;
 import tools.jackson.core.JacksonException;
 import tools.jackson.databind.ObjectMapper;
@@ -48,8 +46,8 @@ public class SpringAiAssessmentProposalGenerator
       AdaptiveInputTokenBudget inputTokenBudget,
       DeadlineExecutor deadlineExecutor,
       AdaptiveAgentProperties properties,
-      ResourceLoader resourceLoader
-  ) throws IOException {
+      PromptLoader promptLoader
+  ) {
     this.llmProviderRegistry = llmProviderRegistry;
     this.structuredOutputInvoker = structuredOutputInvoker;
     this.objectMapper = objectMapper;
@@ -57,17 +55,13 @@ public class SpringAiAssessmentProposalGenerator
     this.inputTokenBudget = inputTokenBudget;
     this.deadlineExecutor = deadlineExecutor;
     this.properties = properties;
-    this.systemPromptTemplate = new PromptTemplate(
-        resourceLoader.getResource(properties.getAssessmentSystemPromptPath())
-            .getContentAsString(StandardCharsets.UTF_8)
+    this.systemPromptTemplate = promptLoader.loadTemplate(
+        properties.getAssessmentSystemPromptPath()
     );
-    this.userPromptTemplate = new PromptTemplate(
-        resourceLoader.getResource(properties.getAssessmentUserPromptPath())
-            .getContentAsString(StandardCharsets.UTF_8)
+    this.userPromptTemplate = promptLoader.loadTemplate(
+        properties.getAssessmentUserPromptPath()
     );
-    this.assessmentExamples = resourceLoader
-        .getResource(properties.getAssessmentExamplesPath())
-        .getContentAsString(StandardCharsets.UTF_8);
+    this.assessmentExamples = promptLoader.loadText(properties.getAssessmentExamplesPath());
     this.outputConverter = new BeanOutputConverter<>(AssessmentProposal.class);
   }
 
@@ -111,8 +105,6 @@ public class SpringAiAssessmentProposalGenerator
       telemetry.modelCallSucceeded("depth_assessor", "ASSESS", startedNanos);
       return proposal;
     } catch (BusinessException e) {
-      log.warn("回答深度评估底层调用失败: sessionId={}, turnIndex={}, code={}, message={}",
-          request.sessionId(), request.turnIndex(), e.getCode(), e.getMessage(), e);
       telemetry.modelCallFailed(
           "depth_assessor",
           request.sessionId(),

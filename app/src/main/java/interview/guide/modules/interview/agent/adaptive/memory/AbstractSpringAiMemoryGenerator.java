@@ -18,7 +18,7 @@ import tools.jackson.databind.ObjectMapper;
 
 /**
  * 记忆类结构化生成器的共享实现：渲染提示词、校验输入预算、
- * 带 deadline 调用结构化输出，并对失败做脱敏重抛（保留 cause）。
+ * 带 deadline 调用结构化输出，失败时记录遥测后原样抛出。
  *
  * @param <REQ> 请求类型
  * @param <RES> 结构化输出类型
@@ -89,9 +89,7 @@ public abstract class AbstractSpringAiMemoryGenerator<REQ, RES> {
           e.getCode(),
           startedNanos
       );
-      BusinessException sanitized = new BusinessException(e.getCode(), spec.failureMessage());
-      sanitized.initCause(e);
-      throw sanitized;
+      throw e;
     }
   }
 
