@@ -54,7 +54,6 @@ public class CodePatchSubmissionService {
         null,
         SandboxRunMode.FULL
     );
-    sandboxPersistenceService.validateSubmission(command);
     StoredAlgorithmSource source = sourceStorage.store(sessionId, language, patch);
     SandboxExecution execution = sandboxPersistenceService.createPending(
         command.withSource(source.codeRef(), source.codeHash())

@@ -13,11 +13,11 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 class PlanningContractTest {
 
   @Test
-  @DisplayName("规划请求只携带面试上下文和可选项目事实，不携带评估结论")
+  @DisplayName("规划请求只携带面试上下文，不携带评估结论")
   void shouldKeepPlanningContextIndependentFromAssessment() {
     assertThat(Arrays.stream(PlanningRequest.class.getRecordComponents())
         .map(component -> component.getName()))
-        .containsExactly("sessionId", "context", "project");
+        .containsExactly("sessionId", "context");
     assertThat(Arrays.stream(PlannerContext.class.getRecordComponents())
         .map(component -> component.getName()))
         .containsExactly(

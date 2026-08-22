@@ -19,8 +19,13 @@ public record AdaptiveInterviewSession(
 
   public static final String RUNTIME_VERSION = "adaptive-agent-v1";
 
+  /**
+   * 面试轮次上限，规划裁决与会话创建共用。
+   */
+  public static final int MAX_TURNS = 12;
+
   public static AdaptiveInterviewSession create(String id, int maxTurns) {
-    if (maxTurns < 1 || maxTurns > 12) {
+    if (maxTurns < 1 || maxTurns > MAX_TURNS) {
       throw new BusinessException(ErrorCode.BAD_REQUEST, "面试轮次上限必须在 1 到 12 之间");
     }
     return new AdaptiveInterviewSession(

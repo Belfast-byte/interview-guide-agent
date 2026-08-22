@@ -40,7 +40,6 @@ import interview.guide.modules.interview.agent.adaptive.planning.PlannedIntervie
 import interview.guide.modules.interview.agent.adaptive.planning.PlanningAgent;
 import interview.guide.modules.interview.agent.adaptive.planning.PlanningRequest;
 import interview.guide.modules.interview.agent.adaptive.planning.PlanningTaxonomy;
-import interview.guide.modules.interview.agent.adaptive.planning.ProjectPlanningContext;
 import interview.guide.modules.interview.agent.adaptive.role.AgentRoleRegistry;
 import interview.guide.modules.interview.agent.adaptive.runtime.BoundedReActRuntime;
 import interview.guide.modules.interview.agent.adaptive.runtime.ReActBudget;
@@ -219,50 +218,6 @@ class AdaptiveInterviewApplicationServiceTest {
   }
 
   @Test
-  @DisplayName("代码分析完成后在首答前重新生成项目感知计划")
-  void shouldReplanWithCompletedCodeAnalysis() {
-    PlannedInterview current = interviewAtTurn(1);
-    ProjectPlanningContext project = new ProjectPlanningContext(
-        "digest-1",
-        "abc123",
-        List.of("Spring Boot"),
-        List.of(),
-        List.of(),
-        List.of()
-    );
-    when(persistenceService.get("session-1")).thenReturn(current);
-    when(candidateMemoryService.coveredTopics("candidate-1")).thenReturn(List.of());
-    when(candidateMemoryService.unverifiedClaims("candidate-1")).thenReturn(List.of());
-    when(planningTaxonomy.catalog()).thenReturn(List.of());
-    when(codeAnalysisContextService.findPlanningForSession("session-1"))
-        .thenReturn(java.util.Optional.of(project));
-    when(planningAgent.propose(any(PlanningRequest.class), any()))
-        .thenReturn(proposal());
-    RespondAction firstQuestion = RespondAction.ask("项目代码首题？", "代码摘要驱动");
-    when(runtime.run(any(ReActRequest.class), any(ReActBudget.class)))
-        .thenReturn(ReActResult.withoutTools(firstQuestion));
-    when(persistenceService.replaceInitialPlan(
-        eq("session-1"),
-        any(InterviewPlan.class),
-        eq(firstQuestion),
-        eq(List.of())
-    )).thenReturn(current);
-    ArgumentCaptor<PlanningRequest> planningRequest =
-        ArgumentCaptor.forClass(PlanningRequest.class);
-
-    service.replanWithCodeAnalysis("session-1");
-
-    verify(planningAgent).propose(planningRequest.capture(), isNull());
-    assertThat(planningRequest.getValue().project()).isEqualTo(project);
-    verify(persistenceService).replaceInitialPlan(
-        eq("session-1"),
-        any(InterviewPlan.class),
-        eq(firstQuestion),
-        eq(List.of())
-    );
-  }
-
-  @Test
   @DisplayName("规划失败时不调用面试官也不创建会话")
   void shouldNotCreateSessionWhenPlanningFails() {
     when(planningAgent.propose(any(), any())).thenThrow(new BusinessException(
@@ -335,7 +290,7 @@ class AdaptiveInterviewApplicationServiceTest {
     CandidateAnswer answer = new CandidateAnswer(1, "回答");
     RespondAction action = RespondAction.ask("下一题？", "继续验证");
     when(persistenceService.get("session-1")).thenReturn(interview);
-    when(skillService.buildEvaluationReferenceSectionSafe("java-backend"))
+    when(skillService.buildEvaluationReferenceSection("java-backend"))
         .thenReturn("### Redis (REDIS)\n- 缓存穿透");
     when(runtime.run(any(ReActRequest.class), any(ReActBudget.class)))
         .thenReturn(ReActResult.withoutTools(action));
@@ -350,7 +305,7 @@ class AdaptiveInterviewApplicationServiceTest {
     verify(runtime).run(request.capture(), any(ReActBudget.class));
     assertThat(request.getValue().interviewerContext().currentAnswerGaps())
         .containsExactly(gap);
-    verify(skillService).buildEvaluationReferenceSectionSafe("java-backend");
+    verify(skillService).buildEvaluationReferenceSection("java-backend");
   }
 
   @Test

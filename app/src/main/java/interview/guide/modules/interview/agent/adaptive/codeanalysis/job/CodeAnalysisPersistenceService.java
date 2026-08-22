@@ -2,6 +2,7 @@ package interview.guide.modules.interview.agent.adaptive.codeanalysis.job;
 
 import interview.guide.common.exception.BusinessException;
 import interview.guide.common.exception.ErrorCode;
+import interview.guide.modules.interview.agent.adaptive.codeanalysis.CodeAnalysisJson;
 import interview.guide.modules.interview.agent.adaptive.codeanalysis.CodeAnalysisResult;
 import interview.guide.modules.interview.agent.adaptive.codeanalysis.claim.ClaimVerification;
 import interview.guide.modules.interview.agent.adaptive.codeanalysis.claim.ClaimVerificationEntity;
@@ -246,10 +247,6 @@ public class CodeAnalysisPersistenceService {
   }
 
   private <T> T deserialize(String json, Class<T> type) {
-    try {
-      return objectMapper.readValue(json, type);
-    } catch (JacksonException e) {
-      throw new BusinessException(ErrorCode.INTERNAL_ERROR, "代码分析产物反序列化失败", e);
-    }
+    return CodeAnalysisJson.read(objectMapper, json, type);
   }
 }

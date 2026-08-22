@@ -56,7 +56,7 @@ import org.springframework.dao.OptimisticLockingFailureException;
 import org.springframework.stereotype.Service;
 
 /**
- * 自适应面试应用服务，是面试流程的总编排入口，负责创建会话、提交回答、生成报告和回填评估。
+ * 自适应面试应用服务，是面试流程的总编排入口，负责创建会话、提交回答和生成报告。
  */
 @Service
 @RequiredArgsConstructor
@@ -197,7 +197,7 @@ public class AdaptiveInterviewApplicationService {
                 history.turns().getLast().question(),
                 answer.content()
             ),
-            skillService.buildEvaluationReferenceSectionSafe(
+            skillService.buildEvaluationReferenceSection(
                 currentDimension.suggestedSkill()
             )
         ),
@@ -348,62 +348,6 @@ public class AdaptiveInterviewApplicationService {
   }
 
   /**
-   * 在代码分析完成后重新规划面试：用代码分析结论替换初始计划并重新生成首轮决策。
-   *
-   * @param sessionId 会话 ID
-   * @return 重新规划后的面试
-   */
-  public PlannedInterview replanWithCodeAnalysis(String sessionId) {
-    PlannedInterview current = persistenceService.get(sessionId);
-    AdaptiveInterviewHistory history = current.history();
-    PlanProposal proposal = planningAgent.propose(
-        new PlanningRequest(
-            sessionId,
-            contextAssembler.planner(
-                history.jd(),
-                history.resume(),
-                candidateMemoryService.coveredTopics(history.candidateId()),
-                candidateMemoryService.unverifiedClaims(history.candidateId()),
-                planningTaxonomy.catalog()
-            ),
-            codeAnalysisContextService.findPlanningForSession(sessionId)
-                .orElseThrow(() -> new BusinessException(
-                    ErrorCode.BAD_REQUEST,
-                    "代码分析尚未完成"
-                ))
-        ),
-        history.llmProvider()
-    );
-    InterviewPlan plan;
-    try {
-      plan = InterviewPlan.decide(sessionId, proposal);
-      planningTaxonomy.validate(plan);
-    } catch (BusinessException e) {
-      telemetry.planRejected(sessionId, e.getCode());
-      throw e;
-    }
-    PlannedDimension firstDimension = plan.dimensionForTurn(1);
-    ReActResult firstDecision = runDecision(request(
-        sessionId,
-        history.llmProvider(),
-        history.jd(),
-        history.resume(),
-        plan.maxTurns(),
-        firstDimension,
-        List.of(),
-        null,
-        List.of(),
-        List.of()
-    ));
-    return persistenceService.replaceInitialPlan(
-        sessionId,
-        plan,
-        firstDecision.response(),
-        firstDecision.toolExecutions()
-    );
-  }
-
-  /**
    * 获取指定租户下的面试状态。
    *
    * @param tenantId 租户 ID
@@ -495,7 +439,7 @@ public class AdaptiveInterviewApplicationService {
                 turn.answer(),
                 toolResult
             ),
-            skillService.buildEvaluationReferenceSectionSafe(
+            skillService.buildEvaluationReferenceSection(
                 dimension.suggestedSkill()
             )
         ),

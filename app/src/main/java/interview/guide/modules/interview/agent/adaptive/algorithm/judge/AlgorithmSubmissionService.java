@@ -21,15 +21,6 @@ public class AlgorithmSubmissionService {
   private final AlgorithmJudgeStreamProducer producer;
 
   public SandboxExecution submit(SubmitAlgorithmCode submission) {
-    persistenceService.validateSubmission(new CreateSandboxExecution(
-        submission.sessionId(),
-        submission.turnIndex(),
-        submission.problemId(),
-        submission.language(),
-        null,
-        null,
-        submission.runMode()
-    ));
     StoredAlgorithmSource source = sourceStorage.store(
         submission.sessionId(),
         submission.language(),
@@ -53,16 +44,8 @@ public class AlgorithmSubmissionService {
     return execution;
   }
 
-  public SandboxExecution get(String executionId) {
-    return persistenceService.getExecution(executionId);
-  }
-
   public SandboxExecution get(String sessionId, String executionId) {
-    SandboxExecution execution = get(executionId);
-    if (!execution.sessionId().equals(sessionId)) {
-      throw new BusinessException(ErrorCode.NOT_FOUND, "判题提交不存在");
-    }
-    return execution;
+    return persistenceService.getExecution(sessionId, executionId);
   }
 
   public SandboxExecution getLatest(String sessionId, int turnIndex) {

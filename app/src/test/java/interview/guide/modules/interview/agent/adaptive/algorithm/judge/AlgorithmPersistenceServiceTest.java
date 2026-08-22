@@ -175,6 +175,38 @@ class AlgorithmPersistenceServiceTest {
         .isEmpty();
   }
 
+  @Nested
+  @DisplayName("按会话归属读取判题提交")
+  class GetExecutionWithOwnership {
+
+    @Test
+    @DisplayName("归属匹配时单条查询返回执行")
+    void shouldReturnExecutionOwnedBySession() {
+      SandboxExecutionEntity entity = new SandboxExecutionEntity(
+          "execution-1",
+          command(),
+          9L,
+          1
+      );
+      when(executionRepository.findByIdAndSessionId("execution-1", "session-1"))
+          .thenReturn(Optional.of(entity));
+
+      assertThat(service.getExecution("session-1", "execution-1").id())
+          .isEqualTo("execution-1");
+    }
+
+    @Test
+    @DisplayName("归属不匹配时按不存在处理")
+    void shouldRejectExecutionOwnedByOtherSession() {
+      when(executionRepository.findByIdAndSessionId("execution-1", "session-other"))
+          .thenReturn(Optional.empty());
+
+      assertThatThrownBy(() -> service.getExecution("session-other", "execution-1"))
+          .isInstanceOfSatisfying(BusinessException.class, exception ->
+              assertThat(exception.getCode()).isEqualTo(ErrorCode.NOT_FOUND.getCode()));
+    }
+  }
+
   private CreateSandboxExecution command() {
     return new CreateSandboxExecution(
         "session-1",

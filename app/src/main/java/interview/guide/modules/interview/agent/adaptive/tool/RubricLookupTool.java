@@ -1,10 +1,12 @@
 package interview.guide.modules.interview.agent.adaptive.tool;
 
+import interview.guide.common.util.Sha256;
 import interview.guide.modules.knowledgebase.model.KnowledgeBaseQuestionEntity;
 import interview.guide.modules.knowledgebase.model.KnowledgeBaseQuestionStatus;
 import interview.guide.modules.knowledgebase.repository.KnowledgeBaseQuestionRepository;
 import java.util.List;
 import java.util.Map;
+import java.util.stream.Collectors;
 import org.springframework.ai.tool.ToolCallback;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.stereotype.Component;
@@ -54,11 +56,10 @@ public class RubricLookupTool implements AdaptiveAgentTool {
         ).stream()
         .map(this::toPayload)
         .toList();
-    String resultId = "rubric-search:" + rubrics.stream()
-        .map(RubricPayload::questionId)
-        .map(String::valueOf)
-        .reduce((left, right) -> left + "," + right)
-        .orElse("empty");
+    String resultId = "rubric-search:" + Sha256.hex(rubrics.stream()
+        .map(rubric -> String.valueOf(rubric.questionId()))
+        .sorted()
+        .collect(Collectors.joining(",")));
     return new CompletedToolResult(
         resultId,
         rubrics,

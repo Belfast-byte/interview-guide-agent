@@ -5,6 +5,7 @@ import interview.guide.modules.interview.agent.adaptive.algorithm.evidence.Algor
 import interview.guide.modules.interview.agent.adaptive.algorithm.evidence.AlgorithmAssessmentEvidenceService;
 import interview.guide.modules.interview.agent.adaptive.algorithm.sandbox.SandboxExecution;
 import interview.guide.modules.interview.agent.adaptive.algorithm.sandbox.SandboxExecutionStatus;
+import interview.guide.modules.interview.agent.adaptive.algorithm.sandbox.SandboxExecutionSummary;
 import interview.guide.modules.interview.agent.adaptive.core.event.ToolResultEvent;
 import interview.guide.modules.interview.agent.adaptive.observability.AlgorithmInterviewTelemetry;
 import lombok.RequiredArgsConstructor;
@@ -36,15 +37,14 @@ class AdaptiveAlgorithmResultReadyHandler implements AlgorithmResultReadyHandler
     }
     String summary = execution.status() == SandboxExecutionStatus.TIMEOUT_QUEUED
         ? "status=TIMEOUT_QUEUED, judging unavailable; continue with code walkthrough and do not treat this as negative evidence"
-        : "verdict=%s, passed=%s/%s, timeMs=%s, memoryKb=%s, firstFailedCase=%s"
-            .formatted(
-                execution.verdict(),
-                execution.passed(),
-                execution.total(),
-                execution.timeMs(),
-                execution.memoryKb(),
-                execution.firstFailedCase()
-            );
+        : SandboxExecutionSummary.of(
+            execution.verdict(),
+            execution.passed(),
+            execution.total(),
+            execution.timeMs(),
+            execution.memoryKb(),
+            execution.firstFailedCase()
+        );
     int turnIndex = sessionFacts.turnIndex(execution.turnId());
     if (execution.status() == SandboxExecutionStatus.DONE) {
       applicationService.reassessAlgorithmResult(

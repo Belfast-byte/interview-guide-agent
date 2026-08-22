@@ -1,6 +1,7 @@
 package interview.guide.modules.interview.agent.adaptive.role;
 
 import interview.guide.common.ai.LlmProviderRegistry;
+import interview.guide.common.ai.PromptLoader;
 import interview.guide.common.ai.StructuredOutputInvoker;
 import interview.guide.common.exception.BusinessException;
 import interview.guide.common.exception.ErrorCode;
@@ -11,9 +12,7 @@ import interview.guide.modules.interview.agent.adaptive.observability.AdaptiveIn
 import interview.guide.modules.interview.agent.adaptive.planning.DimensionProposal;
 import interview.guide.modules.interview.agent.adaptive.planning.PlanProposal;
 import interview.guide.modules.interview.agent.adaptive.planning.PlanningRequest;
-import interview.guide.modules.interview.agent.adaptive.planning.ProjectPlanningContext;
 import interview.guide.modules.interview.agent.adaptive.runtime.DeadlineExecutor;
-import java.io.IOException;
 import java.time.Duration;
 import java.util.List;
 import org.junit.jupiter.api.BeforeEach;
@@ -60,7 +59,7 @@ class SpringAiPlanningAgentTest {
   private SpringAiPlanningAgent planningAgent;
 
   @BeforeEach
-  void setUp() throws IOException {
+  void setUp() {
     planningAgent = new SpringAiPlanningAgent(
         llmProviderRegistry,
         structuredOutputInvoker,
@@ -69,7 +68,7 @@ class SpringAiPlanningAgentTest {
         inputTokenBudget,
         new DeadlineExecutor(),
         new AdaptiveAgentProperties(),
-        new DefaultResourceLoader()
+        new PromptLoader(new DefaultResourceLoader())
     );
     when(llmProviderRegistry.getChatClientOrDefault("provider-1"))
         .thenReturn(chatClient);
@@ -113,53 +112,8 @@ class SpringAiPlanningAgentTest {
   }
 
   @Test
-  @DisplayName("存在代码摘要时把真实锚点作为不可信事实输入规划")
-  void shouldIncludeProjectDigestInPlanningInput() {
-    PlanProposal expected = new PlanProposal(List.of(
-        dimension("项目经验", "订单缓存失效策略")
-    ));
-    when(invoke()).thenReturn(expected);
-    PlanningRequest request = new PlanningRequest(
-        "session-1",
-        request().context(),
-        new ProjectPlanningContext(
-            "digest-1",
-            "abc123",
-            List.of("Spring Boot", "Redis"),
-            List.of(new ProjectPlanningContext.ProjectModule(
-                "order",
-                "订单查询链路",
-                "src/OrderCache.java:42"
-            )),
-            List.of(),
-            List.of()
-        )
-    );
-
-    planningAgent.propose(request, "provider-1");
-
-    ArgumentCaptor<String> userPrompt = ArgumentCaptor.forClass(String.class);
-    verify(structuredOutputInvoker).invoke(
-        eq(chatClient),
-        anyString(),
-        userPrompt.capture(),
-        any(),
-        eq(ErrorCode.AI_SERVICE_ERROR),
-        anyString(),
-        eq("adaptive_agent_planning"),
-        any(Logger.class)
-    );
-    assertThat(userPrompt.getValue())
-        .contains(
-            "digest-1",
-            "src/OrderCache.java:42",
-            "项目摘要仅用于锚定项目维度的考察重点，不是候选人能力证据"
-        );
-  }
-
-  @Test
-  @DisplayName("底层模型失败不向调用方暴露解析内容")
-  void shouldSanitizeModelFailure() {
+  @DisplayName("底层模型失败原样抛出并记录失败遥测")
+  void shouldPropagateModelFailure() {
     when(invoke()).thenThrow(new BusinessException(
         ErrorCode.AI_SERVICE_ERROR,
         "底层解析内容"
@@ -167,13 +121,19 @@ class SpringAiPlanningAgentTest {
 
     assertThatThrownBy(() -> planningAgent.propose(request(), "provider-1"))
         .isInstanceOf(BusinessException.class)
-        .hasMessage("Agent 规划失败")
-        .hasCauseInstanceOf(BusinessException.class);
+        .hasMessage("底层解析内容");
+    verify(telemetry).modelCallFailed(
+        eq("planner"),
+        eq("session-1"),
+        eq(0),
+        eq(ErrorCode.AI_SERVICE_ERROR.getCode()),
+        anyLong()
+    );
   }
 
   @Test
   @DisplayName("规划模型超过角色 deadline 时快速失败")
-  void shouldStopAtPlannerDeadline() throws IOException {
+  void shouldStopAtPlannerDeadline() {
     when(invoke()).thenAnswer(invocation -> {
       Thread.sleep(5_000);
       return new PlanProposal(List.of(dimension("专业基础", "缓存")));
@@ -188,12 +148,12 @@ class SpringAiPlanningAgentTest {
         inputTokenBudget,
         new DeadlineExecutor(),
         properties,
-        new DefaultResourceLoader()
+        new PromptLoader(new DefaultResourceLoader())
     );
 
     assertThatThrownBy(() -> boundedAgent.propose(request(), "provider-1"))
         .isInstanceOf(BusinessException.class)
-        .hasMessage("Agent 规划失败");
+        .hasMessageContaining("超时");
   }
 
   private PlanProposal invoke() {

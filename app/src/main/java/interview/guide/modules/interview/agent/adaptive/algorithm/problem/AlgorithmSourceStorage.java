@@ -2,13 +2,11 @@ package interview.guide.modules.interview.agent.adaptive.algorithm.problem;
 
 import interview.guide.common.exception.BusinessException;
 import interview.guide.common.exception.ErrorCode;
+import interview.guide.common.util.Sha256;
 import interview.guide.infrastructure.file.FileStorageService;
 import interview.guide.modules.interview.agent.adaptive.algorithm.AlgorithmInterviewProperties;
 import interview.guide.modules.interview.agent.adaptive.algorithm.sandbox.SandboxLanguage;
 import java.nio.charset.StandardCharsets;
-import java.security.MessageDigest;
-import java.security.NoSuchAlgorithmException;
-import java.util.HexFormat;
 import java.util.UUID;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Component;
@@ -32,7 +30,7 @@ public class AlgorithmSourceStorage {
     if (bytes.length > properties.getMaxSourceBytes()) {
       throw new BusinessException(ErrorCode.BAD_REQUEST, "源码不能超过 64KB");
     }
-    String codeHash = sha256(bytes);
+    String codeHash = Sha256.hex(source);
     String codeRef = "sandbox/sources/%s/%s.%s".formatted(
         sessionId,
         UUID.randomUUID(),
@@ -48,13 +46,5 @@ public class AlgorithmSourceStorage {
       case PYTHON -> "py";
       case CPP -> "cpp";
     };
-  }
-
-  private String sha256(byte[] source) {
-    try {
-      return HexFormat.of().formatHex(MessageDigest.getInstance("SHA-256").digest(source));
-    } catch (NoSuchAlgorithmException e) {
-      throw new IllegalStateException("SHA-256 is unavailable", e);
-    }
   }
 }

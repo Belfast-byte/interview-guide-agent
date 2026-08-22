@@ -83,7 +83,6 @@ class CodePatchSubmissionServiceTest {
         CreateSandboxExecution.class
     );
     verify(sandboxPersistenceService).createPending(command.capture());
-    verify(sandboxPersistenceService).validateSubmission(any());
     assertThat(command.getValue().workloadType()).isEqualTo(SandboxWorkloadType.PATCH);
     assertThat(command.getValue().problemId()).isNull();
     assertThat(command.getValue().scenarioId()).isEqualTo("scenario-1");

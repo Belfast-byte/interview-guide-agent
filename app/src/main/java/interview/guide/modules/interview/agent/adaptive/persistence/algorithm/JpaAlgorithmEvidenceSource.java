@@ -3,9 +3,9 @@ package interview.guide.modules.interview.agent.adaptive.persistence.algorithm;
 import interview.guide.modules.interview.agent.adaptive.algorithm.evidence.AlgorithmEvidence;
 import interview.guide.modules.interview.agent.adaptive.algorithm.evidence.AlgorithmEvidenceSource;
 import interview.guide.modules.interview.agent.adaptive.algorithm.sandbox.SandboxExecutionStatus;
+import interview.guide.modules.interview.agent.adaptive.algorithm.sandbox.SandboxExecutionSummary;
 import interview.guide.modules.interview.agent.adaptive.algorithm.sandbox.SandboxVerdict;
 import jakarta.persistence.EntityManager;
-import jakarta.persistence.TypedQuery;
 import java.util.Map;
 import java.util.Set;
 import java.util.stream.Collectors;
@@ -26,44 +26,20 @@ public class JpaAlgorithmEvidenceSource implements AlgorithmEvidenceSource {
 
   @Override
   @Transactional(readOnly = true)
-  public Map<String, String> findCandidateEvidenceIds(
-      String sessionId,
-      int turnIndex,
-      Set<String> resultIds
-  ) {
-    if (resultIds.isEmpty()) {
-      return Map.of();
-    }
-    return candidateEvidenceQuery(sessionId, turnIndex, resultIds)
-        .getResultStream()
-        .collect(Collectors.toMap(id -> id, id -> id));
-  }
-
-  @Override
-  @Transactional(readOnly = true)
-  public Map<String, String> findCandidateEvidenceIds(
-      String sessionId,
-      int turnIndex
-  ) {
-    return candidateEvidenceQuery(sessionId, turnIndex, null)
-        .getResultStream()
-        .collect(Collectors.toMap(id -> id, id -> id));
-  }
-
-  @Override
-  @Transactional(readOnly = true)
-  public Set<Integer> findCandidateTurnIndexes(String sessionId) {
+  public Set<String> findCandidateEvidenceIds(String sessionId, int turnIndex) {
     return entityManager.createQuery("""
-        select distinct turn.turnIndex
+        select execution.id
         from SandboxExecutionEntity execution, AdaptiveAgentTurnEntity turn
         where execution.turnId = turn.id
           and execution.sessionId = :sessionId
+          and turn.turnIndex = :turnIndex
           and execution.status = :status
           and execution.verdict is not null
           and execution.verdict <> :internalError
           and execution.supersededBy is null
-        """, Integer.class)
+        """, String.class)
         .setParameter("sessionId", sessionId)
+        .setParameter("turnIndex", turnIndex)
         .setParameter("status", SandboxExecutionStatus.DONE)
         .setParameter("internalError", SandboxVerdict.IE)
         .getResultStream()
@@ -93,34 +69,13 @@ public class JpaAlgorithmEvidenceSource implements AlgorithmEvidenceSource {
   }
 
   private AlgorithmEvidence toEvidence(Object[] row) {
-    String summary = "verdict=%s, passed=%s/%s, timeMs=%s, memoryKb=%s, firstFailedCase=%s"
-        .formatted(row[1], row[2], row[3], row[4], row[5], row[6]);
-    return new AlgorithmEvidence((String) row[0], summary);
-  }
-
-  private TypedQuery<String> candidateEvidenceQuery(
-      String sessionId,
-      int turnIndex,
-      Set<String> resultIds
-  ) {
-    TypedQuery<String> query = entityManager.createQuery("""
-        select execution.id
-        from SandboxExecutionEntity execution, AdaptiveAgentTurnEntity turn
-        where execution.turnId = turn.id
-          and execution.sessionId = :sessionId
-          and turn.turnIndex = :turnIndex
-          and execution.status = :status
-          and execution.verdict is not null
-          and execution.verdict <> :internalError
-          and execution.supersededBy is null
-        """ + (resultIds == null ? "" : " and execution.id in :resultIds"), String.class)
-        .setParameter("sessionId", sessionId)
-        .setParameter("turnIndex", turnIndex)
-        .setParameter("status", SandboxExecutionStatus.DONE)
-        .setParameter("internalError", SandboxVerdict.IE);
-    if (resultIds != null) {
-      query.setParameter("resultIds", resultIds);
-    }
-    return query;
+    return new AlgorithmEvidence((String) row[0], SandboxExecutionSummary.of(
+        (SandboxVerdict) row[1],
+        (Integer) row[2],
+        (Integer) row[3],
+        (Long) row[4],
+        (Long) row[5],
+        (Integer) row[6]
+    ));
   }
 }

@@ -19,7 +19,6 @@ import interview.guide.modules.interview.agent.adaptive.core.session.SessionTran
 import interview.guide.modules.interview.agent.adaptive.core.event.ToolResultEvent;
 import interview.guide.modules.interview.agent.adaptive.core.event.ToolResultFollowUp;
 import interview.guide.modules.interview.agent.adaptive.memory.claim.CandidateClaim;
-import interview.guide.modules.interview.agent.adaptive.memory.profile.CandidateAbilityProfileWriter;
 import interview.guide.modules.interview.agent.adaptive.planning.InterviewPlan;
 import interview.guide.modules.interview.agent.adaptive.planning.PlanDimensionStatus;
 import interview.guide.modules.interview.agent.adaptive.planning.PlannedDimension;
@@ -52,7 +51,7 @@ import org.springframework.transaction.annotation.Transactional;
 @Service
 @RequiredArgsConstructor
 public class AdaptiveInterviewPersistenceService
-    implements AlgorithmAssessmentEvidenceStore, CandidateAbilityProfileWriter {
+    implements AlgorithmAssessmentEvidenceStore {
 
   private final AdaptiveAgentSessionRepository sessionRepository;
   private final AdaptiveAgentTurnRepository turnRepository;
@@ -276,45 +275,6 @@ public class AdaptiveInterviewPersistenceService
   }
 
   @Transactional
-  public PlannedInterview replaceInitialPlan(
-      String sessionId,
-      InterviewPlan plan,
-      RespondAction firstAction,
-      List<ToolExecution> toolExecutions
-  ) {
-    AdaptiveAgentSessionEntity session = sessionRepository
-        .findByIdAndTenantIdIsNull(sessionId)
-        .orElseThrow(() -> new BusinessException(
-            ErrorCode.INTERVIEW_SESSION_NOT_FOUND,
-            "Agent 面试会话不存在"
-        ));
-    AdaptiveAgentTurnEntity firstTurn = turnRepository
-        .findBySessionIdAndTurnIndex(sessionId, 1)
-        .orElseThrow(() -> new BusinessException(ErrorCode.NOT_FOUND, "面试轮次不存在"));
-    if (session.status() != AdaptiveSessionStatus.IN_PROGRESS
-        || session.toDomain().currentTurn() != 1
-        || firstTurn.answer() != null) {
-      throw new BusinessException(ErrorCode.BAD_REQUEST, "只能在回答第一题前刷新项目面试计划");
-    }
-    turnRepository.delete(firstTurn);
-    turnRepository.flush();
-    planRepository.deleteAll(planRepository.findBySessionIdOrderByDimensionOrder(sessionId));
-    planRepository.flush();
-    session.replaceInitialPlan(plan.maxTurns());
-    planRepository.saveAll(plan.dimensions().stream()
-        .map(dimension -> new AdaptiveAgentPlanEntity(sessionId, dimension))
-        .toList());
-    turnRepository.save(new AdaptiveAgentTurnEntity(
-        sessionId,
-        1,
-        plan.dimensionForTurn(1).order(),
-        firstAction
-    ));
-    saveToolExecutions(sessionId, toolExecutions);
-    return plannedInterview(session, plan);
-  }
-
-  @Transactional
   public PlannedInterview recordDecision(
       String sessionId,
       CandidateAnswer answer,
@@ -406,20 +366,6 @@ public class AdaptiveInterviewPersistenceService
       refreshProfiles(sessionEntity, planEntities);
     }
     return plannedInterview(sessionEntity, updatedPlan);
-  }
-
-  @Override
-  @Transactional
-  public void refresh(String sessionId) {
-    AdaptiveAgentSessionEntity session = sessionRepository.findById(sessionId)
-        .orElseThrow(() -> new BusinessException(
-            ErrorCode.INTERVIEW_SESSION_NOT_FOUND,
-            "Agent 面试会话不存在"
-        ));
-    refreshProfiles(
-        session,
-        planRepository.findBySessionIdOrderByDimensionOrder(sessionId)
-    );
   }
 
   private void refreshProfiles(

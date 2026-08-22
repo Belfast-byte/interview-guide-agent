@@ -2,6 +2,7 @@ package interview.guide.modules.interview.agent.adaptive.assessment.report;
 
 import interview.guide.common.exception.BusinessException;
 import interview.guide.common.exception.ErrorCode;
+import interview.guide.modules.interview.agent.adaptive.assessment.FinalAssessmentSelector;
 import interview.guide.modules.interview.agent.adaptive.assessment.depth.DepthLevel;
 import interview.guide.modules.interview.agent.adaptive.core.session.AdaptiveSessionStatus;
 import java.util.Comparator;
@@ -19,8 +20,10 @@ public class AssessmentReportService {
       "AI 初筛建议，不构成录用决定";
 
   private static final Comparator<AssessmentReportTurnFacts> FINAL_ASSESSMENT =
-      Comparator.comparing(AssessmentReportTurnFacts::depthLevel)
-          .thenComparingInt(AssessmentReportTurnFacts::turnIndex);
+      FinalAssessmentSelector.byDepthThenTurn(
+          AssessmentReportTurnFacts::depthLevel,
+          AssessmentReportTurnFacts::turnIndex
+      );
 
   private final AssessmentReportFactsSource source;
 

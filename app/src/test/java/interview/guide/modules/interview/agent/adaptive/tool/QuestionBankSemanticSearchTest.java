@@ -1,5 +1,6 @@
 package interview.guide.modules.interview.agent.adaptive.tool;
 
+import interview.guide.common.util.Sha256;
 import interview.guide.modules.knowledgebase.model.KnowledgeBaseQuestionEntity;
 import interview.guide.modules.knowledgebase.model.KnowledgeBaseQuestionStatus;
 import interview.guide.modules.knowledgebase.repository.KnowledgeBaseQuestionRepository;
@@ -62,7 +63,7 @@ class QuestionBankSemanticSearchTest {
 
     ToolResult result = tool.execute(Map.of("query", "Redis"));
 
-    assertThat(result.resultId()).isEqualTo("question-search:22,11");
+    assertThat(result.resultId()).isEqualTo("question-search:" + Sha256.hex("11,22"));
     assertThat(result.value().toString())
         .contains("question:22")
         .contains("question:11")

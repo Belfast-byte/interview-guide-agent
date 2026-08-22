@@ -31,6 +31,8 @@ public interface SandboxExecutionRepository extends JpaRepository<SandboxExecuti
 
   Optional<SandboxExecutionEntity> findTopBySessionIdOrderBySubmissionSeqDesc(String sessionId);
 
+  Optional<SandboxExecutionEntity> findByIdAndSessionId(String id, String sessionId);
+
   Optional<SandboxExecutionEntity> findTopBySessionIdAndTurnIdOrderBySubmissionSeqDesc(
       String sessionId,
       long turnId

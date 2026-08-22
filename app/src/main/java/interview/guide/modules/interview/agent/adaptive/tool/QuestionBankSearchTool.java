@@ -1,7 +1,9 @@
 package interview.guide.modules.interview.agent.adaptive.tool;
 
+import interview.guide.common.util.Sha256;
 import java.util.List;
 import java.util.Map;
+import java.util.stream.Collectors;
 import org.springframework.ai.tool.ToolCallback;
 import org.springframework.stereotype.Component;
 
@@ -40,11 +42,10 @@ public class QuestionBankSearchTool implements AdaptiveAgentTool {
     String query = ToolArguments.requiredString(arguments, "query", 200);
     String difficulty = ToolArguments.optionalString(arguments, "difficulty", 16);
     List<QuestionBankQuestion> questions = searchSource.search(query, difficulty);
-    String resultId = "question-search:" + questions.stream()
-        .map(QuestionBankQuestion::id)
-        .map(String::valueOf)
-        .reduce((left, right) -> left + "," + right)
-        .orElse("empty");
+    String resultId = "question-search:" + Sha256.hex(questions.stream()
+        .map(question -> String.valueOf(question.id()))
+        .sorted()
+        .collect(Collectors.joining(",")));
     return new CompletedToolResult(
         resultId,
         questions,

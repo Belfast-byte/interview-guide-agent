@@ -1,6 +1,7 @@
 package interview.guide.modules.interview.agent.adaptive.role;
 
 import interview.guide.common.ai.LlmProviderRegistry;
+import interview.guide.common.ai.PromptLoader;
 import interview.guide.common.ai.StructuredOutputInvoker;
 import interview.guide.common.exception.BusinessException;
 import interview.guide.common.exception.ErrorCode;
@@ -10,17 +11,13 @@ import interview.guide.modules.interview.agent.adaptive.observability.AdaptiveIn
 import interview.guide.modules.interview.agent.adaptive.planning.PlanProposal;
 import interview.guide.modules.interview.agent.adaptive.planning.PlanningAgent;
 import interview.guide.modules.interview.agent.adaptive.planning.PlanningRequest;
-import interview.guide.modules.interview.agent.adaptive.planning.ProjectPlanningContext;
 import interview.guide.modules.interview.agent.adaptive.core.context.PlannerContext;
 import interview.guide.modules.interview.agent.adaptive.runtime.DeadlineExecutor;
-import java.io.IOException;
-import java.nio.charset.StandardCharsets;
 import java.util.Map;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.ai.chat.client.ChatClient;
 import org.springframework.ai.chat.prompt.PromptTemplate;
 import org.springframework.ai.converter.BeanOutputConverter;
-import org.springframework.core.io.ResourceLoader;
 import org.springframework.stereotype.Component;
 import tools.jackson.core.JacksonException;
 import tools.jackson.databind.ObjectMapper;
@@ -51,8 +48,8 @@ public class SpringAiPlanningAgent implements PlanningAgent {
       AdaptiveInputTokenBudget inputTokenBudget,
       DeadlineExecutor deadlineExecutor,
       AdaptiveAgentProperties properties,
-      ResourceLoader resourceLoader
-  ) throws IOException {
+      PromptLoader promptLoader
+  ) {
     this.llmProviderRegistry = llmProviderRegistry;
     this.structuredOutputInvoker = structuredOutputInvoker;
     this.objectMapper = objectMapper;
@@ -60,14 +57,8 @@ public class SpringAiPlanningAgent implements PlanningAgent {
     this.inputTokenBudget = inputTokenBudget;
     this.deadlineExecutor = deadlineExecutor;
     this.properties = properties;
-    this.systemPromptTemplate = new PromptTemplate(
-        resourceLoader.getResource(properties.getPlannerSystemPromptPath())
-            .getContentAsString(StandardCharsets.UTF_8)
-    );
-    this.userPromptTemplate = new PromptTemplate(
-        resourceLoader.getResource(properties.getPlannerUserPromptPath())
-            .getContentAsString(StandardCharsets.UTF_8)
-    );
+    this.systemPromptTemplate = promptLoader.loadTemplate(properties.getPlannerSystemPromptPath());
+    this.userPromptTemplate = promptLoader.loadTemplate(properties.getPlannerUserPromptPath());
     this.outputConverter = new BeanOutputConverter<>(PlanProposal.class);
   }
 
@@ -102,8 +93,6 @@ public class SpringAiPlanningAgent implements PlanningAgent {
           "Agent 规划执行"
       );
     } catch (BusinessException e) {
-      log.warn("Agent 规划底层调用失败: sessionId={}, code={}, message={}",
-          request.sessionId(), e.getCode(), e.getMessage(), e);
       telemetry.modelCallFailed(
           "planner",
           request.sessionId(),
@@ -111,9 +100,7 @@ public class SpringAiPlanningAgent implements PlanningAgent {
           e.getCode(),
           startedNanos
       );
-      BusinessException sanitized = new BusinessException(e.getCode(), "Agent 规划失败");
-      sanitized.initCause(e);
-      throw sanitized;
+      throw e;
     }
 
     telemetry.modelCallSucceeded("planner", "PLAN", startedNanos);
@@ -122,18 +109,12 @@ public class SpringAiPlanningAgent implements PlanningAgent {
 
   private String serializeInput(PlanningRequest request) {
     try {
-      return objectMapper.writeValueAsString(new PlanningModelInput(
-          request.context(),
-          request.project()
-      ));
+      return objectMapper.writeValueAsString(new PlanningModelInput(request.context()));
     } catch (JacksonException e) {
       throw new BusinessException(ErrorCode.AI_SERVICE_ERROR, "规划上下文序列化失败", e);
     }
   }
 
-  private record PlanningModelInput(
-      PlannerContext interview,
-      ProjectPlanningContext project
-  ) {}
+  private record PlanningModelInput(PlannerContext interview) {}
 
 }

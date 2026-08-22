@@ -76,15 +76,6 @@ public class AlgorithmPersistenceService {
     );
   }
 
-  /**
-   * 提交前置校验：轮次归属、题目存在性与执行配额。在源码上传前调用，避免被拒提交留下孤儿文件。
-   */
-  @Transactional
-  public void validateSubmission(CreateSandboxExecution command) {
-    sessionFacts.lockCurrentTurn(command.sessionId(), command.turnIndex());
-    validateProblemAndQuota(command);
-  }
-
   @Transactional
   public SandboxExecution createPending(CreateSandboxExecution command) {
     long turnId = sessionFacts.lockCurrentTurn(command.sessionId(), command.turnIndex());
@@ -114,6 +105,13 @@ public class AlgorithmPersistenceService {
   @Transactional(readOnly = true)
   public SandboxExecution getExecution(String executionId) {
     return executionRepository.findById(executionId)
+        .orElseThrow(() -> new BusinessException(ErrorCode.NOT_FOUND, "判题提交不存在"))
+        .toDomain();
+  }
+
+  @Transactional(readOnly = true)
+  public SandboxExecution getExecution(String sessionId, String executionId) {
+    return executionRepository.findByIdAndSessionId(executionId, sessionId)
         .orElseThrow(() -> new BusinessException(ErrorCode.NOT_FOUND, "判题提交不存在"))
         .toDomain();
   }

@@ -1,7 +1,5 @@
 package interview.guide.modules.interview.agent.adaptive.codeanalysis;
 
-import interview.guide.common.exception.BusinessException;
-import interview.guide.common.exception.ErrorCode;
 import interview.guide.modules.interview.agent.adaptive.codeanalysis.claim.ClaimVerification;
 import interview.guide.modules.interview.agent.adaptive.codeanalysis.claim.ClaimVerificationRepository;
 import interview.guide.modules.interview.agent.adaptive.codeanalysis.job.CodeAnalysisJob;
@@ -11,12 +9,10 @@ import interview.guide.modules.interview.agent.adaptive.codeanalysis.repo.Projec
 import interview.guide.modules.interview.agent.adaptive.codeanalysis.scenario.ScenarioCard;
 import interview.guide.modules.interview.agent.adaptive.codeanalysis.scenario.ScenarioCardRepository;
 import interview.guide.modules.interview.agent.adaptive.core.context.ProjectInterviewContext;
-import interview.guide.modules.interview.agent.adaptive.planning.ProjectPlanningContext;
 import java.util.Optional;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
-import tools.jackson.core.JacksonException;
 import tools.jackson.databind.ObjectMapper;
 
 /**
@@ -38,50 +34,20 @@ public class CodeAnalysisInterviewContextService {
         .map(this::map);
   }
 
-  @Transactional(readOnly = true)
-  public Optional<ProjectPlanningContext> findPlanningForSession(String sessionId) {
-    return persistenceService.findLatestCompletedJob(sessionId)
-        .map(job -> read(
-            digestRepository.findByRepositoryId(job.repositoryId()).orElseThrow().payloadJson(),
-            ProjectDigest.class
-        ))
-        .map(digest -> new ProjectPlanningContext(
-            digest.digestId(),
-            digest.commitHash(),
-            digest.stack(),
-            digest.modules().stream()
-                .map(module -> new ProjectPlanningContext.ProjectModule(
-                    module.name(),
-                    module.role(),
-                    module.anchor().display()
-                ))
-                .toList(),
-            digest.highlightCandidates().stream()
-                .map(finding -> new ProjectPlanningContext.ProjectFinding(
-                    finding.title(),
-                    finding.anchor().display(),
-                    finding.why()
-                ))
-                .toList(),
-            digest.riskSpots().stream()
-                .map(finding -> new ProjectPlanningContext.ProjectFinding(
-                    finding.title(),
-                    finding.anchor().display(),
-                    finding.why()
-                ))
-                .toList()
-        ));
-  }
-
   private ProjectInterviewContext map(CodeAnalysisJob job) {
-    ProjectDigest digest = read(
+    ProjectDigest digest = CodeAnalysisJson.read(
+        objectMapper,
         digestRepository.findByRepositoryId(job.repositoryId()).orElseThrow().payloadJson(),
         ProjectDigest.class
     );
     return new ProjectInterviewContext(
         digest.digestId(),
         claimRepository.findByRepositoryIdOrderByClaimId(job.repositoryId()).stream()
-            .map(entity -> read(entity.payloadJson(), ClaimVerification.class))
+            .map(entity -> CodeAnalysisJson.read(
+                objectMapper,
+                entity.payloadJson(),
+                ClaimVerification.class
+            ))
             .map(claim -> new ProjectInterviewContext.ProjectClaim(
                 claim.claimId(),
                 claim.claim(),
@@ -95,7 +61,11 @@ public class CodeAnalysisInterviewContextService {
             ))
             .toList(),
         scenarioRepository.findByRepositoryIdOrderByScenarioId(job.repositoryId()).stream()
-            .map(entity -> read(entity.payloadJson(), ScenarioCard.class))
+            .map(entity -> CodeAnalysisJson.read(
+                objectMapper,
+                entity.payloadJson(),
+                ScenarioCard.class
+            ))
             .map(scenario -> new ProjectInterviewContext.ProjectScenario(
                 scenario.scenarioId(),
                 scenario.title(),
@@ -107,17 +77,5 @@ public class CodeAnalysisInterviewContextService {
             ))
             .toList()
     );
-  }
-
-  private <T> T read(String json, Class<T> type) {
-    try {
-      return objectMapper.readValue(json, type);
-    } catch (JacksonException e) {
-      throw new BusinessException(
-          ErrorCode.INTERNAL_ERROR,
-          "已存储的代码分析产物无效",
-          e
-      );
-    }
   }
 }

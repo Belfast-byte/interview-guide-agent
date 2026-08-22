@@ -1,5 +1,6 @@
 package interview.guide.modules.interview.agent.adaptive.assessment.practice;
 
+import interview.guide.modules.interview.agent.adaptive.assessment.FinalAssessmentSelector;
 import interview.guide.modules.interview.agent.adaptive.assessment.depth.AssessmentDecision;
 import interview.guide.modules.interview.agent.adaptive.assessment.depth.DepthLevel;
 import interview.guide.modules.interview.agent.adaptive.planning.PlannedDimension;
@@ -19,8 +20,10 @@ import org.springframework.stereotype.Service;
 public class PracticeRecommendationService {
 
   private static final Comparator<RankedAssessment> FINAL_ASSESSMENT =
-      Comparator.comparing(RankedAssessment::depthLevel)
-          .thenComparingInt(RankedAssessment::turnIndex);
+      FinalAssessmentSelector.byDepthThenTurn(
+          RankedAssessment::depthLevel,
+          RankedAssessment::turnIndex
+      );
 
   private final PracticeRecommendationFactsSource factsSource;
   private final QuestionBankSearchSource questionBank;

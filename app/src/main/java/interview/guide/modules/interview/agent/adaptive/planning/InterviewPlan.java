@@ -2,6 +2,7 @@ package interview.guide.modules.interview.agent.adaptive.planning;
 
 import interview.guide.common.exception.BusinessException;
 import interview.guide.common.exception.ErrorCode;
+import interview.guide.modules.interview.agent.adaptive.core.session.AdaptiveInterviewSession;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashSet;
@@ -19,7 +20,7 @@ public record InterviewPlan(
 ) {
 
   private static final int MAX_DIMENSIONS = 12;
-  private static final int MAX_TURNS = 12;
+  private static final int MAX_TURNS = AdaptiveInterviewSession.MAX_TURNS;
   private static final int MAX_DIMENSION_LENGTH = 100;
   private static final int MAX_FOCUS_LENGTH = 500;
 

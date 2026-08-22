@@ -15,14 +15,8 @@ public class AlgorithmAssessmentEvidenceService {
 
   public int attachAvailable(String sessionId, int turnIndex) {
     return (int) evidenceSource.findCandidateEvidenceIds(sessionId, turnIndex)
-        .keySet().stream()
+        .stream()
         .filter(executionId -> evidenceStore.attach(sessionId, turnIndex, executionId))
         .count();
-  }
-
-  public int attachAvailable(String sessionId) {
-    return evidenceSource.findCandidateTurnIndexes(sessionId).stream()
-        .mapToInt(turnIndex -> attachAvailable(sessionId, turnIndex))
-        .sum();
   }
 }
