@@ -1,6 +1,5 @@
 package interview.guide.modules.interview.agent.adaptive.application;
 
-import interview.guide.common.exception.BusinessException;
 import interview.guide.modules.interview.agent.adaptive.algorithm.judge.AlgorithmResultReadyHandler;
 import interview.guide.modules.interview.agent.adaptive.algorithm.evidence.AlgorithmSessionFacts;
 import interview.guide.modules.interview.agent.adaptive.algorithm.evidence.AlgorithmAssessmentEvidenceService;
@@ -69,7 +68,7 @@ class AdaptiveAlgorithmResultReadyHandler implements AlgorithmResultReadyHandler
       }
       assessmentEvidenceService.attachAvailable(execution.sessionId(), turnIndex);
       applicationService.handleToolResult(execution.sessionId(), event);
-    } catch (BusinessException e) {
+    } catch (Exception e) {
       // 回滚预留，让补偿调度器把这次唤醒当作未送达重新投递
       applicationService.discardToolResultReservation(event);
       throw e;

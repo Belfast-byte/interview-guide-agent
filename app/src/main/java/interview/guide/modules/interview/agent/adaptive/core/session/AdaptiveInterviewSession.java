@@ -52,22 +52,6 @@ public record AdaptiveInterviewSession(
     );
   }
 
-  /**
-   * 创建链路失败时的终态迁移：只有 CREATED 骨架可以标记失败。
-   */
-  public AdaptiveInterviewSession fail() {
-    if (status != AdaptiveSessionStatus.CREATED) {
-      throw new BusinessException(ErrorCode.BAD_REQUEST, "只有创建中的会话可以标记失败");
-    }
-    return new AdaptiveInterviewSession(
-        id,
-        runtimeVersion,
-        AdaptiveSessionStatus.FAILED,
-        currentTurn,
-        maxTurns
-    );
-  }
-
   public SessionTransition apply(CandidateAnswer answer, RespondAction proposedAction) {
     assertCanAnswer(answer);
 

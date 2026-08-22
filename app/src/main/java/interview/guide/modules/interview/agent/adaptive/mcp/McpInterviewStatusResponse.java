@@ -17,6 +17,7 @@ public record McpInterviewStatusResponse(
   static McpInterviewStatusResponse from(PlannedInterview interview) {
     var history = interview.history();
     String question = history.session().status() == AdaptiveSessionStatus.COMPLETED
+        || history.turns().isEmpty()
         ? null
         : history.turns().getLast().question();
     return new McpInterviewStatusResponse(

@@ -1,6 +1,11 @@
 package interview.guide.modules.interview.agent.adaptive.application;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
@@ -127,6 +132,26 @@ class AdaptiveAlgorithmResultReadyHandlerTest {
     assertThat(event.getValue().output())
         .contains("status=TIMEOUT_QUEUED, judging unavailable")
         .doesNotContain("negative evidence");
+  }
+
+  @Test
+  @DisplayName("预留成功后处理抛运行时异常时回滚预留并原样抛出")
+  void shouldRollbackReservationWhenProcessingFailsWithRuntimeException() {
+    AdaptiveAlgorithmResultReadyHandler handler = handler();
+    when(sessionFacts.turnIndex(10L)).thenReturn(1);
+    when(applicationService.reserveToolResultEvent(eq("session-1"), any()))
+        .thenReturn(true);
+    RuntimeException failure = new RuntimeException("database unavailable");
+    doThrow(failure)
+        .when(applicationService)
+        .reassessAlgorithmResult(eq("session-1"), eq(1), anyString());
+
+    assertThatThrownBy(() -> handler.handle(execution(null, SandboxExecutionStatus.DONE)))
+        .isSameAs(failure);
+
+    ArgumentCaptor<ToolResultEvent> event = ArgumentCaptor.forClass(ToolResultEvent.class);
+    verify(applicationService).discardToolResultReservation(event.capture());
+    assertThat(event.getValue().resultId()).isEqualTo("execution-1");
   }
 
   private AdaptiveAlgorithmResultReadyHandler handler() {

@@ -256,9 +256,15 @@ public class AdaptiveInterviewApplicationService {
                 .toList()
         );
     boolean naturallyCompletes = completesDimension(currentDimension);
-    boolean earlyCompletion = !naturallyCompletes && assessment.recommendsEarlyCompletion();
-    InterviewPlan planForNextTurn = earlyCompletion
+    InterviewPlan planAfterEarlyCompletion = assessment.recommendsEarlyCompletion()
         ? interview.plan().completeDimensionEarly(answer.turnIndex())
+        : interview.plan();
+    // 末维度或末轮的提前完成是空操作（计划原样返回），按未提前完成处理，
+    // 避免重复写 DimensionBrief 和 claims
+    boolean earlyCompletion = !naturallyCompletes
+        && planAfterEarlyCompletion != interview.plan();
+    InterviewPlan planForNextTurn = earlyCompletion
+        ? planAfterEarlyCompletion
         : interview.plan();
     boolean dimensionCompleted = naturallyCompletes || earlyCompletion;
     List<ProbeGap> nextProbeGaps = dimensionCompleted
@@ -465,7 +471,7 @@ public class AdaptiveInterviewApplicationService {
           decision.toolExecutions()
       );
       return Optional.of(decision.response());
-    } catch (BusinessException e) {
+    } catch (Exception e) {
       persistenceService.discardToolResultReservation(event);
       throw e;
     }

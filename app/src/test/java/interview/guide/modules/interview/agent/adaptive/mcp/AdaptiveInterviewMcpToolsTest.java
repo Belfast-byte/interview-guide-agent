@@ -5,6 +5,11 @@ import interview.guide.common.exception.ErrorCode;
 import interview.guide.modules.interview.agent.adaptive.application.AdaptiveInterviewApplicationService;
 import interview.guide.modules.interview.agent.adaptive.assessment.report.AssessmentReportService;
 import interview.guide.modules.interview.agent.adaptive.assessment.report.EnterpriseAssessmentReport;
+import interview.guide.modules.interview.agent.adaptive.core.session.AdaptiveInterviewHistory;
+import interview.guide.modules.interview.agent.adaptive.core.session.AdaptiveInterviewSession;
+import interview.guide.modules.interview.agent.adaptive.core.session.AdaptiveSessionStatus;
+import interview.guide.modules.interview.agent.adaptive.planning.InterviewPlan;
+import interview.guide.modules.interview.agent.adaptive.planning.PlannedInterview;
 import io.modelcontextprotocol.common.McpTransportContext;
 import java.util.List;
 import java.util.Set;
@@ -136,6 +141,65 @@ class AdaptiveInterviewMcpToolsTest {
         "interview.get_report",
         "session-a",
         McpAuditOutcome.SUCCEEDED
+    );
+  }
+
+  @Test
+  @DisplayName("CREATED 空骨架的创建响应不抛异常且无当前问题")
+  void shouldMapCreatedSkeletonWithoutTurnsOnCreate() {
+    when(context.transportContext()).thenReturn(transportContext);
+    McpTenantPrincipal principal = principal(Set.of(McpInterviewScope.INTERVIEW_CREATE));
+    when(transportContext.get(McpTenantTransportConfiguration.PRINCIPAL_KEY))
+        .thenReturn(principal);
+    when(applicationService.createForTenant("tenant-a", "candidate-a", "JD", "Resume", null))
+        .thenReturn(createdSkeleton("session-a"));
+
+    McpInterviewStatusResponse response = tools.create(
+        context,
+        "candidate-a",
+        "JD",
+        "Resume",
+        null
+    );
+
+    assertThat(response.status()).isEqualTo(AdaptiveSessionStatus.CREATED);
+    assertThat(response.currentQuestion()).isNull();
+  }
+
+  @Test
+  @DisplayName("CREATED 空骨架的状态响应不抛异常且无当前问题")
+  void shouldMapCreatedSkeletonWithoutTurnsOnGetStatus() {
+    when(context.transportContext()).thenReturn(transportContext);
+    McpTenantPrincipal principal = principal(Set.of(McpInterviewScope.INTERVIEW_READ));
+    when(transportContext.get(McpTenantTransportConfiguration.PRINCIPAL_KEY))
+        .thenReturn(principal);
+    when(applicationService.getForTenant("tenant-a", "session-a"))
+        .thenReturn(createdSkeleton("session-a"));
+
+    McpInterviewStatusResponse response = tools.getStatus(context, "session-a");
+
+    assertThat(response.status()).isEqualTo(AdaptiveSessionStatus.CREATED);
+    assertThat(response.currentQuestion()).isNull();
+  }
+
+  private PlannedInterview createdSkeleton(String sessionId) {
+    return new PlannedInterview(
+        new AdaptiveInterviewHistory(
+            new AdaptiveInterviewSession(
+                sessionId,
+                AdaptiveInterviewSession.RUNTIME_VERSION,
+                AdaptiveSessionStatus.CREATED,
+                0,
+                AdaptiveInterviewSession.MAX_TURNS
+            ),
+            "candidate-a",
+            "JD",
+            "Resume",
+            null,
+            List.of()
+        ),
+        new InterviewPlan(sessionId, 0, List.of()),
+        List.of()
     );
   }
 

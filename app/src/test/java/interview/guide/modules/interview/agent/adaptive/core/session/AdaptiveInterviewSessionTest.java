@@ -119,5 +119,21 @@ class AdaptiveInterviewSessionTest {
 
       assertThat(session.currentTurn()).isEqualTo(1);
     }
+
+    @Test
+    @DisplayName("创建失败的会话拒绝答题")
+    void shouldRejectAnswerWhenSessionFailed() {
+      AdaptiveInterviewSession session = new AdaptiveInterviewSession(
+          "session-1",
+          AdaptiveInterviewSession.RUNTIME_VERSION,
+          AdaptiveSessionStatus.FAILED,
+          0,
+          6
+      );
+
+      assertThatThrownBy(() -> session.assertCanAnswer(new CandidateAnswer(1, "回答")))
+          .isInstanceOf(BusinessException.class)
+          .hasMessageContaining("创建失败");
+    }
   }
 }

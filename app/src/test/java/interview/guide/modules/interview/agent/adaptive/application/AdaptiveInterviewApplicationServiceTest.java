@@ -470,6 +470,40 @@ class AdaptiveInterviewApplicationServiceTest {
   }
 
   @Test
+  @DisplayName("末维度提前完成是空操作时不提前写维度小结和声明")
+  void shouldNotPersistBriefWhenEarlyCompletionIsNoOpOnLastDimension() {
+    AdaptiveInterviewApplicationService l4Service = serviceWithAssessmentAgent(
+        new DepthAssessmentAgent((request, provider) -> new AssessmentProposal(
+            DepthLevel.L4,
+            0.9,
+            "已充分验证",
+            false,
+            List.of("末维度第一轮回答"),
+            List.of()
+        ))
+    );
+    PlannedInterview interview = interviewAtLastDimensionFirstTurn();
+    CandidateAnswer answer = new CandidateAnswer(5, "末维度第一轮回答");
+    RespondAction action = RespondAction.ask("末维度第二题？", "继续验证");
+    when(persistenceService.get("session-1")).thenReturn(interview);
+    when(runtime.run(any(ReActRequest.class), any(ReActBudget.class)))
+        .thenReturn(ReActResult.withoutTools(action));
+    when(persistenceService.recordDecision(
+        eq("session-1"), eq(answer), eq(action), eq(List.of()),
+        isNull(), eq(List.of()), any(), anyList(), eq(List.of())
+    )).thenReturn(interview);
+    ArgumentCaptor<ReActRequest> request = ArgumentCaptor.forClass(ReActRequest.class);
+
+    l4Service.submitAnswer("session-1", answer);
+
+    verify(runtime).run(request.capture(), any(ReActBudget.class));
+    assertThat(request.getValue().interviewerContext().targetDimension())
+        .isEqualTo("系统设计");
+    verifyNoInteractions(dimensionBriefService);
+    verifyNoInteractions(candidateClaimExtractionService);
+  }
+
+  @Test
   @DisplayName("代码回答必须通过 sandbox_submit 产生绑定原轮次的 Pending 结果")
   void shouldPersistPendingSandboxSubmissionForCodeAnswer() {
     PlannedInterview interview = interviewAtTurn(1);
@@ -845,6 +879,30 @@ class AdaptiveInterviewApplicationServiceTest {
   }
 
   @Test
+  @DisplayName("工具结果处理抛运行时异常时回滚预留并原样抛出")
+  void shouldRollbackReservationWhenToolResultHandlingFailsWithRuntimeException() {
+    ToolResultEvent event = new ToolResultEvent(
+        1,
+        "sandbox_submit",
+        "execution-1",
+        "verdict=WA, passed=4/10",
+        "verdict=WA, passed=4/10, firstFailedCase=7"
+    );
+    when(persistenceService.get("session-1")).thenReturn(interviewAtTurn(1));
+    RuntimeException failure = new RuntimeException("database unavailable");
+    when(runtime.run(any(ReActRequest.class), any(ReActBudget.class)))
+        .thenThrow(failure);
+
+    assertThatThrownBy(() -> service.handleToolResult("session-1", event))
+        .isSameAs(failure);
+
+    verify(persistenceService).discardToolResultReservation(event);
+    verify(persistenceService, never()).completeToolResultEvent(
+        anyString(), any(), any(), anyList()
+    );
+  }
+
+  @Test
   @DisplayName("预留事件撞唯一约束时按已存在语义返回 false")
   void shouldTreatUniqueViolationAsDuplicateReservation() {
     ToolResultEvent event = new ToolResultEvent(
@@ -909,6 +967,53 @@ class AdaptiveInterviewApplicationServiceTest {
         new AdaptiveInterviewHistory(session, "candidate-1", "JD", "Resume", null, turns),
         plan,
         List.of()
+    );
+  }
+
+  private PlannedInterview interviewAtLastDimensionFirstTurn() {
+    InterviewPlan plan = InterviewPlan.decide("session-1", proposal());
+    for (int turn = 1; turn <= 4; turn++) {
+      plan = plan.answer(turn);
+    }
+    List<AdaptiveInterviewTurn> turns = List.of(
+        answeredTurn(1, 0),
+        answeredTurn(2, 0),
+        answeredTurn(3, 1),
+        answeredTurn(4, 1),
+        new AdaptiveInterviewTurn(
+            5, 2, "末维度第一题？", "验证边界", null, null, null, null
+        )
+    );
+    return new PlannedInterview(
+        new AdaptiveInterviewHistory(
+            new AdaptiveInterviewSession(
+                "session-1",
+                AdaptiveInterviewSession.RUNTIME_VERSION,
+                AdaptiveSessionStatus.IN_PROGRESS,
+                5,
+                6
+            ),
+            "candidate-1",
+            "JD",
+            "Resume",
+            null,
+            turns
+        ),
+        plan,
+        List.of()
+    );
+  }
+
+  private AdaptiveInterviewTurn answeredTurn(int turnIndex, int dimensionOrder) {
+    return new AdaptiveInterviewTurn(
+        turnIndex,
+        dimensionOrder,
+        "第" + turnIndex + "题？",
+        "继续验证",
+        "第" + turnIndex + "轮回答",
+        AgentResponseType.ASK,
+        "下一题？",
+        "继续"
     );
   }
 

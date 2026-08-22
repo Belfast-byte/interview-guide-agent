@@ -46,13 +46,16 @@ class AdaptiveInterviewConcurrencyIntegrationTest {
   @DisplayName("两个并发回答只能推进同一会话一次")
   void shouldAdvanceOnceForConcurrentAnswers()
       throws InterruptedException, TimeoutException {
-    persistenceService.create(
+    persistenceService.createSkeleton(
         null,
         "concurrent-session",
         "candidate-1",
         "JD",
         "Resume",
-        null,
+        null
+    );
+    persistenceService.completeCreation(
+        "concurrent-session",
         InterviewPlan.decide(
             "concurrent-session",
             new PlanProposal(List.of(
@@ -127,13 +130,16 @@ class AdaptiveInterviewConcurrencyIntegrationTest {
   @DisplayName("同一工具结果事件的并发预留恰好成功一次")
   void shouldReserveToolResultEventOnceForConcurrentDuplicates()
       throws InterruptedException, TimeoutException, ExecutionException {
-    persistenceService.create(
+    persistenceService.createSkeleton(
         null,
         "concurrent-reserve",
         "candidate-1",
         "JD",
         "Resume",
-        null,
+        null
+    );
+    persistenceService.completeCreation(
+        "concurrent-reserve",
         InterviewPlan.decide(
             "concurrent-reserve",
             new PlanProposal(List.of(

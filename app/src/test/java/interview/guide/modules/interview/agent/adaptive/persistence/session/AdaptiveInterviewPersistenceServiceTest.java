@@ -85,7 +85,7 @@ class AdaptiveInterviewPersistenceServiceTest {
   @DisplayName("候选人只能读取归属于自己的会话")
   void shouldRequireCandidateOwnershipInQuery() {
     String sessionId = "session-owned";
-    service.create(
+    create(
         null,
         sessionId,
         "candidate-owner",
@@ -110,7 +110,7 @@ class AdaptiveInterviewPersistenceServiceTest {
   @DisplayName("审核题稳定 ID 与难度随问题轮次一起落库")
   void shouldPersistQuestionProvenance() {
     String sessionId = "session-question-source";
-    service.create(
+    create(
         null,
         sessionId,
         "candidate-source",
@@ -137,7 +137,7 @@ class AdaptiveInterviewPersistenceServiceTest {
   @DisplayName("项目问题的代码事实来源与锚点随轮次落库")
   void shouldPersistCodeQuestionProvenance() {
     String sessionId = "session-code-source";
-    service.create(
+    create(
         null,
         sessionId,
         "candidate-source",
@@ -205,7 +205,7 @@ class AdaptiveInterviewPersistenceServiceTest {
   @DisplayName("报告只回放原始轮次而不读取维度小结转述")
   void shouldBuildReportFromOriginalTurns() {
     String sessionId = "session-report";
-    service.create(
+    create(
         null,
         sessionId,
         "candidate-report",
@@ -301,7 +301,7 @@ class AdaptiveInterviewPersistenceServiceTest {
   @Test
   @DisplayName("租户会话只能由所属租户读取且旧 REST 不可旁路")
   void shouldIsolateTenantSession() {
-    service.create(
+    create(
         "tenant-b",
         "tenant-session",
         "candidate-1",
@@ -325,7 +325,7 @@ class AdaptiveInterviewPersistenceServiceTest {
   @Test
   @DisplayName("未验证声明与来源回答在维度完成事务中一起落库")
   void shouldPersistUnverifiedClaimWithSourceTurn() {
-    service.create(
+    create(
         null,
         "session-claim",
         "candidate-claim",
@@ -392,7 +392,7 @@ class AdaptiveInterviewPersistenceServiceTest {
         8
     );
 
-    service.create(
+    create(
         null,
         "session-tool-audit",
         "candidate-1",
@@ -427,7 +427,7 @@ class AdaptiveInterviewPersistenceServiceTest {
         )))
     );
 
-    service.create(
+    create(
         null,
         "session-plan-tools",
         "candidate-1",
@@ -450,7 +450,7 @@ class AdaptiveInterviewPersistenceServiceTest {
   @Test
   @DisplayName("维度小结与回答和下一题在同一事务中保存并可重读")
   void shouldPersistDimensionBriefWithDecision() {
-    service.create(
+    create(
         null,
         "session-brief",
         "candidate-1",
@@ -492,7 +492,7 @@ class AdaptiveInterviewPersistenceServiceTest {
   @DisplayName("回答原文、决策摘要和下一题在同一事实历史中完整保存")
   void shouldPersistFullTurnAndNextQuestion() {
     String answer = "候选人的完整回答。".repeat(2000);
-    service.create(
+    create(
         null,
         "session-1",
         "candidate-1",
@@ -536,7 +536,7 @@ class AdaptiveInterviewPersistenceServiceTest {
   @Test
   @DisplayName("追问缺少上一轮评估事实时快速失败")
   void shouldFailFastWhenPreviousAssessmentIsMissing() {
-    service.create(
+    create(
         null,
         "session-without-assessment",
         "candidate-1",
@@ -558,7 +558,7 @@ class AdaptiveInterviewPersistenceServiceTest {
   @Test
   @DisplayName("轮次预算覆盖模型建议后只保存结束裁决")
   void shouldPersistBudgetDecision() {
-    service.create(
+    create(
         null,
         "session-2",
         "candidate-1",
@@ -598,7 +598,7 @@ class AdaptiveInterviewPersistenceServiceTest {
     assertThat(history.turns().getLast().responseType()).isEqualTo(AgentResponseType.FINISH);
     assertThat(history.turns().getLast().decisionReason()).isEqualTo("轮次预算已用尽");
 
-    service.create(
+    create(
         null,
         "session-2-retest",
         "candidate-1",
@@ -648,7 +648,7 @@ class AdaptiveInterviewPersistenceServiceTest {
   @Test
   @DisplayName("未达轮次门槛时拒绝模型提前结束")
   void shouldRejectEarlyFinish() {
-    service.create(
+    create(
         null,
         "session-early-finish",
         "candidate-1",
@@ -681,7 +681,7 @@ class AdaptiveInterviewPersistenceServiceTest {
   @Test
   @DisplayName("过期回答失败时不写入轮次事实")
   void shouldNotPersistStaleAnswer() {
-    service.create(
+    create(
         null,
         "session-3",
         "candidate-1",
@@ -709,6 +709,21 @@ class AdaptiveInterviewPersistenceServiceTest {
     AdaptiveInterviewHistory history = service.get("session-3").history();
     assertThat(history.session().currentTurn()).isEqualTo(1);
     assertThat(history.turns().getFirst().answer()).isNull();
+  }
+
+  private PlannedInterview create(
+      String tenantId,
+      String sessionId,
+      String candidateId,
+      String jd,
+      String resume,
+      String llmProvider,
+      InterviewPlan plan,
+      RespondAction firstAction,
+      List<ToolExecution> toolExecutions
+  ) {
+    service.createSkeleton(tenantId, sessionId, candidateId, jd, resume, llmProvider);
+    return service.completeCreation(sessionId, plan, firstAction, toolExecutions);
   }
 
   private AssessmentDecision assessment(String sessionId, int turnIndex) {

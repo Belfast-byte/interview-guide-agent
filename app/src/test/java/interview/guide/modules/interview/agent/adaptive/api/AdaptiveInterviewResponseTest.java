@@ -71,4 +71,32 @@ class AdaptiveInterviewResponseTest {
     assertThat(response.dimensions()).extracting(AdaptiveInterviewDimensionResponse::dimension)
         .containsExactly("专业基础");
   }
+
+  @Test
+  @DisplayName("空轮次历史映射出的当前问题为 null")
+  void shouldExposeNullQuestionWhenNoTurns() {
+    PlannedInterview interview = new PlannedInterview(
+        new AdaptiveInterviewHistory(
+            new AdaptiveInterviewSession(
+                "session-1",
+                AdaptiveInterviewSession.RUNTIME_VERSION,
+                AdaptiveSessionStatus.CREATED,
+                0,
+                6
+            ),
+            "candidate-1",
+            "JD",
+            "Resume",
+            null,
+            List.of()
+        ),
+        new InterviewPlan("session-1", 0, List.of()),
+        List.of()
+    );
+
+    AdaptiveInterviewResponse response = AdaptiveInterviewResponse.from(interview);
+
+    assertThat(response.currentQuestion()).isNull();
+    assertThat(response.turns()).isEmpty();
+  }
 }

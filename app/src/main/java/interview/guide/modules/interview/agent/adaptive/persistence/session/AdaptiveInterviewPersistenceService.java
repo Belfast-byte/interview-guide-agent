@@ -318,39 +318,6 @@ public class AdaptiveInterviewPersistenceService
   }
 
   @Transactional
-  public PlannedInterview create(
-      String tenantId,
-      String sessionId,
-      String candidateId,
-      String jd,
-      String resume,
-      String llmProvider,
-      InterviewPlan plan,
-      RespondAction firstAction,
-      List<ToolExecution> toolExecutions
-  ) {
-    AdaptiveInterviewSession session = AdaptiveInterviewSession
-        .create(sessionId, plan.maxTurns())
-        .start();
-    AdaptiveAgentSessionEntity sessionEntity = sessionRepository.save(
-        new AdaptiveAgentSessionEntity(
-            session, tenantId, candidateId, jd, resume, llmProvider
-        )
-    );
-    planRepository.saveAll(plan.dimensions().stream()
-        .map(dimension -> new AdaptiveAgentPlanEntity(sessionId, dimension))
-        .toList());
-    turnRepository.save(new AdaptiveAgentTurnEntity(
-        sessionId,
-        1,
-        plan.dimensionForTurn(1).order(),
-        firstAction
-    ));
-    saveToolExecutions(sessionId, toolExecutions);
-    return plannedInterview(sessionEntity, plan);
-  }
-
-  @Transactional
   public PlannedInterview recordDecision(
       String sessionId,
       CandidateAnswer answer,
