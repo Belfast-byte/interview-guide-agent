@@ -20,6 +20,7 @@ import interview.guide.modules.interview.agent.adaptive.algorithm.sandbox.Sandbo
 import interview.guide.modules.interview.agent.adaptive.algorithm.sandbox.SandboxExecutionRepository;
 import interview.guide.modules.interview.agent.adaptive.algorithm.sandbox.SandboxExecutionStatus;
 import interview.guide.modules.interview.agent.adaptive.algorithm.sandbox.SandboxLanguage;
+import interview.guide.modules.interview.agent.adaptive.algorithm.sandbox.SandboxExecutionResult;
 import interview.guide.modules.interview.agent.adaptive.algorithm.sandbox.SandboxRunMode;
 import interview.guide.modules.interview.agent.adaptive.algorithm.sandbox.SandboxVerdict;
 import interview.guide.modules.interview.agent.adaptive.observability.AlgorithmInterviewTelemetry;
@@ -146,6 +147,8 @@ class AlgorithmPersistenceServiceTest {
         eq(SandboxExecutionStatus.RUNNING),
         any()
     )).thenReturn(List.of(running));
+    when(executionRepository.findLockedById("execution-stuck"))
+        .thenReturn(Optional.of(running));
 
     List<SandboxExecution> recycled = service.timeoutRunningBefore(
         LocalDateTime.now().minusSeconds(120)
@@ -170,9 +173,37 @@ class AlgorithmPersistenceServiceTest {
         eq(SandboxExecutionStatus.RUNNING),
         any()
     )).thenReturn(List.of(pending));
+    when(executionRepository.findLockedById("execution-pending"))
+        .thenReturn(Optional.of(pending));
 
     assertThat(service.timeoutRunningBefore(LocalDateTime.now().minusSeconds(120)))
         .isEmpty();
+  }
+
+  @Test
+  @DisplayName("迟到结果到达终态执行时被忽略并记录指标")
+  void shouldIgnoreLateResultForTerminalExecution() {
+    SandboxExecutionEntity done = new SandboxExecutionEntity(
+        "execution-done",
+        command(),
+        9L,
+        1
+    );
+    done.markRunning();
+    done.apply(new SandboxExecutionResult(
+        SandboxVerdict.WA, 4, 10, 120, 32_768, 7, List.of(), null
+    ));
+    when(executionRepository.findLockedById("execution-done"))
+        .thenReturn(Optional.of(done));
+
+    service.applyResult("execution-done", new SandboxExecutionResult(
+        SandboxVerdict.AC, 10, 10, 100, 65_536, null, List.of(), null
+    ));
+
+    assertThat(done.toDomain().verdict()).isEqualTo(SandboxVerdict.WA);
+    assertThat(done.toDomain().status()).isEqualTo(SandboxExecutionStatus.DONE);
+    verify(telemetry).lateResultDropped();
+    verify(logRepository, never()).saveAll(any());
   }
 
   @Nested

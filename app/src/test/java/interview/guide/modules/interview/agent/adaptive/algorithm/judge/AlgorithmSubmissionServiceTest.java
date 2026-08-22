@@ -115,7 +115,6 @@ class AlgorithmSubmissionServiceTest {
         null,
         null,
         null,
-        0,
         LocalDateTime.now(),
         null,
         null

@@ -27,7 +27,6 @@ public record SandboxExecution(
     Long memoryKb,
     Integer firstFailedCase,
     String supersededBy,
-    int retryCount,
     LocalDateTime createdAt,
     LocalDateTime finishedAt,
     SandboxPolicyViolation policyViolation

@@ -66,39 +66,6 @@ class AlgorithmJudgeStreamConsumerTest {
   }
 
   @Test
-  @DisplayName("沙箱返回首次 IE 时重新投递同一 submissionId")
-  void shouldRequeueFirstInternalError() {
-    SandboxExecution execution = execution();
-    AlgorithmProblem problem = problem();
-    SandboxExecutionSpec spec = new SandboxExecutionSpec(
-        "two-sum",
-        "cases/hidden.json",
-        null,
-        2_000,
-        262_144
-    );
-    SandboxExecutionResult result = new SandboxExecutionResult(
-        SandboxVerdict.IE,
-        0,
-        0,
-        0,
-        0,
-        null,
-        List.of(),
-        null
-    );
-    when(persistenceService.getExecution("execution-1")).thenReturn(execution);
-    when(persistenceService.getProblem("two-sum")).thenReturn(problem);
-    when(sandboxWorker.execute(execution, spec)).thenReturn(result);
-    when(persistenceService.applyResult("execution-1", result)).thenReturn(true);
-    when(producer.sendExecution("execution-1")).thenReturn(true);
-
-    consumer.processBusiness(new AlgorithmJudgeStreamConsumer.ExecutionTask("execution-1"));
-
-    verify(producer).sendExecution("execution-1");
-  }
-
-  @Test
   @DisplayName("worker 调用耗尽 Stream 重试后记录 IE 待重判")
   void shouldMarkInfrastructureFailureAfterRetries() {
     AlgorithmJudgeStreamConsumer.ExecutionTask task =
@@ -118,8 +85,6 @@ class AlgorithmJudgeStreamConsumerTest {
   void shouldRecordMetricWhenResultReadyHandlerFails() {
     SandboxExecution execution = execution();
     when(persistenceService.getExecution("execution-1")).thenReturn(execution);
-    when(persistenceService.applyResult("execution-1", result()))
-        .thenReturn(false);
     when(sandboxWorker.execute(any(), any())).thenReturn(result());
     when(persistenceService.getProblem("two-sum")).thenReturn(problem());
     org.mockito.Mockito.doThrow(new IllegalStateException("编排器不可用"))
@@ -175,7 +140,6 @@ class AlgorithmJudgeStreamConsumerTest {
         null,
         null,
         null,
-        0,
         LocalDateTime.now(),
         null,
         null
@@ -199,7 +163,6 @@ class AlgorithmJudgeStreamConsumerTest {
     );
     when(persistenceService.getExecution("execution-2")).thenReturn(execution);
     when(sandboxWorker.execute(execution, spec)).thenReturn(result);
-    when(persistenceService.applyResult("execution-2", result)).thenReturn(false);
     when(persistenceService.getExecution("execution-2")).thenReturn(execution);
 
     consumer.processBusiness(new AlgorithmJudgeStreamConsumer.ExecutionTask("execution-2"));
@@ -227,7 +190,7 @@ class AlgorithmJudgeStreamConsumerTest {
         "two-sum", null, null, null,
         SandboxLanguage.JAVA, "source-ref", "a".repeat(64), SandboxRunMode.FULL,
         SandboxExecutionStatus.RUNNING, null, null, null, null, null, null,
-        null, 0, LocalDateTime.now().minusSeconds(1), LocalDateTime.now(), null
+        null, LocalDateTime.now().minusSeconds(1), LocalDateTime.now(), null
     );
   }
 

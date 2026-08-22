@@ -40,7 +40,7 @@ class AlgorithmInterviewTelemetryTest {
         "two-sum", null, null, null,
         SandboxLanguage.JAVA, "source-ref", "a".repeat(64), SandboxRunMode.FULL,
         SandboxExecutionStatus.DONE, SandboxVerdict.WA, 4, 10, 120L, 32_768L, 7,
-        null, 0, finishedAt.minusSeconds(2), finishedAt, null
+        null, finishedAt.minusSeconds(2), finishedAt, null
     );
 
     telemetry.submissionAccepted();

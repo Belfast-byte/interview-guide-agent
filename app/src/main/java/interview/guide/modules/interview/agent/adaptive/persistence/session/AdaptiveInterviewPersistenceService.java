@@ -75,6 +75,12 @@ public class AdaptiveInterviewPersistenceService
         ));
   }
 
+  /**
+   * 预留工具结果事件。并发重复投递撞 uk_agent_tool_result_event 唯一约束时抛
+   * {@link org.springframework.dao.DataIntegrityViolationException}，由应用层转「已存在」语义。
+   *
+   * @return true 表示预留成功；false 表示会话尚在 CREATED 骨架期，不接受工具事件
+   */
   @Transactional
   public boolean reserveToolResultEvent(String sessionId, ToolResultEvent event) {
     AdaptiveAgentSessionEntity session = sessionRepository
@@ -86,18 +92,14 @@ public class AdaptiveInterviewPersistenceService
     if (session.status() == AdaptiveSessionStatus.CREATED) {
       return false;
     }
-    if (toolResultEventRepository.existsByToolNameAndResultId(
-        event.toolName(),
-        event.resultId()
-    )) {
-      return false;
-    }
     turnRepository.findBySessionIdAndTurnIndex(sessionId, event.turnIndex())
         .orElseThrow(() -> new BusinessException(
             ErrorCode.NOT_FOUND,
             "面试轮次不存在"
         ));
-    toolResultEventRepository.save(new AdaptiveAgentToolResultEventEntity(sessionId, event));
+    toolResultEventRepository.saveAndFlush(
+        new AdaptiveAgentToolResultEventEntity(sessionId, event)
+    );
     return true;
   }
 

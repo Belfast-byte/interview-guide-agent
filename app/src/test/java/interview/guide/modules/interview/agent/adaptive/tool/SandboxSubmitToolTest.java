@@ -132,7 +132,7 @@ class SandboxSubmitToolTest {
         "two-sum", null, null, null,
         SandboxLanguage.JAVA, "source-ref", "a".repeat(64), SandboxRunMode.FULL,
         SandboxExecutionStatus.PENDING, null, null, null, null, null, null,
-        null, 0, LocalDateTime.now(), null, null
+        null, LocalDateTime.now(), null, null
     );
   }
 }

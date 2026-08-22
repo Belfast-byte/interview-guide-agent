@@ -52,6 +52,7 @@ import java.util.Optional;
 import java.util.UUID;
 import java.util.stream.Stream;
 import lombok.RequiredArgsConstructor;
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.dao.OptimisticLockingFailureException;
 import org.springframework.stereotype.Service;
 
@@ -364,20 +365,33 @@ public class AdaptiveInterviewApplicationService {
   }
 
   /**
-   * 处理异步工具结果事件：预留事件、让面试官生成追问，并持久化结果。
+   * 预留异步工具结果事件：任何 LLM 重评或追问生成之前先做幂等去重。
    *
    * @param sessionId 会话 ID
    * @param event 工具结果事件
-   * @return 生成的追问响应；若事件已被其他请求处理则返回空
+   * @return true 表示预留成功；false 表示事件已存在或会话尚在创建期
+   */
+  public boolean reserveToolResultEvent(String sessionId, ToolResultEvent event) {
+    try {
+      return persistenceService.reserveToolResultEvent(sessionId, event);
+    } catch (DataIntegrityViolationException e) {
+      return false;
+    }
+  }
+
+  /**
+   * 处理已预留的异步工具结果事件：让面试官生成追问并完成事件。
+   * 调用方必须先经 {@link #reserveToolResultEvent} 去重成功。
+   *
+   * @param sessionId 会话 ID
+   * @param event 工具结果事件
+   * @return 生成的追问响应；事件处理失败时抛出，预留由本方法回滚
    */
   public Optional<RespondAction> handleToolResult(
       String sessionId,
       ToolResultEvent event
   ) {
     PlannedInterview interview = persistenceService.get(sessionId);
-    if (!persistenceService.reserveToolResultEvent(sessionId, event)) {
-      return Optional.empty();
-    }
     PlannedDimension dimension = interview.plan().dimensionForTurn(event.turnIndex());
     try {
       ReActResult decision = runDecision(new ReActRequest(
@@ -413,6 +427,15 @@ public class AdaptiveInterviewApplicationService {
       persistenceService.discardToolResultReservation(event);
       throw e;
     }
+  }
+
+  /**
+   * 回滚工具结果事件预留，供补偿调度器重新投递。
+   *
+   * @param event 工具结果事件
+   */
+  public void discardToolResultReservation(ToolResultEvent event) {
+    persistenceService.discardToolResultReservation(event);
   }
 
   /**

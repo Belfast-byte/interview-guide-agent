@@ -121,13 +121,7 @@ class AlgorithmJudgeStreamConsumer
         result.verdict(),
         result.policyViolation()
     );
-    boolean retry = persistenceService.applyResult(execution.id(), result);
-    if (retry) {
-      if (!producer.sendExecution(execution.id())) {
-        throw new IllegalStateException("IE rejudge task enqueue failed");
-      }
-      return;
-    }
+    persistenceService.applyResult(execution.id(), result);
     try {
       resultReadyHandler.handle(persistenceService.getExecution(execution.id()));
     } catch (Exception e) {

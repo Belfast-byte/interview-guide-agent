@@ -12,13 +12,20 @@ import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
 import jakarta.persistence.PrePersist;
 import jakarta.persistence.Table;
+import jakarta.persistence.UniqueConstraint;
 import java.time.LocalDateTime;
 
 /**
  * AdaptiveAgentToolResultEventEntity JPA 实体，对应数据库中的相关表。
  */
 @Entity
-@Table(name = "agent_tool_result_events")
+@Table(
+    name = "agent_tool_result_events",
+    uniqueConstraints = @UniqueConstraint(
+        name = "uk_agent_tool_result_event",
+        columnNames = {"tool_name", "result_id"}
+    )
+)
 class AdaptiveAgentToolResultEventEntity {
 
   @Id

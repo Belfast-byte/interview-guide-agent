@@ -56,6 +56,10 @@ class AdaptiveAlgorithmResultReadyHandlerTest {
   void shouldPublishSafeResultSummary() {
     AdaptiveAlgorithmResultReadyHandler handler = handler();
     when(sessionFacts.turnIndex(10L)).thenReturn(1);
+    when(applicationService.reserveToolResultEvent(
+        org.mockito.ArgumentMatchers.eq("session-1"),
+        org.mockito.ArgumentMatchers.any()
+    )).thenReturn(true);
     ArgumentCaptor<ToolResultEvent> event = ArgumentCaptor.forClass(ToolResultEvent.class);
 
     handler.handle(execution(null, SandboxExecutionStatus.DONE));
@@ -72,6 +76,30 @@ class AdaptiveAlgorithmResultReadyHandlerTest {
     assertThat(event.getValue().output())
         .contains("verdict=WA", "passed=4/10", "firstFailedCase=7")
         .doesNotContain("source-ref", "hidden");
+  }
+
+  @Test
+  @DisplayName("重复投递在预留阶段被幂等拒绝，不触发任何 LLM 重评")
+  void shouldSkipDuplicateDeliveryBeforeReassessment() {
+    AdaptiveAlgorithmResultReadyHandler handler = handler();
+    when(sessionFacts.turnIndex(10L)).thenReturn(1);
+    when(applicationService.reserveToolResultEvent(
+        org.mockito.ArgumentMatchers.eq("session-1"),
+        org.mockito.ArgumentMatchers.any()
+    )).thenReturn(false);
+
+    handler.handle(execution(null, SandboxExecutionStatus.DONE));
+
+    verify(applicationService, never()).reassessAlgorithmResult(
+        org.mockito.ArgumentMatchers.anyString(),
+        org.mockito.ArgumentMatchers.anyInt(),
+        org.mockito.ArgumentMatchers.anyString()
+    );
+    verify(applicationService, never()).handleToolResult(
+        org.mockito.ArgumentMatchers.anyString(),
+        org.mockito.ArgumentMatchers.any()
+    );
+    verify(telemetry).resultReadyDeduped();
   }
 
   private AdaptiveAlgorithmResultReadyHandler handler() {
@@ -92,7 +120,7 @@ class AdaptiveAlgorithmResultReadyHandlerTest {
         "two-sum", null, null, null,
         SandboxLanguage.JAVA, "source-ref", "a".repeat(64), SandboxRunMode.FULL,
         status, SandboxVerdict.WA, 4, 10, 120L, 32_768L, 7,
-        supersededBy, 0,
+        supersededBy,
         LocalDateTime.now().minusSeconds(1), LocalDateTime.now(), null
     );
   }

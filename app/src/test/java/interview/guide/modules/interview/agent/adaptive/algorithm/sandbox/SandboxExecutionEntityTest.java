@@ -9,33 +9,6 @@ import org.junit.jupiter.api.Test;
 class SandboxExecutionEntityTest {
 
   @Test
-  @DisplayName("沙箱内部错误自动重试一次，第二次内部错误进入终态")
-  void shouldRetryInternalErrorOnce() {
-    SandboxExecutionEntity execution = execution();
-    SandboxExecutionResult internalError = new SandboxExecutionResult(
-        SandboxVerdict.IE,
-        0,
-        0,
-        0,
-        0,
-        null,
-        List.of(),
-        null
-    );
-
-    assertThat(execution.markRunning()).isTrue();
-    assertThat(execution.apply(internalError)).isTrue();
-    assertThat(execution.toDomain().status()).isEqualTo(SandboxExecutionStatus.PENDING);
-    assertThat(execution.toDomain().retryCount()).isEqualTo(1);
-    assertThat(execution.toDomain().verdict()).isNull();
-
-    assertThat(execution.markRunning()).isTrue();
-    assertThat(execution.apply(internalError)).isFalse();
-    assertThat(execution.toDomain().status()).isEqualTo(SandboxExecutionStatus.DONE);
-    assertThat(execution.toDomain().verdict()).isEqualTo(SandboxVerdict.IE);
-  }
-
-  @Test
   @DisplayName("候选人代码判题结果完整写入执行事实")
   void shouldPersistCandidateVerdictFacts() {
     SandboxExecutionEntity execution = execution();
@@ -54,8 +27,8 @@ class SandboxExecutionEntityTest {
     );
 
     execution.markRunning();
+    execution.apply(result);
 
-    assertThat(execution.apply(result)).isFalse();
     assertThat(execution.toDomain()).satisfies(saved -> {
       assertThat(saved.status()).isEqualTo(SandboxExecutionStatus.DONE);
       assertThat(saved.verdict()).isEqualTo(SandboxVerdict.WA);
@@ -64,6 +37,39 @@ class SandboxExecutionEntityTest {
       assertThat(saved.firstFailedCase()).isEqualTo(7);
       assertThat(saved.policyViolation()).isEqualTo(SandboxPolicyViolation.NETWORK_ACCESS);
     });
+  }
+
+  @Test
+  @DisplayName("沙箱内部错误直接落为终态 IE，不再实体级自动重判")
+  void shouldFinalizeInternalErrorWithoutEntityRejudge() {
+    SandboxExecutionEntity execution = execution();
+    SandboxExecutionResult internalError = new SandboxExecutionResult(
+        SandboxVerdict.IE,
+        0,
+        0,
+        0,
+        0,
+        null,
+        List.of(),
+        null
+    );
+
+    execution.markRunning();
+    execution.apply(internalError);
+
+    assertThat(execution.isTerminal()).isTrue();
+    assertThat(execution.toDomain().status()).isEqualTo(SandboxExecutionStatus.DONE);
+    assertThat(execution.toDomain().verdict()).isEqualTo(SandboxVerdict.IE);
+  }
+
+  @Test
+  @DisplayName("终态执行可被识别，供迟到结果守卫使用")
+  void shouldReportTerminalStatus() {
+    SandboxExecutionEntity execution = execution();
+
+    assertThat(execution.isTerminal()).isFalse();
+    execution.markQueuedTimeout();
+    assertThat(execution.isTerminal()).isTrue();
   }
 
   @Test

@@ -1,6 +1,7 @@
 package interview.guide.modules.interview.agent.adaptive.codeanalysis.job;
 
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
@@ -30,7 +31,7 @@ class CodeAnalysisSubmissionServiceTest {
   private CodeAnalysisSubmissionService service;
 
   @Test
-  @DisplayName("任务落库后投递 Stream，投递失败快速失败")
+  @DisplayName("任务落库后投递 Stream，同步重投一次仍失败才快速失败")
   void shouldFailFastWhenEnqueueFails() {
     LocalDateTime expiresAt = LocalDateTime.now().plusDays(30);
     when(persistenceService.createJob(
@@ -59,7 +60,7 @@ class CodeAnalysisSubmissionServiceTest {
         expiresAt
     )).isInstanceOf(BusinessException.class)
         .hasMessageContaining("投递失败");
-    verify(producer).send("job-1");
+    verify(producer, times(2)).send("job-1");
     verify(persistenceService).markFailed("job-1", "代码分析任务投递失败");
   }
 }

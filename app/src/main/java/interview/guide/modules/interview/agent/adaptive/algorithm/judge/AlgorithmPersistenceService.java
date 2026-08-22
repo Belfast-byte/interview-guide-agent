@@ -23,12 +23,14 @@ import java.util.UUID;
 import java.time.LocalDateTime;
 import java.util.List;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 /**
  * 算法面试持久化服务，管理题目、提交和执行记录。
  */
+@Slf4j
 @Service
 @RequiredArgsConstructor
 public class AlgorithmPersistenceService {
@@ -140,17 +142,21 @@ public class AlgorithmPersistenceService {
   }
 
   @Transactional
-  public boolean applyResult(String executionId, SandboxExecutionResult result) {
+  public void applyResult(String executionId, SandboxExecutionResult result) {
     SandboxExecutionEntity execution = executionRepository.findLockedById(executionId)
         .orElseThrow(() -> new BusinessException(ErrorCode.NOT_FOUND, "判题提交不存在"));
-    boolean retry = execution.apply(result);
-    if (!retry) {
-      logRepository.saveAll(result.logs().stream()
-          .map(log -> new SandboxExecutionLogEntity(execution.id(), log))
-          .toList());
+    if (execution.isTerminal()) {
+      // 终态执行不接受迟到结果：调度器降级与消费者同刻竞争时，后到者直接忽略
+      log.warn("忽略迟到的判题结果: executionId={}, status={}",
+          executionId, execution.toDomain().status());
+      telemetry.lateResultDropped();
+      return;
     }
+    execution.apply(result);
+    logRepository.saveAll(result.logs().stream()
+        .map(log -> new SandboxExecutionLogEntity(execution.id(), log))
+        .toList());
     updateQueueDepth();
-    return retry;
   }
 
   @Transactional
@@ -173,10 +179,13 @@ public class AlgorithmPersistenceService {
 
   @Transactional
   public List<SandboxExecution> timeoutQueuedBefore(LocalDateTime cutoff) {
+    // 逐条悲观锁后再改状态，与消费者的 findLockedById 串行化，消除 90s 边界的互相覆盖
     List<SandboxExecution> timedOut = executionRepository.findByStatusAndCreatedAtBefore(
         SandboxExecutionStatus.PENDING,
         cutoff
     ).stream()
+        .map(candidate -> executionRepository.findLockedById(candidate.id())
+            .orElseThrow(() -> new BusinessException(ErrorCode.NOT_FOUND, "判题提交不存在")))
         .filter(SandboxExecutionEntity::markQueuedTimeout)
         .map(SandboxExecutionEntity::toDomain)
         .toList();
@@ -190,6 +199,8 @@ public class AlgorithmPersistenceService {
         SandboxExecutionStatus.RUNNING,
         cutoff
     ).stream()
+        .map(candidate -> executionRepository.findLockedById(candidate.id())
+            .orElseThrow(() -> new BusinessException(ErrorCode.NOT_FOUND, "判题提交不存在")))
         .filter(SandboxExecutionEntity::markStuckRunningTimeout)
         .map(SandboxExecutionEntity::toDomain)
         .toList();

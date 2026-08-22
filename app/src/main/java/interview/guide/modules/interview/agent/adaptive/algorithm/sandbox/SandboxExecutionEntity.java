@@ -87,9 +87,6 @@ public class SandboxExecutionEntity {
   @Column(name = "superseded_by", length = 36)
   private String supersededBy;
 
-  @Column(name = "retry_count", nullable = false)
-  private int retryCount;
-
   @Column(name = "created_at", nullable = false)
   private LocalDateTime createdAt;
 
@@ -140,13 +137,15 @@ public class SandboxExecutionEntity {
     return !codeHash.equals(hash);
   }
 
-  public boolean apply(SandboxExecutionResult result) {
-    if (result.verdict() == SandboxVerdict.IE && retryCount == 0 && supersededBy == null) {
-      retryCount = 1;
-      status = SandboxExecutionStatus.PENDING;
-      startedAt = null;
-      return true;
-    }
+  /**
+   * 是否已进入终态。终态执行不再接受迟到的判题结果。
+   */
+  public boolean isTerminal() {
+    return status == SandboxExecutionStatus.DONE
+        || status == SandboxExecutionStatus.TIMEOUT_QUEUED;
+  }
+
+  public void apply(SandboxExecutionResult result) {
     verdict = result.verdict();
     passed = result.passed();
     total = result.total();
@@ -156,7 +155,6 @@ public class SandboxExecutionEntity {
     policyViolation = result.policyViolation();
     status = SandboxExecutionStatus.DONE;
     finishedAt = LocalDateTime.now();
-    return false;
   }
 
   public boolean resetAfterWorkerFailure() {
@@ -220,7 +218,6 @@ public class SandboxExecutionEntity {
         memoryKb,
         firstFailedCase,
         supersededBy,
-        retryCount,
         createdAt,
         finishedAt,
         policyViolation

@@ -141,7 +141,6 @@ class CodePatchSubmissionServiceTest {
         null,
         null,
         null,
-        0,
         LocalDateTime.now(),
         null,
         null

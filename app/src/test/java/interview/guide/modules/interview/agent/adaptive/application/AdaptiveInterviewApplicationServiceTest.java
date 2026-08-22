@@ -59,6 +59,7 @@ import org.mockito.InOrder;
 import org.mockito.ArgumentCaptor;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.dao.OptimisticLockingFailureException;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -749,7 +750,6 @@ class AdaptiveInterviewApplicationServiceTest {
     PlannedInterview interview = interviewAtTurn(1);
     RespondAction followUp = RespondAction.ask("第 7 个用例失败可能是哪类边界？", "基于判题结果追问");
     when(persistenceService.get("session-1")).thenReturn(interview);
-    when(persistenceService.reserveToolResultEvent("session-1", event)).thenReturn(true);
     when(runtime.run(any(ReActRequest.class), any(ReActBudget.class)))
         .thenReturn(ReActResult.withoutTools(followUp));
     ArgumentCaptor<ReActRequest> request = ArgumentCaptor.forClass(ReActRequest.class);
@@ -767,6 +767,22 @@ class AdaptiveInterviewApplicationServiceTest {
     verify(persistenceService, never()).recordDecision(
         anyString(), any(), any(), anyList(), any(), anyList(), any(), anyList(), anyList()
     );
+  }
+
+  @Test
+  @DisplayName("预留事件撞唯一约束时按已存在语义返回 false")
+  void shouldTreatUniqueViolationAsDuplicateReservation() {
+    ToolResultEvent event = new ToolResultEvent(
+        1,
+        "sandbox_submit",
+        "execution-1",
+        "verdict=WA, passed=4/10",
+        "verdict=WA, passed=4/10, firstFailedCase=7"
+    );
+    when(persistenceService.reserveToolResultEvent("session-1", event))
+        .thenThrow(new DataIntegrityViolationException("uk_agent_tool_result_event"));
+
+    assertThat(service.reserveToolResultEvent("session-1", event)).isFalse();
   }
 
   private PlannedInterview interviewAtTurn(int currentTurn) {

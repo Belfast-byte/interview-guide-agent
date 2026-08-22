@@ -6,6 +6,7 @@ import interview.guide.modules.interview.agent.adaptive.assessment.evidence.Evid
 import interview.guide.modules.interview.agent.adaptive.assessment.evidence.ValidatedAssessmentEvidence;
 import interview.guide.modules.interview.agent.adaptive.core.session.AdaptiveInterviewHistory;
 import interview.guide.modules.interview.agent.adaptive.core.event.CandidateAnswer;
+import interview.guide.modules.interview.agent.adaptive.core.event.ToolResultEvent;
 import interview.guide.modules.interview.agent.adaptive.core.action.RespondAction;
 import interview.guide.modules.interview.agent.adaptive.planning.DimensionProposal;
 import interview.guide.modules.interview.agent.adaptive.planning.InterviewPlan;
@@ -26,6 +27,7 @@ import org.springframework.boot.data.jpa.test.autoconfigure.DataJpaTest;
 import org.springframework.context.annotation.Import;
 import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.dao.DataIntegrityViolationException;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
@@ -119,5 +121,67 @@ class AdaptiveInterviewConcurrencyIntegrationTest {
     assertThat(history.session().currentTurn()).isEqualTo(2);
     assertThat(history.turns()).hasSize(2);
     assertThat(history.turns().getFirst().answer()).isEqualTo("并发回答");
+  }
+
+  @Test
+  @DisplayName("同一工具结果事件的并发预留恰好成功一次")
+  void shouldReserveToolResultEventOnceForConcurrentDuplicates()
+      throws InterruptedException, TimeoutException, ExecutionException {
+    persistenceService.create(
+        null,
+        "concurrent-reserve",
+        "candidate-1",
+        "JD",
+        "Resume",
+        null,
+        InterviewPlan.decide(
+            "concurrent-reserve",
+            new PlanProposal(List.of(
+                new DimensionProposal(
+                    "专业基础", "缓存", "REDIS", 2, List.of(), "java-backend"
+                ),
+                new DimensionProposal(
+                    "项目经验", "取舍", "PROJECT", 2, List.of(), "java-backend"
+                )
+            ))
+        ),
+        RespondAction.ask("第一题？", "验证基础"),
+        List.of()
+    );
+    CountDownLatch ready = new CountDownLatch(2);
+    CountDownLatch start = new CountDownLatch(1);
+    Callable<Object> reservation = () -> {
+      ready.countDown();
+      start.await();
+      try {
+        return persistenceService.reserveToolResultEvent(
+            "concurrent-reserve",
+            new ToolResultEvent(1, "sandbox_submit", "execution-1", "摘要", "摘要")
+        );
+      } catch (DataIntegrityViolationException e) {
+        return "duplicate";
+      }
+    };
+    List<FutureTask<Object>> reservations = List.of(
+        new FutureTask<>(reservation),
+        new FutureTask<>(reservation)
+    );
+    reservations.forEach(Thread::startVirtualThread);
+
+    assertThat(ready.await(1, TimeUnit.SECONDS)).isTrue();
+    start.countDown();
+    int successes = 0;
+    int duplicates = 0;
+    for (FutureTask<Object> task : reservations) {
+      Object outcome = task.get(5, TimeUnit.SECONDS);
+      if (Boolean.TRUE.equals(outcome)) {
+        successes++;
+      } else {
+        duplicates++;
+      }
+    }
+
+    assertThat(successes).isEqualTo(1);
+    assertThat(duplicates).isEqualTo(1);
   }
 }

@@ -1,5 +1,6 @@
 package interview.guide.modules.interview.agent.adaptive.application;
 
+import interview.guide.common.exception.BusinessException;
 import interview.guide.modules.interview.agent.adaptive.algorithm.judge.AlgorithmResultReadyHandler;
 import interview.guide.modules.interview.agent.adaptive.algorithm.evidence.AlgorithmSessionFacts;
 import interview.guide.modules.interview.agent.adaptive.algorithm.evidence.AlgorithmAssessmentEvidenceService;
@@ -46,23 +47,32 @@ class AdaptiveAlgorithmResultReadyHandler implements AlgorithmResultReadyHandler
             execution.firstFailedCase()
         );
     int turnIndex = sessionFacts.turnIndex(execution.turnId());
-    if (execution.status() == SandboxExecutionStatus.DONE) {
-      applicationService.reassessAlgorithmResult(
-          execution.sessionId(),
-          turnIndex,
-          summary
-      );
-    }
-    assessmentEvidenceService.attachAvailable(execution.sessionId(), turnIndex);
-    applicationService.handleToolResult(
-        execution.sessionId(),
-        new ToolResultEvent(
-            turnIndex,
-            AlgorithmResultReadyHandler.SANDBOX_SUBMIT_TOOL_NAME,
-            execution.id(),
-            summary,
-            summary
-        )
+    ToolResultEvent event = new ToolResultEvent(
+        turnIndex,
+        AlgorithmResultReadyHandler.SANDBOX_SUBMIT_TOOL_NAME,
+        execution.id(),
+        summary,
+        summary
     );
+    // 预留去重先于任何 LLM 调用：重复投递直接幂等返回，不重复烧重评
+    if (!applicationService.reserveToolResultEvent(execution.sessionId(), event)) {
+      telemetry.resultReadyDeduped();
+      return;
+    }
+    try {
+      if (execution.status() == SandboxExecutionStatus.DONE) {
+        applicationService.reassessAlgorithmResult(
+            execution.sessionId(),
+            turnIndex,
+            summary
+        );
+      }
+      assessmentEvidenceService.attachAvailable(execution.sessionId(), turnIndex);
+      applicationService.handleToolResult(execution.sessionId(), event);
+    } catch (BusinessException e) {
+      // 回滚预留，让补偿调度器把这次唤醒当作未送达重新投递
+      applicationService.discardToolResultReservation(event);
+      throw e;
+    }
   }
 }

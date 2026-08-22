@@ -31,6 +31,10 @@ public class AlgorithmInterviewTelemetry {
       "app.interview.adaptive.algorithm.result-ready.failed";
   static final String RESULT_READY_REDELIVERED =
       "app.interview.adaptive.algorithm.result-ready.redelivered";
+  static final String RESULT_READY_DEDUPED =
+      "app.interview.adaptive.algorithm.result-ready.deduped";
+  static final String LATE_RESULT_DROPPED =
+      "app.interview.adaptive.algorithm.late-result.dropped";
   static final String POLICY_VIOLATIONS =
       "app.interview.adaptive.algorithm.policy.violations";
   static final String INTERVIEW_TURNS = "app.interview.adaptive.algorithm.interview.turns";
@@ -135,6 +139,14 @@ public class AlgorithmInterviewTelemetry {
 
   public void resultReadyRedelivered() {
     meterRegistry.counter(RESULT_READY_REDELIVERED).increment();
+  }
+
+  public void resultReadyDeduped() {
+    meterRegistry.counter(RESULT_READY_DEDUPED).increment();
+  }
+
+  public void lateResultDropped() {
+    meterRegistry.counter(LATE_RESULT_DROPPED).increment();
   }
 
   private void submission(String status) {
