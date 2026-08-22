@@ -212,7 +212,12 @@ public class AdaptiveInterviewApplicationService {
                 .map(AssessmentEvidenceCandidate::quote)
                 .toList()
         );
-    boolean dimensionCompleted = completesDimension(currentDimension);
+    boolean naturallyCompletes = completesDimension(currentDimension);
+    boolean earlyCompletion = !naturallyCompletes && assessment.recommendsEarlyCompletion();
+    InterviewPlan planForNextTurn = earlyCompletion
+        ? interview.plan().completeDimensionEarly(answer.turnIndex())
+        : interview.plan();
+    boolean dimensionCompleted = naturallyCompletes || earlyCompletion;
     List<ProbeGap> nextProbeGaps = dimensionCompleted
         ? List.of()
         : assessment.probeGaps();
@@ -252,7 +257,7 @@ public class AdaptiveInterviewApplicationService {
     } else {
       PlannedDimension nextDimension = lastTurn
           ? currentDimension
-          : interview.plan().dimensionForTurn(answer.turnIndex() + 1);
+          : planForNextTurn.dimensionForTurn(answer.turnIndex() + 1);
       decision = runDecision(request(
           sessionId,
           history.llmProvider(),

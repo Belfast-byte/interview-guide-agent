@@ -350,6 +350,50 @@ class AdaptiveInterviewApplicationServiceTest {
   }
 
   @Test
+  @DisplayName("L4 评估提前完成当前维度并让下一轮进入后续维度")
+  void shouldCompleteDimensionEarlyOnL4Assessment() {
+    AdaptiveInterviewApplicationService l4Service = serviceWithAssessmentAgent(
+        new DepthAssessmentAgent((request, provider) -> new AssessmentProposal(
+            DepthLevel.L4,
+            0.9,
+            "已充分验证",
+            false,
+            List.of("第一轮回答"),
+            List.of()
+        ))
+    );
+    PlannedInterview interview = interviewAtTurn(1);
+    CandidateAnswer answer = new CandidateAnswer(1, "第一轮回答");
+    RespondAction action = RespondAction.ask("项目经验问题？", "维度提前完成");
+    when(persistenceService.get("session-1")).thenReturn(interview);
+    when(skillService.buildEvaluationReferenceSection("java-backend"))
+        .thenReturn("### Redis (REDIS)\n- 缓存穿透");
+    when(dimensionBriefService.summarize(
+        eq("session-1"), any(), anyList(), eq(answer), nullable(String.class)
+    )).thenReturn(null);
+    when(candidateClaimExtractionService.extract(
+        eq("session-1"), any(), anyList(), eq(answer), anyList(), nullable(String.class)
+    )).thenReturn(List.of());
+    when(runtime.run(any(ReActRequest.class), any(ReActBudget.class)))
+        .thenReturn(ReActResult.withoutTools(action));
+    when(persistenceService.recordDecision(
+        eq("session-1"), eq(answer), eq(action), eq(List.of()),
+        isNull(), eq(List.of()), any(), anyList(), eq(List.of())
+    )).thenReturn(interview);
+    ArgumentCaptor<ReActRequest> request = ArgumentCaptor.forClass(ReActRequest.class);
+
+    l4Service.submitAnswer("session-1", answer);
+
+    verify(runtime).run(request.capture(), any(ReActBudget.class));
+    assertThat(request.getValue().interviewerContext().targetDimension())
+        .isEqualTo("项目经验");
+    assertThat(request.getValue().interviewerContext().currentAnswerGaps()).isEmpty();
+    verify(dimensionBriefService).summarize(
+        eq("session-1"), any(), anyList(), eq(answer), nullable(String.class)
+    );
+  }
+
+  @Test
   @DisplayName("代码回答必须通过 sandbox_submit 产生绑定原轮次的 Pending 结果")
   void shouldPersistPendingSandboxSubmissionForCodeAnswer() {
     PlannedInterview interview = interviewAtTurn(1);

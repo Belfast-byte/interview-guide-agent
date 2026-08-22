@@ -295,9 +295,8 @@ public class AdaptiveInterviewPersistenceService
     List<AdaptiveAgentPlanEntity> planEntities = planRepository
         .findBySessionIdOrderByDimensionOrder(sessionId);
     InterviewPlan plan = toPlan(sessionId, sessionEntity.toDomain().maxTurns(), planEntities);
-    if (!plan.isLastTurn(answer.turnIndex())
-        && proposedAction.type() == AgentResponseType.FINISH) {
-      throw new BusinessException(ErrorCode.AI_SERVICE_ERROR, "全部规划维度覆盖前不能结束面试");
+    if (assessmentDecision.recommendsEarlyCompletion()) {
+      plan = plan.completeDimensionEarly(answer.turnIndex());
     }
     InterviewPlan updatedPlan = plan.answer(answer.turnIndex());
     PlannedDimension answeredDimension = updatedPlan.dimensionForTurn(answer.turnIndex());
@@ -381,10 +380,11 @@ public class AdaptiveInterviewPersistenceService
               session.id(),
               dimension.dimensionOrder()
           )
-          .orElseThrow(() -> new BusinessException(
-              ErrorCode.NOT_FOUND,
-              "维度评估事实不存在"
-          ));
+          .orElse(null);
+      if (assessment == null) {
+        // 模型提前结束面试时，未开考维度没有评估事实，跳过画像刷新
+        continue;
+      }
       CandidateAbilityProfileEntity existing = abilityProfileRepository
           .findBySourceSessionIdAndDimensionOrder(
               session.id(),

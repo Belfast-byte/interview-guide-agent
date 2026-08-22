@@ -646,7 +646,7 @@ class AdaptiveInterviewPersistenceServiceTest {
   }
 
   @Test
-  @DisplayName("全部维度覆盖前拒绝模型提前结束")
+  @DisplayName("未达轮次门槛时拒绝模型提前结束")
   void shouldRejectEarlyFinish() {
     service.create(
         null,
@@ -671,7 +671,7 @@ class AdaptiveInterviewPersistenceServiceTest {
         evidences(),
         List.of()
     )).isInstanceOf(BusinessException.class)
-        .hasMessageContaining("全部规划维度");
+        .hasMessageContaining("门槛");
 
     PlannedInterview interview = service.get("session-early-finish");
     assertThat(interview.history().session().currentTurn()).isEqualTo(1);

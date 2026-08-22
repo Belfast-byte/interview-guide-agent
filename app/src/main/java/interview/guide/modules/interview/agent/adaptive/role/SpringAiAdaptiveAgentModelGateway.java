@@ -11,6 +11,7 @@ import interview.guide.modules.interview.agent.adaptive.core.context.CodeFactUsa
 import interview.guide.modules.interview.agent.adaptive.core.context.CodeQuestionProvenance;
 import interview.guide.modules.interview.agent.adaptive.core.context.ProjectInterviewContext;
 import interview.guide.modules.interview.agent.adaptive.core.context.QuestionProvenance;
+import interview.guide.modules.interview.agent.adaptive.core.session.AdaptiveInterviewSession;
 import interview.guide.modules.interview.agent.adaptive.core.action.RespondAction;
 import interview.guide.modules.interview.agent.adaptive.core.action.ToolCallAction;
 import interview.guide.modules.interview.agent.adaptive.observability.AdaptiveAgentTelemetry;
@@ -257,10 +258,19 @@ public class SpringAiAdaptiveAgentModelGateway implements AgentModelGateway {
         || output.reason().length() > MAX_RESPONSE_LENGTH) {
       throw new ModelOutputRejectionException("Agent response is too long");
     }
+    if (output.type() == AgentResponseType.FINISH) {
+      if (!AdaptiveInterviewSession.canFinishEarly(
+          context.request().interviewerContext().maxTurns(),
+          context.request().inputTurnIndex()
+      )) {
+        throw new ModelOutputRejectionException(
+            "Interview turns have not reached the early-finish threshold; keep asking"
+        );
+      }
+      return RespondAction.finish(output.content(), output.reason());
+    }
     if (output.type() != AgentResponseType.ASK) {
-      throw new ModelOutputRejectionException(
-          "Agent must ask until the planned turns are complete"
-      );
+      throw new ModelOutputRejectionException("Unsupported agent response type");
     }
     long questionMarks = output.content().chars()
         .filter(character -> character == '?' || character == '？')
@@ -296,7 +306,6 @@ public class SpringAiAdaptiveAgentModelGateway implements AgentModelGateway {
         .flatMap(observation -> readQuestions(observation.output()).stream())
         .filter(question -> question.stableId().equals(output.sourceQuestionId()))
         .filter(question -> question.difficulty().equals(output.sourceDifficulty()))
-        .filter(question -> question.question().equals(output.content()))
         .findFirst()
         .orElseThrow(() -> new ModelOutputRejectionException(
             "Question provenance does not match an accepted tool result"

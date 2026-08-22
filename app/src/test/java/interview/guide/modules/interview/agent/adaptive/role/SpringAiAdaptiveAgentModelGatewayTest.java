@@ -191,14 +191,14 @@ class SpringAiAdaptiveAgentModelGatewayTest {
   }
 
   @Test
-  @DisplayName("模型伪造或改写题库来源时注入拒绝原因重写，重写仍不匹配才快速失败")
+  @DisplayName("模型伪造题库来源时注入拒绝原因重写，重写仍不匹配才快速失败")
   void shouldRejectUnverifiedQuestionProvenanceAfterRetry() {
     String invalid = """
         {
           "type":"ASK",
           "content":"被改写的问题？",
           "reason":"声称采用审核题",
-          "sourceQuestionId":"question:42",
+          "sourceQuestionId":"question:999",
           "sourceDifficulty":"MEDIUM"
         }
         """;
@@ -224,6 +224,56 @@ class SpringAiAdaptiveAgentModelGatewayTest {
         .isInstanceOf(BusinessException.class)
         .hasMessageContaining("does not match");
     verify(responseSpec, times(2)).chatResponse();
+  }
+
+  @Test
+  @DisplayName("保持考点改写题库题目表述时来源校验仍通过")
+  void shouldAllowRewrittenQuestionContentWithValidProvenance() {
+    respondWith("""
+        {
+          "type":"ASK",
+          "content":"结合你的项目，Redis 缓存失效有哪些取舍？",
+          "reason":"衔接候选人上下文改写",
+          "sourceQuestionId":"question:42",
+          "sourceDifficulty":"MEDIUM"
+        }
+        """);
+    ReActModelContext context = context(
+        null,
+        List.of(new ToolObservation(
+            "question_bank_search",
+            Map.of("query", "Redis"),
+            true,
+            "question-search:42",
+            """
+                [{"stableId":"question:42","id":42,"category":"Redis",\
+                "difficulty":"MEDIUM","question":"原始审核问题？"}]
+                """
+        ))
+    );
+
+    AgentAction action = gateway.nextAction(context);
+
+    assertThat(action).isEqualTo(RespondAction.ask(
+        "结合你的项目，Redis 缓存失效有哪些取舍？",
+        "衔接候选人上下文改写",
+        new QuestionProvenance("question:42", "MEDIUM")
+    ));
+  }
+
+  @Test
+  @DisplayName("达到结束门槛时接受模型提案的 FINISH 并保留模型结束语")
+  void shouldAcceptFinishProposalAboveTurnThreshold() {
+    respondWith("""
+        {"type":"FINISH","content":"面试已覆盖核心考察点，感谢你的时间。","reason":"信息已充分"}
+        """);
+
+    AgentAction action = gateway.nextAction(contextAtTurn(3));
+
+    assertThat(action).isEqualTo(RespondAction.finish(
+        "面试已覆盖核心考察点，感谢你的时间。",
+        "信息已充分"
+    ));
   }
 
   @Test
@@ -315,7 +365,7 @@ class SpringAiAdaptiveAgentModelGatewayTest {
   }
 
   @Test
-  @DisplayName("模型两次返回结束动作时才快速失败")
+  @DisplayName("未达结束门槛时模型两次返回结束动作才快速失败")
   void shouldRejectFinishAfterRetry() {
     String finish = """
         {"type":"FINISH","content":"结束","reason":"不应结束"}
@@ -327,7 +377,7 @@ class SpringAiAdaptiveAgentModelGatewayTest {
 
     assertThatThrownBy(() -> gateway.nextAction(context(null)))
         .isInstanceOf(BusinessException.class)
-        .hasMessageContaining("planned turns");
+        .hasMessageContaining("early-finish threshold");
     verify(responseSpec, times(2)).chatResponse();
   }
 
@@ -444,6 +494,35 @@ class SpringAiAdaptiveAgentModelGatewayTest {
             )
         ),
         observations
+    );
+  }
+
+  private ReActModelContext contextAtTurn(int currentTurn) {
+    return new ReActModelContext(
+        new ReActRequest(
+            "session-1",
+            AgentRole.INTERVIEWER,
+            "provider-1",
+            new InterviewerContext(
+                "JD",
+                "Resume",
+                currentTurn,
+                6,
+                0,
+                "专业基础",
+                "缓存与并发",
+                List.of("question_bank_search"),
+                null,
+                List.of(),
+                null,
+                List.of(),
+                List.of(),
+                null,
+                null,
+                null
+            )
+        ),
+        List.of()
     );
   }
 

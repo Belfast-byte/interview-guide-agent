@@ -55,4 +55,19 @@ public record PlannedDimension(
         PlanDimensionStatus.IN_PROGRESS
     );
   }
+
+  PlannedDimension withAllocatedTurns(int nextAllocatedTurns) {
+    return new PlannedDimension(
+        order,
+        dimension,
+        focus,
+        focusId,
+        suggestedTurns,
+        suggestedTools,
+        suggestedSkill,
+        nextAllocatedTurns,
+        completedTurns,
+        status
+    );
+  }
 }

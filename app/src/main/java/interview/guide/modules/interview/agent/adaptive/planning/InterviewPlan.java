@@ -99,6 +99,40 @@ public record InterviewPlan(
     return turnIndex == maxTurns;
   }
 
+  /**
+   * 提前完成当前轮次所在维度：未用完的轮次按建议缺口贪心补给后续维度，总量守恒。
+   * 已无可回收轮次、后续没有维度或已是最后一轮时原样返回。
+   *
+   * @param turnIndex 当前作答轮次
+   * @return 提前完成后的计划
+   */
+  public InterviewPlan completeDimensionEarly(int turnIndex) {
+    PlannedDimension current = dimensionForTurn(turnIndex);
+    int consumedTurns = current.completedTurns() + 1;
+    int recovered = current.allocatedTurns() - consumedTurns;
+    if (recovered <= 0 || current.order() == dimensions.size() - 1 || isLastTurn(turnIndex)) {
+      return this;
+    }
+    List<PlannedDimension> updated = new ArrayList<>(dimensions);
+    updated.set(current.order(), current.withAllocatedTurns(consumedTurns));
+    int additional = recovered;
+    while (additional > 0) {
+      int selected = current.order() + 1;
+      int largestGap = Integer.MIN_VALUE;
+      for (int index = current.order() + 1; index < updated.size(); index++) {
+        int gap = updated.get(index).suggestedTurns() - updated.get(index).allocatedTurns();
+        if (gap > largestGap) {
+          selected = index;
+          largestGap = gap;
+        }
+      }
+      updated.set(selected, updated.get(selected)
+          .withAllocatedTurns(updated.get(selected).allocatedTurns() + 1));
+      additional--;
+    }
+    return new InterviewPlan(sessionId, maxTurns, updated);
+  }
+
   private static void validate(PlanProposal proposal) {
     if (proposal == null
         || proposal.dimensions().isEmpty()

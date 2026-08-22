@@ -106,6 +106,54 @@ class InterviewPlanTest {
         .containsOnly(PlanDimensionStatus.COMPLETED);
   }
 
+  @Nested
+  @DisplayName("维度提前完成")
+  class EarlyCompletion {
+
+    @Test
+    @DisplayName("评估建议提前完成时回收未用轮次并补给后续维度")
+    void shouldRedistributeRecoveredTurnsToLaterDimensions() {
+      InterviewPlan plan = InterviewPlan.decide("session-1", proposal(3));
+
+      InterviewPlan earlyCompleted = plan.completeDimensionEarly(1);
+
+      assertThat(earlyCompleted.dimensions()).extracting(PlannedDimension::allocatedTurns)
+          .containsExactly(1, 3, 2);
+      assertThat(earlyCompleted.dimensionForTurn(1).order()).isZero();
+      assertThat(earlyCompleted.dimensionForTurn(2).order()).isEqualTo(1);
+      assertThat(earlyCompleted.dimensionForTurn(4).order()).isEqualTo(1);
+      assertThat(earlyCompleted.dimensionForTurn(5).order()).isEqualTo(2);
+    }
+
+    @Test
+    @DisplayName("提前完成后回答正常完成当前维度并开启下一维度")
+    void shouldCompleteDimensionAndStartNextAfterEarlyCompletion() {
+      InterviewPlan plan = InterviewPlan.decide("session-1", proposal(3))
+          .completeDimensionEarly(1);
+
+      plan = plan.answer(1);
+
+      assertThat(plan.dimensions()).extracting(PlannedDimension::status)
+          .containsExactly(
+              PlanDimensionStatus.COMPLETED,
+              PlanDimensionStatus.IN_PROGRESS,
+              PlanDimensionStatus.PENDING
+          );
+    }
+
+    @Test
+    @DisplayName("无可回收轮次或没有后续维度时提前完成是空操作")
+    void shouldNoopWhenNothingToRecover() {
+      InterviewPlan plan = InterviewPlan.decide("session-1", proposal(2)).answer(1);
+
+      assertThat(plan.completeDimensionEarly(2)).isSameAs(plan);
+
+      InterviewPlan advanced = plan.answer(2);
+
+      assertThat(advanced.completeDimensionEarly(3)).isSameAs(advanced);
+    }
+  }
+
   private PlanProposal proposal(int count) {
     return new PlanProposal(java.util.stream.IntStream.range(0, count)
         .mapToObj(index -> dimension("维度-" + index))

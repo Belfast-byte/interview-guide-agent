@@ -43,9 +43,9 @@ class AdaptiveInterviewSessionTest {
     }
 
     @Test
-    @DisplayName("结束动作完成会话且不增加轮次")
+    @DisplayName("达到结束门槛的结束动作完成会话且不增加轮次")
     void shouldCompleteWithoutAdvancingTurn() {
-      AdaptiveInterviewSession session = AdaptiveInterviewSession.create("session-1", 6).start();
+      AdaptiveInterviewSession session = AdaptiveInterviewSession.create("session-1", 2).start();
 
       SessionTransition transition = session.apply(
           new CandidateAnswer(1, "回答"),
@@ -54,6 +54,41 @@ class AdaptiveInterviewSessionTest {
 
       assertThat(transition.session().status()).isEqualTo(AdaptiveSessionStatus.COMPLETED);
       assertThat(transition.session().currentTurn()).isEqualTo(1);
+      assertThat(transition.appliedAction().content()).isEqualTo("面试结束。");
+    }
+
+    @Test
+    @DisplayName("未达结束门槛的模型结束提案被拒绝")
+    void shouldRejectFinishBelowTurnThreshold() {
+      AdaptiveInterviewSession session = AdaptiveInterviewSession.create("session-1", 6).start();
+
+      assertThatThrownBy(() -> session.apply(
+          new CandidateAnswer(1, "回答"),
+          RespondAction.finish("面试结束。", "模型想提前结束")
+      )).isInstanceOf(BusinessException.class)
+          .hasMessageContaining("门槛");
+
+      assertThat(session.currentTurn()).isEqualTo(1);
+    }
+
+    @Test
+    @DisplayName("已回答轮次达到计划一半时接受提前结束")
+    void shouldAcceptFinishAtHalfOfPlannedTurns() {
+      AdaptiveInterviewSession session = new AdaptiveInterviewSession(
+          "session-1",
+          AdaptiveInterviewSession.RUNTIME_VERSION,
+          AdaptiveSessionStatus.IN_PROGRESS,
+          3,
+          6
+      );
+
+      SessionTransition transition = session.apply(
+          new CandidateAnswer(3, "回答"),
+          RespondAction.finish("核心考察点已覆盖。", "信息已经充分")
+      );
+
+      assertThat(transition.session().status()).isEqualTo(AdaptiveSessionStatus.COMPLETED);
+      assertThat(transition.session().currentTurn()).isEqualTo(3);
     }
 
     @Test
