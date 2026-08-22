@@ -86,4 +86,15 @@
 
 ## 4. 执行记录
 
-- 2026-08-22：接管工作区（另一会话已完成 T-1 约 90% + T-2 部分），全量测试核验后按本文档执行。
+- 2026-08-22：接管工作区（另一会话已完成 T-1 约 90% + T-2 主体），按本文档执行完毕。
+- Wave1：`30792a6` T-1 死代码清理与冗余收敛（含 resultId 摘要、project 孤儿链连带清理）；`86048fd` T-2 模型输出失败语义软化与 depth/role 清理。
+- Wave2：`13222fc` T-3 自适应能力通道；`68e83a8` T-4 判题与代码分析异步链路可靠性。
+- Wave3：`661f573` T-5 配额与证据公平性；`e1815fa` T-6 首题链路提速。
+- Wave4：`32b13b2` T-7 首题异步创建 + FAILED + 前端轮询。
+
+实施偏差汇总（详见各 commit message）：
+
+- T-1：`buildEvaluationReferenceSectionSafe` 因模块外调用方保留方法本体，adaptive 侧改直调非 Safe 版；SpringAiPlanningAgent 的 PromptLoader 接入属 T-2，因与 project 链清理同文件随 T-1 先行提交。
+- T-2：方案 5（预算耗尽兜底）已由 6faaec5 提前落地，跳过。
+- T-4：为使 H2 建表与 Flyway schema 一致，`AdaptiveAgentToolResultEventEntity` 补声明 uk_agent_tool_result_event 唯一约束。
+- T-7：T-1 曾删除的 `PlanningRequest.project` 孤儿链在 T-3 前已清理，无额外冲突；测试经注入同步 TaskRunner 保持同步语义。
