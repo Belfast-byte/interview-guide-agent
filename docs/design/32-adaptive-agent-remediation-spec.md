@@ -249,3 +249,34 @@
 ### 验收标准
 
 - create 请求 1s 内返回；首题就绪前前端有明确等待态；失败场景不悬挂、有错误展示。
+
+---
+
+## 4. 移交执行指南（给其他 Agent）
+
+### 4.1 前置条件
+
+- 基线：分支 `dsh/implements-probeGaps`，提交 `6faaec5`（认证/归属改造）之后全量测试绿。接手前先跑 `./gradlew :app:test --no-daemon` 确认基线。
+- 本 spec 中的行号来自 2026-08-22 分析快照，基线提交已重排部分文件，**动手前先定位确认，不要相信行号**。
+- 测试 JVM 堆已调为 2g（`app/build.gradle`），OOM 不是测试失败，不要再「修」它。
+
+### 4.2 执行规则
+
+1. 严格按 §3 波次执行：Wave1 = T-1 ∥ T-2 → Wave2 = T-3 ∥ T-4 → Wave3 = T-5 ∥ T-6 → Wave4 = T-7。同波次文件域不相交可并行；跨波次有文件依赖，禁止提前。
+2. 每票一个 commit，消息格式 `<type>: 票号 简述`（如 `refactor: T-1 清理死代码与冗余`）；提交前相关测试必须绿。
+3. 每票开工前重读：本票整节、§2 全局约束、`AGENTS.md`、`.claude/rules/backend.md`、`.claude/rules/interview-agent.md`。
+4. 不越界改其他票的文件域；发现方案与代码现状冲突（如某项已被修掉）时按现状做最小合理实现，并在 commit message 或 PR 描述中说明偏差。
+5. 删死代码连测试一起删；放宽约束注意反射契约测试与 SQL 正则契约测试的连带更新（§2-4）。
+
+### 4.3 每票验证命令
+
+```bash
+./gradlew :app:compileJava
+./gradlew :app:test --no-daemon --tests "interview.guide.modules.interview.agent.adaptive.**"
+# 改了模块外文件时另跑对应测试；T-7 额外：
+cd frontend && pnpm run build
+```
+
+### 4.4 接手 Agent 提示词模板
+
+> 仓库 /home/noshiro/interview-guide-agent，分支 dsh/implements-probeGaps。实施 docs/design/32-adaptive-agent-remediation-spec.md 的票 T-x：先通读该票整节与 §2、§4，再读 AGENTS.md 与 .claude/rules/ 下相关细则。行号可能漂移，先定位确认。最小改动，不越界其他票的文件域，完成后按 §4.3 验证并提交一个 commit。汇报改动文件清单、方案偏差、测试结果与验收标准自检。
