@@ -13,11 +13,34 @@ import org.springframework.data.jpa.repository.Query;
  */
 public interface SandboxExecutionRepository extends JpaRepository<SandboxExecutionEntity, String> {
 
-  long countBySessionId(String sessionId);
-
-  long countBySessionIdAndWorkloadType(
+  /**
+   * 统计消耗了候选人配额的有效执行：排除已过期（superseded）、排队超时降级与 IE 基础设施失败。
+   */
+  @Query("select count(execution) from SandboxExecutionEntity execution "
+      + "where execution.sessionId = :sessionId and execution.supersededBy is null "
+      + "and (execution.status in :activeStatuses "
+      + "or (execution.status = :doneStatus and execution.verdict <> :infraFailure))")
+  long countQuotaConsumingBySessionId(
       String sessionId,
-      SandboxWorkloadType workloadType
+      List<SandboxExecutionStatus> activeStatuses,
+      SandboxExecutionStatus doneStatus,
+      SandboxVerdict infraFailure
+  );
+
+  /**
+   * 按工作负载类型统计有效执行，口径同 {@link #countQuotaConsumingBySessionId}。
+   */
+  @Query("select count(execution) from SandboxExecutionEntity execution "
+      + "where execution.sessionId = :sessionId and execution.workloadType = :workloadType "
+      + "and execution.supersededBy is null "
+      + "and (execution.status in :activeStatuses "
+      + "or (execution.status = :doneStatus and execution.verdict <> :infraFailure))")
+  long countQuotaConsumingBySessionIdAndWorkloadType(
+      String sessionId,
+      SandboxWorkloadType workloadType,
+      List<SandboxExecutionStatus> activeStatuses,
+      SandboxExecutionStatus doneStatus,
+      SandboxVerdict infraFailure
   );
 
   long countByStatus(SandboxExecutionStatus status);

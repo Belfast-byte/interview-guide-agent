@@ -16,6 +16,7 @@ import interview.guide.modules.interview.agent.adaptive.algorithm.sandbox.Sandbo
 import interview.guide.modules.interview.agent.adaptive.algorithm.sandbox.SandboxExecutionRepository;
 import interview.guide.modules.interview.agent.adaptive.algorithm.sandbox.SandboxExecutionResult;
 import interview.guide.modules.interview.agent.adaptive.algorithm.sandbox.SandboxExecutionStatus;
+import interview.guide.modules.interview.agent.adaptive.algorithm.sandbox.SandboxVerdict;
 import interview.guide.modules.interview.agent.adaptive.algorithm.sandbox.SandboxWorkloadType;
 import interview.guide.modules.interview.agent.adaptive.observability.AlgorithmInterviewTelemetry;
 import jakarta.annotation.PostConstruct;
@@ -213,15 +214,24 @@ public class AlgorithmPersistenceService {
         && !problemRepository.existsById(command.problemId())) {
       throw new BusinessException(ErrorCode.NOT_FOUND, "算法题不存在");
     }
-    long submitted = executionRepository.countBySessionId(command.sessionId());
+    // 配额只统计有效执行：平台事故（IE/排队超时）与已被新提交取代的历史执行不消耗候选人额度
+    long submitted = executionRepository.countQuotaConsumingBySessionId(
+        command.sessionId(),
+        List.of(SandboxExecutionStatus.PENDING, SandboxExecutionStatus.RUNNING),
+        SandboxExecutionStatus.DONE,
+        SandboxVerdict.IE
+    );
     if (submitted >= properties.getMaxExecutionsPerSession()) {
       telemetry.quotaRejected();
       throw new BusinessException(ErrorCode.RATE_LIMIT_EXCEEDED, "本场面试代码执行次数已达上限");
     }
     if (command.workloadType() == SandboxWorkloadType.PATCH
-        && executionRepository.countBySessionIdAndWorkloadType(
+        && executionRepository.countQuotaConsumingBySessionIdAndWorkloadType(
             command.sessionId(),
-            SandboxWorkloadType.PATCH
+            SandboxWorkloadType.PATCH,
+            List.of(SandboxExecutionStatus.PENDING, SandboxExecutionStatus.RUNNING),
+            SandboxExecutionStatus.DONE,
+            SandboxVerdict.IE
         ) >= properties.getMaxPatchExecutionsPerSession()) {
       telemetry.quotaRejected();
       throw new BusinessException(ErrorCode.RATE_LIMIT_EXCEEDED, "本场面试 PATCH 实操次数已达上限");

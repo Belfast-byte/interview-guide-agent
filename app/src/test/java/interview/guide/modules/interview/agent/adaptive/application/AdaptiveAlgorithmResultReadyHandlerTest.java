@@ -102,6 +102,33 @@ class AdaptiveAlgorithmResultReadyHandlerTest {
     verify(telemetry).resultReadyDeduped();
   }
 
+  @Test
+  @DisplayName("排队超时摘要客观陈述判题不可用，不带评审立场")
+  void shouldPublishNeutralTimeoutSummary() {
+    AdaptiveAlgorithmResultReadyHandler handler = handler();
+    when(sessionFacts.turnIndex(10L)).thenReturn(1);
+    when(applicationService.reserveToolResultEvent(
+        org.mockito.ArgumentMatchers.eq("session-1"),
+        org.mockito.ArgumentMatchers.any()
+    )).thenReturn(true);
+    ArgumentCaptor<ToolResultEvent> event = ArgumentCaptor.forClass(ToolResultEvent.class);
+
+    handler.handle(execution(null, SandboxExecutionStatus.TIMEOUT_QUEUED));
+
+    verify(applicationService).handleToolResult(
+        org.mockito.ArgumentMatchers.eq("session-1"),
+        event.capture()
+    );
+    verify(applicationService, never()).reassessAlgorithmResult(
+        org.mockito.ArgumentMatchers.anyString(),
+        org.mockito.ArgumentMatchers.anyInt(),
+        org.mockito.ArgumentMatchers.anyString()
+    );
+    assertThat(event.getValue().output())
+        .contains("status=TIMEOUT_QUEUED, judging unavailable")
+        .doesNotContain("negative evidence");
+  }
+
   private AdaptiveAlgorithmResultReadyHandler handler() {
     return new AdaptiveAlgorithmResultReadyHandler(
         applicationService,

@@ -19,10 +19,13 @@ public class CodeTraceService {
 
   public CodeTraceResult trace(String tenantId, String sessionId, String query) {
     String repositoryRef = analysisPersistenceService.getTraceRepositoryRef(sessionId);
-    tracePersistenceService.reserve(sessionId, query);
-    return new CodeTraceResult(
+    tracePersistenceService.verifyQuota(sessionId);
+    CodeTraceResult result = new CodeTraceResult(
         query,
         traceSource.trace(tenantId, sessionId, repositoryRef, query, RESULT_LIMIT)
     );
+    // 先用后扣：追踪成功才消耗额度，失败不占配额
+    tracePersistenceService.record(sessionId, query);
+    return result;
   }
 }

@@ -85,7 +85,12 @@ class AlgorithmPersistenceServiceTest {
       );
       when(sessionFacts.lockCurrentTurn("session-1", 1)).thenReturn(9L);
       when(problemRepository.existsById("two-sum")).thenReturn(true);
-      when(executionRepository.countBySessionId("session-1")).thenReturn(2L);
+      when(executionRepository.countQuotaConsumingBySessionId(
+              eq("session-1"),
+              eq(List.of(SandboxExecutionStatus.PENDING, SandboxExecutionStatus.RUNNING)),
+              eq(SandboxExecutionStatus.DONE),
+              eq(SandboxVerdict.IE)
+          )).thenReturn(2L);
       when(executionRepository.findTopBySessionIdOrderBySubmissionSeqDesc("session-1"))
           .thenReturn(Optional.of(previous));
       when(executionRepository.save(org.mockito.ArgumentMatchers.any()))
@@ -99,12 +104,17 @@ class AlgorithmPersistenceServiceTest {
     }
 
     @Test
-    @DisplayName("第 21 次执行在写入前被拒绝")
+    @DisplayName("第 21 次有效执行在写入前被拒绝")
     void shouldRejectExecutionBeyondSessionQuota() {
       CreateSandboxExecution command = command();
       when(sessionFacts.lockCurrentTurn("session-1", 1)).thenReturn(9L);
       when(problemRepository.existsById("two-sum")).thenReturn(true);
-      when(executionRepository.countBySessionId("session-1")).thenReturn(20L);
+      when(executionRepository.countQuotaConsumingBySessionId(
+              eq("session-1"),
+              eq(List.of(SandboxExecutionStatus.PENDING, SandboxExecutionStatus.RUNNING)),
+              eq(SandboxExecutionStatus.DONE),
+              eq(SandboxVerdict.IE)
+          )).thenReturn(20L);
 
       assertThatThrownBy(() -> service.createPending(command))
           .isInstanceOfSatisfying(BusinessException.class, exception ->

@@ -37,7 +37,7 @@ class AdaptiveAlgorithmResultReadyHandler implements AlgorithmResultReadyHandler
       return;
     }
     String summary = execution.status() == SandboxExecutionStatus.TIMEOUT_QUEUED
-        ? "status=TIMEOUT_QUEUED, judging unavailable; continue with code walkthrough and do not treat this as negative evidence"
+        ? "status=TIMEOUT_QUEUED, judging unavailable"
         : SandboxExecutionSummary.of(
             execution.verdict(),
             execution.passed(),
