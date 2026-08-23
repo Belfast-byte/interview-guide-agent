@@ -39,6 +39,7 @@ import org.springframework.context.annotation.Import;
 class EpisodeFactPersistenceTest {
 
   private static final String SESSION_ID = "session-episode";
+  private static final String CANDIDATE_ID = "candidate-episode-test";
 
   @Autowired
   private AdaptiveInterviewPersistenceService service;
@@ -54,7 +55,7 @@ class EpisodeFactPersistenceTest {
     service.createSkeleton(new AdaptiveSessionCreation(
         null,
         SESSION_ID,
-        "candidate-1",
+        CANDIDATE_ID,
         "JD",
         "Resume",
         null,
@@ -79,7 +80,7 @@ class EpisodeFactPersistenceTest {
         .orElseThrow();
 
     assertThat(episode.toDomain()).satisfies(fact -> {
-      assertThat(fact.owner()).isEqualTo(new MemoryOwner(null, "candidate-1"));
+      assertThat(fact.owner()).isEqualTo(new MemoryOwner(null, CANDIDATE_ID));
       assertThat(fact.topic()).isEqualTo(new TopicKey("java-backend", "REDIS"));
       assertThat(fact.enrichmentStatus()).isEqualTo(EpisodeEnrichmentStatus.PENDING);
       assertThat(fact.assessmentId()).isPositive();
@@ -113,7 +114,7 @@ class EpisodeFactPersistenceTest {
         .isInstanceOf(BusinessException.class);
     assertThat(episodeRepository.countBySessionId(SESSION_ID)).isEqualTo(1);
     assertThat(counterRepository.findCandidateCounter(
-        "candidate-1",
+        CANDIDATE_ID,
         new TopicKey("java-backend", "REDIS")
     ).orElseThrow().toDomain().l2Count()).isEqualTo(1);
   }
