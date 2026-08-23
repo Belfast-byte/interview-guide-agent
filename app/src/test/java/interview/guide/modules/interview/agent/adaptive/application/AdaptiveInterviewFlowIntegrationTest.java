@@ -18,6 +18,7 @@ import interview.guide.modules.interview.agent.adaptive.core.context.CoveredTopi
 import interview.guide.modules.interview.agent.adaptive.core.action.RespondAction;
 import interview.guide.modules.interview.agent.adaptive.memory.ContextAssembler;
 import interview.guide.modules.interview.agent.adaptive.memory.profile.CandidateMemoryService;
+import interview.guide.modules.interview.agent.adaptive.persistence.memory.EpisodeFactPersistence;
 import interview.guide.modules.interview.agent.adaptive.memory.claim.CandidateClaimExtractionService;
 import interview.guide.modules.interview.agent.adaptive.memory.claim.CandidateClaimsProposal;
 import interview.guide.modules.interview.agent.adaptive.memory.brief.DimensionBriefProposal;
@@ -54,7 +55,11 @@ import static org.mockito.Mockito.mock;
     "spring.flyway.enabled=false",
     "spring.jpa.hibernate.ddl-auto=create-drop"
 })
-@Import({AdaptiveInterviewPersistenceService.class, CandidateMemoryService.class})
+@Import({
+    AdaptiveInterviewPersistenceService.class,
+    CandidateMemoryService.class,
+    EpisodeFactPersistence.class
+})
 class AdaptiveInterviewFlowIntegrationTest {
 
   @Autowired

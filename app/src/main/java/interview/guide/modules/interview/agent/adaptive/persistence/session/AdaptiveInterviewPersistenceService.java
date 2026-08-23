@@ -39,6 +39,7 @@ import interview.guide.modules.interview.agent.adaptive.persistence.memory.Candi
 import interview.guide.modules.interview.agent.adaptive.persistence.memory.CandidateMemoryClaimRepository;
 import interview.guide.modules.interview.agent.adaptive.persistence.memory.CandidateMemoryTopicEntity;
 import interview.guide.modules.interview.agent.adaptive.persistence.memory.CandidateMemoryTopicRepository;
+import interview.guide.modules.interview.agent.adaptive.persistence.memory.EpisodeFactPersistence;
 import interview.guide.modules.interview.agent.adaptive.persistence.plan.AdaptiveAgentPlanEntity;
 import interview.guide.modules.interview.agent.adaptive.persistence.plan.AdaptiveAgentPlanRepository;
 import interview.guide.modules.interview.agent.adaptive.persistence.practice.PracticeRecordEntity;
@@ -70,6 +71,7 @@ public class AdaptiveInterviewPersistenceService
   private final PracticeRecordRepository practiceRecordRepository;
   private final AdaptiveAgentToolResultEventRepository toolResultEventRepository;
   private final CandidateAbilityProfileRepository abilityProfileRepository;
+  private final EpisodeFactPersistence episodeFactPersistence;
 
   @Transactional(readOnly = true)
   public void requireCandidateSession(String candidateId, String sessionId) {
@@ -369,6 +371,8 @@ public class AdaptiveInterviewPersistenceService
             ErrorCode.INTERVIEW_SESSION_NOT_FOUND,
             "Agent 面试会话不存在"
         ));
+    AdaptiveInterviewSession currentSession = sessionEntity.toDomain();
+    currentSession.assertCanAnswer(answer);
     List<AdaptiveAgentPlanEntity> planEntities = planRepository
         .findBySessionIdOrderByDimensionOrder(sessionId);
     InterviewPlan plan = toPlan(sessionId, sessionEntity.toDomain().maxTurns(), planEntities);
@@ -377,7 +381,7 @@ public class AdaptiveInterviewPersistenceService
     }
     InterviewPlan updatedPlan = plan.answer(answer.turnIndex());
     PlannedDimension answeredDimension = updatedPlan.dimensionForTurn(answer.turnIndex());
-    SessionTransition transition = sessionEntity.toDomain().apply(answer, proposedAction);
+    SessionTransition transition = currentSession.apply(answer, proposedAction);
     AdaptiveAgentTurnEntity turnEntity = turnRepository
         .findBySessionIdAndTurnIndex(sessionId, answer.turnIndex())
         .orElseThrow(() -> new BusinessException(ErrorCode.NOT_FOUND, "面试轮次不存在"));
@@ -393,6 +397,7 @@ public class AdaptiveInterviewPersistenceService
         new AdaptiveAgentAssessmentEntity(answeredDimension.order(), assessmentDecision)
     );
     saveProbeGaps(assessment, assessmentDecision);
+    episodeFactPersistence.create(sessionEntity, assessment, answeredDimension);
 
     if (transition.appliedAction().type() == AgentResponseType.ASK) {
       int nextTurn = transition.session().currentTurn();

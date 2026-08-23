@@ -34,6 +34,7 @@ import interview.guide.modules.interview.agent.adaptive.persistence.assessment.A
 import interview.guide.modules.interview.agent.adaptive.persistence.assessment.AdaptiveAgentEvidenceRepository;
 import interview.guide.modules.interview.agent.adaptive.persistence.assessment.JpaAssessmentReportFactsSource;
 import interview.guide.modules.interview.agent.adaptive.persistence.memory.CandidateAbilityProfileRepository;
+import interview.guide.modules.interview.agent.adaptive.persistence.memory.EpisodeFactPersistence;
 import java.util.List;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -50,6 +51,7 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 })
 @Import({
     AdaptiveInterviewPersistenceService.class,
+    EpisodeFactPersistence.class,
     CandidateMemoryService.class,
     JpaAlgorithmEvidenceSource.class,
     JpaAssessmentReportFactsSource.class,
