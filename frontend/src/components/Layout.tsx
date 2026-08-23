@@ -1,4 +1,4 @@
-import { Bot, History, Home, LogOut, Menu, Moon, ServerCog, Sparkles, Sun, X } from 'lucide-react';
+import { Bot, BrainCircuit, History, Home, LogOut, Menu, Moon, ServerCog, Sparkles, Sun, X } from 'lucide-react';
 import { useState } from 'react';
 import { Link, Outlet, useLocation } from 'react-router-dom';
 import { useAuth } from '../auth/AuthContext';
@@ -18,6 +18,12 @@ const NAV_ITEMS = [
     label: '面试历史',
     description: '继续会话与查看报告',
     icon: History,
+  },
+  {
+    path: ROUTES.candidateMemory,
+    label: '候选人记忆',
+    description: '能力主题与追问链',
+    icon: BrainCircuit,
   },
   {
     path: ROUTES.providers,

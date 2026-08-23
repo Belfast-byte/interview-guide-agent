@@ -12,6 +12,7 @@ import type {
   PublicAlgorithmProblem,
   ToolResultFollowUp,
 } from '../types/adaptiveInterview';
+import type { CandidateMemoryResponse } from '../types/candidateMemory';
 
 const BASE_PATH = '/api/adaptive-agent-interviews';
 const MODEL_CALL_TIMEOUT_MS = 45_000;
@@ -62,6 +63,12 @@ export const adaptiveInterviewApi = {
 
   history(page: number): Promise<AdaptiveInterviewHistoryPage> {
     return request.get<AdaptiveInterviewHistoryPage>(`${BASE_PATH}/history`, {
+      params: { page },
+    });
+  },
+
+  getCandidateMemory(page: number): Promise<CandidateMemoryResponse> {
+    return request.get<CandidateMemoryResponse>(`${BASE_PATH}/me/memory`, {
       params: { page },
     });
   },

@@ -10,6 +10,7 @@ const HomePage = lazy(() => import('./pages/HomePage'));
 const AdaptiveInterviewPage = lazy(() => import('./pages/AdaptiveInterviewPage'));
 const ProvidersPage = lazy(() => import('./pages/ProvidersPage'));
 const AdaptiveInterviewHistoryPage = lazy(() => import('./pages/AdaptiveInterviewHistoryPage'));
+const CandidateMemoryPage = lazy(() => import('./pages/CandidateMemoryPage'));
 
 function Loading() {
   return (
@@ -49,6 +50,7 @@ export default function App() {
                   <Route path={ROUTES.adaptiveInterview} element={<AdaptiveInterviewPage />} />
                   <Route path={ROUTES.providers} element={<ProvidersPage />} />
                   <Route path={ROUTES.interviewHistory} element={<AdaptiveInterviewHistoryPage />} />
+                  <Route path={ROUTES.candidateMemory} element={<CandidateMemoryPage />} />
                   <Route
                     path={`${ROUTES.adaptiveInterview}/:sessionId`}
                     element={<AdaptiveInterviewPage />}
