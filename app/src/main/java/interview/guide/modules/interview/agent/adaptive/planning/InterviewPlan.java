@@ -3,6 +3,7 @@ package interview.guide.modules.interview.agent.adaptive.planning;
 import interview.guide.common.exception.BusinessException;
 import interview.guide.common.exception.ErrorCode;
 import interview.guide.modules.interview.agent.adaptive.core.session.AdaptiveInterviewSession;
+import interview.guide.modules.interview.agent.adaptive.core.context.TopicKey;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashSet;
@@ -144,6 +145,7 @@ public record InterviewPlan(
     }
 
     Set<String> dimensionNames = new HashSet<>();
+    Set<TopicKey> topicKeys = new HashSet<>();
     for (DimensionProposal dimension : proposal.dimensions()) {
       if (dimension.dimension() == null
           || dimension.dimension().isBlank()
@@ -179,6 +181,10 @@ public record InterviewPlan(
       }
       if (!isValidIdentifier(dimension.focusId().toLowerCase(Locale.ROOT))) {
         throw new BusinessException(ErrorCode.AI_SERVICE_ERROR, "Invalid focus identifier");
+      }
+      TopicKey topicKey = new TopicKey(dimension.suggestedSkill(), dimension.focusId());
+      if (!topicKeys.add(topicKey)) {
+        throw new BusinessException(ErrorCode.AI_SERVICE_ERROR, "规划结果包含重复主题");
       }
     }
   }

@@ -76,6 +76,30 @@ class InterviewPlanTest {
     }
 
     @Test
+    @DisplayName("同一计划内重复 TopicKey 被拒绝")
+    void shouldRejectDuplicateTopicKey() {
+      PlanProposal proposal = new PlanProposal(List.of(
+          dimension("专业基础", "java-backend", "REDIS"),
+          dimension("项目实践", "java-backend", "REDIS")
+      ));
+
+      assertThatThrownBy(() -> InterviewPlan.decide("session-1", proposal))
+          .isInstanceOf(BusinessException.class)
+          .hasMessageContaining("重复主题");
+    }
+
+    @Test
+    @DisplayName("不同 Skill 下相同 focusId 是不同主题")
+    void shouldAllowSameFocusAcrossSkills() {
+      PlanProposal proposal = new PlanProposal(List.of(
+          dimension("后端缓存", "java-backend", "REDIS"),
+          dimension("系统缓存", "system-design", "REDIS")
+      ));
+
+      assertThat(InterviewPlan.decide("session-1", proposal).dimensions()).hasSize(2);
+    }
+
+    @Test
     @DisplayName("超过持久化边界的维度名称被拒绝")
     void shouldRejectOversizedDimensionName() {
       PlanProposal proposal = new PlanProposal(List.of(
@@ -156,11 +180,19 @@ class InterviewPlanTest {
 
   private PlanProposal proposal(int count) {
     return new PlanProposal(java.util.stream.IntStream.range(0, count)
-        .mapToObj(index -> dimension("维度-" + index))
+        .mapToObj(index -> dimension(
+            "维度-" + index,
+            "java-backend",
+            "JAVA_" + index
+        ))
         .toList());
   }
 
   private DimensionProposal dimension(String name) {
-    return new DimensionProposal(name, name + "重点", "JAVA", 12, List.of(), "java-backend");
+    return dimension(name, "java-backend", "JAVA");
+  }
+
+  private DimensionProposal dimension(String name, String skillId, String focusId) {
+    return new DimensionProposal(name, name + "重点", focusId, 12, List.of(), skillId);
   }
 }
