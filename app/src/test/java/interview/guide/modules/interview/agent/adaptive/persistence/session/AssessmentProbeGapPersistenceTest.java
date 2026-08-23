@@ -3,7 +3,7 @@ package interview.guide.modules.interview.agent.adaptive.persistence.session;
 import static org.assertj.core.api.Assertions.assertThat;
 
 import interview.guide.modules.interview.agent.adaptive.assessment.depth.AssessmentDecision;
-import interview.guide.modules.interview.agent.adaptive.assessment.depth.DepthLevel;
+import interview.guide.modules.interview.agent.adaptive.core.context.DepthLevel;
 import interview.guide.modules.interview.agent.adaptive.core.action.RespondAction;
 import interview.guide.modules.interview.agent.adaptive.core.context.ProbeGap;
 import interview.guide.modules.interview.agent.adaptive.core.event.CandidateAnswer;

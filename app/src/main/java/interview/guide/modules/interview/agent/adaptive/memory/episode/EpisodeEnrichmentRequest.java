@@ -1,6 +1,6 @@
 package interview.guide.modules.interview.agent.adaptive.memory.episode;
 
-import interview.guide.modules.interview.agent.adaptive.assessment.depth.DepthLevel;
+import interview.guide.modules.interview.agent.adaptive.core.context.DepthLevel;
 import interview.guide.modules.interview.agent.adaptive.core.context.TopicKey;
 import java.util.List;
 import java.util.Set;

@@ -2,7 +2,7 @@ package interview.guide.modules.interview.agent.adaptive.assessment.practice;
 
 import interview.guide.modules.interview.agent.adaptive.assessment.FinalAssessmentSelector;
 import interview.guide.modules.interview.agent.adaptive.assessment.depth.AssessmentDecision;
-import interview.guide.modules.interview.agent.adaptive.assessment.depth.DepthLevel;
+import interview.guide.modules.interview.agent.adaptive.core.context.DepthLevel;
 import interview.guide.modules.interview.agent.adaptive.planning.PlannedDimension;
 import interview.guide.modules.interview.agent.adaptive.tool.QuestionBankQuestion;
 import interview.guide.modules.interview.agent.adaptive.tool.QuestionBankSearchSource;

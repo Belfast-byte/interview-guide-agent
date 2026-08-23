@@ -4,7 +4,7 @@ import interview.guide.modules.interview.agent.adaptive.core.session.AdaptiveInt
 import interview.guide.modules.interview.agent.adaptive.core.action.AgentResponseType;
 import interview.guide.modules.interview.agent.adaptive.core.event.CandidateAnswer;
 import interview.guide.modules.interview.agent.adaptive.core.context.CoveredTopic;
-import interview.guide.modules.interview.agent.adaptive.assessment.depth.DepthLevel;
+import interview.guide.modules.interview.agent.adaptive.core.context.DepthLevel;
 import interview.guide.modules.interview.agent.adaptive.core.context.EpisodePromptFact;
 import interview.guide.modules.interview.agent.adaptive.core.context.InterviewerContext;
 import interview.guide.modules.interview.agent.adaptive.core.context.PlannerContext;

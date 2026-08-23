@@ -4,7 +4,7 @@ import interview.guide.common.exception.BusinessException;
 import interview.guide.modules.interview.agent.adaptive.assessment.depth.AssessmentDecision;
 import interview.guide.modules.interview.agent.adaptive.assessment.report.AssessmentReportService;
 import interview.guide.modules.interview.agent.adaptive.assessment.report.CandidateAssessmentReport;
-import interview.guide.modules.interview.agent.adaptive.assessment.depth.DepthLevel;
+import interview.guide.modules.interview.agent.adaptive.core.context.DepthLevel;
 import interview.guide.modules.interview.agent.adaptive.assessment.evidence.EvidenceType;
 import interview.guide.modules.interview.agent.adaptive.assessment.practice.PracticeRecommendation;
 import interview.guide.modules.interview.agent.adaptive.assessment.practice.PracticeStatus;

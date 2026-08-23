@@ -1,7 +1,7 @@
 package interview.guide.modules.interview.agent.adaptive.observability;
 
 import io.micrometer.core.instrument.simple.SimpleMeterRegistry;
-import interview.guide.modules.interview.agent.adaptive.assessment.depth.DepthLevel;
+import interview.guide.modules.interview.agent.adaptive.core.context.DepthLevel;
 import interview.guide.modules.interview.agent.adaptive.core.action.AgentResponseType;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;

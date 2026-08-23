@@ -1,6 +1,6 @@
 package interview.guide.modules.interview.agent.adaptive.application;
 
-import interview.guide.modules.interview.agent.adaptive.assessment.depth.DepthLevel;
+import interview.guide.modules.interview.agent.adaptive.core.context.DepthLevel;
 import interview.guide.modules.interview.agent.adaptive.core.context.TopicKey;
 import interview.guide.modules.interview.agent.adaptive.memory.episode.EpisodeEnrichmentStatus;
 import interview.guide.modules.interview.agent.adaptive.memory.episode.EpisodeTagCategory;

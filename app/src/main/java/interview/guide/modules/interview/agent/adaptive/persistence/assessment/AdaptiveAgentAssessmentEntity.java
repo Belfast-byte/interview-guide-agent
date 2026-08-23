@@ -1,7 +1,7 @@
 package interview.guide.modules.interview.agent.adaptive.persistence.assessment;
 
 import interview.guide.modules.interview.agent.adaptive.assessment.depth.AssessmentDecision;
-import interview.guide.modules.interview.agent.adaptive.assessment.depth.DepthLevel;
+import interview.guide.modules.interview.agent.adaptive.core.context.DepthLevel;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.EnumType;

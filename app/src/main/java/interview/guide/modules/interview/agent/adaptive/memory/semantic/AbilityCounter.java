@@ -1,6 +1,6 @@
 package interview.guide.modules.interview.agent.adaptive.memory.semantic;
 
-import interview.guide.modules.interview.agent.adaptive.assessment.depth.DepthLevel;
+import interview.guide.modules.interview.agent.adaptive.core.context.DepthLevel;
 import java.util.Optional;
 
 /**

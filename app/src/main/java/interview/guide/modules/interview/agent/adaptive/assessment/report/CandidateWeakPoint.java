@@ -1,6 +1,6 @@
 package interview.guide.modules.interview.agent.adaptive.assessment.report;
 
-import interview.guide.modules.interview.agent.adaptive.assessment.depth.DepthLevel;
+import interview.guide.modules.interview.agent.adaptive.core.context.DepthLevel;
 /**
  * 候选人薄弱点。
  */

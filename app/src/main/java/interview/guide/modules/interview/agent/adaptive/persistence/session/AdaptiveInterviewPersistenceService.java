@@ -3,7 +3,7 @@ package interview.guide.modules.interview.agent.adaptive.persistence.session;
 import interview.guide.common.exception.BusinessException;
 import interview.guide.common.exception.ErrorCode;
 import interview.guide.modules.interview.agent.adaptive.assessment.depth.AssessmentDecision;
-import interview.guide.modules.interview.agent.adaptive.assessment.depth.DepthLevel;
+import interview.guide.modules.interview.agent.adaptive.core.context.DepthLevel;
 import interview.guide.modules.interview.agent.adaptive.assessment.practice.PracticeRecommendation;
 import interview.guide.modules.interview.agent.adaptive.assessment.evidence.ValidatedAssessmentEvidence;
 import interview.guide.modules.interview.agent.adaptive.assessment.evidence.EvidenceType;

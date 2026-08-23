@@ -1,6 +1,6 @@
 package interview.guide.modules.interview.agent.adaptive.assessment.practice;
 
-import interview.guide.modules.interview.agent.adaptive.assessment.depth.DepthLevel;
+import interview.guide.modules.interview.agent.adaptive.core.context.DepthLevel;
 /**
  * 练习评估事实。
  */

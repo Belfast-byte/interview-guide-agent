@@ -1,4 +1,4 @@
-package interview.guide.modules.interview.agent.adaptive.assessment.depth;
+package interview.guide.modules.interview.agent.adaptive.core.context;
 
 /**
  * 深度等级枚举。

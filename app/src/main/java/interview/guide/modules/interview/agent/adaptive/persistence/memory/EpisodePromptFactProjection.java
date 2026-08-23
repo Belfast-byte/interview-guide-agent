@@ -1,6 +1,6 @@
 package interview.guide.modules.interview.agent.adaptive.persistence.memory;
 
-import interview.guide.modules.interview.agent.adaptive.assessment.depth.DepthLevel;
+import interview.guide.modules.interview.agent.adaptive.core.context.DepthLevel;
 import java.time.LocalDateTime;
 
 /**

@@ -1,6 +1,6 @@
 package interview.guide.modules.interview.agent.adaptive.assessment.report;
 
-import interview.guide.modules.interview.agent.adaptive.assessment.depth.DepthLevel;
+import interview.guide.modules.interview.agent.adaptive.core.context.DepthLevel;
 import interview.guide.modules.interview.agent.adaptive.assessment.evidence.EvidenceType;
 import interview.guide.modules.interview.agent.adaptive.core.session.AdaptiveSessionStatus;
 import java.util.List;

@@ -9,7 +9,7 @@ import interview.guide.modules.interview.agent.adaptive.assessment.depth.DepthAs
 import interview.guide.modules.interview.agent.adaptive.assessment.practice.PracticeRecommendationService;
 import interview.guide.modules.interview.agent.adaptive.assessment.practice.PracticeRecommendation;
 import interview.guide.modules.interview.agent.adaptive.assessment.practice.PracticeStatus;
-import interview.guide.modules.interview.agent.adaptive.assessment.depth.DepthLevel;
+import interview.guide.modules.interview.agent.adaptive.core.context.DepthLevel;
 import interview.guide.modules.interview.agent.adaptive.algorithm.evidence.AlgorithmAssessmentEvidenceService;
 import interview.guide.modules.interview.agent.adaptive.codeanalysis.CodeAnalysisInterviewContextService;
 import interview.guide.modules.interview.agent.adaptive.core.session.AdaptiveInterviewHistory;

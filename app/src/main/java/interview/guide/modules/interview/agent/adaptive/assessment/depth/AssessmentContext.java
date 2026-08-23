@@ -1,5 +1,6 @@
 package interview.guide.modules.interview.agent.adaptive.assessment.depth;
 
+import interview.guide.modules.interview.agent.adaptive.core.context.DepthLevel;
 import java.util.Arrays;
 import java.util.List;
 

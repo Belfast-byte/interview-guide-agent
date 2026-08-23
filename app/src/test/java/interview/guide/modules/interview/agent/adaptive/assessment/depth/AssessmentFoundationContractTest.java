@@ -1,6 +1,7 @@
 package interview.guide.modules.interview.agent.adaptive.assessment.depth;
 
 import interview.guide.modules.interview.agent.adaptive.assessment.evidence.EvidenceType;
+import interview.guide.modules.interview.agent.adaptive.core.context.DepthLevel;
 import java.io.IOException;
 import java.io.InputStream;
 import java.nio.charset.StandardCharsets;

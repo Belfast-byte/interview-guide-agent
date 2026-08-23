@@ -1,6 +1,6 @@
 package interview.guide.modules.interview.agent.adaptive.assessment;
 
-import interview.guide.modules.interview.agent.adaptive.assessment.depth.DepthLevel;
+import interview.guide.modules.interview.agent.adaptive.core.context.DepthLevel;
 import java.util.Comparator;
 import java.util.function.Function;
 import java.util.function.ToIntFunction;

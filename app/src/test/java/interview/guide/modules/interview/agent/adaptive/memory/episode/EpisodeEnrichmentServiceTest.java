@@ -12,7 +12,7 @@ import static org.mockito.Mockito.when;
 import interview.guide.common.exception.BusinessException;
 import interview.guide.common.exception.ErrorCode;
 import interview.guide.modules.interview.agent.adaptive.assessment.depth.AssessmentDecision;
-import interview.guide.modules.interview.agent.adaptive.assessment.depth.DepthLevel;
+import interview.guide.modules.interview.agent.adaptive.core.context.DepthLevel;
 import interview.guide.modules.interview.agent.adaptive.assessment.evidence.EvidenceType;
 import interview.guide.modules.interview.agent.adaptive.core.context.MemoryOwner;
 import interview.guide.modules.interview.agent.adaptive.core.context.TopicKey;

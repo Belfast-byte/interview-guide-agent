@@ -1,7 +1,7 @@
 package interview.guide.modules.interview.agent.adaptive.api;
 
 import interview.guide.modules.interview.agent.adaptive.application.CandidateMemoryQueryResult;
-import interview.guide.modules.interview.agent.adaptive.assessment.depth.DepthLevel;
+import interview.guide.modules.interview.agent.adaptive.core.context.DepthLevel;
 import interview.guide.modules.interview.agent.adaptive.memory.episode.EpisodeEnrichmentStatus;
 import interview.guide.modules.interview.agent.adaptive.memory.episode.EpisodeTagCategory;
 import interview.guide.modules.interview.agent.adaptive.memory.semantic.SemanticAbility;

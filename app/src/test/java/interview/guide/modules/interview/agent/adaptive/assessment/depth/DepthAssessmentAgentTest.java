@@ -2,6 +2,7 @@ package interview.guide.modules.interview.agent.adaptive.assessment.depth;
 
 import interview.guide.common.exception.BusinessException;
 import interview.guide.common.exception.ErrorCode;
+import interview.guide.modules.interview.agent.adaptive.core.context.DepthLevel;
 import interview.guide.modules.interview.agent.adaptive.core.context.ProbeGap;
 import java.lang.reflect.RecordComponent;
 import java.util.Arrays;
