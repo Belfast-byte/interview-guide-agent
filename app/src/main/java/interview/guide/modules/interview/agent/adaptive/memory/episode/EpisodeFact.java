@@ -15,6 +15,7 @@ public record EpisodeFact(
     long assessmentId,
     TopicKey topic,
     EpisodeEnrichmentStatus enrichmentStatus,
+    String answerSummary,
     String enrichmentError,
     LocalDateTime createdAt,
     LocalDateTime updatedAt

@@ -3,6 +3,7 @@ package interview.guide.modules.interview.agent.adaptive.persistence.memory;
 import interview.guide.modules.interview.agent.adaptive.core.context.MemoryOwner;
 import interview.guide.modules.interview.agent.adaptive.core.context.TopicKey;
 import interview.guide.modules.interview.agent.adaptive.memory.episode.EpisodeEnrichmentStatus;
+import interview.guide.modules.interview.agent.adaptive.memory.episode.EpisodeEnrichmentState;
 import interview.guide.modules.interview.agent.adaptive.memory.episode.EpisodeFact;
 import interview.guide.modules.interview.agent.adaptive.memory.episode.EpisodeFactCreation;
 import interview.guide.modules.interview.agent.adaptive.persistence.assessment.AdaptiveAgentAssessmentEntity;
@@ -66,6 +67,9 @@ public class EpisodeFactEntity {
   @Column(name = "enrichment_status", nullable = false, length = 24)
   private EpisodeEnrichmentStatus enrichmentStatus;
 
+  @Column(name = "answer_summary", columnDefinition = "TEXT")
+  private String answerSummary;
+
   @Column(name = "enrichment_error", columnDefinition = "TEXT")
   private String enrichmentError;
 
@@ -127,6 +131,7 @@ public class EpisodeFactEntity {
         assessment.id(),
         new TopicKey(skillId, focusId),
         enrichmentStatus,
+        answerSummary,
         enrichmentError,
         createdAt,
         updatedAt
@@ -135,5 +140,45 @@ public class EpisodeFactEntity {
 
   public long id() {
     return id;
+  }
+
+  public boolean claimEnrichment() {
+    if (enrichmentStatus != EpisodeEnrichmentStatus.PENDING) {
+      return false;
+    }
+    apply(EpisodeEnrichmentState.pending().claim());
+    return true;
+  }
+
+  public void completeEnrichment(String summary) {
+    if (summary == null || summary.isBlank()) {
+      throw new IllegalArgumentException("Episode answerSummary 不能为空");
+    }
+    apply(state().complete());
+    answerSummary = summary;
+  }
+
+  public void failEnrichment(String error) {
+    apply(state().fail(error));
+    answerSummary = null;
+  }
+
+  public void retryEnrichment() {
+    apply(state().retry());
+    answerSummary = null;
+  }
+
+  public void recoverStaleEnrichment() {
+    apply(state().recoverStaleProcessing());
+    answerSummary = null;
+  }
+
+  private EpisodeEnrichmentState state() {
+    return new EpisodeEnrichmentState(enrichmentStatus, enrichmentError);
+  }
+
+  private void apply(EpisodeEnrichmentState state) {
+    enrichmentStatus = state.status();
+    enrichmentError = state.error();
   }
 }
