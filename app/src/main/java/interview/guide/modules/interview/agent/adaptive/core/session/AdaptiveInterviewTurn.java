@@ -45,8 +45,6 @@ public record AdaptiveInterviewTurn(
   }
 
   private static TurnProvenance defaultProvenance(int turnIndex) {
-    return turnIndex == 1
-        ? TurnProvenance.initial()
-        : TurnProvenance.plannedAfter(turnIndex - 1);
+    return TurnProvenance.initial();
   }
 }

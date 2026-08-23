@@ -16,10 +16,12 @@ import interview.guide.modules.interview.agent.adaptive.algorithm.evidence.Algor
 import interview.guide.modules.interview.agent.adaptive.codeanalysis.CodeAnalysisInterviewContextService;
 import interview.guide.modules.interview.agent.adaptive.core.session.AdaptiveInterviewHistory;
 import interview.guide.modules.interview.agent.adaptive.core.session.AdaptiveInterviewTurn;
+import interview.guide.modules.interview.agent.adaptive.core.session.TurnTriggerType;
 import interview.guide.modules.interview.agent.adaptive.core.event.CandidateAnswer;
 import interview.guide.modules.interview.agent.adaptive.core.action.AgentResponseType;
 import interview.guide.modules.interview.agent.adaptive.core.context.DimensionBrief;
 import interview.guide.modules.interview.agent.adaptive.core.context.ProbeGap;
+import interview.guide.modules.interview.agent.adaptive.core.context.TopicKey;
 import interview.guide.modules.interview.agent.adaptive.core.action.RespondAction;
 import interview.guide.modules.interview.agent.adaptive.core.event.ToolResultEvent;
 import interview.guide.modules.interview.agent.adaptive.core.event.ToolResultFollowUp;
@@ -28,6 +30,8 @@ import interview.guide.modules.interview.agent.adaptive.memory.profile.Candidate
 import interview.guide.modules.interview.agent.adaptive.memory.claim.CandidateClaim;
 import interview.guide.modules.interview.agent.adaptive.memory.claim.CandidateClaimExtractionService;
 import interview.guide.modules.interview.agent.adaptive.memory.brief.DimensionBriefService;
+import interview.guide.modules.interview.agent.adaptive.memory.working.WorkingMemoryInput;
+import interview.guide.modules.interview.agent.adaptive.memory.working.WorkingMemorySnapshot;
 import interview.guide.modules.interview.agent.adaptive.observability.AdaptiveAgentTelemetry;
 import interview.guide.modules.interview.agent.adaptive.observability.AlgorithmInterviewTelemetry;
 import interview.guide.modules.interview.agent.adaptive.persistence.session.AdaptiveInterviewPersistenceService;
@@ -277,7 +281,18 @@ public class AdaptiveInterviewApplicationService {
             List.of(),
             null,
             List.of(),
-            List.of()
+            contextAssembler.workingMemory(new WorkingMemoryInput(
+                sessionId,
+                1,
+                new TopicKey(
+                    firstDimension.suggestedSkill(),
+                    firstDimension.focusId()
+                ),
+                null,
+                TurnTriggerType.PLANNED,
+                List.of(),
+                List.of()
+            ))
         ),
         deltaSink
     );
@@ -450,6 +465,20 @@ public class AdaptiveInterviewApplicationService {
           ? currentDimension
           : planForNextTurn.dimensionForTurn(answer.turnIndex() + 1);
       sink.onStage(AnswerEventSink.AnswerStage.GENERATING);
+      boolean assessmentGap = !nextProbeGaps.isEmpty();
+      WorkingMemorySnapshot workingMemory = contextAssembler.workingMemory(
+          new WorkingMemoryInput(
+              sessionId,
+              answer.turnIndex() + 1,
+              new TopicKey(nextDimension.suggestedSkill(), nextDimension.focusId()),
+              assessmentGap ? answer.turnIndex() : null,
+              assessmentGap
+                  ? TurnTriggerType.ASSESSMENT_GAP
+                  : TurnTriggerType.PLANNED,
+              nextProbeGaps,
+              history.turns()
+          )
+      );
       decision = runDecision(
           request(
               sessionId,
@@ -461,7 +490,7 @@ public class AdaptiveInterviewApplicationService {
               history.turns(),
               answer,
               briefsForNextDecision(interview.dimensionBriefs(), dimensionBrief),
-              nextProbeGaps
+              workingMemory
           ),
           sink.deltaSink()
       );
@@ -711,7 +740,7 @@ public class AdaptiveInterviewApplicationService {
       List<AdaptiveInterviewTurn> turns,
       CandidateAnswer candidateAnswer,
       List<DimensionBrief> dimensionBriefs,
-      List<ProbeGap> probeGaps
+      WorkingMemorySnapshot workingMemory
   ) {
     return new ReActRequest(
         sessionId,
@@ -728,11 +757,17 @@ public class AdaptiveInterviewApplicationService {
             dimension.suggestedSkill(),
             turns,
             candidateAnswer,
-            probeGaps,
+            selectedGaps(workingMemory),
             dimensionBriefs,
             codeAnalysisContextService.findForSession(sessionId).orElse(null)
         )
     );
+  }
+
+  private List<ProbeGap> selectedGaps(WorkingMemorySnapshot snapshot) {
+    return snapshot.selectedGap() == null
+        ? List.of()
+        : List.of(snapshot.selectedGap());
   }
 
   private boolean completesDimension(PlannedDimension dimension) {

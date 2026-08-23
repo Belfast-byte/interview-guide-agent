@@ -32,7 +32,7 @@ class AdaptiveAgentTurnEntityTest {
                 CodeFactUsage.QUESTION_SOURCE
             )
         ),
-        TurnProvenance.plannedAfter(1)
+        TurnProvenance.initial()
     ));
 
     turn.replaceQuestion(
@@ -76,7 +76,7 @@ class AdaptiveAgentTurnEntityTest {
         2,
         0,
         RespondAction.ask("追问", "非法父链"),
-        TurnProvenance.plannedAfter(2)
+        TurnProvenance.assessmentGap(2, 42)
     ))).isInstanceOf(IllegalArgumentException.class)
         .hasMessageContaining("父轮次必须早于");
   }

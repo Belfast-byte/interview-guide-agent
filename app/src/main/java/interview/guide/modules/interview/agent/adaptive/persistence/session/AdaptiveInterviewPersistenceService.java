@@ -458,7 +458,7 @@ public class AdaptiveInterviewPersistenceService
         && !decision.probeGaps().isEmpty()) {
       return TurnProvenance.assessmentGap(answer.turnIndex(), assessmentId);
     }
-    return TurnProvenance.plannedAfter(answer.turnIndex());
+    return TurnProvenance.initial();
   }
 
   private void saveProbeGaps(

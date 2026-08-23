@@ -11,7 +11,12 @@ import interview.guide.modules.interview.agent.adaptive.core.context.ProbeGap;
 import interview.guide.modules.interview.agent.adaptive.core.context.ProjectInterviewContext;
 import interview.guide.modules.interview.agent.adaptive.core.context.UnverifiedClaim;
 import interview.guide.modules.interview.agent.adaptive.core.event.ToolResultEvent;
+import interview.guide.modules.interview.agent.adaptive.core.session.TurnTriggerType;
+import interview.guide.modules.interview.agent.adaptive.memory.working.WorkingMemoryInput;
+import interview.guide.modules.interview.agent.adaptive.memory.working.WorkingMemorySnapshot;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import org.springframework.stereotype.Component;
 
 /**
@@ -25,6 +30,62 @@ public class ContextAssembler {
    */
   private static final int MAX_DOCUMENT_CHARS = 6_000;
   private static final String TRUNCATION_MARKER = "……[原文共 %d 字符，超出部分已截断]";
+
+  public WorkingMemorySnapshot workingMemory(WorkingMemoryInput input) {
+    validateWorkingTrigger(input);
+    ProbeGap selectedGap = selectGap(input);
+    int followUpDepth = followUpDepth(input.parentTurnIndex(), input.history());
+    return new WorkingMemorySnapshot(
+        input.sessionId(),
+        input.currentTurnIndex(),
+        input.currentTopic(),
+        selectedGap,
+        followUpDepth,
+        input.triggerType()
+    );
+  }
+
+  private void validateWorkingTrigger(WorkingMemoryInput input) {
+    boolean planned = input.triggerType() == TurnTriggerType.PLANNED;
+    if (planned != (input.parentTurnIndex() == null)) {
+      throw new IllegalArgumentException("Working trigger 与父轮次不匹配");
+    }
+  }
+
+  private ProbeGap selectGap(WorkingMemoryInput input) {
+    if (input.triggerType() != TurnTriggerType.ASSESSMENT_GAP) {
+      if (!input.probeGaps().isEmpty()) {
+        throw new IllegalArgumentException("非评估追问不能携带 ProbeGap");
+      }
+      return null;
+    }
+    if (input.probeGaps().isEmpty()) {
+      throw new IllegalArgumentException("评估追问必须携带 ProbeGap");
+    }
+    return input.probeGaps().getFirst();
+  }
+
+  private int followUpDepth(
+      Integer parentTurnIndex,
+      List<AdaptiveInterviewTurn> history
+  ) {
+    if (parentTurnIndex == null) {
+      return 0;
+    }
+    Map<Integer, AdaptiveInterviewTurn> turnsByIndex = new HashMap<>();
+    history.forEach(turn -> turnsByIndex.put(turn.turnIndex(), turn));
+    int depth = 0;
+    Integer current = parentTurnIndex;
+    while (current != null) {
+      AdaptiveInterviewTurn turn = turnsByIndex.get(current);
+      if (turn == null) {
+        throw new IllegalArgumentException("父轮次不在当前会话历史中");
+      }
+      depth++;
+      current = turn.provenance().parentTurnIndex();
+    }
+    return depth;
+  }
 
   /**
    * 组装规划 Agent 所需的上下文。
