@@ -9,6 +9,7 @@ import interview.guide.modules.knowledgebase.listener.VectorizeStreamConsumer;
 import interview.guide.modules.resume.listener.AnalyzeStreamConsumer;
 import interview.guide.modules.voiceinterview.handler.VoiceInterviewWebSocketHandler;
 import interview.guide.modules.voiceinterview.listener.VoiceEvaluateStreamConsumer;
+import jakarta.servlet.DispatcherType;
 import jakarta.servlet.Filter;
 import org.aspectj.lang.ProceedingJoinPoint;
 import org.junit.jupiter.api.BeforeEach;
@@ -85,6 +86,17 @@ class SecurityBoundaryIntegrationTest {
   void shouldAllowCandidateRequest() throws Exception {
     mockMvc.perform(get("/api/resumes/health")
             .header("Authorization", bearer(UserRole.CANDIDATE)))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.code").value(200));
+  }
+
+  @Test
+  @DisplayName("Servlet 异步二次分派不重复鉴权")
+  void shouldAllowAsyncDispatchWithoutReauthentication() throws Exception {
+    mockMvc.perform(get("/api/resumes/health").with(request -> {
+      request.setDispatcherType(DispatcherType.ASYNC);
+      return request;
+    }))
         .andExpect(status().isOk())
         .andExpect(jsonPath("$.code").value(200));
   }
