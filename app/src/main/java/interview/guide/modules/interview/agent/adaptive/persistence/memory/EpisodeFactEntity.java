@@ -57,6 +57,9 @@ public class EpisodeFactEntity {
   @JoinColumn(name = "assessment_id", nullable = false)
   private AdaptiveAgentAssessmentEntity assessment;
 
+  @Column(name = "assessment_id", nullable = false, insertable = false, updatable = false)
+  private Long assessmentId;
+
   @Column(name = "skill_id", nullable = false, length = 64)
   private String skillId;
 
@@ -95,6 +98,7 @@ public class EpisodeFactEntity {
     this.sessionId = creation.sessionId();
     this.turnIndex = creation.turnIndex();
     this.assessment = assessment;
+    this.assessmentId = assessment.id();
     this.skillId = creation.topic().skillId();
     this.focusId = creation.topic().focusId();
     this.enrichmentStatus = EpisodeEnrichmentStatus.PENDING;
@@ -128,7 +132,7 @@ public class EpisodeFactEntity {
         new MemoryOwner(tenantId, candidateId),
         sessionId,
         turnIndex,
-        assessment.id(),
+        assessmentId,
         new TopicKey(skillId, focusId),
         enrichmentStatus,
         answerSummary,

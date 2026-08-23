@@ -2,12 +2,14 @@ package interview.guide.modules.interview.agent.adaptive.persistence.memory;
 
 import interview.guide.modules.interview.agent.adaptive.core.context.MemoryOwner;
 import interview.guide.modules.interview.agent.adaptive.core.context.TopicKey;
+import interview.guide.modules.interview.agent.adaptive.memory.episode.EpisodeEnrichmentRequested;
 import interview.guide.modules.interview.agent.adaptive.memory.episode.EpisodeFactCreation;
 import interview.guide.modules.interview.agent.adaptive.persistence.assessment.AdaptiveAgentAssessmentEntity;
 import interview.guide.modules.interview.agent.adaptive.persistence.session.AdaptiveAgentSessionEntity;
 import interview.guide.modules.interview.agent.adaptive.planning.PlannedDimension;
 import java.util.Optional;
 import lombok.RequiredArgsConstructor;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Component;
 
 /**
@@ -19,6 +21,7 @@ public class EpisodeFactPersistence {
 
   private final EpisodeFactRepository repository;
   private final AbilityCounterRepository counterRepository;
+  private final ApplicationEventPublisher eventPublisher;
 
   public EpisodeFactEntity create(
       AdaptiveAgentSessionEntity session,
@@ -36,6 +39,10 @@ public class EpisodeFactPersistence {
         .orElseGet(() -> new AbilityCounterEntity(creation.owner(), creation.topic()));
     counter.increment(assessment.depthLevel());
     counterRepository.save(counter);
+    eventPublisher.publishEvent(new EpisodeEnrichmentRequested(
+        episode.id(),
+        session.llmProvider()
+    ));
     return episode;
   }
 

@@ -132,6 +132,10 @@ public class AdaptiveAgentEvidenceEntity {
     return assessment;
   }
 
+  public long id() {
+    return id;
+  }
+
   public EvidenceType evidenceType() {
     return evidenceType;
   }

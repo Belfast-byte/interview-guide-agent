@@ -1,5 +1,6 @@
 package interview.guide.modules.interview.agent.adaptive.persistence.session;
 
+import interview.guide.modules.interview.agent.adaptive.memory.episode.EpisodeToolResultFact;
 import java.util.Optional;
 import java.util.List;
 import org.springframework.data.jpa.repository.JpaRepository;
@@ -36,6 +37,19 @@ public interface AdaptiveAgentToolResultEventRepository
       order by event.id desc
       """)
   List<String> findResultOutputsBySessionIdAndTurnIndex(
+      String sessionId,
+      int turnIndex
+  );
+
+  @Query("""
+      select new interview.guide.modules.interview.agent.adaptive.memory.episode.EpisodeToolResultFact(
+        event.id, event.resultSummary, event.resultOutput
+      )
+      from AdaptiveAgentToolResultEventEntity event
+      where event.sessionId = :sessionId and event.turnIndex = :turnIndex
+      order by event.id
+      """)
+  List<EpisodeToolResultFact> findEpisodeFactsBySessionIdAndTurnIndex(
       String sessionId,
       int turnIndex
   );

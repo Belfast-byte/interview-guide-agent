@@ -20,6 +20,7 @@ public class AdaptiveAgentProperties {
   private Duration briefDeadline = Duration.ofSeconds(20);
   private Duration claimDeadline = Duration.ofSeconds(20);
   private Duration assessmentDeadline = Duration.ofSeconds(20);
+  private Duration episodeEnrichmentDeadline = Duration.ofSeconds(20);
   private int maxInputTokens = 12_000;
   private int plannerMaxOutputTokens = 2_048;
   private int interviewerMaxOutputTokens = 1_024;
@@ -47,4 +48,8 @@ public class AdaptiveAgentProperties {
       "classpath:prompts/adaptive-agent-assessment-user.st";
   private String assessmentExamplesPath =
       "classpath:prompts/adaptive-agent-assessment-agents.md";
+  private String episodeEnrichmentSystemPromptPath =
+      "classpath:prompts/adaptive-agent-episode-enrichment-system.st";
+  private String episodeEnrichmentUserPromptPath =
+      "classpath:prompts/adaptive-agent-episode-enrichment-user.st";
 }
