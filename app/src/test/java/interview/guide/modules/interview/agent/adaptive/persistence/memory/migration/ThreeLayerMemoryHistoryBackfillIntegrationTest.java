@@ -261,11 +261,11 @@ class ThreeLayerMemoryHistoryBackfillIntegrationTest {
 
   private void assertLegacyTopics(JdbcTemplate jdbc) {
     assertThat(jdbc.queryForList("""
-        SELECT skill_id, focus_id
+        SELECT skill_id, focus_id, superseded_at IS NOT NULL AS superseded
         FROM legacy_candidate_ability_profiles ORDER BY id
         """)).containsExactly(
-            Map.of("skill_id", "java", "focus_id", "focus-java"),
-            Map.of("skill_id", "go", "focus_id", "focus-go")
+            Map.of("skill_id", "java", "focus_id", "focus-java", "superseded", true),
+            Map.of("skill_id", "go", "focus_id", "focus-go", "superseded", true)
         );
   }
 

@@ -21,6 +21,11 @@ public final class ThreeLayerMemoryHistoryBackfill {
       ADD COLUMN IF NOT EXISTS focus_id VARCHAR(64)
       """;
 
+  private static final String ADD_LEGACY_SUPERSEDED_AT_SQL = """
+      ALTER TABLE legacy_candidate_ability_profiles
+      ADD COLUMN IF NOT EXISTS superseded_at TIMESTAMP(6)
+      """;
+
   private static final String REQUIRE_LEGACY_SKILL_SQL = """
       ALTER TABLE legacy_candidate_ability_profiles
       ALTER COLUMN skill_id SET NOT NULL
@@ -53,6 +58,7 @@ public final class ThreeLayerMemoryHistoryBackfill {
   private void prepareLegacyTopicColumns(Connection connection) throws SQLException {
     execute(connection, ADD_LEGACY_SKILL_SQL);
     execute(connection, ADD_LEGACY_FOCUS_SQL);
+    execute(connection, ADD_LEGACY_SUPERSEDED_AT_SQL);
   }
 
   private void requireLegacyTopicColumns(Connection connection) throws SQLException {

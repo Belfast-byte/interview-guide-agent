@@ -3,7 +3,6 @@ package interview.guide.modules.interview.agent.adaptive.persistence.memory.migr
 import interview.guide.modules.interview.agent.adaptive.persistence.memory.migration.HistoryBackfillData.Counts;
 import interview.guide.modules.interview.agent.adaptive.persistence.memory.migration.HistoryBackfillData.HistoricalAssessment;
 import interview.guide.modules.interview.agent.adaptive.persistence.memory.migration.HistoryBackfillData.HistoricalEpisode;
-import interview.guide.modules.interview.agent.adaptive.persistence.memory.migration.HistoryBackfillData.LegacyProfile;
 import interview.guide.modules.interview.agent.adaptive.persistence.memory.migration.HistoryBackfillData.OwnerTopic;
 import interview.guide.modules.interview.agent.adaptive.persistence.memory.migration.HistoryBackfillData.ProfileBackfillInput;
 import java.sql.Connection;
@@ -54,12 +53,8 @@ final class HistoryBackfillWriter {
       WHERE id = ?
       """;
 
-  private static final String LEGACY_TOPIC_UPDATE_SQL = """
-      UPDATE legacy_candidate_ability_profiles
-      SET skill_id = ?, focus_id = ?
-      WHERE id = ?
-      """;
-
+  private final HistoryLegacyProfileWriter legacyProfileWriter =
+      new HistoryLegacyProfileWriter();
   private final HistoryProfileBackfillWriter profileWriter =
       new HistoryProfileBackfillWriter();
 
@@ -68,30 +63,14 @@ final class HistoryBackfillWriter {
       HistoryBackfillData data,
       LocalDateTime migratedAt
   ) throws SQLException {
-    updateLegacyTopics(connection, data.legacyProfiles());
+    legacyProfileWriter.updateTopics(connection, data.legacyProfiles());
     writeEpisodes(connection, data.episodes());
     Map<OwnerTopic, Counts> counters = aggregate(data.assessments());
     writeCounters(connection, counters, migratedAt);
     profileWriter.write(connection, new ProfileBackfillInput(
         data.legacyProfiles(), counters, migratedAt
     ));
-  }
-
-  private void updateLegacyTopics(
-      Connection connection,
-      List<LegacyProfile> profiles
-  ) throws SQLException {
-    try (PreparedStatement statement = connection.prepareStatement(
-        LEGACY_TOPIC_UPDATE_SQL
-    )) {
-      for (LegacyProfile profile : profiles) {
-        statement.setString(1, profile.ownerTopic().skillId());
-        statement.setString(2, profile.ownerTopic().focusId());
-        statement.setLong(3, profile.id());
-        statement.addBatch();
-      }
-      statement.executeBatch();
-    }
+    legacyProfileWriter.markCurrentSuperseded(connection, migratedAt);
   }
 
   private void writeEpisodes(
