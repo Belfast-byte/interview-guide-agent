@@ -13,6 +13,7 @@ import interview.guide.modules.interview.agent.adaptive.persistence.assessment.A
 import interview.guide.modules.interview.agent.adaptive.persistence.assessment.AssessmentProbeGapEntity;
 import interview.guide.modules.interview.agent.adaptive.persistence.assessment.AssessmentProbeGapRepository;
 import interview.guide.modules.interview.agent.adaptive.persistence.memory.EpisodeFactPersistence;
+import interview.guide.modules.interview.agent.adaptive.persistence.memory.AssessmentReconciliationService;
 import interview.guide.modules.interview.agent.adaptive.planning.DimensionProposal;
 import interview.guide.modules.interview.agent.adaptive.planning.InterviewPlan;
 import interview.guide.modules.interview.agent.adaptive.planning.PlanProposal;
@@ -27,7 +28,11 @@ import org.springframework.context.annotation.Import;
     "spring.flyway.enabled=false",
     "spring.jpa.hibernate.ddl-auto=create-drop"
 })
-@Import({AdaptiveInterviewPersistenceService.class, EpisodeFactPersistence.class})
+@Import({
+    AdaptiveInterviewPersistenceService.class,
+    EpisodeFactPersistence.class,
+    AssessmentReconciliationService.class
+})
 class AssessmentProbeGapPersistenceTest {
 
   private static final String SESSION_ID = "session-gap";

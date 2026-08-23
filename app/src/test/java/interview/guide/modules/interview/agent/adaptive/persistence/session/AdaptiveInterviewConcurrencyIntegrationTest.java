@@ -13,6 +13,7 @@ import interview.guide.modules.interview.agent.adaptive.planning.InterviewPlan;
 import interview.guide.modules.interview.agent.adaptive.planning.PlanProposal;
 import interview.guide.modules.interview.agent.adaptive.planning.PlannedInterview;
 import interview.guide.modules.interview.agent.adaptive.persistence.memory.EpisodeFactPersistence;
+import interview.guide.modules.interview.agent.adaptive.persistence.memory.AssessmentReconciliationService;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.Callable;
@@ -36,7 +37,11 @@ import static org.assertj.core.api.Assertions.assertThat;
     "spring.flyway.enabled=false",
     "spring.jpa.hibernate.ddl-auto=create-drop"
 })
-@Import({AdaptiveInterviewPersistenceService.class, EpisodeFactPersistence.class})
+@Import({
+    AdaptiveInterviewPersistenceService.class,
+    EpisodeFactPersistence.class,
+    AssessmentReconciliationService.class
+})
 @Transactional(propagation = Propagation.NOT_SUPPORTED)
 class AdaptiveInterviewConcurrencyIntegrationTest {
 

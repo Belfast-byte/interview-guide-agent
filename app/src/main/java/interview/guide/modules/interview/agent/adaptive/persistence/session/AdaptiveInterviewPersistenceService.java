@@ -40,6 +40,8 @@ import interview.guide.modules.interview.agent.adaptive.persistence.memory.Candi
 import interview.guide.modules.interview.agent.adaptive.persistence.memory.CandidateMemoryTopicEntity;
 import interview.guide.modules.interview.agent.adaptive.persistence.memory.CandidateMemoryTopicRepository;
 import interview.guide.modules.interview.agent.adaptive.persistence.memory.EpisodeFactPersistence;
+import interview.guide.modules.interview.agent.adaptive.persistence.memory.AssessmentReconciliationService;
+import interview.guide.modules.interview.agent.adaptive.memory.semantic.AssessmentRevision;
 import interview.guide.modules.interview.agent.adaptive.persistence.plan.AdaptiveAgentPlanEntity;
 import interview.guide.modules.interview.agent.adaptive.persistence.plan.AdaptiveAgentPlanRepository;
 import interview.guide.modules.interview.agent.adaptive.persistence.practice.PracticeRecordEntity;
@@ -72,6 +74,7 @@ public class AdaptiveInterviewPersistenceService
   private final AdaptiveAgentToolResultEventRepository toolResultEventRepository;
   private final CandidateAbilityProfileRepository abilityProfileRepository;
   private final EpisodeFactPersistence episodeFactPersistence;
+  private final AssessmentReconciliationService assessmentReconciliationService;
 
   @Transactional(readOnly = true)
   public void requireCandidateSession(String candidateId, String sessionId) {
@@ -238,6 +241,12 @@ public class AdaptiveInterviewPersistenceService
             ErrorCode.AI_SERVICE_ERROR,
             "算法判题结果缺少对应的回答评估"
         ));
+    assessmentReconciliationService.reconcile(new AssessmentRevision(
+        sessionId,
+        turnIndex,
+        assessment.depthLevel(),
+        decision.depthLevel()
+    ));
     assessment.replace(decision);
     evidenceRepository.deleteByAssessmentId(assessment.id());
     evidenceRepository.saveAll(evidences.stream()
