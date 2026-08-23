@@ -20,11 +20,14 @@ import interview.guide.modules.interview.agent.adaptive.core.session.TurnTrigger
 import interview.guide.modules.interview.agent.adaptive.core.event.CandidateAnswer;
 import interview.guide.modules.interview.agent.adaptive.core.action.AgentResponseType;
 import interview.guide.modules.interview.agent.adaptive.core.context.DimensionBrief;
+import interview.guide.modules.interview.agent.adaptive.core.context.MemoryOwner;
 import interview.guide.modules.interview.agent.adaptive.core.context.ProbeGap;
 import interview.guide.modules.interview.agent.adaptive.core.context.TopicKey;
+import interview.guide.modules.interview.agent.adaptive.core.context.WorkingMemorySnapshot;
 import interview.guide.modules.interview.agent.adaptive.core.action.RespondAction;
 import interview.guide.modules.interview.agent.adaptive.core.event.ToolResultEvent;
 import interview.guide.modules.interview.agent.adaptive.core.event.ToolResultFollowUp;
+import interview.guide.modules.interview.agent.adaptive.core.session.NextTurnProvenanceDraft;
 import interview.guide.modules.interview.agent.adaptive.memory.ContextAssembler;
 import interview.guide.modules.interview.agent.adaptive.memory.InterviewerContextInput;
 import interview.guide.modules.interview.agent.adaptive.memory.ToolResultContextInput;
@@ -34,10 +37,13 @@ import interview.guide.modules.interview.agent.adaptive.memory.claim.CandidateCl
 import interview.guide.modules.interview.agent.adaptive.memory.claim.CandidateClaimExtractionService;
 import interview.guide.modules.interview.agent.adaptive.memory.brief.DimensionBriefService;
 import interview.guide.modules.interview.agent.adaptive.memory.working.WorkingMemoryInput;
-import interview.guide.modules.interview.agent.adaptive.memory.working.WorkingMemorySnapshot;
+import interview.guide.modules.interview.agent.adaptive.memory.working.NextQuestionWorkingMemoryInput;
+import interview.guide.modules.interview.agent.adaptive.memory.working.WorkingMemoryFactSource;
+import interview.guide.modules.interview.agent.adaptive.memory.working.WorkingMemorySelection;
 import interview.guide.modules.interview.agent.adaptive.observability.AdaptiveAgentTelemetry;
 import interview.guide.modules.interview.agent.adaptive.observability.AlgorithmInterviewTelemetry;
 import interview.guide.modules.interview.agent.adaptive.persistence.session.AdaptiveInterviewPersistenceService;
+import interview.guide.modules.interview.agent.adaptive.persistence.session.AdaptiveDecisionPersistenceInput;
 import interview.guide.modules.interview.agent.adaptive.persistence.session.AdaptiveSessionCreation;
 import interview.guide.modules.interview.agent.adaptive.planning.InterviewPlan;
 import interview.guide.modules.interview.agent.adaptive.planning.PlanProposal;
@@ -83,6 +89,7 @@ public class AdaptiveInterviewApplicationService {
   private final AdaptiveAgentTelemetry telemetry;
   private final PlanningAgent planningAgent;
   private final ContextAssembler contextAssembler;
+  private final WorkingMemoryFactSource workingMemoryFactSource;
   private final DimensionBriefService dimensionBriefService;
   private final CandidateMemoryService candidateMemoryService;
   private final EpisodePromptMemoryService episodePromptMemoryService;
@@ -465,46 +472,52 @@ public class AdaptiveInterviewApplicationService {
             assessment
         )
         : List.of();
-    ReActResult decision;
+    NextDecision nextDecision;
     if (lastTurn && answer.codeSubmission() == null) {
-      decision = ReActResult.withoutTools(RespondAction.finish(
-          "面试已覆盖全部规划维度。",
-          "规划轮次已全部完成"
-      ));
+      nextDecision = new NextDecision(
+          ReActResult.withoutTools(RespondAction.finish(
+              "面试已覆盖全部规划维度。",
+              "规划轮次已全部完成"
+          )),
+          NextTurnProvenanceDraft.planned()
+      );
     } else {
       PlannedDimension nextDimension = lastTurn
           ? currentDimension
           : planForNextTurn.dimensionForTurn(answer.turnIndex() + 1);
       sink.onStage(AnswerEventSink.AnswerStage.GENERATING);
-      boolean assessmentGap = !nextProbeGaps.isEmpty();
-      WorkingMemorySnapshot workingMemory = contextAssembler.workingMemory(
-          new WorkingMemoryInput(
+      WorkingMemorySelection workingMemory = contextAssembler.nextQuestionWorkingMemory(
+          new NextQuestionWorkingMemoryInput(
               sessionId,
               answer.turnIndex() + 1,
               new TopicKey(nextDimension.suggestedSkill(), nextDimension.focusId()),
-              assessmentGap ? answer.turnIndex() : null,
-              assessmentGap
-                  ? TurnTriggerType.ASSESSMENT_GAP
-                  : TurnTriggerType.PLANNED,
               nextProbeGaps,
+              workingMemoryFactSource.findProbeGaps(
+                  new MemoryOwner(null, history.candidateId()),
+                  sessionId
+              ),
               history.turns()
           )
       );
-      decision = runDecision(
-          request(new InterviewerDecisionInput(
-              sessionId,
-              history.llmProvider(),
-              history.jd(),
-              history.resume(),
-              history.session().maxTurns(),
-              nextDimension,
-              history.turns(),
-              answer,
-              workingMemory
-          )),
-          sink.deltaSink()
+      nextDecision = new NextDecision(
+          runDecision(
+              request(new InterviewerDecisionInput(
+                  sessionId,
+                  history.llmProvider(),
+                  history.jd(),
+                  history.resume(),
+                  history.session().maxTurns(),
+                  nextDimension,
+                  history.turns(),
+                  answer,
+                  workingMemory.snapshot()
+              )),
+              sink.deltaSink()
+          ),
+          workingMemory.provenance()
       );
     }
+    ReActResult decision = nextDecision.decision();
     if (answer.codeSubmission() != null) {
       List<ToolExecution> sandboxSubmissions = decision.toolExecutions().stream()
           .filter(execution -> SandboxSubmitTool.NAME.equals(execution.toolName()))
@@ -526,15 +539,18 @@ public class AdaptiveInterviewApplicationService {
         ));
     try {
       PlannedInterview updated = persistenceService.recordDecision(
-          sessionId,
-          answer,
-          decision.response(),
-          decision.toolExecutions(),
-          dimensionBrief,
-          candidateClaims,
-          assessment,
-          assessmentEvidences,
-          practiceRecommendations
+          new AdaptiveDecisionPersistenceInput(
+              sessionId,
+              answer,
+              decision.response(),
+              decision.toolExecutions(),
+              dimensionBrief,
+              candidateClaims,
+              assessment,
+              assessmentEvidences,
+              practiceRecommendations,
+              nextDecision.provenance()
+          )
       );
       algorithmAssessmentEvidenceService.attachAvailable(sessionId, answer.turnIndex());
       telemetry.assessmentRecorded(
@@ -642,6 +658,7 @@ public class AdaptiveInterviewApplicationService {
               dimension.suggestedSkill(),
               interview.history().turns(),
               event,
+              toolResultWorkingMemory(interview, dimension, event),
               episodePromptMemoryService.select(
                   sessionId,
                   new TopicKey(dimension.suggestedSkill(), dimension.focusId())
@@ -672,6 +689,26 @@ public class AdaptiveInterviewApplicationService {
    */
   public void discardToolResultReservation(ToolResultEvent event) {
     persistenceService.discardToolResultReservation(event);
+  }
+
+  private WorkingMemorySnapshot toolResultWorkingMemory(
+      PlannedInterview interview,
+      PlannedDimension dimension,
+      ToolResultEvent event
+  ) {
+    int currentTurnIndex = Math.max(
+        event.turnIndex() + 1,
+        interview.history().session().currentTurn()
+    );
+    return contextAssembler.workingMemory(new WorkingMemoryInput(
+        interview.history().session().id(),
+        currentTurnIndex,
+        new TopicKey(dimension.suggestedSkill(), dimension.focusId()),
+        event.turnIndex(),
+        TurnTriggerType.TOOL_RESULT,
+        List.of(),
+        interview.history().turns()
+    ));
   }
 
   /**
@@ -759,7 +796,7 @@ public class AdaptiveInterviewApplicationService {
             input.dimension().suggestedSkill(),
             input.turns(),
             input.candidateAnswer(),
-            selectedGaps(input.workingMemory()),
+            input.workingMemory(),
             episodePromptMemoryService.select(
                 input.sessionId(),
                 input.workingMemory().currentTopic()
@@ -767,12 +804,6 @@ public class AdaptiveInterviewApplicationService {
             codeAnalysisContextService.findForSession(input.sessionId()).orElse(null)
         ))
     );
-  }
-
-  private List<ProbeGap> selectedGaps(WorkingMemorySnapshot snapshot) {
-    return snapshot.selectedGap() == null
-        ? List.of()
-        : List.of(snapshot.selectedGap());
   }
 
   private boolean completesDimension(PlannedDimension dimension) {
@@ -852,4 +883,9 @@ public class AdaptiveInterviewApplicationService {
       );
     }
   }
+
+  private record NextDecision(
+      ReActResult decision,
+      NextTurnProvenanceDraft provenance
+  ) {}
 }

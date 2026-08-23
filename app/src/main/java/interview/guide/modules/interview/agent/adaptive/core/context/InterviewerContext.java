@@ -5,6 +5,7 @@ import interview.guide.modules.interview.agent.adaptive.core.event.ToolResultEve
 import interview.guide.modules.interview.agent.adaptive.core.session.AdaptiveInterviewTurn;
 
 import java.util.List;
+import java.util.Objects;
 
 /**
  * 面试官上下文，包含当前维度、历史、记忆和可用工具，用于生成下一轮问题。
@@ -21,7 +22,7 @@ public record InterviewerContext(
     String suggestedSkill,
     List<AdaptiveInterviewTurn> currentDimensionTurns,
     CandidateAnswer currentDimensionAnswer,
-    List<ProbeGap> currentAnswerGaps,
+    WorkingMemorySnapshot workingMemory,
     List<EpisodePromptFact> episodeHistory,
     ToolResultEvent currentToolResult,
     CandidateAnswer currentCodeSubmission,
@@ -31,7 +32,7 @@ public record InterviewerContext(
   public InterviewerContext {
     suggestedTools = List.copyOf(suggestedTools);
     currentDimensionTurns = List.copyOf(currentDimensionTurns);
-    currentAnswerGaps = List.copyOf(currentAnswerGaps);
+    Objects.requireNonNull(workingMemory, "workingMemory 不能为空");
     episodeHistory = List.copyOf(episodeHistory);
   }
 

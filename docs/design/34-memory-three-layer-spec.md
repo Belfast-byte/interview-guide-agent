@@ -56,7 +56,7 @@ WorkingMemorySnapshot
   triggerType: TurnTriggerType
 ```
 
-快照不可持久化、不可变、只由 application 层组装并传给 Planner/Interviewer。此时 Assessment 尚未落库，因此快照只携带 trigger 类型，不伪造 source ID；短事务保存 Assessment 后再把真实 ID 绑定到 turn provenance。候选人声明不进入快照；Planner 继续单独使用现有 `CoveredTopic` 与 `UnverifiedClaim`。
+快照不可持久化、不可变、只由 application 层组装并传给 Planner/Interviewer。此时 Assessment 尚未落库，因此快照只携带 trigger 类型，不伪造 source ID；application 草案只记录当前 Assessment 的 `gap_order`，短事务保存 Assessment 与 gaps 后再解析真实的 assessment/gap ID 并绑定到 turn provenance。候选人声明不进入快照；Planner 继续单独使用现有 `CoveredTopic` 与 `UnverifiedClaim`。
 
 ### 3.2 ProbeGap
 
@@ -67,7 +67,7 @@ id / assessment_id / gap_order / gap_code / description / created_at
 ```
 
 - `(assessment_id, gap_order)` 唯一。
-- 编排器按 `gap_order ASC, id ASC` 选择第一条尚未使用且属于当前主题的 gap。
+- 编排器按 `gap_order ASC, id ASC` 选择第一条尚未被 turn 的 `source_probe_gap_id` 引用且属于当前主题的 gap；同一 Assessment 的其他 gaps 仍可继续使用。
 - gap 是结构化追问依据；LLM 不能决定 trigger 或父子关系。
 
 ### 3.3 Turn provenance
@@ -78,12 +78,13 @@ id / assessment_id / gap_order / gap_code / description / created_at
 trigger_type: PLANNED | ASSESSMENT_GAP | TOOL_RESULT
 parent_turn_index: nullable
 source_assessment_id: nullable
+source_probe_gap_id: nullable
 source_tool_result_event_id: nullable
 ```
 
 约束：
 
-- `PLANNED` 不得有 source 或 parent；`ASSESSMENT_GAP` 必须引用 assessment 和 parent；`TOOL_RESULT` 必须引用 tool event 和 parent。
+- `PLANNED` 不得有 source 或 parent；`ASSESSMENT_GAP` 必须同时引用匹配的 assessment、具体 probe gap 和 parent，且同一 probe gap 最多被一个 turn 使用；`TOOL_RESULT` 必须引用 tool event 和 parent。
 - 非空的 `parentTurnIndex < turnIndex`，且父 turn 必须属于同一 session。
 - `followUpDepth` 从 parent 链确定性计算，根问题为 0。
 - 只有产生候选人回答的 turn 才形成 Episode；纯工具执行不形成 Episode。

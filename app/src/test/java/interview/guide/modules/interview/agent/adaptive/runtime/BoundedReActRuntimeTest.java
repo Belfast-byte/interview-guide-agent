@@ -4,9 +4,12 @@ import interview.guide.common.exception.BusinessException;
 import interview.guide.modules.interview.agent.adaptive.core.action.AgentAction;
 import interview.guide.modules.interview.agent.adaptive.core.event.CandidateAnswer;
 import interview.guide.modules.interview.agent.adaptive.core.context.InterviewerContext;
+import interview.guide.modules.interview.agent.adaptive.core.context.TopicKey;
+import interview.guide.modules.interview.agent.adaptive.core.context.WorkingMemorySnapshot;
 import interview.guide.modules.interview.agent.adaptive.core.action.RespondAction;
 import interview.guide.modules.interview.agent.adaptive.core.action.ToolCallAction;
 import interview.guide.modules.interview.agent.adaptive.role.AgentRole;
+import interview.guide.modules.interview.agent.adaptive.core.session.TurnTriggerType;
 import java.time.Duration;
 import java.util.ArrayList;
 import java.util.List;
@@ -341,7 +344,7 @@ class BoundedReActRuntimeTest {
             null,
             List.of(),
             new CandidateAnswer(1, "候选人回答"),
-            List.of(),
+            plannedMemory(2),
             List.of(),
             null,
             null,
@@ -352,6 +355,17 @@ class BoundedReActRuntimeTest {
 
   private ReActBudget budget(int maxSteps, int maxToolCalls) {
     return new ReActBudget(maxSteps, maxToolCalls, Duration.ofSeconds(1));
+  }
+
+  private WorkingMemorySnapshot plannedMemory(int turnIndex) {
+    return new WorkingMemorySnapshot(
+        "session-1",
+        turnIndex,
+        new TopicKey("java-backend", "CACHE"),
+        null,
+        0,
+        TurnTriggerType.PLANNED
+    );
   }
 
   private AgentAction toolCall(String name, String query) {

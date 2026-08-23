@@ -7,6 +7,7 @@ import interview.guide.modules.interview.agent.adaptive.core.context.CodeFactUsa
 import interview.guide.modules.interview.agent.adaptive.core.action.RespondAction;
 import interview.guide.modules.interview.agent.adaptive.core.session.TurnProvenance;
 import interview.guide.modules.interview.agent.adaptive.core.session.TurnTrigger;
+import interview.guide.modules.interview.agent.adaptive.core.session.TurnTrigger.AssessmentGapSource;
 import interview.guide.modules.interview.agent.adaptive.core.session.TurnTriggerType;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
@@ -26,10 +27,16 @@ import java.time.LocalDateTime;
 @Entity
 @Table(
     name = "agent_turns",
-    uniqueConstraints = @UniqueConstraint(
-        name = "uk_agent_turn_session_index",
-        columnNames = {"session_id", "turn_index"}
-    )
+    uniqueConstraints = {
+        @UniqueConstraint(
+            name = "uk_agent_turn_session_index",
+            columnNames = {"session_id", "turn_index"}
+        ),
+        @UniqueConstraint(
+            name = "uk_agent_turn_source_probe_gap",
+            columnNames = "source_probe_gap_id"
+        )
+    }
 )
 public class AdaptiveAgentTurnEntity {
 
@@ -91,6 +98,9 @@ public class AdaptiveAgentTurnEntity {
   @Column(name = "source_assessment_id")
   private Long sourceAssessmentId;
 
+  @Column(name = "source_probe_gap_id")
+  private Long sourceProbeGapId;
+
   @Column(name = "source_tool_result_event_id")
   private Long sourceToolResultEventId;
 
@@ -123,6 +133,7 @@ public class AdaptiveAgentTurnEntity {
     parentTurnIndex = provenance.parentTurnIndex();
     triggerType = provenance.trigger().type();
     sourceAssessmentId = provenance.trigger().sourceAssessmentId();
+    sourceProbeGapId = provenance.trigger().sourceProbeGapId();
     sourceToolResultEventId = provenance.trigger().sourceToolResultEventId();
   }
 
@@ -169,8 +180,18 @@ public class AdaptiveAgentTurnEntity {
   private TurnProvenance provenance() {
     return new TurnProvenance(
         parentTurnIndex,
-        new TurnTrigger(triggerType, sourceAssessmentId, sourceToolResultEventId)
+        new TurnTrigger(triggerType, assessmentGapSource(), sourceToolResultEventId)
     );
+  }
+
+  private AssessmentGapSource assessmentGapSource() {
+    if (sourceAssessmentId == null && sourceProbeGapId == null) {
+      return null;
+    }
+    if (sourceAssessmentId == null || sourceProbeGapId == null) {
+      throw new IllegalStateException("Assessment gap provenance 不完整");
+    }
+    return new AssessmentGapSource(sourceAssessmentId, sourceProbeGapId);
   }
 
   @PrePersist
@@ -228,6 +249,10 @@ public class AdaptiveAgentTurnEntity {
 
   public Long sourceAssessmentId() {
     return sourceAssessmentId;
+  }
+
+  public Long sourceProbeGapId() {
+    return sourceProbeGapId;
   }
 
   public Long sourceToolResultEventId() {

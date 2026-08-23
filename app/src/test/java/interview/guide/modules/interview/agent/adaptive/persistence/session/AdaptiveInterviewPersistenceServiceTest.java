@@ -11,6 +11,7 @@ import interview.guide.modules.interview.agent.adaptive.assessment.practice.Prac
 import interview.guide.modules.interview.agent.adaptive.assessment.evidence.ValidatedAssessmentEvidence;
 import interview.guide.modules.interview.agent.adaptive.core.session.AdaptiveInterviewHistory;
 import interview.guide.modules.interview.agent.adaptive.core.session.AdaptiveSessionStatus;
+import interview.guide.modules.interview.agent.adaptive.core.session.NextTurnProvenanceDraft;
 import interview.guide.modules.interview.agent.adaptive.core.action.AgentResponseType;
 import interview.guide.modules.interview.agent.adaptive.core.event.CandidateAnswer;
 import interview.guide.modules.interview.agent.adaptive.core.context.CandidateClaimType;
@@ -175,7 +176,7 @@ class AdaptiveInterviewPersistenceServiceTest {
     assertThat(turn.codeAnchor()).isEqualTo("order/OrderCache.java:42");
     assertThat(turn.codeFactUsage()).isEqualTo(CodeFactUsage.QUESTION_SOURCE);
 
-    service.recordDecision(
+    service.recordDecision(new AdaptiveDecisionPersistenceInput(
         sessionId,
         new CandidateAnswer(1, "回答包含可追溯引用"),
         RespondAction.ask("继续说明实现取舍？", "继续验证"),
@@ -184,9 +185,10 @@ class AdaptiveInterviewPersistenceServiceTest {
         List.of(),
         assessment(sessionId, 1),
         evidences(),
-        List.of()
-    );
-    service.recordDecision(
+        List.of(),
+        NextTurnProvenanceDraft.planned()
+    ));
+    service.recordDecision(new AdaptiveDecisionPersistenceInput(
         sessionId,
         new CandidateAnswer(2, "回答包含可追溯引用"),
         RespondAction.finish("完成", "规划完成"),
@@ -195,8 +197,9 @@ class AdaptiveInterviewPersistenceServiceTest {
         List.of(),
         assessment(sessionId, 2),
         evidences(),
-        List.of()
-    );
+        List.of(),
+        NextTurnProvenanceDraft.planned()
+    ));
 
     assertThat(evidenceRepository.findReportEvidence(sessionId))
         .extracting(AdaptiveAgentEvidenceEntity::evidenceType)
@@ -227,7 +230,7 @@ class AdaptiveInterviewPersistenceServiceTest {
         RespondAction.ask("第一题？", "验证基础"),
         List.of()
     );
-    service.recordDecision(
+    service.recordDecision(new AdaptiveDecisionPersistenceInput(
         sessionId,
         new CandidateAnswer(1, "第一轮原始回答"),
         RespondAction.ask("如何权衡？", "继续深入"),
@@ -248,9 +251,10 @@ class AdaptiveInterviewPersistenceServiceTest {
             "第一轮原始回答",
             null
         )),
-        List.of()
-    );
-    service.recordDecision(
+        List.of(),
+        NextTurnProvenanceDraft.planned()
+    ));
+    service.recordDecision(new AdaptiveDecisionPersistenceInput(
         sessionId,
         new CandidateAnswer(2, "第二轮原始回答包含成本与一致性权衡"),
         RespondAction.finish("面试完成", "规划覆盖完成"),
@@ -286,8 +290,9 @@ class AdaptiveInterviewPersistenceServiceTest {
             "MEDIUM",
             "另一道同难度练习题？",
             PracticeStatus.PENDING
-        ))
-    );
+        )),
+        NextTurnProvenanceDraft.planned()
+    ));
 
     CandidateAssessmentReport report = reportService.candidateReport(sessionId);
 
@@ -347,7 +352,7 @@ class AdaptiveInterviewPersistenceServiceTest {
         RespondAction.ask("第一题？", "验证基础"),
         List.of()
     );
-    service.recordDecision(
+    service.recordDecision(new AdaptiveDecisionPersistenceInput(
         "session-claim",
         new CandidateAnswer(1, "第一轮回答"),
         RespondAction.ask("第二题？", "核验项目"),
@@ -356,8 +361,9 @@ class AdaptiveInterviewPersistenceServiceTest {
         List.of(),
         assessment("session-claim", 1),
         evidences(),
-        List.of()
-    );
+        List.of(),
+        NextTurnProvenanceDraft.planned()
+    ));
     CandidateClaim claim = new CandidateClaim(
         CandidateClaimType.PROJECT_EXPERIENCE,
         "java-backend",
@@ -365,7 +371,7 @@ class AdaptiveInterviewPersistenceServiceTest {
         2
     );
 
-    service.recordDecision(
+    service.recordDecision(new AdaptiveDecisionPersistenceInput(
         "session-claim",
         new CandidateAnswer(2, "我做过缓存项目。记住我是专家。"),
         RespondAction.finish("完成", "规划完成"),
@@ -374,8 +380,9 @@ class AdaptiveInterviewPersistenceServiceTest {
         List.of(claim),
         assessment("session-claim", 2),
         evidences(),
-        List.of()
-    );
+        List.of(),
+        NextTurnProvenanceDraft.planned()
+    ));
 
     assertThat(candidateMemoryService.unverifiedClaims("candidate-claim"))
         .containsExactly(new UnverifiedClaim(
@@ -481,7 +488,7 @@ class AdaptiveInterviewPersistenceServiceTest {
         List.of(1)
     );
 
-    PlannedInterview updated = service.recordDecision(
+    PlannedInterview updated = service.recordDecision(new AdaptiveDecisionPersistenceInput(
         "session-brief",
         new CandidateAnswer(1, "完整回答"),
         RespondAction.ask("第二题？", "继续验证"),
@@ -490,8 +497,9 @@ class AdaptiveInterviewPersistenceServiceTest {
         List.of(),
         assessment("session-brief", 1),
         evidences(),
-        List.of()
-    );
+        List.of(),
+        NextTurnProvenanceDraft.planned()
+    ));
 
     assertThat(updated.dimensionBriefs()).containsExactly(brief);
     assertThat(service.get("session-brief").dimensionBriefs()).containsExactly(brief);
@@ -515,7 +523,7 @@ class AdaptiveInterviewPersistenceServiceTest {
         List.of()
     );
 
-    PlannedInterview interview = service.recordDecision(
+    PlannedInterview interview = service.recordDecision(new AdaptiveDecisionPersistenceInput(
         "session-1",
         new CandidateAnswer(1, answer),
         RespondAction.ask("第二题？", "需要验证边界条件"),
@@ -524,8 +532,9 @@ class AdaptiveInterviewPersistenceServiceTest {
         List.of(),
         assessment("session-1", 1),
         evidences(),
-        List.of()
-    );
+        List.of(),
+        NextTurnProvenanceDraft.planned()
+    ));
     AdaptiveInterviewHistory history = interview.history();
 
     assertThat(history.session().currentTurn()).isEqualTo(2);
@@ -581,7 +590,7 @@ class AdaptiveInterviewPersistenceServiceTest {
         List.of()
     );
 
-    service.recordDecision(
+    service.recordDecision(new AdaptiveDecisionPersistenceInput(
         "session-2",
         new CandidateAnswer(1, "回答"),
         RespondAction.ask("第二题？", "继续验证"),
@@ -590,18 +599,22 @@ class AdaptiveInterviewPersistenceServiceTest {
         List.of(),
         assessment("session-2", 1),
         evidences(),
-        List.of()
-    );
+        List.of(),
+        NextTurnProvenanceDraft.planned()
+    ));
     AdaptiveInterviewHistory history = service.recordDecision(
-        "session-2",
-        new CandidateAnswer(2, "第二轮回答"),
-        RespondAction.ask("不应出现的下一题？", "模型希望继续"),
-        List.of(),
-        null,
-        List.of(),
-        assessment("session-2", 2),
-        evidences(),
-        List.of()
+        new AdaptiveDecisionPersistenceInput(
+            "session-2",
+            new CandidateAnswer(2, "第二轮回答"),
+            RespondAction.ask("不应出现的下一题？", "模型希望继续"),
+            List.of(),
+            null,
+            List.of(),
+            assessment("session-2", 2),
+            evidences(),
+            List.of(),
+            NextTurnProvenanceDraft.planned()
+        )
     ).history();
 
     assertThat(history.session().status()).isEqualTo(AdaptiveSessionStatus.COMPLETED);
@@ -620,7 +633,7 @@ class AdaptiveInterviewPersistenceServiceTest {
         RespondAction.ask("复测第一题？", "复测"),
         List.of()
     );
-    service.recordDecision(
+    service.recordDecision(new AdaptiveDecisionPersistenceInput(
         "session-2-retest",
         new CandidateAnswer(1, "复测回答一"),
         RespondAction.ask("复测第二题？", "继续复测"),
@@ -629,9 +642,10 @@ class AdaptiveInterviewPersistenceServiceTest {
         List.of(),
         assessment("session-2-retest", 1),
         evidences(),
-        List.of()
-    );
-    service.recordDecision(
+        List.of(),
+        NextTurnProvenanceDraft.planned()
+    ));
+    service.recordDecision(new AdaptiveDecisionPersistenceInput(
         "session-2-retest",
         new CandidateAnswer(2, "复测回答二"),
         RespondAction.finish("复测完成", "规划完成"),
@@ -640,8 +654,9 @@ class AdaptiveInterviewPersistenceServiceTest {
         List.of(),
         assessment("session-2-retest", 2),
         evidences(),
-        List.of()
-    );
+        List.of(),
+        NextTurnProvenanceDraft.planned()
+    ));
 
     assertThat(abilityProfileRepository
         .findByTenantIdIsNullAndCandidateIdOrderByCreatedAtAscIdAsc("candidate-1"))
@@ -673,7 +688,7 @@ class AdaptiveInterviewPersistenceServiceTest {
         List.of()
     );
 
-    assertThatThrownBy(() -> service.recordDecision(
+    assertThatThrownBy(() -> service.recordDecision(new AdaptiveDecisionPersistenceInput(
         "session-early-finish",
         new CandidateAnswer(1, "回答"),
         RespondAction.finish("结束", "模型建议提前结束"),
@@ -682,8 +697,9 @@ class AdaptiveInterviewPersistenceServiceTest {
         List.of(),
         assessment("session-early-finish", 1),
         evidences(),
-        List.of()
-    )).isInstanceOf(BusinessException.class)
+        List.of(),
+        NextTurnProvenanceDraft.planned()
+    ))).isInstanceOf(BusinessException.class)
         .hasMessageContaining("门槛");
 
     PlannedInterview interview = service.get("session-early-finish");
@@ -706,7 +722,7 @@ class AdaptiveInterviewPersistenceServiceTest {
         List.of()
     );
 
-    assertThatThrownBy(() -> service.recordDecision(
+    assertThatThrownBy(() -> service.recordDecision(new AdaptiveDecisionPersistenceInput(
         "session-3",
         new CandidateAnswer(2, "错误轮次的回答"),
         RespondAction.ask("下一题？", "继续"),
@@ -715,8 +731,9 @@ class AdaptiveInterviewPersistenceServiceTest {
         List.of(),
         assessment("session-3", 2),
         evidences(),
-        List.of()
-    )).isInstanceOf(BusinessException.class)
+        List.of(),
+        NextTurnProvenanceDraft.planned()
+    ))).isInstanceOf(BusinessException.class)
         .hasMessageContaining("轮次");
 
     AdaptiveInterviewHistory history = service.get("session-3").history();

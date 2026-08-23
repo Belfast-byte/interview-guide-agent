@@ -82,6 +82,14 @@ public class AssessmentProbeGapEntity {
     return assessment.id();
   }
 
+  public int assessmentTurnIndex() {
+    return assessment.turnIndex();
+  }
+
+  public int assessmentDimensionOrder() {
+    return assessment.dimensionOrder();
+  }
+
   public int gapOrder() {
     return gapOrder;
   }

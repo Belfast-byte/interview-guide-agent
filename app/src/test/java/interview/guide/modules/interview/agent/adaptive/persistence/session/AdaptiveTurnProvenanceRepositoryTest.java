@@ -32,7 +32,7 @@ class AdaptiveTurnProvenanceRepositoryTest {
             2,
             0,
             RespondAction.ask("为什么？", "追问 gap"),
-            TurnProvenance.assessmentGap(1, 42)
+            TurnProvenance.assessmentGap(1, 42, 84)
         ))
     );
     entityManager.clear();
@@ -42,8 +42,9 @@ class AdaptiveTurnProvenanceRepositoryTest {
     assertThat(reloaded.parentTurnIndex()).isEqualTo(1);
     assertThat(reloaded.triggerType()).isEqualTo(TurnTriggerType.ASSESSMENT_GAP);
     assertThat(reloaded.sourceAssessmentId()).isEqualTo(42);
+    assertThat(reloaded.sourceProbeGapId()).isEqualTo(84);
     assertThat(reloaded.sourceToolResultEventId()).isNull();
     assertThat(reloaded.toDomain().provenance())
-        .isEqualTo(TurnProvenance.assessmentGap(1, 42));
+        .isEqualTo(TurnProvenance.assessmentGap(1, 42, 84));
   }
 }

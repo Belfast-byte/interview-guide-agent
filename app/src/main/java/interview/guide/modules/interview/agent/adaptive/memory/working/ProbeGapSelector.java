@@ -20,11 +20,11 @@ public final class ProbeGapSelector {
   public static Optional<ProbeGapCandidate> select(
       TopicKey currentTopic,
       List<ProbeGapCandidate> candidates,
-      Set<Long> usedAssessmentIds
+      Set<Long> usedProbeGapIds
   ) {
     return candidates.stream()
         .filter(candidate -> candidate.topic().equals(currentTopic))
-        .filter(candidate -> !usedAssessmentIds.contains(candidate.assessmentId()))
+        .filter(candidate -> !usedProbeGapIds.contains(candidate.id()))
         .min(STABLE_ORDER);
   }
 }

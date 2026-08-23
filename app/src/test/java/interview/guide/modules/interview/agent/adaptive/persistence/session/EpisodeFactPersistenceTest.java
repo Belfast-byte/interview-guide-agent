@@ -10,6 +10,7 @@ import interview.guide.modules.interview.agent.adaptive.core.action.RespondActio
 import interview.guide.modules.interview.agent.adaptive.core.context.MemoryOwner;
 import interview.guide.modules.interview.agent.adaptive.core.context.TopicKey;
 import interview.guide.modules.interview.agent.adaptive.core.event.CandidateAnswer;
+import interview.guide.modules.interview.agent.adaptive.core.session.NextTurnProvenanceDraft;
 import interview.guide.modules.interview.agent.adaptive.memory.episode.EpisodeEnrichmentStatus;
 import interview.guide.modules.interview.agent.adaptive.persistence.memory.EpisodeFactEntity;
 import interview.guide.modules.interview.agent.adaptive.persistence.memory.EpisodeFactPersistence;
@@ -96,7 +97,7 @@ class EpisodeFactPersistenceTest {
   @Test
   @DisplayName("过期回答失败时不创建 EpisodeFact")
   void shouldNotCreateEpisodeForRejectedAnswer() {
-    assertThatThrownBy(() -> service.recordDecision(
+    assertThatThrownBy(() -> service.recordDecision(new AdaptiveDecisionPersistenceInput(
         SESSION_ID,
         new CandidateAnswer(2, "过期回答"),
         RespondAction.ask("下一题", "继续"),
@@ -105,8 +106,9 @@ class EpisodeFactPersistenceTest {
         List.of(),
         assessment(2),
         List.of(),
-        List.of()
-    )).isInstanceOf(BusinessException.class);
+        List.of(),
+        NextTurnProvenanceDraft.planned()
+    ))).isInstanceOf(BusinessException.class);
 
     assertThat(episodeRepository.countBySessionId(SESSION_ID)).isZero();
   }
@@ -126,7 +128,7 @@ class EpisodeFactPersistenceTest {
   }
 
   private void recordFirstAnswer() {
-    service.recordDecision(
+    service.recordDecision(new AdaptiveDecisionPersistenceInput(
         SESSION_ID,
         new CandidateAnswer(1, "通过版本号保证一致性"),
         RespondAction.ask("失败时怎么办？", "继续追问"),
@@ -135,8 +137,9 @@ class EpisodeFactPersistenceTest {
         List.of(),
         assessment(1),
         List.of(),
-        List.of()
-    );
+        List.of(),
+        NextTurnProvenanceDraft.planned()
+    ));
   }
 
   private AssessmentDecision assessment(int turnIndex) {

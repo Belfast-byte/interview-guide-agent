@@ -28,6 +28,8 @@ import interview.guide.modules.interview.agent.adaptive.memory.claim.CandidateCl
 import interview.guide.modules.interview.agent.adaptive.memory.claim.CandidateClaimsProposal;
 import interview.guide.modules.interview.agent.adaptive.memory.brief.DimensionBriefProposal;
 import interview.guide.modules.interview.agent.adaptive.memory.brief.DimensionBriefService;
+import interview.guide.modules.interview.agent.adaptive.memory.working.WorkingMemoryFactSource;
+import interview.guide.modules.interview.agent.adaptive.persistence.assessment.JpaWorkingMemoryFactSource;
 import interview.guide.modules.interview.agent.adaptive.persistence.session.AdaptiveInterviewPersistenceService;
 import interview.guide.modules.interview.agent.adaptive.observability.AdaptiveAgentTelemetry;
 import interview.guide.modules.interview.agent.adaptive.observability.AlgorithmInterviewTelemetry;
@@ -67,7 +69,8 @@ import static org.mockito.Mockito.mock;
     EpisodeFactPersistence.class,
     EpisodeAssessmentCorrectionPersistence.class,
     AssessmentReconciliationDependencies.class,
-    AssessmentReconciliationService.class
+    AssessmentReconciliationService.class,
+    JpaWorkingMemoryFactSource.class
 })
 class AdaptiveInterviewFlowIntegrationTest {
 
@@ -76,6 +79,9 @@ class AdaptiveInterviewFlowIntegrationTest {
 
   @Autowired
   private CandidateMemoryService candidateMemoryService;
+
+  @Autowired
+  private WorkingMemoryFactSource workingMemoryFactSource;
 
   @Test
   @DisplayName("两轮 Agent 面试从首题到结束的事实链完整可重读")
@@ -99,6 +105,7 @@ class AdaptiveInterviewFlowIntegrationTest {
         new AdaptiveAgentTelemetry(new SimpleMeterRegistry()),
         (request, provider) -> proposal(1),
         new ContextAssembler(),
+        workingMemoryFactSource,
         briefService(),
         candidateMemoryService,
         episodePromptMemoryService(),
@@ -177,6 +184,7 @@ class AdaptiveInterviewFlowIntegrationTest {
         new AdaptiveAgentTelemetry(new SimpleMeterRegistry()),
         (request, provider) -> proposal(3),
         new ContextAssembler(),
+        workingMemoryFactSource,
         briefService(),
         candidateMemoryService,
         episodePromptMemoryService(),
@@ -294,6 +302,7 @@ class AdaptiveInterviewFlowIntegrationTest {
         new AdaptiveAgentTelemetry(new SimpleMeterRegistry()),
         planningAgent,
         new ContextAssembler(),
+        workingMemoryFactSource,
         briefService(),
         candidateMemoryService,
         episodePromptMemoryService(),

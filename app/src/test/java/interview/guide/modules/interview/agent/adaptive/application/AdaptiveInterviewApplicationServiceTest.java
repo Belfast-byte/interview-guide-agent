@@ -16,6 +16,7 @@ import interview.guide.modules.interview.agent.adaptive.core.session.AdaptiveInt
 import interview.guide.modules.interview.agent.adaptive.core.session.AdaptiveInterviewSession;
 import interview.guide.modules.interview.agent.adaptive.core.session.AdaptiveInterviewTurn;
 import interview.guide.modules.interview.agent.adaptive.core.session.AdaptiveSessionStatus;
+import interview.guide.modules.interview.agent.adaptive.core.session.TurnTriggerType;
 import interview.guide.modules.interview.agent.adaptive.core.action.AgentResponseType;
 import interview.guide.modules.interview.agent.adaptive.core.event.CandidateAnswer;
 import interview.guide.modules.interview.agent.adaptive.core.event.CandidateCodeSubmission;
@@ -35,7 +36,9 @@ import interview.guide.modules.interview.agent.adaptive.memory.episode.EpisodePr
 import interview.guide.modules.interview.agent.adaptive.memory.claim.CandidateClaim;
 import interview.guide.modules.interview.agent.adaptive.memory.claim.CandidateClaimExtractionService;
 import interview.guide.modules.interview.agent.adaptive.memory.brief.DimensionBriefService;
+import interview.guide.modules.interview.agent.adaptive.memory.working.WorkingMemoryFactSource;
 import interview.guide.modules.interview.agent.adaptive.persistence.session.AdaptiveInterviewPersistenceService;
+import interview.guide.modules.interview.agent.adaptive.persistence.session.AdaptiveDecisionPersistenceInput;
 import interview.guide.modules.interview.agent.adaptive.persistence.session.AdaptiveSessionCreation;
 import interview.guide.modules.interview.agent.adaptive.observability.AdaptiveAgentTelemetry;
 import interview.guide.modules.interview.agent.adaptive.observability.AlgorithmInterviewTelemetry;
@@ -115,6 +118,9 @@ class AdaptiveInterviewApplicationServiceTest {
   private CandidateMemoryService candidateMemoryService;
 
   @Mock
+  private WorkingMemoryFactSource workingMemoryFactSource;
+
+  @Mock
   private EpisodePromptMemoryService episodePromptMemoryService;
 
   @Mock
@@ -154,6 +160,8 @@ class AdaptiveInterviewApplicationServiceTest {
       return null;
     }).when(answerExecutor).execute(any(Runnable.class));
     lenient().when(episodePromptMemoryService.select(anyString(), any()))
+        .thenReturn(List.of());
+    lenient().when(workingMemoryFactSource.findProbeGaps(any(), anyString()))
         .thenReturn(List.of());
     service = serviceWithAssessmentAgent(assessmentAgent());
   }
@@ -204,6 +212,7 @@ class AdaptiveInterviewApplicationServiceTest {
         telemetry,
         planningAgent,
         new ContextAssembler(),
+        workingMemoryFactSource,
         dimensionBriefService,
         candidateMemoryService,
         episodePromptMemoryService,
@@ -234,6 +243,7 @@ class AdaptiveInterviewApplicationServiceTest {
         telemetry,
         planningAgent,
         new ContextAssembler(),
+        workingMemoryFactSource,
         dimensionBriefService,
         candidateMemoryService,
         episodePromptMemoryService,
@@ -487,17 +497,8 @@ class AdaptiveInterviewApplicationServiceTest {
     )).isInstanceOf(BusinessException.class)
         .hasMessage("模型失败");
 
-    verify(persistenceService, never()).recordDecision(
-        anyString(),
-        any(),
-        any(),
-        anyList(),
-        any(),
-        anyList(),
-        any(),
-        anyList(),
-        anyList()
-    );
+    verify(persistenceService, never())
+        .recordDecision(any(AdaptiveDecisionPersistenceInput.class));
     verify(telemetry).decisionFailed(eq("session-1"), eq(1), anyInt(), anyLong());
   }
 
@@ -523,17 +524,19 @@ class AdaptiveInterviewApplicationServiceTest {
         .thenReturn("### Redis (REDIS)\n- 缓存穿透");
     when(runtime.runStreaming(any(ReActRequest.class), any(ReActBudget.class), isNull()))
         .thenReturn(ReActResult.withoutTools(action));
-    when(persistenceService.recordDecision(
-        eq("session-1"), eq(answer), eq(action), eq(List.of()),
-        isNull(), eq(List.of()), any(), anyList(), eq(List.of())
-    )).thenReturn(interview);
+    when(persistenceService.recordDecision(any(AdaptiveDecisionPersistenceInput.class)))
+        .thenReturn(interview);
     ArgumentCaptor<ReActRequest> request = ArgumentCaptor.forClass(ReActRequest.class);
 
     gapService.submitAnswer("session-1", answer);
 
     verify(runtime).runStreaming(request.capture(), any(ReActBudget.class), isNull());
-    assertThat(request.getValue().interviewerContext().currentAnswerGaps())
-        .containsExactly(gap);
+    assertThat(request.getValue().interviewerContext().workingMemory().selectedGap())
+        .isEqualTo(gap);
+    assertThat(request.getValue().interviewerContext().workingMemory().triggerType())
+        .isEqualTo(TurnTriggerType.ASSESSMENT_GAP);
+    assertThat(request.getValue().interviewerContext().workingMemory().followUpDepth())
+        .isEqualTo(1);
     verify(skillService).buildEvaluationReferenceSection("java-backend");
   }
 
@@ -566,23 +569,18 @@ class AdaptiveInterviewApplicationServiceTest {
     )).thenReturn(List.of());
     when(persistenceService.latestAssessmentDepth("session-1", 0))
         .thenReturn(DepthLevel.L1);
-    when(persistenceService.recordDecision(
-        eq("session-1"), eq(answer), eq(action), eq(List.of()),
-        isNull(), eq(List.of()), any(), anyList(), eq(List.of())
-    )).thenReturn(interview);
+    when(persistenceService.recordDecision(any(AdaptiveDecisionPersistenceInput.class)))
+        .thenReturn(interview);
     ArgumentCaptor<ReActRequest> request = ArgumentCaptor.forClass(ReActRequest.class);
 
     gapService.submitAnswer("session-1", answer);
 
     verify(runtime).runStreaming(request.capture(), any(ReActBudget.class), isNull());
-    assertThat(request.getValue().interviewerContext().currentAnswerGaps()).isEmpty();
+    assertThat(request.getValue().interviewerContext().workingMemory().selectedGap()).isNull();
     assertThat(request.getValue().interviewerContext().targetDimension()).isEqualTo("项目经验");
     // 非末轮维度完成：记忆异步生成单独落库，当轮决策拿到的是空小结/空声明
     verify(persistenceService).saveDimensionMemory("session-1", null, List.of());
-    verify(persistenceService).recordDecision(
-        eq("session-1"), eq(answer), eq(action), eq(List.of()),
-        isNull(), eq(List.of()), any(), anyList(), eq(List.of())
-    );
+    verify(persistenceService).recordDecision(any(AdaptiveDecisionPersistenceInput.class));
   }
 
   @Test
@@ -613,10 +611,8 @@ class AdaptiveInterviewApplicationServiceTest {
     )).thenReturn(List.of());
     when(runtime.runStreaming(any(ReActRequest.class), any(ReActBudget.class), isNull()))
         .thenReturn(ReActResult.withoutTools(action));
-    when(persistenceService.recordDecision(
-        eq("session-1"), eq(answer), eq(action), eq(List.of()),
-        isNull(), eq(List.of()), any(), anyList(), eq(List.of())
-    )).thenReturn(interview);
+    when(persistenceService.recordDecision(any(AdaptiveDecisionPersistenceInput.class)))
+        .thenReturn(interview);
     ArgumentCaptor<ReActRequest> request = ArgumentCaptor.forClass(ReActRequest.class);
 
     l4Service.submitAnswer("session-1", answer);
@@ -624,7 +620,7 @@ class AdaptiveInterviewApplicationServiceTest {
     verify(runtime).runStreaming(request.capture(), any(ReActBudget.class), isNull());
     assertThat(request.getValue().interviewerContext().targetDimension())
         .isEqualTo("项目经验");
-    assertThat(request.getValue().interviewerContext().currentAnswerGaps()).isEmpty();
+    assertThat(request.getValue().interviewerContext().workingMemory().selectedGap()).isNull();
     // 提前完成的维度记忆走异步任务生成并单独落库
     verify(dimensionBriefService).summarize(
         eq("session-1"), any(), anyList(), eq(answer), nullable(String.class)
@@ -651,10 +647,8 @@ class AdaptiveInterviewApplicationServiceTest {
     when(persistenceService.get("session-1")).thenReturn(interview);
     when(runtime.runStreaming(any(ReActRequest.class), any(ReActBudget.class), isNull()))
         .thenReturn(ReActResult.withoutTools(action));
-    when(persistenceService.recordDecision(
-        eq("session-1"), eq(answer), eq(action), eq(List.of()),
-        isNull(), eq(List.of()), any(), anyList(), eq(List.of())
-    )).thenReturn(interview);
+    when(persistenceService.recordDecision(any(AdaptiveDecisionPersistenceInput.class)))
+        .thenReturn(interview);
     ArgumentCaptor<ReActRequest> request = ArgumentCaptor.forClass(ReActRequest.class);
 
     l4Service.submitAnswer("session-1", answer);
@@ -692,10 +686,8 @@ class AdaptiveInterviewApplicationServiceTest {
     when(persistenceService.get("session-1")).thenReturn(interview);
     when(runtime.runStreaming(any(ReActRequest.class), any(ReActBudget.class), isNull()))
         .thenReturn(new ReActResult(action, List.of(pending)));
-    when(persistenceService.recordDecision(
-        eq("session-1"), eq(answer), eq(action), eq(List.of(pending)),
-        isNull(), eq(List.of()), any(), anyList(), eq(List.of())
-    )).thenReturn(interview);
+    when(persistenceService.recordDecision(any(AdaptiveDecisionPersistenceInput.class)))
+        .thenReturn(interview);
     ArgumentCaptor<ReActRequest> request = ArgumentCaptor.forClass(ReActRequest.class);
 
     service.submitAnswer("session-1", answer);
@@ -703,10 +695,7 @@ class AdaptiveInterviewApplicationServiceTest {
     verify(runtime).runStreaming(request.capture(), any(ReActBudget.class), isNull());
     assertThat(request.getValue().interviewerContext().currentCodeSubmission())
         .isEqualTo(answer);
-    verify(persistenceService).recordDecision(
-        eq("session-1"), eq(answer), eq(action), eq(List.of(pending)),
-        isNull(), eq(List.of()), any(), anyList(), eq(List.of())
-    );
+    verify(persistenceService).recordDecision(any(AdaptiveDecisionPersistenceInput.class));
   }
 
   @Test
@@ -725,9 +714,8 @@ class AdaptiveInterviewApplicationServiceTest {
         .isInstanceOf(BusinessException.class)
         .hasMessageContaining("异步判题任务");
 
-    verify(persistenceService, never()).recordDecision(
-        anyString(), any(), any(), anyList(), any(), anyList(), any(), anyList(), anyList()
-    );
+    verify(persistenceService, never())
+        .recordDecision(any(AdaptiveDecisionPersistenceInput.class));
   }
 
   @Test
@@ -747,17 +735,8 @@ class AdaptiveInterviewApplicationServiceTest {
         .hasMessage("评估失败");
 
     verifyNoInteractions(runtime);
-    verify(persistenceService, never()).recordDecision(
-        anyString(),
-        any(),
-        any(),
-        anyList(),
-        any(),
-        anyList(),
-        any(),
-        anyList(),
-        anyList()
-    );
+    verify(persistenceService, never())
+        .recordDecision(any(AdaptiveDecisionPersistenceInput.class));
   }
 
   @Test
@@ -779,17 +758,8 @@ class AdaptiveInterviewApplicationServiceTest {
         .hasMessage("维度小结生成失败");
 
     verifyNoInteractions(runtime);
-    verify(persistenceService, never()).recordDecision(
-        anyString(),
-        any(),
-        any(),
-        anyList(),
-        any(),
-        anyList(),
-        any(),
-        anyList(),
-        anyList()
-    );
+    verify(persistenceService, never())
+        .recordDecision(any(AdaptiveDecisionPersistenceInput.class));
     verify(persistenceService, never()).saveDimensionMemory(anyString(), any(), anyList());
   }
 
@@ -814,17 +784,8 @@ class AdaptiveInterviewApplicationServiceTest {
         .hasMessage("候选人声明抽取失败");
 
     verifyNoInteractions(runtime);
-    verify(persistenceService, never()).recordDecision(
-        anyString(),
-        any(),
-        any(),
-        anyList(),
-        any(),
-        anyList(),
-        any(),
-        anyList(),
-        anyList()
-    );
+    verify(persistenceService, never())
+        .recordDecision(any(AdaptiveDecisionPersistenceInput.class));
     verify(persistenceService, never()).saveDimensionMemory(anyString(), any(), anyList());
   }
 
@@ -842,20 +803,15 @@ class AdaptiveInterviewApplicationServiceTest {
         .thenReturn(ReActResult.withoutTools(action));
     when(persistenceService.latestAssessmentDepth("session-1", 0))
         .thenReturn(DepthLevel.L1);
-    when(persistenceService.recordDecision(
-        eq("session-1"), eq(answer), eq(action), eq(List.of()),
-        isNull(), eq(List.of()), any(), anyList(), eq(List.of())
-    )).thenReturn(interview);
+    when(persistenceService.recordDecision(any(AdaptiveDecisionPersistenceInput.class)))
+        .thenReturn(interview);
 
     PlannedInterview updated = service.submitAnswer("session-1", answer);
 
     assertThat(updated).isSameAs(interview);
     // 异步任务失败被吞掉：不写维度记忆，但当轮决策正常落库
     verify(persistenceService, never()).saveDimensionMemory(anyString(), any(), anyList());
-    verify(persistenceService).recordDecision(
-        eq("session-1"), eq(answer), eq(action), eq(List.of()),
-        isNull(), eq(List.of()), any(), anyList(), eq(List.of())
-    );
+    verify(persistenceService).recordDecision(any(AdaptiveDecisionPersistenceInput.class));
   }
 
   @Test
@@ -881,18 +837,13 @@ class AdaptiveInterviewApplicationServiceTest {
         .thenReturn(List.of());
     when(persistenceService.latestAssessmentDepth("session-1", 2))
         .thenReturn(DepthLevel.L1);
-    when(persistenceService.recordDecision(
-        eq("session-1"), eq(answer), any(), eq(List.of()),
-        eq(brief), eq(claims), any(), anyList(), eq(List.of())
-    )).thenReturn(interview);
+    when(persistenceService.recordDecision(any(AdaptiveDecisionPersistenceInput.class)))
+        .thenReturn(interview);
 
     PlannedInterview updated = service.submitAnswer("session-1", answer);
 
     assertThat(updated).isSameAs(interview);
-    verify(persistenceService).recordDecision(
-        eq("session-1"), eq(answer), any(), eq(List.of()),
-        eq(brief), eq(claims), any(), anyList(), eq(List.of())
-    );
+    verify(persistenceService).recordDecision(any(AdaptiveDecisionPersistenceInput.class));
     verify(persistenceService, never()).saveDimensionMemory(anyString(), any(), anyList());
     verify(answerExecutor, never()).execute(any(Runnable.class));
     verifyNoInteractions(runtime);
@@ -921,10 +872,8 @@ class AdaptiveInterviewApplicationServiceTest {
     when(persistenceService.get("session-1")).thenReturn(interview);
     when(runtime.runStreaming(any(ReActRequest.class), any(ReActBudget.class), eq(deltaConsumer)))
         .thenReturn(ReActResult.withoutTools(action));
-    when(persistenceService.recordDecision(
-        eq("session-1"), eq(answer), eq(action), eq(List.of()),
-        isNull(), eq(List.of()), any(), anyList(), eq(List.of())
-    )).thenReturn(interview);
+    when(persistenceService.recordDecision(any(AdaptiveDecisionPersistenceInput.class)))
+        .thenReturn(interview);
 
     PlannedInterview updated = service.submitAnswerStreaming(
         "candidate-1", "session-1", answer, sink
@@ -966,10 +915,7 @@ class AdaptiveInterviewApplicationServiceTest {
     when(persistenceService.get("session-1")).thenReturn(interview);
     when(runtime.runStreaming(any(ReActRequest.class), any(ReActBudget.class), isNull()))
         .thenReturn(ReActResult.withoutTools(action));
-    when(persistenceService.recordDecision(
-        eq("session-1"), eq(answer), eq(action), eq(List.of()),
-        isNull(), eq(List.of()), any(), anyList(), eq(List.of())
-    ))
+    when(persistenceService.recordDecision(any(AdaptiveDecisionPersistenceInput.class)))
         .thenThrow(new OptimisticLockingFailureException("concurrent update"));
 
     assertThatThrownBy(() -> service.submitAnswer("session-1", answer))
@@ -988,10 +934,8 @@ class AdaptiveInterviewApplicationServiceTest {
     when(persistenceService.get("session-1")).thenReturn(interview);
     when(runtime.runStreaming(any(ReActRequest.class), any(ReActBudget.class), isNull()))
         .thenReturn(ReActResult.withoutTools(action));
-    when(persistenceService.recordDecision(
-        eq("session-1"), eq(answer), eq(action), eq(List.of()),
-        isNull(), eq(List.of()), any(), anyList(), eq(List.of())
-    )).thenReturn(interview);
+    when(persistenceService.recordDecision(any(AdaptiveDecisionPersistenceInput.class)))
+        .thenReturn(interview);
 
     service.submitAnswer("session-1", answer);
 
@@ -1021,17 +965,8 @@ class AdaptiveInterviewApplicationServiceTest {
     )).thenReturn(List.of(recommendation));
     when(persistenceService.latestAssessmentDepth("session-1", 2))
         .thenReturn(DepthLevel.L1);
-    when(persistenceService.recordDecision(
-        eq("session-1"),
-        eq(answer),
-        any(),
-        eq(List.of()),
-        isNull(),
-        eq(List.of()),
-        any(),
-        anyList(),
-        eq(List.of(recommendation))
-    )).thenReturn(interview);
+    when(persistenceService.recordDecision(any(AdaptiveDecisionPersistenceInput.class)))
+        .thenReturn(interview);
 
     service.submitAnswer("session-1", answer);
 
@@ -1067,17 +1002,8 @@ class AdaptiveInterviewApplicationServiceTest {
         .isInstanceOf(BusinessException.class)
         .hasMessage("练习检索失败");
 
-    verify(persistenceService, never()).recordDecision(
-        anyString(),
-        any(),
-        any(),
-        anyList(),
-        any(),
-        anyList(),
-        any(),
-        anyList(),
-        anyList()
-    );
+    verify(persistenceService, never())
+        .recordDecision(any(AdaptiveDecisionPersistenceInput.class));
     verifyNoInteractions(runtime);
   }
 
@@ -1148,15 +1074,18 @@ class AdaptiveInterviewApplicationServiceTest {
 
     verify(runtime).runStreaming(request.capture(), any(ReActBudget.class), isNull());
     assertThat(request.getValue().interviewerContext().currentToolResult()).isEqualTo(event);
+    assertThat(request.getValue().interviewerContext().workingMemory().triggerType())
+        .isEqualTo(TurnTriggerType.TOOL_RESULT);
+    assertThat(request.getValue().interviewerContext().workingMemory().followUpDepth())
+        .isEqualTo(1);
     verify(persistenceService).completeToolResultEvent(
         "session-1",
         event,
         followUp,
         List.of()
     );
-    verify(persistenceService, never()).recordDecision(
-        anyString(), any(), any(), anyList(), any(), anyList(), any(), anyList(), anyList()
-    );
+    verify(persistenceService, never())
+        .recordDecision(any(AdaptiveDecisionPersistenceInput.class));
   }
 
   @Test

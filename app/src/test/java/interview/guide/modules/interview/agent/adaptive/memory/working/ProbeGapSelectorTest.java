@@ -28,15 +28,15 @@ class ProbeGapSelectorTest {
   }
 
   @Test
-  @DisplayName("已被 turn 引用的 Assessment gaps 不再选择")
-  void shouldExcludeUsedAssessment() {
+  @DisplayName("同一 Assessment 只过滤已被 turn 引用的具体 gap")
+  void shouldExcludeOnlyUsedGap() {
     ProbeGapCandidate used = candidate(11, 7, 1);
-    ProbeGapCandidate available = candidate(12, 8, 2);
+    ProbeGapCandidate available = candidate(12, 7, 2);
 
     assertThat(ProbeGapSelector.select(
         REDIS,
         List.of(used, available),
-        Set.of(7L)
+        Set.of(11L)
     )).contains(available);
   }
 
@@ -63,7 +63,7 @@ class ProbeGapSelectorTest {
     assertThat(ProbeGapSelector.select(
         REDIS,
         List.of(candidate(11, 7, 1)),
-        Set.of(7L)
+        Set.of(11L)
     )).isEmpty();
   }
 
@@ -75,6 +75,7 @@ class ProbeGapSelectorTest {
     return new ProbeGapCandidate(
         id,
         assessmentId,
+        1,
         REDIS,
         order,
         new ProbeGap("锚点-" + id, "缺口-" + id)
@@ -89,6 +90,7 @@ class ProbeGapSelectorTest {
     return new ProbeGapCandidate(
         id,
         assessmentId,
+        1,
         topic,
         1,
         new ProbeGap("锚点-" + id, "缺口-" + id)

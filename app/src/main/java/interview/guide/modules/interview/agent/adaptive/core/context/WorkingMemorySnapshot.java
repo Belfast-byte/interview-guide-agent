@@ -1,7 +1,5 @@
-package interview.guide.modules.interview.agent.adaptive.memory.working;
+package interview.guide.modules.interview.agent.adaptive.core.context;
 
-import interview.guide.modules.interview.agent.adaptive.core.context.ProbeGap;
-import interview.guide.modules.interview.agent.adaptive.core.context.TopicKey;
 import interview.guide.modules.interview.agent.adaptive.core.session.TurnTriggerType;
 import java.util.Objects;
 

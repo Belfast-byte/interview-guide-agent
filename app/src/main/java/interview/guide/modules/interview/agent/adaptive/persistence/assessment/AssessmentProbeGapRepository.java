@@ -2,6 +2,8 @@ package interview.guide.modules.interview.agent.adaptive.persistence.assessment;
 
 import java.util.List;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Query;
+import org.springframework.data.repository.query.Param;
 
 /**
  * Assessment 追问缺口仓储。
@@ -11,5 +13,16 @@ public interface AssessmentProbeGapRepository
 
   List<AssessmentProbeGapEntity> findByAssessmentIdOrderByGapOrderAscIdAsc(
       Long assessmentId
+  );
+
+  @Query("""
+      SELECT gap
+      FROM AssessmentProbeGapEntity gap
+      JOIN FETCH gap.assessment assessment
+      WHERE assessment.sessionId = :sessionId
+      ORDER BY gap.gapOrder ASC, gap.id ASC
+      """)
+  List<AssessmentProbeGapEntity> findSessionGaps(
+      @Param("sessionId") String sessionId
   );
 }

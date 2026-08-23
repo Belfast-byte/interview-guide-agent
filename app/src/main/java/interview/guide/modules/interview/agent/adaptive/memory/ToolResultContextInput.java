@@ -2,6 +2,7 @@ package interview.guide.modules.interview.agent.adaptive.memory;
 
 import interview.guide.modules.interview.agent.adaptive.core.context.EpisodePromptFact;
 import interview.guide.modules.interview.agent.adaptive.core.context.ProjectInterviewContext;
+import interview.guide.modules.interview.agent.adaptive.core.context.WorkingMemorySnapshot;
 import interview.guide.modules.interview.agent.adaptive.core.event.ToolResultEvent;
 import interview.guide.modules.interview.agent.adaptive.core.session.AdaptiveInterviewTurn;
 import java.util.List;
@@ -18,6 +19,7 @@ public record ToolResultContextInput(
     String suggestedSkill,
     List<AdaptiveInterviewTurn> turns,
     ToolResultEvent event,
+    WorkingMemorySnapshot workingMemory,
     List<EpisodePromptFact> episodeHistory,
     ProjectInterviewContext project
 ) {

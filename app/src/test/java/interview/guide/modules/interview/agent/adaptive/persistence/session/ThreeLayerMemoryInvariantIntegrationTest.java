@@ -11,6 +11,7 @@ import interview.guide.modules.interview.agent.adaptive.core.action.RespondActio
 import interview.guide.modules.interview.agent.adaptive.core.context.DepthLevel;
 import interview.guide.modules.interview.agent.adaptive.core.context.TopicKey;
 import interview.guide.modules.interview.agent.adaptive.core.event.CandidateAnswer;
+import interview.guide.modules.interview.agent.adaptive.core.session.NextTurnProvenanceDraft;
 import interview.guide.modules.interview.agent.adaptive.memory.episode.AnswerHabit;
 import interview.guide.modules.interview.agent.adaptive.memory.episode.EpisodeEnrichmentStatus;
 import interview.guide.modules.interview.agent.adaptive.memory.episode.EpisodeTagSource;
@@ -207,7 +208,7 @@ class ThreeLayerMemoryInvariantIntegrationTest {
   }
 
   private void answer(int turnIndex, DepthLevel level, RespondAction action) {
-    service.recordDecision(
+    service.recordDecision(new AdaptiveDecisionPersistenceInput(
         SESSION_ID,
         new CandidateAnswer(turnIndex, "回答-" + turnIndex),
         action,
@@ -220,8 +221,9 @@ class ThreeLayerMemoryInvariantIntegrationTest {
             "回答-" + turnIndex,
             null
         )),
-        List.of()
-    );
+        List.of(),
+        NextTurnProvenanceDraft.planned()
+    ));
   }
 
   private AssessmentDecision assessment(int turnIndex, DepthLevel level) {

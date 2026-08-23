@@ -58,14 +58,15 @@ class AdaptiveAgentTurnEntityTest {
         2,
         0,
         RespondAction.ask("追问", "评估 gap"),
-        TurnProvenance.assessmentGap(1, 42)
+        TurnProvenance.assessmentGap(1, 42, 84)
     ));
 
     assertThat(turn.parentTurnIndex()).isEqualTo(1);
     assertThat(turn.triggerType()).isEqualTo(TurnTriggerType.ASSESSMENT_GAP);
     assertThat(turn.sourceAssessmentId()).isEqualTo(42);
+    assertThat(turn.sourceProbeGapId()).isEqualTo(84);
     assertThat(turn.toDomain().provenance())
-        .isEqualTo(TurnProvenance.assessmentGap(1, 42));
+        .isEqualTo(TurnProvenance.assessmentGap(1, 42, 84));
   }
 
   @Test
@@ -76,7 +77,7 @@ class AdaptiveAgentTurnEntityTest {
         2,
         0,
         RespondAction.ask("追问", "非法父链"),
-        TurnProvenance.assessmentGap(2, 42)
+        TurnProvenance.assessmentGap(2, 42, 84)
     ))).isInstanceOf(IllegalArgumentException.class)
         .hasMessageContaining("父轮次必须早于");
   }

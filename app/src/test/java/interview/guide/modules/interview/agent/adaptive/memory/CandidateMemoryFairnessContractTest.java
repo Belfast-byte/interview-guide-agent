@@ -85,7 +85,7 @@ class CandidateMemoryFairnessContractTest {
   @DisplayName("面试官可以接收追问缺口但不得接收评级结论")
   void shouldAllowProbeGapsButNotRatingsInInterviewerContext() {
     assertThat(componentNames(InterviewerContext.class))
-        .contains("currentDimensionAnswer", "currentAnswerGaps")
+        .contains("currentDimensionAnswer", "workingMemory")
         .doesNotContain(
             "depthLevel",
             "confidence",

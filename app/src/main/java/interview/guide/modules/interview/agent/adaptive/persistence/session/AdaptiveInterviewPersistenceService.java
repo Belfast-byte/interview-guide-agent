@@ -47,6 +47,8 @@ import interview.guide.modules.interview.agent.adaptive.persistence.practice.Pra
 import interview.guide.modules.interview.agent.adaptive.persistence.practice.PracticeRecordRepository;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
+import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -364,17 +366,16 @@ public class AdaptiveInterviewPersistenceService
   }
 
   @Transactional
-  public PlannedInterview recordDecision(
-      String sessionId,
-      CandidateAnswer answer,
-      RespondAction proposedAction,
-      List<ToolExecution> toolExecutions,
-      DimensionBrief dimensionBrief,
-      List<CandidateClaim> candidateClaims,
-      AssessmentDecision assessmentDecision,
-      List<ValidatedAssessmentEvidence> assessmentEvidences,
-      List<PracticeRecommendation> practiceRecommendations
-  ) {
+  public PlannedInterview recordDecision(AdaptiveDecisionPersistenceInput input) {
+    String sessionId = input.sessionId();
+    CandidateAnswer answer = input.answer();
+    RespondAction proposedAction = input.proposedAction();
+    List<ToolExecution> toolExecutions = input.toolExecutions();
+    DimensionBrief dimensionBrief = input.dimensionBrief();
+    List<CandidateClaim> candidateClaims = input.candidateClaims();
+    AssessmentDecision assessmentDecision = input.assessmentDecision();
+    List<ValidatedAssessmentEvidence> assessmentEvidences = input.assessmentEvidences();
+    List<PracticeRecommendation> practiceRecommendations = input.practiceRecommendations();
     AdaptiveAgentSessionEntity sessionEntity = sessionRepository
         .findByIdAndTenantIdIsNull(sessionId)
         .orElseThrow(() -> new BusinessException(
@@ -406,17 +407,24 @@ public class AdaptiveInterviewPersistenceService
     AdaptiveAgentAssessmentEntity assessment = assessmentRepository.save(
         new AdaptiveAgentAssessmentEntity(answeredDimension.order(), assessmentDecision)
     );
-    saveProbeGaps(assessment, assessmentDecision);
+    List<AssessmentProbeGapEntity> savedProbeGaps = saveProbeGaps(
+        assessment,
+        assessmentDecision
+    );
     episodeFactPersistence.create(sessionEntity, assessment, answeredDimension);
 
     if (transition.appliedAction().type() == AgentResponseType.ASK) {
       int nextTurn = transition.session().currentTurn();
+      TurnProvenance provenance = input.nextTurnProvenance().resolve(
+          assessment.id(),
+          probeGapIds(savedProbeGaps)
+      );
       turnRepository.save(new AdaptiveAgentTurnEntity(new AdaptiveTurnCreation(
           sessionId,
           nextTurn,
           updatedPlan.dimensionForTurn(nextTurn).order(),
           transition.appliedAction(),
-          nextTurnProvenance(answer, answeredDimension, assessmentDecision, assessment.id())
+          provenance
       )));
     }
     saveToolExecutions(sessionId, toolExecutions);
@@ -463,20 +471,7 @@ public class AdaptiveInterviewPersistenceService
     return plannedInterview(sessionEntity, updatedPlan);
   }
 
-  private TurnProvenance nextTurnProvenance(
-      CandidateAnswer answer,
-      PlannedDimension answeredDimension,
-      AssessmentDecision decision,
-      long assessmentId
-  ) {
-    if (answeredDimension.status() != PlanDimensionStatus.COMPLETED
-        && !decision.probeGaps().isEmpty()) {
-      return TurnProvenance.assessmentGap(answer.turnIndex(), assessmentId);
-    }
-    return TurnProvenance.initial();
-  }
-
-  private void saveProbeGaps(
+  private List<AssessmentProbeGapEntity> saveProbeGaps(
       AdaptiveAgentAssessmentEntity assessment,
       AssessmentDecision decision
   ) {
@@ -488,7 +483,14 @@ public class AdaptiveInterviewPersistenceService
           decision.probeGaps().get(index)
       ));
     }
-    probeGapRepository.saveAll(gaps);
+    return probeGapRepository.saveAllAndFlush(gaps);
+  }
+
+  private Map<Integer, Long> probeGapIds(List<AssessmentProbeGapEntity> gaps) {
+    return gaps.stream().collect(Collectors.toUnmodifiableMap(
+        AssessmentProbeGapEntity::gapOrder,
+        AssessmentProbeGapEntity::id
+    ));
   }
 
   private void refreshProfiles(

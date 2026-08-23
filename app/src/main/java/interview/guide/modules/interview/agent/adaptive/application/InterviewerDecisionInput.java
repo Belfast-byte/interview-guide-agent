@@ -2,7 +2,7 @@ package interview.guide.modules.interview.agent.adaptive.application;
 
 import interview.guide.modules.interview.agent.adaptive.core.event.CandidateAnswer;
 import interview.guide.modules.interview.agent.adaptive.core.session.AdaptiveInterviewTurn;
-import interview.guide.modules.interview.agent.adaptive.memory.working.WorkingMemorySnapshot;
+import interview.guide.modules.interview.agent.adaptive.core.context.WorkingMemorySnapshot;
 import interview.guide.modules.interview.agent.adaptive.planning.PlannedDimension;
 import java.util.List;
 

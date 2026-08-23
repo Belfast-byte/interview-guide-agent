@@ -25,8 +25,15 @@ public record TurnProvenance(
     return new TurnProvenance(null, TurnTrigger.planned());
   }
 
-  public static TurnProvenance assessmentGap(int parentTurnIndex, long assessmentId) {
-    return new TurnProvenance(parentTurnIndex, TurnTrigger.assessmentGap(assessmentId));
+  public static TurnProvenance assessmentGap(
+      int parentTurnIndex,
+      long assessmentId,
+      long probeGapId
+  ) {
+    return new TurnProvenance(
+        parentTurnIndex,
+        TurnTrigger.assessmentGap(assessmentId, probeGapId)
+    );
   }
 
   public static TurnProvenance toolResult(int parentTurnIndex, long toolResultEventId) {

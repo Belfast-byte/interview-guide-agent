@@ -9,14 +9,16 @@ import java.util.Objects;
  */
 public record ProbeGapCandidate(
     long id,
-    long assessmentId,
+    Long assessmentId,
+    int sourceTurnIndex,
     TopicKey topic,
     int gapOrder,
     ProbeGap gap
 ) {
 
   public ProbeGapCandidate {
-    if (id < 1 || assessmentId < 1 || gapOrder < 1) {
+    if (id < 1 || (assessmentId != null && assessmentId < 1)
+        || sourceTurnIndex < 1 || gapOrder < 1) {
       throw new IllegalArgumentException("ProbeGap 标识和顺序必须为正数");
     }
     Objects.requireNonNull(topic, "topic 不能为空");

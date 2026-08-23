@@ -12,6 +12,9 @@ import interview.guide.modules.interview.agent.adaptive.core.context.ProbeGap;
 import interview.guide.modules.interview.agent.adaptive.core.context.PlanningSkill;
 import interview.guide.modules.interview.agent.adaptive.core.context.UnverifiedClaim;
 import interview.guide.modules.interview.agent.adaptive.core.context.CandidateClaimType;
+import interview.guide.modules.interview.agent.adaptive.core.context.TopicKey;
+import interview.guide.modules.interview.agent.adaptive.core.context.WorkingMemorySnapshot;
+import interview.guide.modules.interview.agent.adaptive.core.session.TurnTriggerType;
 import java.time.LocalDateTime;
 import java.util.List;
 import org.junit.jupiter.api.DisplayName;
@@ -61,7 +64,7 @@ class ContextAssemblerTest {
         null,
         List.of(previousDimension, currentDimension),
         answer,
-        List.of(),
+        plannedMemory(3, "java-backend", "PROJECT"),
         List.of(),
         null
     ));
@@ -89,19 +92,18 @@ class ContextAssemblerTest {
         null,
         List.of(turn(1, 0, "上一维度问题", "上一维度回答"), currentDimension),
         answer,
-        List.of(gap),
+        gapMemory(3, gap),
         List.of(),
         null
     ));
 
-    assertThat(context.currentAnswerGaps()).containsExactly(gap);
+    assertThat(context.workingMemory().selectedGap()).isEqualTo(gap);
   }
 
   @Test
   @DisplayName("切换维度时清空上一维度的追问缺口")
   void shouldClearProbeGapsAfterDimensionSwitch() {
     AdaptiveInterviewTurn answeredTurn = turn(1, 0, "专业基础问题", null);
-    ProbeGap gap = new ProbeGap("上一维度回答", "未说明失败场景");
 
     InterviewerContext context = assembler.interviewer(new InterviewerContextInput(
         "JD",
@@ -114,12 +116,12 @@ class ContextAssemblerTest {
         null,
         List.of(answeredTurn),
         new CandidateAnswer(1, "上一维度回答"),
-        List.of(gap),
+        plannedMemory(2, "java-backend", "PROJECT"),
         List.of(),
         null
     ));
 
-    assertThat(context.currentAnswerGaps()).isEmpty();
+    assertThat(context.workingMemory().selectedGap()).isNull();
   }
 
   @Test
@@ -146,7 +148,7 @@ class ContextAssemblerTest {
         null,
         List.of(answeredTurn),
         new CandidateAnswer(1, "包含敏感锚定内容的上一维度回答"),
-        List.of(),
+        plannedMemory(2, "java-backend", "PROJECT"),
         List.of(episode),
         null
     ));
@@ -167,7 +169,8 @@ class ContextAssemblerTest {
     );
     InterviewerContext interviewerContext = assembler.interviewer(new InterviewerContextInput(
         longJd, shortResume, 6, 0, "专业基础", "缓存与并发",
-        List.of(), "java-backend", List.of(), null, List.of(), List.of(), null
+        List.of(), "java-backend", List.of(), null,
+        plannedMemory(1, "java-backend", "CACHE"), List.of(), null
     ));
 
     assertThat(plannerContext.jd())
@@ -193,6 +196,32 @@ class ContextAssemblerTest {
         AgentResponseType.ASK,
         question,
         "决策原因"
+    );
+  }
+
+  private WorkingMemorySnapshot plannedMemory(
+      int turnIndex,
+      String skillId,
+      String focusId
+  ) {
+    return new WorkingMemorySnapshot(
+        "session-1",
+        turnIndex,
+        new TopicKey(skillId, focusId),
+        null,
+        0,
+        TurnTriggerType.PLANNED
+    );
+  }
+
+  private WorkingMemorySnapshot gapMemory(int turnIndex, ProbeGap gap) {
+    return new WorkingMemorySnapshot(
+        "session-1",
+        turnIndex,
+        new TopicKey("java-backend", "PROJECT"),
+        gap,
+        1,
+        TurnTriggerType.ASSESSMENT_GAP
     );
   }
 }

@@ -7,21 +7,25 @@ import java.util.Objects;
  */
 public record TurnTrigger(
     TurnTriggerType type,
-    Long sourceAssessmentId,
+    AssessmentGapSource assessmentGapSource,
     Long sourceToolResultEventId
 ) {
 
   public TurnTrigger {
     Objects.requireNonNull(type, "type 不能为空");
-    validateSource(type, sourceAssessmentId, sourceToolResultEventId);
+    validateSource(type, assessmentGapSource, sourceToolResultEventId);
   }
 
   public static TurnTrigger planned() {
     return new TurnTrigger(TurnTriggerType.PLANNED, null, null);
   }
 
-  public static TurnTrigger assessmentGap(long assessmentId) {
-    return new TurnTrigger(TurnTriggerType.ASSESSMENT_GAP, assessmentId, null);
+  public static TurnTrigger assessmentGap(long assessmentId, long probeGapId) {
+    return new TurnTrigger(
+        TurnTriggerType.ASSESSMENT_GAP,
+        new AssessmentGapSource(assessmentId, probeGapId),
+        null
+    );
   }
 
   public static TurnTrigger toolResult(long toolResultEventId) {
@@ -30,10 +34,10 @@ public record TurnTrigger(
 
   private static void validateSource(
       TurnTriggerType type,
-      Long assessmentId,
+      AssessmentGapSource assessmentGapSource,
       Long toolResultEventId
   ) {
-    boolean assessmentSource = assessmentId != null && assessmentId > 0;
+    boolean assessmentSource = assessmentGapSource != null;
     boolean toolSource = toolResultEventId != null && toolResultEventId > 0;
     boolean valid = switch (type) {
       case PLANNED -> !assessmentSource && !toolSource;
@@ -42,6 +46,24 @@ public record TurnTrigger(
     };
     if (!valid) {
       throw new IllegalArgumentException("Turn trigger 与来源引用不匹配");
+    }
+  }
+
+  public Long sourceAssessmentId() {
+    return assessmentGapSource == null ? null : assessmentGapSource.assessmentId();
+  }
+
+  public Long sourceProbeGapId() {
+    return assessmentGapSource == null ? null : assessmentGapSource.probeGapId();
+  }
+
+  /** ASSESSMENT_GAP 的不可拆分来源。 */
+  public record AssessmentGapSource(long assessmentId, long probeGapId) {
+
+    public AssessmentGapSource {
+      if (assessmentId < 1 || probeGapId < 1) {
+        throw new IllegalArgumentException("Assessment 与 ProbeGap ID 必须为正数");
+      }
     }
   }
 }

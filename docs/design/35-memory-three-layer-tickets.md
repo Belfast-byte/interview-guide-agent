@@ -12,16 +12,16 @@
 
 ## T02 TurnTrigger 领域约束
 
-**Goal**：由代码表达 `PLANNED / ASSESSMENT_GAP / TOOL_RESULT` 及合法 source 组合。
-**怎么实现**：新增 trigger 枚举和值对象，构造时校验 source 互斥与必填规则。
-**测试验证**：`TurnTriggerTest` 参数化覆盖三种合法组合和全部非法组合。
+**Goal**：由代码表达 `PLANNED / ASSESSMENT_GAP / TOOL_RESULT` 及合法 source 组合，并让评估追问精确指向具体 gap。
+**怎么实现**：新增 trigger 枚举和值对象，`ASSESSMENT_GAP` 把 assessment ID 与 probe gap ID 作为不可拆分来源，构造时校验 source 互斥与必填规则。
+**测试验证**：`TurnTriggerTest` 覆盖三种合法组合、Assessment/gap 任一非法及 source 混用。
 **依赖**：无。
 
 ## T03 Turn provenance 持久化
 
-**Goal**：turn 可追溯父 turn、来源 assessment 或 tool event。
-**怎么实现**：扩展 turn entity/domain/mapper/repository；保存前验证父索引属于同 session 且更小。
-**测试验证**：`AdaptiveInterviewTurnEntityTest` 验证字段往返；`AdaptiveInterviewPersistenceServiceTest` 验证非法父链失败。
+**Goal**：turn 可追溯父 turn、来源 assessment + probe gap 或 tool event。
+**怎么实现**：扩展 turn entity/domain/mapper/repository，增加 `source_probe_gap_id`；保存前验证 gap 属于 source assessment、未被其他 turn 使用，且父索引属于同 session 并更小。
+**测试验证**：`AdaptiveInterviewTurnEntityTest` 验证 assessment/gap 字段往返；`AdaptiveInterviewPersistenceServiceTest` 验证非法父链失败；数据库迁移测试验证来源组合、归属和 gap 唯一消费约束。
 **依赖**：T02。
 
 ## T04 ProbeGap 领域模型与表
@@ -34,8 +34,8 @@
 ## T05 ProbeGap 确定性选择
 
 **Goal**：编排器稳定选择第一条可用 gap。
-**怎么实现**：纯领域 selector 按 `gapOrder,id` 排序，过滤已使用 gap 和非当前 TopicKey。
-**测试验证**：`ProbeGapSelectorTest` 覆盖乱序、已使用、跨主题和无可选 gap。
+**怎么实现**：纯领域 selector 按 `gapOrder,id` 排序，以 turn provenance 的 `sourceProbeGapId` 过滤已使用 gap，再过滤非当前 TopicKey；不得按 assessment 整体过滤。
+**测试验证**：`ProbeGapSelectorTest` 覆盖乱序、同一 Assessment 仅排除已用 gap、跨主题和无可选 gap。
 **依赖**：T01、T04。
 
 ## T06 WorkingMemorySnapshot

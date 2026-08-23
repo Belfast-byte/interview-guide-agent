@@ -26,6 +26,12 @@ public interface AdaptiveAgentSessionRepository
       String candidateId
   );
 
+  Optional<AdaptiveAgentSessionEntity> findByIdAndCandidateIdAndTenantId(
+      String id,
+      String candidateId,
+      String tenantId
+  );
+
   boolean existsByLlmProviderAndTenantIdIsNullAndStatusIn(
       String llmProvider,
       Collection<AdaptiveSessionStatus> statuses

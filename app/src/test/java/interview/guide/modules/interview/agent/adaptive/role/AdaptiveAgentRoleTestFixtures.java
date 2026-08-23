@@ -3,7 +3,10 @@ package interview.guide.modules.interview.agent.adaptive.role;
 import interview.guide.modules.interview.agent.adaptive.core.context.InterviewerContext;
 import interview.guide.modules.interview.agent.adaptive.core.context.EpisodePromptFact;
 import interview.guide.modules.interview.agent.adaptive.core.context.ProjectInterviewContext;
+import interview.guide.modules.interview.agent.adaptive.core.context.TopicKey;
+import interview.guide.modules.interview.agent.adaptive.core.context.WorkingMemorySnapshot;
 import interview.guide.modules.interview.agent.adaptive.core.event.CandidateAnswer;
+import interview.guide.modules.interview.agent.adaptive.core.session.TurnTriggerType;
 import interview.guide.modules.interview.agent.adaptive.runtime.ReActModelContext;
 import interview.guide.modules.interview.agent.adaptive.runtime.ReActRequest;
 import interview.guide.modules.interview.agent.adaptive.runtime.ToolObservation;
@@ -67,7 +70,7 @@ final class AdaptiveAgentRoleTestFixtures {
             null,
             List.of(),
             null,
-            List.of(),
+            plannedMemory(currentTurn + 1),
             List.of(),
             null,
             null,
@@ -91,7 +94,7 @@ final class AdaptiveAgentRoleTestFixtures {
             "java-backend",
             List.of(),
             null,
-            List.of(),
+            plannedMemory(1),
             List.of(fact),
             null,
             null,
@@ -135,7 +138,7 @@ final class AdaptiveAgentRoleTestFixtures {
         null,
         List.of(),
         answer,
-        List.of(),
+        plannedMemory(answer == null ? 1 : 2),
         List.of(),
         null,
         null,
@@ -158,11 +161,22 @@ final class AdaptiveAgentRoleTestFixtures {
         null,
         List.of(),
         null,
-        List.of(),
+        plannedMemory(2),
         List.of(),
         null,
         null,
         project
+    );
+  }
+
+  private static WorkingMemorySnapshot plannedMemory(int turnIndex) {
+    return new WorkingMemorySnapshot(
+        SESSION_ID,
+        turnIndex,
+        new TopicKey("java-backend", "CACHE"),
+        null,
+        0,
+        TurnTriggerType.PLANNED
     );
   }
 }

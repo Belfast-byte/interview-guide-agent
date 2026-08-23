@@ -1,17 +1,22 @@
 package interview.guide.modules.interview.agent.adaptive.persistence.session;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 import interview.guide.modules.interview.agent.adaptive.assessment.depth.AssessmentDecision;
 import interview.guide.modules.interview.agent.adaptive.core.context.DepthLevel;
+import interview.guide.modules.interview.agent.adaptive.core.context.MemoryOwner;
 import interview.guide.modules.interview.agent.adaptive.core.action.RespondAction;
 import interview.guide.modules.interview.agent.adaptive.core.context.ProbeGap;
 import interview.guide.modules.interview.agent.adaptive.core.event.CandidateAnswer;
 import interview.guide.modules.interview.agent.adaptive.core.session.TurnTriggerType;
+import interview.guide.modules.interview.agent.adaptive.core.session.NextTurnProvenanceDraft;
 import interview.guide.modules.interview.agent.adaptive.persistence.assessment.AdaptiveAgentAssessmentEntity;
 import interview.guide.modules.interview.agent.adaptive.persistence.assessment.AdaptiveAgentAssessmentRepository;
 import interview.guide.modules.interview.agent.adaptive.persistence.assessment.AssessmentProbeGapEntity;
 import interview.guide.modules.interview.agent.adaptive.persistence.assessment.AssessmentProbeGapRepository;
+import interview.guide.modules.interview.agent.adaptive.persistence.assessment.JpaWorkingMemoryFactSource;
+import interview.guide.modules.interview.agent.adaptive.memory.working.WorkingMemoryFactSource;
 import interview.guide.modules.interview.agent.adaptive.persistence.memory.EpisodeFactPersistence;
 import interview.guide.modules.interview.agent.adaptive.persistence.memory.AssessmentReconciliationService;
 import interview.guide.modules.interview.agent.adaptive.persistence.memory.AssessmentReconciliationDependencies;
@@ -37,7 +42,8 @@ import org.springframework.context.annotation.Import;
     EpisodeFactPersistence.class,
     EpisodeAssessmentCorrectionPersistence.class,
     AssessmentReconciliationDependencies.class,
-    AssessmentReconciliationService.class
+    AssessmentReconciliationService.class,
+    JpaWorkingMemoryFactSource.class
 })
 class AssessmentProbeGapPersistenceTest {
 
@@ -52,14 +58,17 @@ class AssessmentProbeGapPersistenceTest {
   @Autowired
   private AssessmentProbeGapRepository gapRepository;
 
+  @Autowired
+  private WorkingMemoryFactSource workingMemoryFactSource;
+
   @Test
-  @DisplayName("记录回答时原子保存 gaps 并让下一 turn 引用 Assessment")
+  @DisplayName("记录回答时保存 gaps 后让下一 turn 精确引用选中的 gap")
   void shouldPersistGapsAndNextTurnProvenance() {
     createInterview();
     ProbeGap first = new ProbeGap("缓存", "未说明失败边界");
     ProbeGap second = new ProbeGap("版本号", "未说明推进规则");
 
-    service.recordDecision(
+    service.recordDecision(new AdaptiveDecisionPersistenceInput(
         SESSION_ID,
         new CandidateAnswer(1, "使用缓存和版本号"),
         RespondAction.ask("缓存失败时怎么办？", "追问缺口"),
@@ -68,8 +77,9 @@ class AssessmentProbeGapPersistenceTest {
         List.of(),
         assessment(List.of(first, second)),
         List.of(),
-        List.of()
-    );
+        List.of(),
+        NextTurnProvenanceDraft.currentAssessmentGap(1, 1)
+    ));
 
     AdaptiveAgentAssessmentEntity assessment = assessmentRepository
         .findBySessionIdAndTurnIndex(SESSION_ID, 1)
@@ -84,6 +94,19 @@ class AssessmentProbeGapPersistenceTest {
         .isEqualTo(TurnTriggerType.ASSESSMENT_GAP);
     assertThat(nextTurn.provenance().trigger().sourceAssessmentId())
         .isEqualTo(assessment.id());
+    assertThat(nextTurn.provenance().trigger().sourceProbeGapId())
+        .isEqualTo(gaps.getFirst().id());
+    assertThat(workingMemoryFactSource.findProbeGaps(
+        new MemoryOwner(null, "candidate-1"),
+        SESSION_ID
+    )).satisfiesExactly(
+        candidate -> assertThat(candidate.gap()).isEqualTo(first),
+        candidate -> assertThat(candidate.gap()).isEqualTo(second)
+    );
+    assertThatThrownBy(() -> workingMemoryFactSource.findProbeGaps(
+        new MemoryOwner(null, "candidate-2"),
+        SESSION_ID
+    )).hasMessageContaining("不存在");
   }
 
   private void createInterview() {

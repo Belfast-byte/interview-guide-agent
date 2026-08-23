@@ -6,11 +6,13 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import interview.guide.modules.interview.agent.adaptive.core.action.RespondAction;
 import interview.guide.modules.interview.agent.adaptive.core.context.ProbeGap;
 import interview.guide.modules.interview.agent.adaptive.core.context.TopicKey;
+import interview.guide.modules.interview.agent.adaptive.core.context.WorkingMemorySnapshot;
 import interview.guide.modules.interview.agent.adaptive.core.session.AdaptiveInterviewTurn;
 import interview.guide.modules.interview.agent.adaptive.core.session.TurnProvenance;
 import interview.guide.modules.interview.agent.adaptive.core.session.TurnTriggerType;
 import interview.guide.modules.interview.agent.adaptive.memory.ContextAssembler;
 import java.util.List;
+import java.util.Map;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
@@ -42,7 +44,7 @@ class WorkingMemoryAssemblerTest {
     ProbeGap selected = new ProbeGap("缓存", "未说明失败边界");
     List<AdaptiveInterviewTurn> history = List.of(
         turn(1, TurnProvenance.initial()),
-        turn(2, TurnProvenance.assessmentGap(1, 10))
+        turn(2, TurnProvenance.assessmentGap(1, 10, 11))
     );
 
     WorkingMemorySnapshot snapshot = assembler.workingMemory(new WorkingMemoryInput(
@@ -77,6 +79,64 @@ class WorkingMemoryAssemblerTest {
   }
 
   @Test
+  @DisplayName("未使用的持久化 gap 可恢复且保留原 Assessment 来源")
+  void shouldRecoverUnusedPersistedGap() {
+    ProbeGap recovered = new ProbeGap("缓存", "未说明恢复边界");
+    ProbeGapCandidate candidate = new ProbeGapCandidate(
+        11, 10L, 1, TOPIC, 1, recovered
+    );
+
+    WorkingMemorySelection selection = assembler.nextQuestionWorkingMemory(
+        new NextQuestionWorkingMemoryInput(
+            "session-1",
+            2,
+            TOPIC,
+            List.of(),
+            List.of(candidate),
+            List.of(turn(1, TurnProvenance.initial()))
+        )
+    );
+
+    assertThat(selection.snapshot().selectedGap()).isEqualTo(recovered);
+    assertThat(selection.snapshot().triggerType()).isEqualTo(TurnTriggerType.ASSESSMENT_GAP);
+    assertThat(selection.provenance().resolve(20, Map.of()).trigger().sourceAssessmentId())
+        .isEqualTo(10L);
+    assertThat(selection.provenance().resolve(20, Map.of()).trigger().sourceProbeGapId())
+        .isEqualTo(11L);
+  }
+
+  @Test
+  @DisplayName("已使用 gap 被过滤并由当前评估 gap 形成多级追问")
+  void shouldSkipUsedGapAndBuildNestedCurrentGap() {
+    ProbeGap used = new ProbeGap("旧锚点", "旧缺口");
+    ProbeGap current = new ProbeGap("当前锚点", "当前缺口");
+    List<AdaptiveInterviewTurn> history = List.of(
+        turn(1, TurnProvenance.initial()),
+        turn(2, TurnProvenance.assessmentGap(1, 10, 11))
+    );
+
+    WorkingMemorySelection selection = assembler.nextQuestionWorkingMemory(
+        new NextQuestionWorkingMemoryInput(
+            "session-1",
+            3,
+            TOPIC,
+            List.of(current),
+            List.of(new ProbeGapCandidate(11, 10L, 1, TOPIC, 1, used)),
+            history
+        )
+    );
+
+    assertThat(selection.snapshot().selectedGap()).isEqualTo(current);
+    assertThat(selection.snapshot().followUpDepth()).isEqualTo(2);
+    assertThat(selection.provenance().resolve(20, Map.of(1, 21L))
+        .trigger().sourceAssessmentId())
+        .isEqualTo(20L);
+    assertThat(selection.provenance().resolve(20, Map.of(1, 21L))
+        .trigger().sourceProbeGapId())
+        .isEqualTo(21L);
+  }
+
+  @Test
   @DisplayName("父轮次不在当前会话历史时明确失败")
   void shouldRejectMissingParent() {
     assertThatThrownBy(() -> assembler.workingMemory(new WorkingMemoryInput(
@@ -105,4 +165,5 @@ class WorkingMemoryAssemblerTest {
         provenance
     );
   }
+
 }

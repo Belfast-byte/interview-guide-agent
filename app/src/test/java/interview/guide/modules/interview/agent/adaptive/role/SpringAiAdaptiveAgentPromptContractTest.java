@@ -103,7 +103,14 @@ class SpringAiAdaptiveAgentPromptContractTest {
     verify(requestSpec).system(systemPrompt.capture());
     verify(requestSpec).user(userPrompt.capture());
     assertThat(systemPrompt.getValue()).contains("JSON null", "禁止返回空字符串");
-    assertThat(userPrompt.getValue()).contains("<data-boundary>", "候选人回答", "专业基础");
+    assertThat(userPrompt.getValue()).contains(
+        "<data-boundary>",
+        "候选人回答",
+        "专业基础",
+        "\"workingMemory\"",
+        "\"followUpDepth\"",
+        "\"triggerType\""
+    );
   }
 
   @Test

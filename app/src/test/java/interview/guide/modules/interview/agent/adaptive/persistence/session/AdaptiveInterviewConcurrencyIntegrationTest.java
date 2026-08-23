@@ -6,6 +6,7 @@ import interview.guide.modules.interview.agent.adaptive.assessment.evidence.Evid
 import interview.guide.modules.interview.agent.adaptive.assessment.evidence.ValidatedAssessmentEvidence;
 import interview.guide.modules.interview.agent.adaptive.core.session.AdaptiveInterviewHistory;
 import interview.guide.modules.interview.agent.adaptive.core.event.CandidateAnswer;
+import interview.guide.modules.interview.agent.adaptive.core.session.NextTurnProvenanceDraft;
 import interview.guide.modules.interview.agent.adaptive.core.event.ToolResultEvent;
 import interview.guide.modules.interview.agent.adaptive.core.action.RespondAction;
 import interview.guide.modules.interview.agent.adaptive.planning.DimensionProposal;
@@ -91,7 +92,7 @@ class AdaptiveInterviewConcurrencyIntegrationTest {
     Callable<PlannedInterview> submission = () -> {
       ready.countDown();
       start.await();
-      return persistenceService.recordDecision(
+      return persistenceService.recordDecision(new AdaptiveDecisionPersistenceInput(
           "concurrent-session",
           new CandidateAnswer(1, "并发回答"),
           RespondAction.ask("第二题？", "继续验证"),
@@ -112,8 +113,9 @@ class AdaptiveInterviewConcurrencyIntegrationTest {
               "并发回答",
               null
           )),
-          List.of()
-      );
+          List.of(),
+          NextTurnProvenanceDraft.planned()
+      ));
     };
     List<FutureTask<PlannedInterview>> submissions = List.of(
         new FutureTask<>(submission),
