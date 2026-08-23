@@ -5,6 +5,9 @@ import interview.guide.modules.interview.agent.adaptive.core.action.AgentRespons
 import interview.guide.modules.interview.agent.adaptive.core.event.CandidateAnswer;
 import interview.guide.modules.interview.agent.adaptive.core.context.CodeFactUsage;
 import interview.guide.modules.interview.agent.adaptive.core.action.RespondAction;
+import interview.guide.modules.interview.agent.adaptive.core.session.TurnProvenance;
+import interview.guide.modules.interview.agent.adaptive.core.session.TurnTrigger;
+import interview.guide.modules.interview.agent.adaptive.core.session.TurnTriggerType;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.EnumType;
@@ -78,28 +81,49 @@ public class AdaptiveAgentTurnEntity {
   @Column(name = "decision_reason", length = 500)
   private String decisionReason;
 
+  @Column(name = "parent_turn_index")
+  private Integer parentTurnIndex;
+
+  @Enumerated(EnumType.STRING)
+  @Column(name = "trigger_type", nullable = false, length = 24)
+  private TurnTriggerType triggerType;
+
+  @Column(name = "source_assessment_id")
+  private Long sourceAssessmentId;
+
+  @Column(name = "source_tool_result_event_id")
+  private Long sourceToolResultEventId;
+
   @Column(name = "created_at", nullable = false)
   private LocalDateTime createdAt;
 
   protected AdaptiveAgentTurnEntity() {}
 
-  public AdaptiveAgentTurnEntity(
-      String sessionId,
-      int turnIndex,
-      int dimensionOrder,
-      RespondAction questionAction
-  ) {
-    this.sessionId = sessionId;
-    this.turnIndex = turnIndex;
-    this.dimensionOrder = dimensionOrder;
-    applyQuestion(questionAction);
+  public AdaptiveAgentTurnEntity(AdaptiveTurnCreation creation) {
+    this.sessionId = creation.sessionId();
+    this.turnIndex = creation.turnIndex();
+    this.dimensionOrder = creation.dimensionOrder();
+    applyQuestion(creation.questionAction());
+    applyProvenance(creation.provenance());
   }
 
   /**
    * 用基于工具结果的追问替换尚未作答的占位问题。
    */
-  public void replaceQuestion(RespondAction questionAction) {
+  public void replaceQuestion(
+      RespondAction questionAction,
+      TurnProvenance provenance
+  ) {
     applyQuestion(questionAction);
+    applyProvenance(provenance);
+  }
+
+  private void applyProvenance(TurnProvenance provenance) {
+    provenance.validateForTurn(turnIndex);
+    parentTurnIndex = provenance.parentTurnIndex();
+    triggerType = provenance.trigger().type();
+    sourceAssessmentId = provenance.trigger().sourceAssessmentId();
+    sourceToolResultEventId = provenance.trigger().sourceToolResultEventId();
   }
 
   private void applyQuestion(RespondAction questionAction) {
@@ -137,7 +161,15 @@ public class AdaptiveAgentTurnEntity {
         answer,
         responseType,
         responseContent,
-        decisionReason
+        decisionReason,
+        provenance()
+    );
+  }
+
+  private TurnProvenance provenance() {
+    return new TurnProvenance(
+        parentTurnIndex,
+        new TurnTrigger(triggerType, sourceAssessmentId, sourceToolResultEventId)
     );
   }
 
@@ -184,5 +216,21 @@ public class AdaptiveAgentTurnEntity {
 
   public CodeFactUsage codeFactUsage() {
     return codeFactUsage;
+  }
+
+  public Integer parentTurnIndex() {
+    return parentTurnIndex;
+  }
+
+  public TurnTriggerType triggerType() {
+    return triggerType;
+  }
+
+  public Long sourceAssessmentId() {
+    return sourceAssessmentId;
+  }
+
+  public Long sourceToolResultEventId() {
+    return sourceToolResultEventId;
   }
 }

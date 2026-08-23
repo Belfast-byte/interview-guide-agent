@@ -18,6 +18,12 @@ public interface AdaptiveAgentToolResultEventRepository
       String resultId
   );
 
+  Optional<AdaptiveAgentToolResultEventEntity> findBySessionIdAndToolNameAndResultId(
+      String sessionId,
+      String toolName,
+      String resultId
+  );
+
   List<AdaptiveAgentToolResultEventEntity> findBySessionIdAndStatusOrderById(
       String sessionId,
       ToolResultEventStatus status

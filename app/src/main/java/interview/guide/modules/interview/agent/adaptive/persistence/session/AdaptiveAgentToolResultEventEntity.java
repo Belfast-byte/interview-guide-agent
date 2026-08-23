@@ -94,6 +94,10 @@ class AdaptiveAgentToolResultEventEntity {
     );
   }
 
+  public long id() {
+    return id;
+  }
+
   @PrePersist
   void prePersist() {
     createdAt = LocalDateTime.now();

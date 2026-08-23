@@ -13,5 +13,40 @@ public record AdaptiveInterviewTurn(
     String answer,
     AgentResponseType responseType,
     String responseContent,
-    String decisionReason
-) {}
+    String decisionReason,
+    TurnProvenance provenance
+) {
+
+  public AdaptiveInterviewTurn {
+    provenance.validateForTurn(turnIndex);
+  }
+
+  public AdaptiveInterviewTurn(
+      int turnIndex,
+      Integer dimensionOrder,
+      String question,
+      String questionReason,
+      String answer,
+      AgentResponseType responseType,
+      String responseContent,
+      String decisionReason
+  ) {
+    this(
+        turnIndex,
+        dimensionOrder,
+        question,
+        questionReason,
+        answer,
+        responseType,
+        responseContent,
+        decisionReason,
+        defaultProvenance(turnIndex)
+    );
+  }
+
+  private static TurnProvenance defaultProvenance(int turnIndex) {
+    return turnIndex == 1
+        ? TurnProvenance.initial()
+        : TurnProvenance.plannedAfter(turnIndex - 1);
+  }
+}

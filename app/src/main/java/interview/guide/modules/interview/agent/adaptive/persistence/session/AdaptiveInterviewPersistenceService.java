@@ -16,6 +16,7 @@ import interview.guide.modules.interview.agent.adaptive.core.event.CandidateAnsw
 import interview.guide.modules.interview.agent.adaptive.core.context.DimensionBrief;
 import interview.guide.modules.interview.agent.adaptive.core.action.RespondAction;
 import interview.guide.modules.interview.agent.adaptive.core.session.SessionTransition;
+import interview.guide.modules.interview.agent.adaptive.core.session.TurnProvenance;
 import interview.guide.modules.interview.agent.adaptive.core.event.ToolResultEvent;
 import interview.guide.modules.interview.agent.adaptive.core.event.ToolResultFollowUp;
 import interview.guide.modules.interview.agent.adaptive.memory.claim.CandidateClaim;
@@ -111,13 +112,17 @@ public class AdaptiveInterviewPersistenceService
       List<ToolExecution> toolExecutions
   ) {
     AdaptiveAgentToolResultEventEntity entity = toolResultEventRepository
-        .findByToolNameAndResultId(event.toolName(), event.resultId())
+        .findBySessionIdAndToolNameAndResultId(
+            sessionId,
+            event.toolName(),
+            event.resultId()
+        )
         .orElseThrow(() -> new BusinessException(
             ErrorCode.NOT_FOUND,
             "工具结果事件不存在"
         ));
     entity.complete(response);
-    applyFollowUpQuestion(sessionId, event, response);
+    applyFollowUpQuestion(sessionId, event, entity.id(), response);
     saveToolExecutions(sessionId, toolExecutions);
   }
 
@@ -130,6 +135,7 @@ public class AdaptiveInterviewPersistenceService
   private void applyFollowUpQuestion(
       String sessionId,
       ToolResultEvent event,
+      long toolResultEventId,
       RespondAction followUp
   ) {
     AdaptiveAgentSessionEntity session = sessionRepository
@@ -148,7 +154,10 @@ public class AdaptiveInterviewPersistenceService
     turnRepository
         .findBySessionIdAndTurnIndex(sessionId, currentTurn)
         .orElseThrow(() -> new BusinessException(ErrorCode.NOT_FOUND, "面试轮次不存在"))
-        .replaceQuestion(followUp);
+        .replaceQuestion(
+            followUp,
+            TurnProvenance.toolResult(event.turnIndex(), toolResultEventId)
+        );
   }
 
   @Transactional
@@ -320,12 +329,11 @@ public class AdaptiveInterviewPersistenceService
     planRepository.saveAll(plan.dimensions().stream()
         .map(dimension -> new AdaptiveAgentPlanEntity(sessionId, dimension))
         .toList());
-    turnRepository.save(new AdaptiveAgentTurnEntity(
+    turnRepository.save(new AdaptiveAgentTurnEntity(AdaptiveTurnCreation.initial(
         sessionId,
-        1,
         plan.dimensionForTurn(1).order(),
         firstAction
-    ));
+    )));
     saveToolExecutions(sessionId, toolExecutions);
     return plannedInterview(sessionEntity, plan);
   }
@@ -377,13 +385,19 @@ public class AdaptiveInterviewPersistenceService
     }
     sessionRepository.flush();
 
+    AdaptiveAgentAssessmentEntity assessment = assessmentRepository.save(
+        new AdaptiveAgentAssessmentEntity(answeredDimension.order(), assessmentDecision)
+    );
+
     if (transition.appliedAction().type() == AgentResponseType.ASK) {
-      turnRepository.save(new AdaptiveAgentTurnEntity(
+      int nextTurn = transition.session().currentTurn();
+      turnRepository.save(new AdaptiveAgentTurnEntity(new AdaptiveTurnCreation(
           sessionId,
-          transition.session().currentTurn(),
-          updatedPlan.dimensionForTurn(transition.session().currentTurn()).order(),
-          transition.appliedAction()
-      ));
+          nextTurn,
+          updatedPlan.dimensionForTurn(nextTurn).order(),
+          transition.appliedAction(),
+          nextTurnProvenance(answer, answeredDimension, assessmentDecision, assessment.id())
+      )));
     }
     saveToolExecutions(sessionId, toolExecutions);
     if (dimensionBrief != null) {
@@ -408,9 +422,6 @@ public class AdaptiveInterviewPersistenceService
             claim
         ))
         .toList());
-    AdaptiveAgentAssessmentEntity assessment = assessmentRepository.save(
-        new AdaptiveAgentAssessmentEntity(answeredDimension.order(), assessmentDecision)
-    );
     evidenceRepository.saveAll(assessmentEvidences.stream()
         .map(evidence -> new AdaptiveAgentEvidenceEntity(
             assessment,
@@ -430,6 +441,19 @@ public class AdaptiveInterviewPersistenceService
       refreshProfiles(sessionEntity, planEntities);
     }
     return plannedInterview(sessionEntity, updatedPlan);
+  }
+
+  private TurnProvenance nextTurnProvenance(
+      CandidateAnswer answer,
+      PlannedDimension answeredDimension,
+      AssessmentDecision decision,
+      long assessmentId
+  ) {
+    if (answeredDimension.status() != PlanDimensionStatus.COMPLETED
+        && !decision.probeGaps().isEmpty()) {
+      return TurnProvenance.assessmentGap(answer.turnIndex(), assessmentId);
+    }
+    return TurnProvenance.plannedAfter(answer.turnIndex());
   }
 
   private void refreshProfiles(
