@@ -104,6 +104,28 @@ class EpisodePromptSelectorTest {
         .containsExactly("REDIS", "JVM");
   }
 
+  @Test
+  @DisplayName("无 enrichment 标签的安全 DepthLevel 仍可选择")
+  void shouldSelectSafeDepthWithoutEnrichmentTags() {
+    EpisodePromptFact unenriched = new EpisodePromptFact(
+        CURRENT_TOPIC.skillId(),
+        CURRENT_TOPIC.focusId(),
+        DepthLevel.L4,
+        List.of(),
+        List.of(),
+        BASE_TIME
+    );
+
+    assertThat(selector(estimator(json -> 1)).select(
+        CURRENT_TOPIC,
+        List.of(new EpisodePromptCandidate(1, unenriched))
+    )).singleElement().satisfies(fact -> {
+      assertThat(fact.depthLevel()).isEqualTo(DepthLevel.L4);
+      assertThat(fact.errorTags()).isEmpty();
+      assertThat(fact.answerHabitTags()).isEmpty();
+    });
+  }
+
   private EpisodePromptSelector selector(TokenCountEstimator estimator) {
     return new EpisodePromptSelector(new ObjectMapper(), estimator);
   }

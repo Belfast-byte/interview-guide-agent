@@ -10,6 +10,7 @@ import interview.guide.modules.interview.agent.adaptive.core.context.TopicKey;
 import interview.guide.modules.interview.agent.adaptive.core.session.AdaptiveInterviewSession;
 import interview.guide.modules.interview.agent.adaptive.core.session.AdaptiveSessionStatus;
 import interview.guide.modules.interview.agent.adaptive.memory.episode.AnswerHabit;
+import interview.guide.modules.interview.agent.adaptive.memory.episode.EpisodeEnrichmentStatus;
 import interview.guide.modules.interview.agent.adaptive.memory.episode.EpisodePromptCandidate;
 import interview.guide.modules.interview.agent.adaptive.memory.episode.EpisodePromptFactSource;
 import interview.guide.modules.interview.agent.adaptive.memory.episode.EpisodeTagSource;
@@ -28,6 +29,7 @@ import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.data.jpa.test.autoconfigure.DataJpaTest;
 import org.springframework.context.annotation.Import;
+import org.springframework.test.util.ReflectionTestUtils;
 
 @DataJpaTest(properties = {
     "spring.flyway.enabled=false",
@@ -64,30 +66,34 @@ class EpisodePromptFactRepositoryTest {
   @Test
   @DisplayName("只读取同 owner、同 skill 的已完成历史 Episode 并排除当前场")
   void shouldReadOnlyCompletedOwnerHistoryAndExcludeCurrentSession() {
-    saveSession("current", CANDIDATE, AdaptiveSessionStatus.IN_PROGRESS);
+    saveSession("current", CANDIDATE, AdaptiveSessionStatus.COMPLETED);
     saveEpisode(new EpisodeFixture(
-        "history-redis", CANDIDATE, REDIS, DepthLevel.L3, true, true
+        "history-redis", CANDIDATE, REDIS, DepthLevel.L3, true,
+        EpisodeEnrichmentStatus.COMPLETED
     ));
     saveEpisode(new EpisodeFixture(
-        "history-jvm", CANDIDATE, JVM, DepthLevel.L2, true, true
+        "history-jvm", CANDIDATE, JVM, DepthLevel.L2, true,
+        EpisodeEnrichmentStatus.COMPLETED
     ));
     saveEpisode(new EpisodeFixture(
-        "history-other-skill", CANDIDATE, REACT, DepthLevel.L4, true, true
+        "history-other-skill", CANDIDATE, REACT, DepthLevel.L4, true,
+        EpisodeEnrichmentStatus.COMPLETED
     ));
     saveEpisode(new EpisodeFixture(
-        "history-other-owner", OTHER_CANDIDATE, REDIS, DepthLevel.L4, true, true
+        "history-other-owner", OTHER_CANDIDATE, REDIS, DepthLevel.L4, true,
+        EpisodeEnrichmentStatus.COMPLETED
     ));
     saveEpisode(new EpisodeFixture(
-        "history-tenant", TENANT_CANDIDATE, REDIS, DepthLevel.L4, true, true
+        "history-tenant", TENANT_CANDIDATE, REDIS, DepthLevel.L4, true,
+        EpisodeEnrichmentStatus.COMPLETED
     ));
     saveEpisode(new EpisodeFixture(
-        "history-active", CANDIDATE, REDIS, DepthLevel.L1, false, true
+        "history-active", CANDIDATE, REDIS, DepthLevel.L1, false,
+        EpisodeEnrichmentStatus.COMPLETED
     ));
     saveEpisode(new EpisodeFixture(
-        "history-pending", CANDIDATE, REDIS, DepthLevel.L1, true, false
-    ));
-    saveEpisode(new EpisodeFixture(
-        "current", CANDIDATE, REDIS, DepthLevel.L4, false, true
+        "current", CANDIDATE, REDIS, DepthLevel.L4, true,
+        EpisodeEnrichmentStatus.COMPLETED
     ));
 
     List<EpisodePromptCandidate> result = source.findCompletedHistory(
@@ -110,14 +116,48 @@ class EpisodePromptFactRepositoryTest {
   }
 
   @Test
+  @DisplayName("完成历史场的未补全、失败与旧 Episode 仍贡献安全 DepthLevel")
+  void shouldReadSafeDepthFromEveryEnrichmentStatus() {
+    saveSession("status-current", CANDIDATE, AdaptiveSessionStatus.IN_PROGRESS);
+    saveEpisode(new EpisodeFixture(
+        "history-pending", CANDIDATE, new TopicKey("java-backend", "PENDING"),
+        DepthLevel.L1, true, EpisodeEnrichmentStatus.PENDING
+    ));
+    saveEpisode(new EpisodeFixture(
+        "history-failed", CANDIDATE, new TopicKey("java-backend", "FAILED"),
+        DepthLevel.L2, true, EpisodeEnrichmentStatus.FAILED
+    ));
+    saveEpisode(new EpisodeFixture(
+        "history-legacy", CANDIDATE, new TopicKey("java-backend", "LEGACY"),
+        DepthLevel.L4, true, EpisodeEnrichmentStatus.LEGACY_UNENRICHED
+    ));
+
+    List<EpisodePromptFact> facts = source.findCompletedHistory(
+        "status-current",
+        REDIS.skillId()
+    ).stream().map(EpisodePromptCandidate::fact).toList();
+
+    assertThat(facts).extracting(EpisodePromptFact::focusId)
+        .containsExactlyInAnyOrder("PENDING", "FAILED", "LEGACY");
+    assertThat(facts).extracting(EpisodePromptFact::depthLevel)
+        .containsExactlyInAnyOrder(DepthLevel.L1, DepthLevel.L2, DepthLevel.L4);
+    assertThat(facts).allSatisfy(fact -> {
+      assertThat(fact.errorTags()).isEmpty();
+      assertThat(fact.answerHabitTags()).isEmpty();
+    });
+  }
+
+  @Test
   @DisplayName("相同 candidateId 在租户与非租户之间严格隔离")
   void shouldIsolateTenantOwner() {
     saveSession("tenant-current", TENANT_CANDIDATE, AdaptiveSessionStatus.IN_PROGRESS);
     saveEpisode(new EpisodeFixture(
-        "candidate-history", CANDIDATE, REDIS, DepthLevel.L1, true, true
+        "candidate-history", CANDIDATE, REDIS, DepthLevel.L1, true,
+        EpisodeEnrichmentStatus.COMPLETED
     ));
     saveEpisode(new EpisodeFixture(
-        "tenant-history", TENANT_CANDIDATE, REDIS, DepthLevel.L4, true, true
+        "tenant-history", TENANT_CANDIDATE, REDIS, DepthLevel.L4, true,
+        EpisodeEnrichmentStatus.COMPLETED
     ));
 
     assertThat(source.findCompletedHistory("tenant-current", REDIS.skillId()))
@@ -151,13 +191,33 @@ class EpisodePromptFactRepositoryTest {
         ),
         assessment
     );
-    if (fixture.completedEnrichment()) {
-      episode.claimEnrichment();
-      episode.completeEnrichment("不进入 Prompt 的摘要");
-    }
+    applyEnrichmentStatus(episode, fixture.enrichmentStatus());
     episodeRepository.saveAndFlush(episode);
-    if (fixture.completedEnrichment()) {
+    if (fixture.enrichmentStatus() == EpisodeEnrichmentStatus.COMPLETED) {
       saveTags(episode, assessment.id());
+    }
+  }
+
+  private void applyEnrichmentStatus(
+      EpisodeFactEntity episode,
+      EpisodeEnrichmentStatus status
+  ) {
+    switch (status) {
+      case PENDING -> { }
+      case PROCESSING -> episode.claimEnrichment();
+      case COMPLETED -> {
+        episode.claimEnrichment();
+        episode.completeEnrichment("不进入 Prompt 的摘要");
+      }
+      case FAILED -> {
+        episode.claimEnrichment();
+        episode.failEnrichment("测试 enrichment 失败");
+      }
+      case LEGACY_UNENRICHED -> ReflectionTestUtils.setField(
+          episode,
+          "enrichmentStatus",
+          status
+      );
     }
   }
 
@@ -224,6 +284,6 @@ class EpisodePromptFactRepositoryTest {
       TopicKey topic,
       DepthLevel depth,
       boolean completedSession,
-      boolean completedEnrichment
+      EpisodeEnrichmentStatus enrichmentStatus
   ) {}
 }

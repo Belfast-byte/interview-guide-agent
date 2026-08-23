@@ -53,7 +53,6 @@ public interface EpisodeFactRepository extends JpaRepository<EpisodeFactEntity, 
       WHERE current.id = :currentSessionId
         AND history.id = e.sessionId
         AND history.status = interview.guide.modules.interview.agent.adaptive.core.session.AdaptiveSessionStatus.COMPLETED
-        AND e.enrichmentStatus = interview.guide.modules.interview.agent.adaptive.memory.episode.EpisodeEnrichmentStatus.COMPLETED
         AND e.sessionId <> :currentSessionId
         AND e.skillId = :skillId
         AND history.candidateId = current.candidateId
