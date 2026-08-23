@@ -35,6 +35,7 @@ import interview.guide.modules.interview.agent.adaptive.role.AgentRoleRegistry;
 import interview.guide.modules.interview.agent.adaptive.runtime.BoundedReActRuntime;
 import interview.guide.modules.interview.agent.adaptive.runtime.DeadlineExecutor;
 import interview.guide.modules.interview.skill.InterviewSkillService;
+import interview.guide.modules.llmprovider.service.CandidateLlmProviderService;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.atomic.AtomicInteger;
@@ -45,6 +46,8 @@ import org.springframework.boot.data.jpa.test.autoconfigure.DataJpaTest;
 import org.springframework.context.annotation.Import;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.mock;
 
 @DataJpaTest(properties = {
@@ -93,7 +96,9 @@ class AdaptiveInterviewFlowIntegrationTest {
         mock(AlgorithmInterviewTelemetry.class),
         mock(CodeAnalysisInterviewContextService.class),
         mock(InterviewSkillService.class),
-        task -> task.run()
+        mock(CandidateLlmProviderService.class),
+        task -> task.run(),
+        syncAnswerExecutor()
     );
 
     PlannedInterview created = service.create("candidate-1", "JD", "Resume", null);
@@ -168,7 +173,9 @@ class AdaptiveInterviewFlowIntegrationTest {
         mock(AlgorithmInterviewTelemetry.class),
         mock(CodeAnalysisInterviewContextService.class),
         mock(InterviewSkillService.class),
-        task -> task.run()
+        mock(CandidateLlmProviderService.class),
+        task -> task.run(),
+        syncAnswerExecutor()
     );
 
     PlannedInterview interview = service.create("candidate-1", "JD", "Resume", null);
@@ -197,7 +204,8 @@ class AdaptiveInterviewFlowIntegrationTest {
         "维度-2"
     );
     assertThat(visibleHistorySizes).containsExactly(0, 1, 0, 1, 0, 1);
-    assertThat(visibleBriefCounts).containsExactly(0, 0, 1, 1, 2, 2);
+    // 非末轮维度记忆异步生成：小结落库晚于当轮决策，从下一轮决策起可见
+    assertThat(visibleBriefCounts).containsExactly(0, 0, 0, 1, 1, 2);
     assertThat(interview.dimensionBriefs()).hasSize(3);
     assertThat(interview.dimensionBriefs())
         .flatExtracting(brief -> brief.turnIndexes())
@@ -282,8 +290,20 @@ class AdaptiveInterviewFlowIntegrationTest {
         mock(AlgorithmInterviewTelemetry.class),
         mock(CodeAnalysisInterviewContextService.class),
         mock(InterviewSkillService.class),
-        creationExecutor
+        mock(CandidateLlmProviderService.class),
+        creationExecutor,
+        syncAnswerExecutor()
     );
+  }
+
+  /** 测试用答题执行器：异步任务同步执行，保持事实链断言时序确定。 */
+  private AdaptiveInterviewAnswerExecutor syncAnswerExecutor() {
+    AdaptiveInterviewAnswerExecutor executor = mock(AdaptiveInterviewAnswerExecutor.class);
+    doAnswer(invocation -> {
+      invocation.<Runnable>getArgument(0).run();
+      return null;
+    }).when(executor).execute(any(Runnable.class));
+    return executor;
   }
 
   private PlanProposal proposal(int dimensionCount) {

@@ -1,0 +1,545 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>技术面试 · 后端工程师</title>
+<style>
+  :root {
+    --paper: #f6f7f9;
+    --panel: #ffffff;
+    --ink: #1a2233;
+    --ink-2: #4a5568;
+    --ink-3: #8a94a6;
+    --line: #e3e6ec;
+    --line-strong: #c9cfda;
+    --accent: #1d4ed8;
+    --accent-soft: #eef3ff;
+    --ok: #0f7b5c;
+    --warn: #b45309;
+    --mono: "SF Mono", "JetBrains Mono", Consolas, "Courier New", monospace;
+  }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  html { font-size: 15px; }
+  body {
+    font-family: -apple-system, "PingFang SC", "Microsoft YaHei", "Noto Sans SC", sans-serif;
+    background: var(--paper);
+    color: var(--ink);
+    -webkit-font-smoothing: antialiased;
+  }
+
+  /* ---------- 顶栏 ---------- */
+  .topbar {
+    background: var(--panel);
+    border-bottom: 1px solid var(--line-strong);
+    padding: 0 28px;
+    height: 60px;
+    display: flex;
+    align-items: center;
+    gap: 24px;
+    position: sticky;
+    top: 0;
+    z-index: 10;
+  }
+  .brand {
+    font-weight: 700;
+    font-size: 15px;
+    letter-spacing: 0.02em;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  }
+  .brand::before {
+    content: "";
+    width: 9px; height: 9px;
+    background: var(--accent);
+    display: inline-block;
+  }
+  .topbar .divider { width: 1px; height: 22px; background: var(--line-strong); }
+  .meta {
+    font-family: var(--mono);
+    font-size: 12px;
+    color: var(--ink-2);
+    display: flex;
+    gap: 18px;
+  }
+  .meta b { color: var(--ink); font-weight: 600; }
+  .topbar-right { margin-left: auto; display: flex; align-items: center; gap: 16px; }
+  .status-chip {
+    font-family: var(--mono);
+    font-size: 11.5px;
+    letter-spacing: 0.06em;
+    padding: 4px 10px;
+    border: 1px solid var(--ok);
+    color: var(--ok);
+    display: flex;
+    align-items: center;
+    gap: 7px;
+  }
+  .status-chip .dot {
+    width: 6px; height: 6px; border-radius: 50%;
+    background: var(--ok);
+    animation: pulse 2s infinite;
+  }
+  @keyframes pulse { 0%,100% { opacity: 1; } 50% { opacity: 0.35; } }
+  .timer { font-family: var(--mono); font-size: 14px; font-weight: 600; }
+
+  /* ---------- 布局 ---------- */
+  .layout {
+    display: grid;
+    grid-template-columns: 264px 1fr;
+    max-width: 1280px;
+    margin: 0 auto;
+    min-height: calc(100vh - 60px);
+  }
+
+  /* ---------- 左侧:考察计划 ---------- */
+  .sidebar {
+    border-right: 1px solid var(--line);
+    padding: 24px 0;
+    background: var(--panel);
+  }
+  .side-title {
+    font-family: var(--mono);
+    font-size: 11px;
+    letter-spacing: 0.12em;
+    color: var(--ink-3);
+    padding: 0 24px;
+    margin-bottom: 14px;
+  }
+  .dim {
+    padding: 13px 24px;
+    border-left: 2px solid transparent;
+    cursor: default;
+  }
+  .dim .dim-name { font-size: 14px; font-weight: 600; display: flex; justify-content: space-between; align-items: baseline; }
+  .dim .dim-turns { font-family: var(--mono); font-size: 11px; color: var(--ink-3); }
+  .dim .dim-state { font-size: 12px; color: var(--ink-3); margin-top: 3px; }
+  .dim.done .dim-name { color: var(--ink-2); }
+  .dim.done .dim-state { color: var(--ok); }
+  .dim.done .dim-state::before { content: "✓ "; font-family: var(--mono); }
+  .dim.active {
+    border-left-color: var(--accent);
+    background: var(--accent-soft);
+  }
+  .dim.active .dim-state { color: var(--accent); }
+  .dim.pending { opacity: 0.55; }
+  .dim .bar {
+    margin-top: 8px;
+    height: 2px;
+    background: var(--line);
+    position: relative;
+  }
+  .dim .bar i {
+    position: absolute; left: 0; top: 0; bottom: 0;
+    background: var(--accent);
+    display: block;
+  }
+  .dim.done .bar i { background: var(--line-strong); }
+
+  .side-foot {
+    margin: 28px 24px 0;
+    padding-top: 16px;
+    border-top: 1px solid var(--line);
+    font-family: var(--mono);
+    font-size: 11px;
+    color: var(--ink-3);
+    line-height: 1.9;
+  }
+
+  /* ---------- 主区域 ---------- */
+  .main { padding: 28px 32px 120px; }
+
+  /* 模式切换(原型演示用) */
+  .proto-switch {
+    margin-bottom: 20px;
+    display: flex;
+    gap: 8px;
+    font-family: var(--mono);
+    font-size: 12px;
+  }
+  .proto-switch button {
+    border: 1px solid var(--line-strong);
+    background: var(--panel);
+    padding: 5px 14px;
+    cursor: pointer;
+    font-family: var(--mono);
+    font-size: 12px;
+    color: var(--ink-2);
+  }
+  .proto-switch button.on { border-color: var(--accent); color: var(--accent); }
+
+  /* 历史轮次 */
+  .turn { margin-bottom: 26px; }
+  .turn-head {
+    font-family: var(--mono);
+    font-size: 11px;
+    letter-spacing: 0.08em;
+    color: var(--ink-3);
+    margin-bottom: 8px;
+    display: flex;
+    gap: 14px;
+  }
+  .qa-card {
+    background: var(--panel);
+    border: 1px solid var(--line);
+  }
+  .qa-q {
+    padding: 16px 20px;
+    font-size: 15px;
+    line-height: 1.75;
+  }
+  .qa-a {
+    border-top: 1px dashed var(--line);
+    padding: 14px 20px;
+    color: var(--ink-2);
+    font-size: 14px;
+    line-height: 1.75;
+  }
+  .qa-a::before {
+    content: "候选人回答";
+    display: block;
+    font-family: var(--mono);
+    font-size: 10.5px;
+    letter-spacing: 0.1em;
+    color: var(--ink-3);
+    margin-bottom: 6px;
+  }
+
+  /* 当前问题 */
+  .current {
+    background: var(--panel);
+    border: 1px solid var(--line-strong);
+    border-top: 2px solid var(--accent);
+  }
+  .current-tag {
+    font-family: var(--mono);
+    font-size: 11px;
+    letter-spacing: 0.1em;
+    color: var(--accent);
+    padding: 14px 22px 0;
+    display: flex;
+    justify-content: space-between;
+  }
+  .current-q {
+    padding: 12px 22px 20px;
+    font-size: 17.5px;
+    line-height: 1.8;
+    font-weight: 600;
+  }
+  .current-q mark {
+    background: none;
+    color: var(--accent);
+    border-bottom: 1px solid var(--accent);
+    padding-bottom: 1px;
+  }
+  .answer-box {
+    border-top: 1px solid var(--line);
+    padding: 16px 22px 18px;
+  }
+  .answer-box label {
+    font-family: var(--mono);
+    font-size: 11px;
+    letter-spacing: 0.1em;
+    color: var(--ink-3);
+    display: block;
+    margin-bottom: 10px;
+  }
+  textarea {
+    width: 100%;
+    min-height: 132px;
+    border: 1px solid var(--line-strong);
+    background: var(--paper);
+    padding: 14px 16px;
+    font-size: 14.5px;
+    line-height: 1.75;
+    font-family: inherit;
+    resize: vertical;
+    outline: none;
+    color: var(--ink);
+  }
+  textarea:focus { border-color: var(--accent); background: #fff; }
+  .answer-foot {
+    display: flex;
+    align-items: center;
+    margin-top: 12px;
+    gap: 16px;
+  }
+  .char-count { font-family: var(--mono); font-size: 11.5px; color: var(--ink-3); }
+  .hint { font-size: 12px; color: var(--ink-3); }
+  .btn {
+    margin-left: auto;
+    background: var(--accent);
+    color: #fff;
+    border: none;
+    font-size: 14px;
+    font-weight: 600;
+    padding: 10px 26px;
+    cursor: pointer;
+    letter-spacing: 0.04em;
+  }
+  .btn:hover { background: #1a43bd; }
+
+  /* ---------- 算法模式 ---------- */
+  .algo { display: none; }
+  .algo-grid {
+    display: grid;
+    grid-template-columns: 1fr 1.2fr;
+    gap: 0;
+    background: var(--panel);
+    border: 1px solid var(--line-strong);
+    border-top: 2px solid var(--accent);
+  }
+  .problem {
+    padding: 20px 24px;
+    border-right: 1px solid var(--line);
+  }
+  .problem h3 { font-size: 16px; margin-bottom: 4px; }
+  .problem .tags { display: flex; gap: 8px; margin: 10px 0 16px; }
+  .tag {
+    font-family: var(--mono);
+    font-size: 11px;
+    padding: 2px 8px;
+    border: 1px solid var(--line-strong);
+    color: var(--ink-2);
+  }
+  .tag.hard { border-color: var(--warn); color: var(--warn); }
+  .problem p { font-size: 13.5px; line-height: 1.8; color: var(--ink-2); margin-bottom: 12px; }
+  .problem pre {
+    background: var(--paper);
+    border: 1px solid var(--line);
+    font-family: var(--mono);
+    font-size: 12.5px;
+    padding: 12px 14px;
+    line-height: 1.7;
+    overflow-x: auto;
+  }
+  .editor-head {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 10px 16px;
+    border-bottom: 1px solid var(--line);
+    font-family: var(--mono);
+    font-size: 12px;
+  }
+  .editor-head select {
+    border: 1px solid var(--line-strong);
+    background: var(--panel);
+    font-family: var(--mono);
+    font-size: 12px;
+    padding: 3px 8px;
+  }
+  .editor-head .spacer { margin-left: auto; }
+  .code-area {
+    width: 100%;
+    min-height: 300px;
+    border: none;
+    background: #fbfcfe;
+    font-family: var(--mono);
+    font-size: 13px;
+    padding: 16px;
+    resize: vertical;
+  }
+  .code-area:focus { background: #fff; }
+  .judge-bar {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    padding: 12px 16px;
+    border-top: 1px solid var(--line);
+  }
+  .judge-result {
+    font-family: var(--mono);
+    font-size: 12px;
+    color: var(--ok);
+  }
+  .btn-ghost {
+    background: var(--panel);
+    color: var(--ink-2);
+    border: 1px solid var(--line-strong);
+    font-size: 13px;
+    padding: 8px 18px;
+    cursor: pointer;
+  }
+
+  /* ---------- 底栏 ---------- */
+  .bottombar {
+    position: fixed;
+    bottom: 0; left: 0; right: 0;
+    background: var(--panel);
+    border-top: 1px solid var(--line-strong);
+    font-family: var(--mono);
+    font-size: 11.5px;
+    color: var(--ink-3);
+    padding: 8px 28px;
+    display: flex;
+    gap: 22px;
+  }
+  .bottombar .ok { color: var(--ok); }
+</style>
+</head>
+<body>
+
+<header class="topbar">
+  <div class="brand">技术面试</div>
+  <div class="divider"></div>
+  <div class="meta">
+    <span>岗位 <b>后端工程师 · Java</b></span>
+    <span>场次 <b>#A-20260816-07</b></span>
+    <span>进度 <b>第 3 / 12 轮</b></span>
+  </div>
+  <div class="topbar-right">
+    <span class="timer">00:14:52</span>
+    <span class="status-chip"><span class="dot"></span>进行中</span>
+  </div>
+</header>
+
+<div class="layout">
+  <!-- 左侧:考察计划 -->
+  <aside class="sidebar">
+    <div class="side-title">考察计划 / PLAN</div>
+
+    <div class="dim done">
+      <div class="dim-name">计算机基础 <span class="dim-turns">2/2</span></div>
+      <div class="bar"><i style="width:100%"></i></div>
+      <div class="dim-state">已完成</div>
+    </div>
+    <div class="dim active">
+      <div class="dim-name">缓存与一致性 <span class="dim-turns">1/3</span></div>
+      <div class="bar"><i style="width:33%"></i></div>
+      <div class="dim-state">进行中 · 当前维度</div>
+    </div>
+    <div class="dim pending">
+      <div class="dim-name">项目经历 <span class="dim-turns">0/3</span></div>
+      <div class="bar"><i style="width:0%"></i></div>
+      <div class="dim-state">待开始</div>
+    </div>
+    <div class="dim pending">
+      <div class="dim-name">算法与编码 <span class="dim-turns">0/2</span></div>
+      <div class="bar"><i style="width:0%"></i></div>
+      <div class="dim-state">待开始</div>
+    </div>
+    <div class="dim pending">
+      <div class="dim-name">系统设计 <span class="dim-turns">0/2</span></div>
+      <div class="bar"><i style="width:0%"></i></div>
+      <div class="dim-state">待开始</div>
+    </div>
+
+    <div class="side-foot">
+      面试由系统根据你的回答实时调整<br>
+      请按真实情况作答,可要求澄清
+    </div>
+  </aside>
+
+  <!-- 主区域 -->
+  <main class="main">
+
+    <div class="proto-switch">
+      <span style="color:var(--ink-3);align-self:center">原型预览:</span>
+      <button id="tabText" class="on" onclick="showMode('text')">文本问答</button>
+      <button id="tabAlgo" onclick="showMode('algo')">算法编码</button>
+    </div>
+
+    <!-- ===== 文本问答模式 ===== -->
+    <section id="mode-text">
+
+      <div class="turn">
+        <div class="turn-head"><span>ROUND 01</span><span>缓存与一致性</span></div>
+        <div class="qa-card">
+          <div class="qa-q">你们项目里缓存和数据库的一致性是怎么保证的?说说具体方案。</div>
+          <div class="qa-a">我们主要用延迟双删:先更新数据库,再删缓存,延迟 500ms 后再删一次。重要数据还会加版本号控制并发写。</div>
+        </div>
+      </div>
+
+      <div class="turn">
+        <div class="turn-head"><span>ROUND 02 · 当前</span><span>缓存与一致性 · 追问</span></div>
+        <div class="current">
+          <div class="current-tag"><span>QUESTION</span><span>自适应追问</span></div>
+          <div class="current-q">
+            你提到删除失败会<mark>重试</mark>——重试队列本身的可靠性怎么保证?另外,第一次删除成功之前,读写之间存在一个<mark>不一致窗口</mark>,这个窗口期间读请求会读到什么?
+          </div>
+          <div class="answer-box">
+            <label>YOUR ANSWER / 作答区</label>
+            <textarea placeholder="组织一下思路再作答。可以说方案、代价和你知道的边界;不确定的部分如实说明即可。"></textarea>
+            <div class="answer-foot">
+              <span class="char-count">0 字</span>
+              <span class="hint">提交后面试官会基于你的回答继续追问或进入下一题</span>
+              <button class="btn">提交回答</button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+    </section>
+
+    <!-- ===== 算法编码模式 ===== -->
+    <section id="mode-algo" class="algo" style="display:none">
+      <div class="turn-head" style="margin-bottom:10px"><span>ROUND 04 · 当前</span><span>算法与编码</span></div>
+      <div class="algo-grid">
+        <div class="problem">
+          <h3>两数之和 · 变体</h3>
+          <div class="tags">
+            <span class="tag hard">中等</span>
+            <span class="tag">哈希表</span>
+            <span class="tag">本题由题库选取</span>
+          </div>
+          <p>给定整数数组 <code>nums</code> 和目标值 <code>target</code>,请返回和为目标值的两个下标。数组无序,存在重复元素,要求时间复杂度优于 O(n²)。</p>
+          <pre>输入: nums = [2, 7, 11, 15], target = 9
+输出: [0, 1]
+
+约束: 2 ≤ nums.length ≤ 10⁴
+      -10⁹ ≤ nums[i] ≤ 10⁹</pre>
+        </div>
+        <div>
+          <div class="editor-head">
+            <span>CODE</span>
+            <select><option>Java 21</option><option>Python 3</option><option>Go</option></select>
+            <span class="spacer"></span>
+            <span style="color:var(--ink-3)">提交 2 / 20 次</span>
+          </div>
+          <textarea class="code-area" spellcheck="false">public int[] twoSum(int[] nums, int target) {
+    Map&lt;Integer, Integer&gt; seen = new HashMap&lt;&gt;();
+    for (int i = 0; i &lt; nums.length; i++) {
+        int complement = target - nums[i];
+        if (seen.containsKey(complement)) {
+            return new int[]{seen.get(complement), i};
+        }
+        seen.put(nums[i], i);
+    }
+    return new int[0];
+}</textarea>
+          <div class="judge-bar">
+            <button class="btn-ghost">运行示例</button>
+            <button class="btn" style="margin-left:0">提交判题</button>
+            <span class="judge-result">✓ 上次提交:ACCEPTED · 示例 2/2 通过 · 38ms</span>
+          </div>
+        </div>
+      </div>
+    </section>
+
+  </main>
+</div>
+
+<footer class="bottombar">
+  <span class="ok">● 连接正常</span>
+  <span>回答已自动保存</span>
+  <span>判题队列空闲</span>
+  <span style="margin-left:auto">自适应面试引擎 · adaptive-agent-v1</span>
+</footer>
+
+<script>
+  function showMode(mode) {
+    document.getElementById('mode-text').style.display = mode === 'text' ? '' : 'none';
+    document.getElementById('mode-algo').style.display = mode === 'algo' ? '' : 'none';
+    document.getElementById('tabText').classList.toggle('on', mode === 'text');
+    document.getElementById('tabAlgo').classList.toggle('on', mode === 'algo');
+  }
+  // 字数统计
+  const ta = document.querySelector('.answer-box textarea');
+  const cc = document.querySelector('.char-count');
+  ta.addEventListener('input', () => cc.textContent = ta.value.length + ' 字');
+</script>
+
+</body>
+</html>

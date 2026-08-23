@@ -21,5 +21,6 @@ public record CreateCandidateProviderRequest(
     String embeddingModel,
     @Positive(message = "嵌入维度必须为正整数")
     Integer embeddingDimensions,
-    Double temperature
+    Double temperature,
+    boolean thinkingDisabled
 ) {}

@@ -722,7 +722,16 @@ class AdaptiveInterviewPersistenceServiceTest {
       RespondAction firstAction,
       List<ToolExecution> toolExecutions
   ) {
-    service.createSkeleton(tenantId, sessionId, candidateId, jd, resume, llmProvider);
+    service.createSkeleton(new AdaptiveSessionCreation(
+        tenantId,
+        sessionId,
+        candidateId,
+        jd,
+        resume,
+        llmProvider,
+        null,
+        null
+    ));
     return service.completeCreation(sessionId, plan, firstAction, toolExecutions);
   }
 

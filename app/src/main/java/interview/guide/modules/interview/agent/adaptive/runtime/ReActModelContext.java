@@ -13,4 +13,8 @@ public record ReActModelContext(
   public ReActModelContext {
     observations = List.copyOf(observations);
   }
+
+  public boolean hasAcceptedToolObservation() {
+    return observations.stream().anyMatch(ToolObservation::accepted);
+  }
 }

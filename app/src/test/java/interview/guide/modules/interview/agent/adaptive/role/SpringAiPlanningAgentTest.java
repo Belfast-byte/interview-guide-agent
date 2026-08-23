@@ -26,6 +26,7 @@ import org.mockito.junit.jupiter.MockitoExtension;
 import org.slf4j.Logger;
 import org.springframework.ai.chat.client.ChatClient;
 import org.springframework.ai.converter.BeanOutputConverter;
+import org.springframework.ai.openai.OpenAiChatOptions;
 import org.springframework.core.io.DefaultResourceLoader;
 import tools.jackson.databind.ObjectMapper;
 
@@ -56,6 +57,15 @@ class SpringAiPlanningAgentTest {
   @Mock
   private ChatClient chatClient;
 
+  @Mock
+  private ChatClient.Builder chatClientBuilder;
+
+  @Mock
+  private AdaptiveModelOptionsFactory modelOptionsFactory;
+
+  @Mock
+  private OpenAiChatOptions.Builder modelOptions;
+
   private SpringAiPlanningAgent planningAgent;
 
   @BeforeEach
@@ -68,10 +78,15 @@ class SpringAiPlanningAgentTest {
         inputTokenBudget,
         new DeadlineExecutor(),
         new AdaptiveAgentProperties(),
+        modelOptionsFactory,
         new PromptLoader(new DefaultResourceLoader())
     );
     when(llmProviderRegistry.getPlainChatClient("provider-1"))
         .thenReturn(chatClient);
+    when(chatClient.mutate()).thenReturn(chatClientBuilder);
+    when(modelOptionsFactory.planner()).thenReturn(modelOptions);
+    when(chatClientBuilder.defaultOptions(modelOptions)).thenReturn(chatClientBuilder);
+    when(chatClientBuilder.build()).thenReturn(chatClient);
     when(telemetry.observeTokenUsage(chatClient, "planner", "session-1"))
         .thenReturn(chatClient);
   }
@@ -148,6 +163,7 @@ class SpringAiPlanningAgentTest {
         inputTokenBudget,
         new DeadlineExecutor(),
         properties,
+        modelOptionsFactory,
         new PromptLoader(new DefaultResourceLoader())
     );
 

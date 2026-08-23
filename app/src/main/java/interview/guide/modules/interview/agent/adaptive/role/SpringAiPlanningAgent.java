@@ -36,6 +36,7 @@ public class SpringAiPlanningAgent implements PlanningAgent {
   private final AdaptiveInputTokenBudget inputTokenBudget;
   private final DeadlineExecutor deadlineExecutor;
   private final AdaptiveAgentProperties properties;
+  private final AdaptiveModelOptionsFactory modelOptionsFactory;
   private final PromptTemplate systemPromptTemplate;
   private final PromptTemplate userPromptTemplate;
   private final BeanOutputConverter<PlanProposal> outputConverter;
@@ -48,6 +49,7 @@ public class SpringAiPlanningAgent implements PlanningAgent {
       AdaptiveInputTokenBudget inputTokenBudget,
       DeadlineExecutor deadlineExecutor,
       AdaptiveAgentProperties properties,
+      AdaptiveModelOptionsFactory modelOptionsFactory,
       PromptLoader promptLoader
   ) {
     this.llmProviderRegistry = llmProviderRegistry;
@@ -57,6 +59,7 @@ public class SpringAiPlanningAgent implements PlanningAgent {
     this.inputTokenBudget = inputTokenBudget;
     this.deadlineExecutor = deadlineExecutor;
     this.properties = properties;
+    this.modelOptionsFactory = modelOptionsFactory;
     this.systemPromptTemplate = promptLoader.loadTemplate(properties.getPlannerSystemPromptPath());
     this.userPromptTemplate = promptLoader.loadTemplate(properties.getPlannerUserPromptPath());
     this.outputConverter = new BeanOutputConverter<>(PlanProposal.class);
@@ -74,11 +77,7 @@ public class SpringAiPlanningAgent implements PlanningAgent {
       String userPrompt = userPromptTemplate.render(Map.of("inputJson", inputJson));
       inputTokenBudget.verify("planner", systemPrompt, userPrompt);
       // 规划是无工具的结构化输出：使用 plain client，避免默认工具 advisor 引入隐藏的额外往返
-      ChatClient chatClient = telemetry.observeTokenUsage(
-          llmProviderRegistry.getPlainChatClient(llmProvider),
-          "planner",
-          request.sessionId()
-      );
+      ChatClient chatClient = plannerClient(llmProvider, request.sessionId());
       proposal = deadlineExecutor.invoke(
           () -> structuredOutputInvoker.invoke(
               chatClient,
@@ -106,6 +105,14 @@ public class SpringAiPlanningAgent implements PlanningAgent {
 
     telemetry.modelCallSucceeded("planner", "PLAN", startedNanos);
     return proposal;
+  }
+
+  private ChatClient plannerClient(String llmProvider, String sessionId) {
+    ChatClient boundedClient = llmProviderRegistry.getPlainChatClient(llmProvider)
+        .mutate()
+        .defaultOptions(modelOptionsFactory.planner())
+        .build();
+    return telemetry.observeTokenUsage(boundedClient, "planner", sessionId);
   }
 
   private String serializeInput(PlanningRequest request) {

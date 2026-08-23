@@ -13,6 +13,7 @@ import java.util.List;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.PutMapping;
@@ -63,6 +64,16 @@ public class CandidateLlmProviderController {
       @PathVariable String providerId
   ) {
     return Result.success(providerService.test(principal.candidateId(), providerId));
+  }
+
+  @DeleteMapping("/{providerId}")
+  @RateLimit(dimension = RateLimit.Dimension.GLOBAL, count = 5)
+  public Result<Void> delete(
+      @AuthenticationPrincipal AuthenticatedUser principal,
+      @PathVariable String providerId
+  ) {
+    providerService.delete(principal.candidateId(), providerId);
+    return Result.success();
   }
 
   @PutMapping("/{providerId}/default-chat")

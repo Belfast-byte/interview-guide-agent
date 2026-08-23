@@ -7,6 +7,7 @@ import interview.guide.common.exception.ErrorCode;
 import interview.guide.modules.interview.agent.adaptive.application.AdaptiveAgentProperties;
 import interview.guide.modules.interview.agent.adaptive.observability.AdaptiveAgentTelemetry;
 import interview.guide.modules.interview.agent.adaptive.observability.AdaptiveInputTokenBudget;
+import interview.guide.modules.interview.agent.adaptive.role.AdaptiveModelOptionsFactory;
 import interview.guide.modules.interview.agent.adaptive.runtime.DeadlineExecutor;
 import java.io.IOException;
 import java.util.List;
@@ -21,6 +22,7 @@ import org.mockito.junit.jupiter.MockitoExtension;
 import org.slf4j.Logger;
 import org.springframework.ai.chat.client.ChatClient;
 import org.springframework.ai.converter.BeanOutputConverter;
+import org.springframework.ai.openai.OpenAiChatOptions;
 import org.springframework.core.io.DefaultResourceLoader;
 import tools.jackson.databind.ObjectMapper;
 
@@ -51,6 +53,15 @@ class SpringAiDimensionBriefGeneratorTest {
   @Mock
   private ChatClient chatClient;
 
+  @Mock
+  private ChatClient.Builder chatClientBuilder;
+
+  @Mock
+  private AdaptiveModelOptionsFactory modelOptionsFactory;
+
+  @Mock
+  private OpenAiChatOptions.Builder modelOptions;
+
   private SpringAiDimensionBriefGenerator generator;
 
   @BeforeEach
@@ -63,10 +74,15 @@ class SpringAiDimensionBriefGeneratorTest {
         inputTokenBudget,
         new DeadlineExecutor(),
         new AdaptiveAgentProperties(),
+        modelOptionsFactory,
         new DefaultResourceLoader()
     );
-    when(llmProviderRegistry.getChatClientOrDefault("provider-1"))
+    when(llmProviderRegistry.getPlainChatClient("provider-1"))
         .thenReturn(chatClient);
+    when(chatClient.mutate()).thenReturn(chatClientBuilder);
+    when(modelOptionsFactory.structured()).thenReturn(modelOptions);
+    when(chatClientBuilder.defaultOptions(modelOptions)).thenReturn(chatClientBuilder);
+    when(chatClientBuilder.build()).thenReturn(chatClient);
     when(telemetry.observeTokenUsage(
         chatClient,
         "memory_summarizer",

@@ -10,6 +10,7 @@ public record CandidateProviderResponse(
     Integer embeddingDimensions,
     boolean supportsEmbedding,
     Double temperature,
+    boolean thinkingDisabled,
     boolean defaultChatProvider,
     boolean defaultEmbeddingProvider
 ) {}

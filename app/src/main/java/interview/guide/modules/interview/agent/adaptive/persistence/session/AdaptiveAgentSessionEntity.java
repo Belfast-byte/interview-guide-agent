@@ -78,19 +78,17 @@ public class AdaptiveAgentSessionEntity {
 
   public AdaptiveAgentSessionEntity(
       AdaptiveInterviewSession session,
-      String tenantId,
-      String candidateId,
-      String jd,
-      String resume,
-      String llmProvider
+      AdaptiveSessionCreation creation
   ) {
     this.id = session.id();
     this.runtimeVersion = session.runtimeVersion();
-    this.tenantId = tenantId;
-    this.candidateId = candidateId;
-    this.jd = jd;
-    this.resume = resume;
-    this.llmProvider = llmProvider;
+    this.tenantId = creation.tenantId();
+    this.candidateId = creation.candidateId();
+    this.jd = creation.jd();
+    this.resume = creation.resume();
+    this.llmProvider = creation.llmProviderId();
+    this.llmProviderNameSnapshot = creation.llmProviderNameSnapshot();
+    this.llmModelSnapshot = creation.llmModelSnapshot();
     this.status = session.status();
     this.currentTurn = session.currentTurn();
     this.maxTurns = session.maxTurns();

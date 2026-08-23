@@ -31,6 +31,7 @@ import interview.guide.modules.interview.agent.adaptive.memory.brief.DimensionBr
 import interview.guide.modules.interview.agent.adaptive.observability.AdaptiveAgentTelemetry;
 import interview.guide.modules.interview.agent.adaptive.observability.AlgorithmInterviewTelemetry;
 import interview.guide.modules.interview.agent.adaptive.persistence.session.AdaptiveInterviewPersistenceService;
+import interview.guide.modules.interview.agent.adaptive.persistence.session.AdaptiveSessionCreation;
 import interview.guide.modules.interview.agent.adaptive.planning.InterviewPlan;
 import interview.guide.modules.interview.agent.adaptive.planning.PlanProposal;
 import interview.guide.modules.interview.agent.adaptive.planning.PlannedDimension;
@@ -47,10 +48,14 @@ import interview.guide.modules.interview.agent.adaptive.runtime.ToolExecution;
 import interview.guide.modules.interview.agent.adaptive.runtime.ToolExecutionOutcome;
 import interview.guide.modules.interview.agent.adaptive.tool.SandboxSubmitTool;
 import interview.guide.modules.interview.skill.InterviewSkillService;
+import interview.guide.modules.llmprovider.service.CandidateChatProvider;
+import interview.guide.modules.llmprovider.service.CandidateLlmProviderService;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.RejectedExecutionException;
+import java.util.function.Consumer;
 import java.util.stream.Stream;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -83,7 +88,9 @@ public class AdaptiveInterviewApplicationService {
   private final AlgorithmInterviewTelemetry algorithmTelemetry;
   private final CodeAnalysisInterviewContextService codeAnalysisContextService;
   private final InterviewSkillService skillService;
+  private final CandidateLlmProviderService candidateProviderService;
   private final AdaptiveInterviewCreationTaskRunner creationExecutor;
+  private final AdaptiveInterviewAnswerExecutor answerExecutor;
 
   /**
    * 创建一次非租户维度的自适应面试：落 CREATED 骨架后立即返回，规划与首题在后台生成。
@@ -94,13 +101,60 @@ public class AdaptiveInterviewApplicationService {
    * @param llmProvider 使用的 LLM 供应商
    * @return CREATED 骨架会话
    */
-  public PlannedInterview create(
+  PlannedInterview create(
       String candidateId,
       String jd,
       String resume,
       String llmProvider
   ) {
-    return create(null, candidateId, jd, resume, llmProvider);
+    return create(new InterviewCreationInput(
+        null,
+        candidateId,
+        jd,
+        resume,
+        llmProvider,
+        null,
+        null
+    ));
+  }
+
+  public PlannedInterview createForCandidate(
+      UUID candidateId,
+      String jd,
+      String resume,
+      String requestedProviderId
+  ) {
+    return create(resolveCandidateInput(new CandidateInterviewCreationCommand(
+        candidateId,
+        jd,
+        resume,
+        requestedProviderId
+    )));
+  }
+
+  public PlannedInterview createForCandidateStreaming(
+      CandidateInterviewCreationCommand command,
+      InterviewCreationEventSink sink
+  ) {
+    return createStreaming(resolveCandidateInput(command), sink);
+  }
+
+  private InterviewCreationInput resolveCandidateInput(
+      CandidateInterviewCreationCommand command
+  ) {
+    CandidateChatProvider provider = candidateProviderService.resolveChatProvider(
+        command.candidateId(),
+        command.requestedProviderId()
+    );
+    return new InterviewCreationInput(
+        null,
+        command.candidateId().toString(),
+        command.jd(),
+        command.resume(),
+        provider.id(),
+        provider.displayName(),
+        provider.model()
+    );
   }
 
   /**
@@ -120,34 +174,24 @@ public class AdaptiveInterviewApplicationService {
       String resume,
       String llmProvider
   ) {
-    return create(tenantId, candidateId, jd, resume, llmProvider);
-  }
-
-  private PlannedInterview create(
-      String tenantId,
-      String candidateId,
-      String jd,
-      String resume,
-      String llmProvider
-  ) {
-    String sessionId = UUID.randomUUID().toString();
-    PlannedInterview skeleton = persistenceService.createSkeleton(
+    return create(new InterviewCreationInput(
         tenantId,
-        sessionId,
         candidateId,
         jd,
         resume,
-        llmProvider
+        llmProvider,
+        null,
+        null
+    ));
+  }
+
+  private PlannedInterview create(InterviewCreationInput input) {
+    String sessionId = UUID.randomUUID().toString();
+    PlannedInterview skeleton = persistenceService.createSkeleton(
+        input.toSessionCreation(sessionId)
     );
     try {
-      creationExecutor.submit(() -> {
-        try {
-          generateFirstTurn(tenantId, sessionId, candidateId, jd, resume, llmProvider);
-        } catch (Exception e) {
-          log.error("自适应面试创建失败: sessionId={}", sessionId, e);
-          persistenceService.failCreation(sessionId, readableFailure(e));
-        }
-      });
+      submitCreation(sessionId, input, InterviewCreationEventSink.noop());
     } catch (RejectedExecutionException e) {
       persistenceService.failCreation(sessionId, "创建队列已满，请稍后重试");
       throw new BusinessException(ErrorCode.INTERNAL_ERROR, "自适应面试创建任务提交失败", e);
@@ -155,31 +199,63 @@ public class AdaptiveInterviewApplicationService {
     return skeleton;
   }
 
+  private PlannedInterview createStreaming(
+      InterviewCreationInput input,
+      InterviewCreationEventSink sink
+  ) {
+    String sessionId = UUID.randomUUID().toString();
+    PlannedInterview skeleton = persistenceService.createSkeleton(
+        input.toSessionCreation(sessionId)
+    );
+    sink.onCreated(skeleton);
+    try {
+      submitCreation(sessionId, input, sink);
+    } catch (RejectedExecutionException e) {
+      String message = "创建队列已满，请稍后重试";
+      persistenceService.failCreation(sessionId, message);
+      sink.onFailed(message);
+    }
+    return skeleton;
+  }
+
+  private void submitCreation(
+      String sessionId,
+      InterviewCreationInput input,
+      InterviewCreationEventSink sink
+  ) {
+    creationExecutor.submit(() -> {
+      try {
+        sink.onCompleted(generateFirstTurn(sessionId, input, sink.deltaSink()));
+      } catch (Exception e) {
+        String message = readableFailure(e);
+        log.error("自适应面试创建失败: sessionId={}", sessionId, e);
+        persistenceService.failCreation(sessionId, message);
+        sink.onFailed(message);
+      }
+    });
+  }
+
   /**
    * 创建链路的后半段：规划面试计划并生成首轮决策（LLM 调用全部在事务外）。
-   * 包内可见以便测试同步驱动。
    */
-  void generateFirstTurn(
-      String tenantId,
+  private PlannedInterview generateFirstTurn(
       String sessionId,
-      String candidateId,
-      String jd,
-      String resume,
-      String llmProvider
+      InterviewCreationInput input,
+      Consumer<String> deltaSink
   ) {
     PlanProposal proposal = planningAgent.propose(
         new PlanningRequest(sessionId, contextAssembler.planner(
-            jd,
-            resume,
-            tenantId == null
-                ? candidateMemoryService.coveredTopics(candidateId)
-                : candidateMemoryService.coveredTopics(tenantId, candidateId),
-            tenantId == null
-                ? candidateMemoryService.unverifiedClaims(candidateId)
-                : candidateMemoryService.unverifiedClaims(tenantId, candidateId),
+            input.jd(),
+            input.resume(),
+            input.tenantId() == null
+                ? candidateMemoryService.coveredTopics(input.candidateId())
+                : candidateMemoryService.coveredTopics(input.tenantId(), input.candidateId()),
+            input.tenantId() == null
+                ? candidateMemoryService.unverifiedClaims(input.candidateId())
+                : candidateMemoryService.unverifiedClaims(input.tenantId(), input.candidateId()),
             planningTaxonomy.catalog()
         )),
-        llmProvider
+        input.llmProviderId()
     );
     InterviewPlan plan;
     try {
@@ -190,24 +266,51 @@ public class AdaptiveInterviewApplicationService {
       throw e;
     }
     PlannedDimension firstDimension = plan.dimensionForTurn(1);
-    ReActResult firstDecision = runDecision(request(
-        sessionId,
-        llmProvider,
-        jd,
-        resume,
-        plan.maxTurns(),
-        firstDimension,
-        List.of(),
-        null,
-        List.of(),
-        List.of()
-    ));
-    persistenceService.completeCreation(
+    ReActResult firstDecision = runDecision(
+        request(
+            sessionId,
+            input.llmProviderId(),
+            input.jd(),
+            input.resume(),
+            plan.maxTurns(),
+            firstDimension,
+            List.of(),
+            null,
+            List.of(),
+            List.of()
+        ),
+        deltaSink
+    );
+    return persistenceService.completeCreation(
         sessionId,
         plan,
         firstDecision.response(),
         firstDecision.toolExecutions()
     );
+  }
+
+  private record InterviewCreationInput(
+      String tenantId,
+      String candidateId,
+      String jd,
+      String resume,
+      String llmProviderId,
+      String llmProviderNameSnapshot,
+      String llmModelSnapshot
+  ) {
+
+    AdaptiveSessionCreation toSessionCreation(String sessionId) {
+      return new AdaptiveSessionCreation(
+          tenantId,
+          sessionId,
+          candidateId,
+          jd,
+          resume,
+          llmProviderId,
+          llmProviderNameSnapshot,
+          llmModelSnapshot
+      );
+    }
   }
 
   private String readableFailure(Exception e) {
@@ -225,11 +328,40 @@ public class AdaptiveInterviewApplicationService {
    * @return 推进后的面试状态
    */
   public PlannedInterview submitAnswer(String sessionId, CandidateAnswer answer) {
+    return submitAnswer(sessionId, answer, AnswerEventSink.noop());
+  }
+
+  /**
+   * 流式提交候选人回答：业务顺序与同步路径完全一致，
+   * 仅多了阶段切换与决策增量文本事件；末轮决策是代码 FINISH，无增量内容。
+   *
+   * @param candidateId 候选人 ID
+   * @param sessionId 会话 ID
+   * @param answer 候选人回答
+   * @param sink 事件回调
+   * @return 推进后的面试状态
+   */
+  public PlannedInterview submitAnswerStreaming(
+      String candidateId,
+      String sessionId,
+      CandidateAnswer answer,
+      AnswerEventSink sink
+  ) {
+    persistenceService.requireCandidateSession(candidateId, sessionId);
+    return submitAnswer(sessionId, answer, sink);
+  }
+
+  private PlannedInterview submitAnswer(
+      String sessionId,
+      CandidateAnswer answer,
+      AnswerEventSink sink
+  ) {
     PlannedInterview interview = persistenceService.get(sessionId);
     AdaptiveInterviewHistory history = interview.history();
     history.session().assertCanAnswer(answer);
     PlannedDimension currentDimension = interview.plan().dimensionForTurn(answer.turnIndex());
     algorithmTelemetry.interviewTurnSubmitted(sessionId);
+    sink.onStage(AnswerEventSink.AnswerStage.ASSESSING);
     AssessmentDecision assessment = assessmentAgent.assess(
         new AssessmentRequest(
             sessionId,
@@ -270,26 +402,36 @@ public class AdaptiveInterviewApplicationService {
     List<ProbeGap> nextProbeGaps = dimensionCompleted
         ? List.of()
         : assessment.probeGaps();
-    DimensionBrief dimensionBrief = dimensionCompleted
-        ? dimensionBriefService.summarize(
-            sessionId,
-            currentDimension,
-            history.turns(),
-            answer,
-            history.llmProvider()
-        )
-        : null;
-    List<CandidateClaim> candidateClaims = dimensionCompleted
-        ? candidateClaimExtractionService.extract(
-            sessionId,
-            currentDimension,
-            history.turns(),
-            answer,
-            planningTaxonomy.catalog(),
-            history.llmProvider()
-        )
-        : List.of();
     boolean lastTurn = interview.plan().isLastTurn(answer.turnIndex());
+    DimensionBrief dimensionBrief = null;
+    List<CandidateClaim> candidateClaims = List.of();
+    if (dimensionCompleted && lastTurn) {
+      // 末轮保持同步生成：维度小结与候选人声明是报告输入，必须随面试完成落库
+      dimensionBrief = dimensionBriefService.summarize(
+          sessionId,
+          currentDimension,
+          history.turns(),
+          answer,
+          history.llmProvider()
+      );
+      candidateClaims = candidateClaimExtractionService.extract(
+          sessionId,
+          currentDimension,
+          history.turns(),
+          answer,
+          planningTaxonomy.catalog(),
+          history.llmProvider()
+      );
+    } else if (dimensionCompleted) {
+      // 非末轮：维度记忆异步生成，不阻塞出题；新小结从下一轮决策起可见
+      answerExecutor.execute(() -> generateDimensionMemorySafely(
+          sessionId,
+          currentDimension,
+          history.turns(),
+          answer,
+          history.llmProvider()
+      ));
+    }
     List<PracticeRecommendation> practiceRecommendations = lastTurn
         ? practiceRecommendationService.recommend(
             sessionId,
@@ -307,18 +449,22 @@ public class AdaptiveInterviewApplicationService {
       PlannedDimension nextDimension = lastTurn
           ? currentDimension
           : planForNextTurn.dimensionForTurn(answer.turnIndex() + 1);
-      decision = runDecision(request(
-          sessionId,
-          history.llmProvider(),
-          history.jd(),
-          history.resume(),
-          history.session().maxTurns(),
-          nextDimension,
-          history.turns(),
-          answer,
-          briefsForNextDecision(interview.dimensionBriefs(), dimensionBrief),
-          nextProbeGaps
-      ));
+      sink.onStage(AnswerEventSink.AnswerStage.GENERATING);
+      decision = runDecision(
+          request(
+              sessionId,
+              history.llmProvider(),
+              history.jd(),
+              history.resume(),
+              history.session().maxTurns(),
+              nextDimension,
+              history.turns(),
+              answer,
+              briefsForNextDecision(interview.dimensionBriefs(), dimensionBrief),
+              nextProbeGaps
+          ),
+          sink.deltaSink()
+      );
     }
     if (answer.codeSubmission() != null) {
       List<ToolExecution> sandboxSubmissions = decision.toolExecutions().stream()
@@ -453,7 +599,7 @@ public class AdaptiveInterviewApplicationService {
               dimension.order(),
               dimension.dimension(),
               dimension.focus(),
-              dimension.suggestedTools(),
+              allowedSuggestedTools(dimension),
               dimension.suggestedSkill(),
               interview.history().turns(),
               event,
@@ -578,7 +724,7 @@ public class AdaptiveInterviewApplicationService {
             dimension.order(),
             dimension.dimension(),
             dimension.focus(),
-            dimension.suggestedTools(),
+            allowedSuggestedTools(dimension),
             dimension.suggestedSkill(),
             turns,
             candidateAnswer,
@@ -593,6 +739,16 @@ public class AdaptiveInterviewApplicationService {
     return dimension.completedTurns() + 1 == dimension.allocatedTurns();
   }
 
+  /**
+   * 计划中的建议工具只是模型提案，按角色白名单裁决后再下发给面试官上下文，
+   * 避免模型被引导去调用未注册的工具。
+   */
+  private List<String> allowedSuggestedTools(PlannedDimension dimension) {
+    return dimension.suggestedTools().stream()
+        .filter(roleRegistry.get(AgentRole.INTERVIEWER).allowedTools()::contains)
+        .toList();
+  }
+
   private List<DimensionBrief> briefsForNextDecision(
       List<DimensionBrief> persistedBriefs,
       DimensionBrief newBrief
@@ -605,12 +761,17 @@ public class AdaptiveInterviewApplicationService {
   }
 
   private ReActResult runDecision(ReActRequest request) {
+    return runDecision(request, null);
+  }
+
+  private ReActResult runDecision(ReActRequest request, Consumer<String> deltaSink) {
     long startedNanos = System.nanoTime();
     int inputTurn = request.inputTurnIndex();
     try {
-      ReActResult result = runtime.run(
+      ReActResult result = runtime.runStreaming(
           request,
-          roleRegistry.get(request.role()).budget()
+          roleRegistry.get(request.role()).budget(),
+          deltaSink
       );
       telemetry.decisionSucceeded(result.response().type(), startedNanos);
       return result;
@@ -622,6 +783,44 @@ public class AdaptiveInterviewApplicationService {
           startedNanos
       );
       throw e;
+    }
+  }
+
+  /**
+   * 维度记忆（小结 + 声明）异步生成：两个 LLM 调用并行，失败只记日志，
+   * 不影响面试主流程；落库晚于当轮决策，从下一轮决策起可见。
+   */
+  private void generateDimensionMemorySafely(
+      String sessionId,
+      PlannedDimension dimension,
+      List<AdaptiveInterviewTurn> turns,
+      CandidateAnswer answer,
+      String llmProvider
+  ) {
+    try {
+      CompletableFuture<DimensionBrief> briefFuture = CompletableFuture.supplyAsync(
+          () -> dimensionBriefService.summarize(sessionId, dimension, turns, answer, llmProvider),
+          answerExecutor
+      );
+      CompletableFuture<List<CandidateClaim>> claimsFuture = CompletableFuture.supplyAsync(
+          () -> candidateClaimExtractionService.extract(
+              sessionId,
+              dimension,
+              turns,
+              answer,
+              planningTaxonomy.catalog(),
+              llmProvider
+          ),
+          answerExecutor
+      );
+      persistenceService.saveDimensionMemory(sessionId, briefFuture.join(), claimsFuture.join());
+    } catch (Exception e) {
+      log.warn(
+          "维度记忆异步生成失败，不影响面试主流程: sessionId={}, dimension={}, error={}",
+          sessionId,
+          dimension.dimension(),
+          e.getMessage()
+      );
     }
   }
 }

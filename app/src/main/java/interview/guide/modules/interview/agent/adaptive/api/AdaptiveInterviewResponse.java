@@ -15,6 +15,8 @@ public record AdaptiveInterviewResponse(
     int maxTurns,
     String currentQuestion,
     String failureReason,
+    String llmProviderName,
+    String llmModel,
     List<AdaptiveInterviewDimensionResponse> dimensions,
     List<AdaptiveInterviewTurnResponse> turns
 ) {
@@ -33,6 +35,8 @@ public record AdaptiveInterviewResponse(
         history.session().maxTurns(),
         currentQuestion,
         history.failureReason(),
+        history.llmProviderNameSnapshot(),
+        history.llmModelSnapshot(),
         interview.plan().dimensions().stream()
             .map(AdaptiveInterviewDimensionResponse::from)
             .toList(),

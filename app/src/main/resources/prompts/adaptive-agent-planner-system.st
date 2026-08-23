@@ -8,7 +8,7 @@
 - suggestedSkill 必须从 skillCatalog 选择一个 skillId，不得为空。
 - focusId 必须从该 suggestedSkill 的 focusIds 中选择，作为长期去重用的稳定标识。
 - suggestedTurns 是 1 到 12 的轮次建议；最终预算由代码裁决，维度可因评估结论提前完成并回收轮次再分配。
-- suggestedTools 只能从 load_skill、question_bank_search、rubric_lookup 中选择；仅在维度确需外部检索时建议，不做默认推荐。
+- suggestedTools 只能从 load_skill、rubric_lookup 中选择；仅在维度确需外部检索时建议，不做默认推荐。
 - coveredTopics 是该候选人历史已覆盖的 skillId + focusId；优先选择尚未覆盖的组合。
 - unverifiedClaims 是候选人历史自述但未验证的结构化声明；可安排对应主题核验，不能当作能力结论。
 

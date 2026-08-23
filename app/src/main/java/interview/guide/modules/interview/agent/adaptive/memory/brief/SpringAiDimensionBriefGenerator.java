@@ -6,6 +6,7 @@ import interview.guide.modules.interview.agent.adaptive.application.AdaptiveAgen
 import interview.guide.modules.interview.agent.adaptive.memory.AbstractSpringAiMemoryGenerator;
 import interview.guide.modules.interview.agent.adaptive.observability.AdaptiveAgentTelemetry;
 import interview.guide.modules.interview.agent.adaptive.observability.AdaptiveInputTokenBudget;
+import interview.guide.modules.interview.agent.adaptive.role.AdaptiveModelOptionsFactory;
 import interview.guide.modules.interview.agent.adaptive.runtime.DeadlineExecutor;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
@@ -36,6 +37,7 @@ public class SpringAiDimensionBriefGenerator
       AdaptiveInputTokenBudget inputTokenBudget,
       DeadlineExecutor deadlineExecutor,
       AdaptiveAgentProperties properties,
+      AdaptiveModelOptionsFactory modelOptionsFactory,
       ResourceLoader resourceLoader
   ) throws IOException {
     super(
@@ -44,7 +46,8 @@ public class SpringAiDimensionBriefGenerator
         objectMapper,
         telemetry,
         inputTokenBudget,
-        deadlineExecutor
+        deadlineExecutor,
+        modelOptionsFactory
     );
     this.properties = properties;
     this.systemPromptTemplate = new PromptTemplate(

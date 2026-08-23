@@ -65,6 +65,9 @@ public class LlmProviderRegistry {
         "baidu", "Embedding-V1",
         "minimax", "embo-01"
     );
+    private static final Map<String, Object> THINKING_DISABLED_BODY = Map.of(
+        "thinking", Map.of("type", "disabled")
+    );
 
     @Autowired
     public LlmProviderRegistry(
@@ -221,10 +224,13 @@ public class LlmProviderRegistry {
 
         OpenAIClient openAiClient = ApiPathResolver.buildOpenAiClient(config.baseUrl(), config.apiKey());
 
-        OpenAiChatOptions options = OpenAiChatOptions.builder()
-                .model(config.model())
-                .temperature(config.temperature() != null ? config.temperature() : 0.2)
-                .build();
+        OpenAiChatOptions.Builder optionsBuilder = OpenAiChatOptions.builder()
+            .model(config.model())
+            .temperature(config.temperature() != null ? config.temperature() : 0.2);
+        if (config.thinkingDisabled()) {
+            optionsBuilder.extraBody(THINKING_DISABLED_BODY);
+        }
+        OpenAiChatOptions options = optionsBuilder.build();
 
         return OpenAiChatModel.builder()
             .openAiClient(openAiClient)
@@ -367,7 +373,8 @@ public class LlmProviderRegistry {
             entity.getEmbeddingModel(),
             entity.getEmbeddingDimensions(),
             entity.isSupportsEmbedding(),
-            entity.getTemperature()
+            entity.getTemperature(),
+            entity.isThinkingDisabled()
         );
     }
 
@@ -387,7 +394,8 @@ public class LlmProviderRegistry {
             config.getEmbeddingModel(),
             config.getEmbeddingDimensions(),
             supportsEmbedding,
-            config.getTemperature()
+            config.getTemperature(),
+            config.isThinkingDisabled()
         );
     }
 
@@ -423,7 +431,8 @@ public class LlmProviderRegistry {
         String embeddingModel,
         Integer embeddingDimensions,
         boolean supportsEmbedding,
-        Double temperature
+        Double temperature,
+        boolean thinkingDisabled
     ) {
     }
 }

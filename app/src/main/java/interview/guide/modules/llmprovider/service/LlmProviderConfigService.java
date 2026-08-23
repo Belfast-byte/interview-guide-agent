@@ -796,6 +796,9 @@ public class LlmProviderConfigService {
       if (config.getTemperature() != null) {
         values.put("temperature", config.getTemperature());
       }
+      if (config.isThinkingDisabled()) {
+        values.put("thinking-disabled", true);
+      }
       editor.setBlock(new String[]{"app", "ai", "providers"}, id, values);
     });
   }

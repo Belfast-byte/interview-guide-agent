@@ -8,9 +8,11 @@ import interview.guide.modules.interview.agent.adaptive.core.action.RespondActio
 import interview.guide.modules.interview.agent.adaptive.core.action.ToolCallAction;
 import interview.guide.modules.interview.agent.adaptive.role.AgentRole;
 import java.time.Duration;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.function.Consumer;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
@@ -243,6 +245,82 @@ class BoundedReActRuntimeTest {
           new ReActBudget(2, 1, Duration.ofMillis(30))
       )).isInstanceOf(BusinessException.class)
           .hasMessageContaining("超时");
+    }
+
+    @Test
+    @DisplayName("流式运行时在工具调用后的最终回复步骤继续推送增量")
+    void shouldStreamFinalResponseAfterToolCall() {
+      AtomicInteger streamingCalls = new AtomicInteger();
+      AtomicInteger plainCalls = new AtomicInteger();
+      List<String> streamedDeltas = new ArrayList<>();
+      AgentModelGateway model = new AgentModelGateway() {
+        @Override
+        public AgentAction nextAction(ReActModelContext context) {
+          plainCalls.incrementAndGet();
+          return RespondAction.ask("Redis 失效策略有哪些取舍？", "工具已返回审核题");
+        }
+
+        @Override
+        public AgentAction nextActionStreaming(
+            ReActModelContext context,
+            Consumer<String> deltaSink
+        ) {
+          if (streamingCalls.getAndIncrement() == 0) {
+            return toolCall("question_bank_search", "redis");
+          }
+          deltaSink.accept("Redis 失效策略");
+          deltaSink.accept("有哪些取舍？");
+          return RespondAction.ask("Redis 失效策略有哪些取舍？", "工具已返回审核题");
+        }
+      };
+      BoundedReActRuntime runtime = new BoundedReActRuntime(
+          model,
+          (request, action) -> execution(action),
+          new DeadlineExecutor()
+      );
+
+      ReActResult result = runtime.runStreaming(request(), budget(3, 1), streamedDeltas::add);
+
+      assertThat(streamingCalls).hasValue(2);
+      assertThat(plainCalls).hasValue(0);
+      assertThat(streamedDeltas).containsExactly("Redis 失效策略", "有哪些取舍？");
+      assertThat(result.response().content()).isEqualTo("Redis 失效策略有哪些取舍？");
+      assertThat(result.toolExecutions()).hasSize(1);
+    }
+
+    @Test
+    @DisplayName("deltaSink 为 null 时所有步骤都走非流式决策")
+    void shouldNeverStreamWhenDeltaSinkIsNull() {
+      AtomicInteger streamingCalls = new AtomicInteger();
+      AtomicInteger plainCalls = new AtomicInteger();
+      AgentModelGateway model = new AgentModelGateway() {
+        @Override
+        public AgentAction nextAction(ReActModelContext context) {
+          return plainCalls.incrementAndGet() == 1
+              ? toolCall("question_bank_search", "redis")
+              : RespondAction.ask("下一题？", "继续验证");
+        }
+
+        @Override
+        public AgentAction nextActionStreaming(
+            ReActModelContext context,
+            Consumer<String> deltaSink
+        ) {
+          streamingCalls.incrementAndGet();
+          return nextAction(context);
+        }
+      };
+      BoundedReActRuntime runtime = new BoundedReActRuntime(
+          model,
+          (request, action) -> execution(action),
+          new DeadlineExecutor()
+      );
+
+      ReActResult result = runtime.runStreaming(request(), budget(3, 1), null);
+
+      assertThat(streamingCalls).hasValue(0);
+      assertThat(plainCalls).hasValue(2);
+      assertThat(result.response().content()).isEqualTo("下一题？");
     }
   }
 

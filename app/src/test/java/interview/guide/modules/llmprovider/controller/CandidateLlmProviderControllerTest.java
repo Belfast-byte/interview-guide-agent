@@ -40,6 +40,7 @@ class CandidateLlmProviderControllerTest {
         false,
         0.2,
         true,
+        true,
         false
     );
     when(providerService.list(candidateId)).thenReturn(List.of(provider));

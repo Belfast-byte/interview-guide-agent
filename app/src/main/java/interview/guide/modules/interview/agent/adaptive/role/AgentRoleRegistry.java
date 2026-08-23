@@ -27,7 +27,9 @@ public class AgentRoleRegistry {
             properties.getMaxToolCalls(),
             properties.getDeadline()
         ),
-        Set.of("load_skill", "question_bank_search", "rubric_lookup", "sandbox_submit")
+        // question_bank_search 暂时下线：embedding 依赖未就绪，题库索引为空，
+        // 面试官先全部现场出题；恢复时把 "question_bank_search" 加回白名单并还原 prompt。
+        Set.of("load_skill", "rubric_lookup", "sandbox_submit")
     );
   }
 

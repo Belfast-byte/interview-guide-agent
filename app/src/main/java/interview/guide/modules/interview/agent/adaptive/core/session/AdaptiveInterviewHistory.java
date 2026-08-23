@@ -11,6 +11,8 @@ public record AdaptiveInterviewHistory(
     String jd,
     String resume,
     String llmProvider,
+    String llmProviderNameSnapshot,
+    String llmModelSnapshot,
     List<AdaptiveInterviewTurn> turns,
     String failureReason
 ) {
@@ -27,6 +29,28 @@ public record AdaptiveInterviewHistory(
       String llmProvider,
       List<AdaptiveInterviewTurn> turns
   ) {
-    this(session, candidateId, jd, resume, llmProvider, turns, null);
+    this(session, candidateId, jd, resume, llmProvider, null, null, turns, null);
+  }
+
+  public AdaptiveInterviewHistory(
+      AdaptiveInterviewSession session,
+      String candidateId,
+      String jd,
+      String resume,
+      String llmProvider,
+      List<AdaptiveInterviewTurn> turns,
+      String failureReason
+  ) {
+    this(
+        session,
+        candidateId,
+        jd,
+        resume,
+        llmProvider,
+        null,
+        null,
+        turns,
+        failureReason
+    );
   }
 }

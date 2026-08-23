@@ -6,4 +6,6 @@ export const ROUTES = {
   knowledgebaseUpload: '/knowledgebase/upload',
   adaptiveInterview: '/adaptive-interview',
   adaptiveInterviewSession: (sessionId: string) => `/adaptive-interview/${sessionId}`,
+  providers: '/providers',
+  interviewHistory: '/interview-history',
 } as const;

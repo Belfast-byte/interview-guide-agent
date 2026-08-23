@@ -21,6 +21,10 @@ public class AdaptiveAgentProperties {
   private Duration claimDeadline = Duration.ofSeconds(20);
   private Duration assessmentDeadline = Duration.ofSeconds(20);
   private int maxInputTokens = 12_000;
+  private int plannerMaxOutputTokens = 2_048;
+  private int interviewerMaxOutputTokens = 1_024;
+  private int structuredMaxOutputTokens = 2_048;
+  private String reasoningEffort = "low";
   private String systemPromptPath =
       "classpath:prompts/adaptive-agent-interviewer-system.st";
   private String userPromptPath =

@@ -29,7 +29,7 @@ class ToolGatewayTest {
   @DisplayName("角色白名单在工具执行前拒绝越权调用")
   void shouldRejectUnauthorizedRoleBeforeExecution() {
     AtomicInteger executions = new AtomicInteger();
-    ToolGateway gateway = gateway(new StubTool("question_bank_search", executions, "ok"), 100);
+    ToolGateway gateway = gateway(new StubTool("rubric_lookup", executions, "ok"), 100);
 
     assertThatThrownBy(() -> gateway.execute(
         request(AgentRole.PLANNER),
@@ -43,7 +43,7 @@ class ToolGatewayTest {
   @DisplayName("相同会话轮次工具和参数生成相同幂等键")
   void shouldCreateStableInvocationId() {
     ToolGateway gateway = gateway(
-        new StubTool("question_bank_search", new AtomicInteger(), "ok"),
+        new StubTool("rubric_lookup", new AtomicInteger(), "ok"),
         100
     );
 
@@ -64,7 +64,7 @@ class ToolGatewayTest {
   @DisplayName("工具结果超过配置上限时截断并追加标注而非失败")
   void shouldTruncateOversizedResult() {
     ToolGateway gateway = gateway(
-        new StubTool("question_bank_search", new AtomicInteger(), "x".repeat(100)),
+        new StubTool("rubric_lookup", new AtomicInteger(), "x".repeat(100)),
         20
     );
 
@@ -84,7 +84,7 @@ class ToolGatewayTest {
 
     ToolExecution execution = gateway.execute(
         request(AgentRole.INTERVIEWER),
-        new ToolCallAction("question_bank_search", Map.of(), "异步提交")
+        new ToolCallAction("rubric_lookup", Map.of(), "异步提交")
     );
 
     assertThat(execution.resultId()).isEqualTo("submission-1");
@@ -118,7 +118,7 @@ class ToolGatewayTest {
             0,
             "专业基础",
             "缓存",
-            List.of("question_bank_search"),
+            List.of("rubric_lookup"),
             null,
             List.of(),
             null,
@@ -133,7 +133,7 @@ class ToolGatewayTest {
 
   private ToolCallAction call(Map<String, Object> arguments) {
     return new ToolCallAction(
-        "question_bank_search",
+        "rubric_lookup",
         arguments,
         "读取审核题"
     );
@@ -161,7 +161,7 @@ class ToolGatewayTest {
 
     @Override
     public String name() {
-      return "question_bank_search";
+      return "rubric_lookup";
     }
 
     @Override

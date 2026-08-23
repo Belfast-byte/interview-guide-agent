@@ -41,7 +41,6 @@ public class StructuredOutputInvoker {
     private final boolean retryAppendStrictJsonInstruction;
     private final int errorMessageMaxLength;
     private final boolean metricsEnabled;
-    private final boolean schemaValidationEnabled;
     private final MeterRegistry meterRegistry;
 
     public StructuredOutputInvoker(
@@ -54,7 +53,6 @@ public class StructuredOutputInvoker {
         this.retryAppendStrictJsonInstruction = properties.isStructuredRetryAppendStrictJsonInstruction();
         this.errorMessageMaxLength = Math.max(20, properties.getStructuredErrorMessageMaxLength());
         this.metricsEnabled = properties.isStructuredMetricsEnabled();
-        this.schemaValidationEnabled = properties.isStructuredSchemaValidationEnabled();
         this.meterRegistry = meterRegistry;
     }
 
@@ -147,14 +145,11 @@ public class StructuredOutputInvoker {
         String logContext,
         Logger log
     ) {
-        var call = chatClient.prompt()
+        String content = chatClient.prompt()
             .system(systemPrompt)
             .user(userPrompt)
-            .call();
-        if (schemaValidationEnabled) {
-            return call.entity(outputConverter, spec -> spec.validateSchema());
-        }
-        String content = call.content();
+            .call()
+            .content();
         return convertWithRepair(content, outputConverter, logContext, log);
     }
 

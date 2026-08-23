@@ -67,6 +67,9 @@ public class LlmProviderEntity {
 
   private Double temperature;
 
+  @Column(name = "thinking_disabled", nullable = false)
+  private boolean thinkingDisabled;
+
   @Column(nullable = false)
   private boolean enabled;
 

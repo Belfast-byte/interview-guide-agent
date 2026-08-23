@@ -10,6 +10,7 @@ import interview.guide.modules.interview.agent.adaptive.core.context.PlanningSki
 import interview.guide.modules.interview.agent.adaptive.memory.brief.DimensionBriefTurn;
 import interview.guide.modules.interview.agent.adaptive.observability.AdaptiveAgentTelemetry;
 import interview.guide.modules.interview.agent.adaptive.observability.AdaptiveInputTokenBudget;
+import interview.guide.modules.interview.agent.adaptive.role.AdaptiveModelOptionsFactory;
 import interview.guide.modules.interview.agent.adaptive.runtime.DeadlineExecutor;
 import java.io.IOException;
 import java.time.Duration;
@@ -25,6 +26,7 @@ import org.mockito.junit.jupiter.MockitoExtension;
 import org.slf4j.Logger;
 import org.springframework.ai.chat.client.ChatClient;
 import org.springframework.ai.converter.BeanOutputConverter;
+import org.springframework.ai.openai.OpenAiChatOptions;
 import org.springframework.core.io.DefaultResourceLoader;
 import tools.jackson.databind.ObjectMapper;
 
@@ -55,13 +57,26 @@ class SpringAiCandidateClaimGeneratorTest {
   @Mock
   private ChatClient chatClient;
 
+  @Mock
+  private ChatClient.Builder chatClientBuilder;
+
+  @Mock
+  private AdaptiveModelOptionsFactory modelOptionsFactory;
+
+  @Mock
+  private OpenAiChatOptions.Builder modelOptions;
+
   private SpringAiCandidateClaimGenerator generator;
 
   @BeforeEach
   void setUp() throws IOException {
     generator = generator(new AdaptiveAgentProperties());
-    when(llmProviderRegistry.getChatClientOrDefault("provider-1"))
+    when(llmProviderRegistry.getPlainChatClient("provider-1"))
         .thenReturn(chatClient);
+    when(chatClient.mutate()).thenReturn(chatClientBuilder);
+    when(modelOptionsFactory.structured()).thenReturn(modelOptions);
+    when(chatClientBuilder.defaultOptions(modelOptions)).thenReturn(chatClientBuilder);
+    when(chatClientBuilder.build()).thenReturn(chatClient);
   }
 
   @Test
@@ -143,6 +158,7 @@ class SpringAiCandidateClaimGeneratorTest {
         inputTokenBudget,
         new DeadlineExecutor(),
         properties,
+        modelOptionsFactory,
         new DefaultResourceLoader()
     );
   }

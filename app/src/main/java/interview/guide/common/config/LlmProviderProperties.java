@@ -29,6 +29,7 @@ public class LlmProviderProperties {
         private Integer embeddingDimensions;
         private Boolean supportsEmbedding;
         private Double temperature;
+        private boolean thinkingDisabled;
     }
 
     @Data

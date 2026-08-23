@@ -47,12 +47,16 @@ class AdaptiveInterviewConcurrencyIntegrationTest {
   void shouldAdvanceOnceForConcurrentAnswers()
       throws InterruptedException, TimeoutException {
     persistenceService.createSkeleton(
-        null,
-        "concurrent-session",
-        "candidate-1",
-        "JD",
-        "Resume",
-        null
+        new AdaptiveSessionCreation(
+            null,
+            "concurrent-session",
+            "candidate-1",
+            "JD",
+            "Resume",
+            null,
+            null,
+            null
+        )
     );
     persistenceService.completeCreation(
         "concurrent-session",
@@ -131,12 +135,16 @@ class AdaptiveInterviewConcurrencyIntegrationTest {
   void shouldReserveToolResultEventOnceForConcurrentDuplicates()
       throws InterruptedException, TimeoutException, ExecutionException {
     persistenceService.createSkeleton(
-        null,
-        "concurrent-reserve",
-        "candidate-1",
-        "JD",
-        "Resume",
-        null
+        new AdaptiveSessionCreation(
+            null,
+            "concurrent-reserve",
+            "candidate-1",
+            "JD",
+            "Resume",
+            null,
+            null,
+            null
+        )
     );
     persistenceService.completeCreation(
         "concurrent-reserve",

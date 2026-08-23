@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { motion, useReducedMotion } from 'framer-motion';
 import {
   AlertCircle,
@@ -17,11 +17,13 @@ import {
   Sparkles,
   Target,
 } from 'lucide-react';
-import { useNavigate, useParams } from 'react-router-dom';
+import { Link, useNavigate, useParams } from 'react-router-dom';
 import { adaptiveInterviewApi } from '../api/adaptiveInterview';
+import { candidateProviderApi } from '../api/candidateProvider';
 import { getErrorMessage } from '../api/request';
 import { ROUTES } from '../constants/routes';
 import { ADAPTIVE_INTERVIEW_TEST_SAMPLE } from './adaptiveInterviewTestSample';
+import { extractPartialContent } from './adaptiveInterviewStream';
 import type {
   AdaptiveAssessmentReport,
   AdaptiveInterviewDimension,
@@ -32,6 +34,7 @@ import type {
   SandboxRunMode,
   ToolResultFollowUp,
 } from '../types/adaptiveInterview';
+import type { CandidateProvider } from '../types/candidateProvider';
 
 const DEPTH_LABELS = {
   L0: '尚无证据',
@@ -49,7 +52,10 @@ export default function AdaptiveInterviewPage() {
   const [report, setReport] = useState<AdaptiveAssessmentReport | null>(null);
   const [jd, setJd] = useState('');
   const [resume, setResume] = useState('');
-  const [llmProvider, setLlmProvider] = useState('');
+  const [providerId, setProviderId] = useState('');
+  const [providers, setProviders] = useState<CandidateProvider[]>([]);
+  const [providersLoading, setProvidersLoading] = useState(!sessionId);
+  const [providerError, setProviderError] = useState('');
   const [answer, setAnswer] = useState('');
   const [loading, setLoading] = useState(Boolean(sessionId));
   const [working, setWorking] = useState(false);
@@ -67,6 +73,9 @@ export default function AdaptiveInterviewPage() {
   const [followUps, setFollowUps] = useState<ToolResultFollowUp[]>([]);
   const [judging, setJudging] = useState(false);
   const [judgeError, setJudgeError] = useState('');
+  const [answerStage, setAnswerStage] = useState<'assessing' | 'generating' | null>(null);
+  const [streamingQuestion, setStreamingQuestion] = useState('');
+  const creationStreamActive = useRef(false);
 
   const loadReport = useCallback(async (id: string) => {
     setReportLoading(true);
@@ -97,14 +106,36 @@ export default function AdaptiveInterviewPage() {
   }, [loadReport]);
 
   useEffect(() => {
-    if (sessionId) {
+    if (sessionId && !creationStreamActive.current) {
       void loadSession(sessionId);
     }
   }, [loadSession, sessionId]);
 
-  // 创建异步化：CREATED 骨架期每 2s 轮询，直到首题就绪、完成或失败
   useEffect(() => {
-    if (!sessionId || session?.status !== 'CREATED') return;
+    if (sessionId) return;
+    let cancelled = false;
+    setProvidersLoading(true);
+    setProviderError('');
+    candidateProviderApi.list()
+      .then(items => {
+        if (cancelled) return;
+        setProviders(items);
+        setProviderId(items.find(item => item.defaultChatProvider)?.id ?? '');
+      })
+      .catch(requestError => {
+        if (!cancelled) setProviderError(getErrorMessage(requestError));
+      })
+      .finally(() => {
+        if (!cancelled) setProvidersLoading(false);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [sessionId]);
+
+  // 页面刷新后无法重连原 POST 流，仅对这种恢复场景轮询 CREATED 会话。
+  useEffect(() => {
+    if (!sessionId || session?.status !== 'CREATED' || creationStreamActive.current) return;
     const timer = window.setTimeout(() => {
       void loadSession(sessionId);
     }, 2_000);
@@ -159,7 +190,7 @@ export default function AdaptiveInterviewPage() {
     const request = {
       jd: jd.trim(),
       resume: resume.trim(),
-      ...(llmProvider.trim() ? { llmProvider: llmProvider.trim() } : {}),
+      ...(providerId ? { providerId } : {}),
     };
     if (!request.jd || !request.resume) {
       setError('请填写职位描述和简历内容。');
@@ -168,15 +199,36 @@ export default function AdaptiveInterviewPage() {
 
     setWorking(true);
     setError('');
-    try {
-      const created = await adaptiveInterviewApi.create(request);
-      setSession(created);
-      navigate(ROUTES.adaptiveInterviewSession(created.sessionId));
-    } catch (requestError) {
-      setError(getErrorMessage(requestError));
-    } finally {
-      setWorking(false);
-    }
+    setStreamingQuestion('');
+    creationStreamActive.current = true;
+    let rawDecision = '';
+    let createdSessionId: string | null = null;
+    await adaptiveInterviewApi.createStream(request, {
+      onCreated: created => {
+        createdSessionId = created.sessionId;
+        setSession(created);
+        navigate(ROUTES.adaptiveInterviewSession(created.sessionId));
+      },
+      onDelta: delta => {
+        rawDecision += delta;
+        setStreamingQuestion(extractPartialContent(rawDecision));
+      },
+      onDone: created => {
+        creationStreamActive.current = false;
+        setSession(created);
+        setStreamingQuestion('');
+      },
+      onError: streamError => {
+        creationStreamActive.current = false;
+        setStreamingQuestion('');
+        setError(getErrorMessage(streamError));
+        if (createdSessionId !== null) {
+          void loadSession(createdSessionId);
+        }
+      },
+    });
+    creationStreamActive.current = false;
+    setWorking(false);
   };
 
   const submitAnswer = async (activeSession: AdaptiveInterviewSession) => {
@@ -188,21 +240,49 @@ export default function AdaptiveInterviewPage() {
 
     setWorking(true);
     setError('');
-    try {
-      const updated = await adaptiveInterviewApi.submitAnswer(activeSession.sessionId, {
-        turnIndex: activeSession.currentTurn,
-        answer: content,
-      });
-      setSession(updated);
-      setAnswer('');
-      if (updated.status === 'COMPLETED') {
-        await loadReport(updated.sessionId);
-      }
-    } catch (requestError) {
-      setError(getErrorMessage(requestError));
-    } finally {
-      setWorking(false);
-    }
+    setAnswerStage('assessing');
+    setStreamingQuestion('');
+    // 乐观更新：回答立即写入当前轮，清空输入框；失败时回滚
+    setSession(prev => prev === null ? prev : {
+      ...prev,
+      turns: prev.turns.map(turn =>
+        turn.turnIndex === activeSession.currentTurn ? { ...turn, answer: content } : turn),
+    });
+    setAnswer('');
+
+    let rawDecision = '';
+    await adaptiveInterviewApi.submitAnswerStream(activeSession.sessionId, {
+      turnIndex: activeSession.currentTurn,
+      answer: content,
+    }, {
+      onStage: setAnswerStage,
+      onDelta: delta => {
+        rawDecision += delta;
+        setStreamingQuestion(extractPartialContent(rawDecision));
+      },
+      onDone: updated => {
+        setSession(updated);
+        setStreamingQuestion('');
+        setAnswerStage(null);
+        if (updated.status === 'COMPLETED') {
+          void loadReport(updated.sessionId);
+        }
+      },
+      onError: streamError => {
+        setSession(prev => prev === null ? prev : {
+          ...prev,
+          turns: prev.turns.map(turn =>
+            turn.turnIndex === activeSession.currentTurn && turn.answer === content
+              ? { ...turn, answer: null }
+              : turn),
+        });
+        setAnswer(content);
+        setStreamingQuestion('');
+        setAnswerStage(null);
+        setError(getErrorMessage(streamError));
+      },
+    });
+    setWorking(false);
   };
 
   const submitCode = async (activeSession: AdaptiveInterviewSession) => {
@@ -289,13 +369,16 @@ export default function AdaptiveInterviewPage() {
       <SetupView
         jd={jd}
         resume={resume}
-        llmProvider={llmProvider}
+        providerId={providerId}
+        providers={providers}
+        providersLoading={providersLoading}
+        providerError={providerError}
         working={working}
         error={error}
         hasSessionId={Boolean(sessionId)}
         onJdChange={setJd}
         onResumeChange={setResume}
-        onProviderChange={setLlmProvider}
+        onProviderChange={setProviderId}
         onFillSample={() => {
           setJd(ADAPTIVE_INTERVIEW_TEST_SAMPLE.jd);
           setResume(ADAPTIVE_INTERVIEW_TEST_SAMPLE.resume);
@@ -327,6 +410,7 @@ export default function AdaptiveInterviewPage() {
                 {session.runtimeVersion}
               </p>
               <h1 className="text-2xl font-bold text-slate-950 dark:text-white">自适应技术面试</h1>
+              {session.llmProviderName && <p className="mt-1 text-xs text-slate-500">{session.llmProviderName} · {session.llmModel}</p>}
             </div>
           </div>
         </div>
@@ -370,7 +454,7 @@ export default function AdaptiveInterviewPage() {
             <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">已完成 {completedTurns} 轮，问题与回答均作为评估证据保存。</p>
           </div>
           <div className="space-y-6 px-5 py-6 sm:px-7">
-            {session.status === 'CREATED' && (
+            {session.status === 'CREATED' && !streamingQuestion && (
               <div className="flex items-center gap-3 rounded-2xl border border-primary-100 bg-primary-50/60 px-4 py-3.5 dark:border-primary-900/60 dark:bg-primary-950/20">
                 <Loader2 className="h-4 w-4 flex-none animate-spin text-primary-500" />
                 <p className="text-sm leading-6 text-slate-700 dark:text-slate-300">
@@ -413,6 +497,28 @@ export default function AdaptiveInterviewPage() {
                 </div>
               </div>
             ))}
+            {streamingQuestion && (
+              <div className="flex gap-3">
+                <div className="flex h-9 w-9 flex-none items-center justify-center rounded-xl bg-primary-50 text-primary-600 dark:bg-primary-900/30 dark:text-primary-300">
+                  <BrainCircuit className="h-4 w-4" />
+                </div>
+                <div className="min-w-0 flex-1 rounded-2xl rounded-tl-md border border-primary-100 bg-primary-50/60 px-4 py-3.5 dark:border-primary-900/60 dark:bg-primary-950/20">
+                  <p className="mb-1 font-mono text-[10px] uppercase tracking-[0.14em] text-primary-500">Question {session.currentTurn + 1}</p>
+                  <p className="whitespace-pre-wrap text-sm font-medium leading-7 text-slate-900 dark:text-slate-100">
+                    {streamingQuestion}
+                    <Loader2 className="ml-1 inline h-3.5 w-3.5 animate-spin text-primary-400" />
+                  </p>
+                </div>
+              </div>
+            )}
+            {working && !streamingQuestion && answerStage !== null && (
+              <div className="flex items-center gap-3 rounded-2xl border border-primary-100 bg-primary-50/60 px-4 py-3.5 dark:border-primary-900/60 dark:bg-primary-950/20">
+                <Loader2 className="h-4 w-4 flex-none animate-spin text-primary-500" />
+                <p className="text-sm leading-6 text-slate-700 dark:text-slate-300">
+                  {answerStage === 'assessing' ? '正在评估你的回答…' : '正在生成下一题…'}
+                </p>
+              </div>
+            )}
           </div>
 
           {session.status === 'IN_PROGRESS' && codeWorkbenchActive && (
@@ -471,7 +577,9 @@ export default function AdaptiveInterviewPage() {
                   className="btn-primary inline-flex items-center justify-center gap-2 rounded-xl px-5 py-2.5 text-sm disabled:cursor-not-allowed disabled:opacity-50"
                 >
                   {working ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
-                  {working ? '正在评估并生成下一题' : '提交回答'}
+                  {working
+                    ? (answerStage === 'generating' ? '正在生成下一题' : '正在评估你的回答')
+                    : '提交回答'}
                 </button>
               </div>
             </div>
@@ -586,7 +694,10 @@ function JudgeResult({ execution }: { execution: SandboxExecution }) {
 interface SetupViewProps {
   jd: string;
   resume: string;
-  llmProvider: string;
+  providerId: string;
+  providers: CandidateProvider[];
+  providersLoading: boolean;
+  providerError: string;
   working: boolean;
   error: string;
   hasSessionId: boolean;
@@ -599,6 +710,7 @@ interface SetupViewProps {
 }
 
 function SetupView(props: SetupViewProps) {
+  const hasDefaultProvider = props.providers.some(provider => provider.defaultChatProvider);
   return (
     <div className="mx-auto max-w-6xl pb-12">
       <header className="relative mb-6 overflow-hidden rounded-3xl border border-primary-100 bg-white/90 px-6 py-9 shadow-xl shadow-primary-100/40 dark:border-primary-900/50 dark:bg-slate-800/85 dark:shadow-slate-950/20 sm:px-9">
@@ -620,11 +732,25 @@ function SetupView(props: SetupViewProps) {
         />
       )}
 
+      {props.providerError && <ErrorBanner message={props.providerError} />}
+
       <section className="overflow-hidden rounded-3xl border border-slate-200 bg-white/90 shadow-xl shadow-slate-200/35 dark:border-slate-700 dark:bg-slate-800/85 dark:shadow-slate-950/20">
         <SampleFillToolbar disabled={props.working} onFill={props.onFillSample} />
         <div className="grid gap-6 p-6 sm:p-8 lg:grid-cols-2">
           <div className="space-y-5">
-            <TextField label="LLM Provider（可选）" icon={BrainCircuit} value={props.llmProvider} onChange={props.onProviderChange} placeholder="留空使用默认 Provider" maxLength={64} />
+            <label className="block text-sm font-semibold text-slate-800 dark:text-slate-100">
+              文本 Provider
+              <select
+                value={props.providerId}
+                onChange={event => props.onProviderChange(event.target.value)}
+                disabled={props.providersLoading || !hasDefaultProvider}
+                className="dark-input mt-2 w-full rounded-xl px-3 py-3"
+              >
+                <option value="">{props.providersLoading ? '正在加载 Provider…' : '请选择 Provider'}</option>
+                {props.providers.map(provider => <option key={provider.id} value={provider.id}>{provider.displayName} · {provider.model}{provider.defaultChatProvider ? '（默认）' : ''}</option>)}
+              </select>
+              {!props.providersLoading && !hasDefaultProvider && <span className="mt-2 block text-xs font-normal text-amber-700 dark:text-amber-300">开始面试前必须设置默认文本 Provider。<Link to={ROUTES.providers} className="ml-1 font-semibold underline">前往模型服务</Link></span>}
+            </label>
             <ContextField label="职位描述" icon={Target} value={props.jd} onChange={props.onJdChange} placeholder="岗位职责、技术栈、业务场景和候选人级别" />
           </div>
           <ContextField label="候选人简历" icon={FileText} value={props.resume} onChange={props.onResumeChange} placeholder="项目经历、技术能力、职责范围和代表性成果" tall />
@@ -634,7 +760,7 @@ function SetupView(props: SetupViewProps) {
           <button
             type="button"
             onClick={props.onCreate}
-            disabled={props.working || !props.jd.trim() || !props.resume.trim()}
+            disabled={props.working || props.providersLoading || !hasDefaultProvider || !props.providerId || !props.jd.trim() || !props.resume.trim()}
             className="btn-primary inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-xl px-6 py-3 text-sm disabled:cursor-not-allowed disabled:opacity-50"
           >
             {props.working ? <Loader2 className="h-4 w-4 animate-spin" /> : <BrainCircuit className="h-4 w-4" />}
@@ -723,10 +849,6 @@ function ReportPanel({ report, loading, error, onRetry }: { report: AdaptiveAsse
       ))}
     </div>
   );
-}
-
-function TextField({ label, icon: Icon, value, onChange, placeholder, maxLength }: { label: string; icon: typeof Target; value: string; onChange: (value: string) => void; placeholder: string; maxLength: number }) {
-  return <label className="block"><span className="mb-2 flex items-center gap-2 text-sm font-semibold text-slate-800 dark:text-slate-100"><Icon className="h-4 w-4 text-primary-500" />{label}</span><input value={value} onChange={event => onChange(event.target.value)} placeholder={placeholder} maxLength={maxLength} className="dark-input w-full rounded-xl px-4 py-3 text-sm outline-none" /></label>;
 }
 
 function ContextField({ label, icon: Icon, value, onChange, placeholder, tall = false }: { label: string; icon: typeof Target; value: string; onChange: (value: string) => void; placeholder: string; tall?: boolean }) {

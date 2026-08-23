@@ -244,31 +244,53 @@ public class AdaptiveInterviewPersistenceService
   }
 
   /**
+   * 非末轮维度完成的记忆落库：由异步任务调用，仅存维度小结与候选人声明，
+   * 与答题主路径解耦；调用方已保证该维度确已完成。
+   */
+  @Transactional
+  public void saveDimensionMemory(
+      String sessionId,
+      DimensionBrief brief,
+      List<CandidateClaim> claims
+  ) {
+    dimensionBriefRepository.save(new AdaptiveDimensionBriefEntity(brief));
+    AdaptiveAgentSessionEntity sessionEntity = sessionRepository
+        .findByIdAndTenantIdIsNull(sessionId)
+        .orElseThrow(() -> new BusinessException(
+            ErrorCode.INTERVIEW_SESSION_NOT_FOUND,
+            "Agent 面试会话不存在"
+        ));
+    candidateMemoryClaimRepository.saveAll(claims.stream()
+        .filter(claim -> claim.skillId() != null && !claim.skillId().isBlank()
+            && claim.focusId() != null && !claim.focusId().isBlank())
+        .distinct()
+        .map(claim -> new CandidateMemoryClaimEntity(
+            sessionEntity.tenantId(),
+            sessionEntity.candidateId(),
+            sessionId,
+            claim
+        ))
+        .toList());
+  }
+
+  /**
    * 落 CREATED 骨架会话：异步创建链路的第一步，立即对前端可见；轮次预算为占位值，
    * 规划完成后由 {@link #completeCreation} 回填。
    */
   @Transactional
-  public PlannedInterview createSkeleton(
-      String tenantId,
-      String sessionId,
-      String candidateId,
-      String jd,
-      String resume,
-      String llmProvider
-  ) {
+  public PlannedInterview createSkeleton(AdaptiveSessionCreation creation) {
     AdaptiveAgentSessionEntity sessionEntity = sessionRepository.save(
         new AdaptiveAgentSessionEntity(
-            AdaptiveInterviewSession.create(sessionId, AdaptiveInterviewSession.MAX_TURNS),
-            tenantId,
-            candidateId,
-            jd,
-            resume,
-            llmProvider
+            AdaptiveInterviewSession.create(
+                creation.sessionId(),
+                AdaptiveInterviewSession.MAX_TURNS
+            ),
+            creation
         )
     );
     return plannedInterview(
         sessionEntity,
-        new InterviewPlan(sessionId, 0, List.of())
+        new InterviewPlan(creation.sessionId(), 0, List.of())
     );
   }
 
@@ -555,6 +577,8 @@ public class AdaptiveInterviewPersistenceService
         sessionEntity.jd(),
         sessionEntity.resume(),
         sessionEntity.llmProvider(),
+        sessionEntity.llmProviderNameSnapshot(),
+        sessionEntity.llmModelSnapshot(),
         turnRepository.findBySessionIdOrderByTurnIndex(session.id()).stream()
             .map(AdaptiveAgentTurnEntity::toDomain)
             .toList(),

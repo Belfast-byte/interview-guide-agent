@@ -8,6 +8,7 @@ import interview.guide.common.exception.ErrorCode;
 import interview.guide.modules.interview.agent.adaptive.application.AdaptiveAgentProperties;
 import interview.guide.modules.interview.agent.adaptive.observability.AdaptiveAgentTelemetry;
 import interview.guide.modules.interview.agent.adaptive.observability.AdaptiveInputTokenBudget;
+import interview.guide.modules.interview.agent.adaptive.role.AdaptiveModelOptionsFactory;
 import interview.guide.modules.interview.agent.adaptive.runtime.DeadlineExecutor;
 import java.util.Map;
 import lombok.extern.slf4j.Slf4j;
@@ -33,6 +34,7 @@ public class SpringAiAssessmentProposalGenerator
   private final AdaptiveInputTokenBudget inputTokenBudget;
   private final DeadlineExecutor deadlineExecutor;
   private final AdaptiveAgentProperties properties;
+  private final AdaptiveModelOptionsFactory modelOptionsFactory;
   private final PromptTemplate systemPromptTemplate;
   private final PromptTemplate userPromptTemplate;
   private final BeanOutputConverter<AssessmentProposal> outputConverter;
@@ -46,6 +48,7 @@ public class SpringAiAssessmentProposalGenerator
       AdaptiveInputTokenBudget inputTokenBudget,
       DeadlineExecutor deadlineExecutor,
       AdaptiveAgentProperties properties,
+      AdaptiveModelOptionsFactory modelOptionsFactory,
       PromptLoader promptLoader
   ) {
     this.llmProviderRegistry = llmProviderRegistry;
@@ -55,6 +58,7 @@ public class SpringAiAssessmentProposalGenerator
     this.inputTokenBudget = inputTokenBudget;
     this.deadlineExecutor = deadlineExecutor;
     this.properties = properties;
+    this.modelOptionsFactory = modelOptionsFactory;
     this.systemPromptTemplate = promptLoader.loadTemplate(
         properties.getAssessmentSystemPromptPath()
     );
@@ -84,7 +88,9 @@ public class SpringAiAssessmentProposalGenerator
       ));
       inputTokenBudget.verify("depth_assessor", systemPrompt, userPrompt);
       ChatClient chatClient = telemetry.observeTokenUsage(
-          llmProviderRegistry.getChatClientOrDefault(llmProvider),
+          llmProviderRegistry.getPlainChatClient(llmProvider).mutate()
+              .defaultOptions(modelOptionsFactory.structured())
+              .build(),
           "depth_assessor",
           request.sessionId()
       );

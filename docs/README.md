@@ -22,6 +22,7 @@
 | [30-improvement-spec-2026-08-16.md](./design/30-improvement-spec-2026-08-16.md) | 改进方案规范 | 综合审查问题修复与长期增强项（IM-1～IM-12） |
 | [31-candidate-provider-and-interview-history-spec.md](./design/31-candidate-provider-and-interview-history-spec.md) | 候选人 Provider 与面试历史规格 | 用户私有 Provider、Adaptive 模型接入、本人历史会话分页与验收标准 |
 | [32-adaptive-agent-remediation-spec.md](./design/32-adaptive-agent-remediation-spec.md) | 代码治理与体验改进规范 | 死代码清理、失败语义软化、自适应能力通道、异步链路可靠性、首题提速与异步创建（T-1～T-7） |
+| [34-memory-three-layer-spec.md](./design/34-memory-three-layer-spec.md) | 记忆系统三层改造规范（Draft v2） | Working / Episodic / Semantic 三层记忆、Episode 与回填策略、能力等级计数器聚合与错误标签 |
 
 ---
 

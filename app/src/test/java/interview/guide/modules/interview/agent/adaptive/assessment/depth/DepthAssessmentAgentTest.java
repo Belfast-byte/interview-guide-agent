@@ -1,6 +1,7 @@
 package interview.guide.modules.interview.agent.adaptive.assessment.depth;
 
 import interview.guide.common.exception.BusinessException;
+import interview.guide.common.exception.ErrorCode;
 import interview.guide.modules.interview.agent.adaptive.core.context.ProbeGap;
 import java.lang.reflect.RecordComponent;
 import java.util.Arrays;
@@ -110,22 +111,75 @@ class DepthAssessmentAgentTest {
   }
 
   @Test
-  @DisplayName("重写后追问点锚定仍不命中回答原文时快速失败")
-  void shouldRejectProbeGapWhenAnchorStillMissingAfterRetry() {
-    DepthAssessmentAgent agent = new DepthAssessmentAgent((request, provider) ->
-        new AssessmentProposal(
+  @DisplayName("重写后仅追问点锚定失败时降级丢弃非法追问点并接受结果")
+  void shouldDropInvalidProbeGapsWhenAnchorStillMissingAfterRetry() {
+    AtomicInteger calls = new AtomicInteger();
+    DepthAssessmentAgent agent = new DepthAssessmentAgent((request, provider) -> {
+      calls.incrementAndGet();
+      return new AssessmentProposal(
+          DepthLevel.L2,
+          0.8,
+          "描述了应用",
+          false,
+          List.of("重要数据使用版本号"),
+          List.of(
+              new ProbeGap("布隆过滤器", "未说明误判率"),
+              new ProbeGap("版本号", "未说明版本号如何推进")
+          )
+      );
+    });
+
+    AssessmentDecision decision = agent.assess(request(), null);
+
+    assertThat(calls.get()).isEqualTo(2);
+    assertThat(decision.depthLevel()).isEqualTo(DepthLevel.L2);
+    assertThat(decision.probeGaps())
+        .containsExactly(new ProbeGap("版本号", "未说明版本号如何推进"));
+  }
+
+  @Test
+  @DisplayName("模型超时等非校验类失败不重试，直接抛出")
+  void shouldNotRetryWhenModelTimesOut() {
+    AtomicInteger calls = new AtomicInteger();
+    DepthAssessmentAgent agent = new DepthAssessmentAgent((request, provider) -> {
+      calls.incrementAndGet();
+      throw new BusinessException(ErrorCode.AI_SERVICE_TIMEOUT, "评估模型超时");
+    });
+
+    assertThatThrownBy(() -> agent.assess(request(), null))
+        .isInstanceOf(BusinessException.class)
+        .hasMessageContaining("评估模型超时");
+    assertThat(calls.get()).isEqualTo(1);
+  }
+
+  @Test
+  @DisplayName("重写后结果结构性不完整时仍快速失败")
+  void shouldRejectStructuralIncompletenessAfterRetry() {
+    AtomicInteger calls = new AtomicInteger();
+    DepthAssessmentAgent agent = new DepthAssessmentAgent((request, provider) -> {
+      if (calls.incrementAndGet() == 1) {
+        return new AssessmentProposal(
             DepthLevel.L2,
             0.8,
             "描述了应用",
             false,
             List.of("重要数据使用版本号"),
             List.of(new ProbeGap("布隆过滤器", "未说明误判率"))
-        )
-    );
+        );
+      }
+      return new AssessmentProposal(
+          null,
+          0.8,
+          "描述了应用",
+          false,
+          List.of("重要数据使用版本号")
+      );
+    });
 
     assertThatThrownBy(() -> agent.assess(request(), null))
         .isInstanceOf(BusinessException.class)
-        .hasMessageContaining("锚定内容");
+        .hasMessageContaining("不完整");
+    assertThat(calls.get()).isEqualTo(2);
   }
 
   @Test

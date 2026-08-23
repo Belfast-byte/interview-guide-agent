@@ -9,6 +9,7 @@ import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.Map;
 import java.util.Set;
+import java.util.function.Consumer;
 
 /**
  * 有界 ReAct 运行时，以最大步数、最大工具调用数和 deadline 约束驱动 Agent 循环，防止失控。
@@ -38,6 +39,14 @@ public class BoundedReActRuntime {
    * @return 最终回复与工具执行轨迹
    */
   public ReActResult run(ReActRequest request, ReActBudget budget) {
+    return runStreaming(request, budget, null);
+  }
+
+  /**
+   * 带流式回调的变体：每个模型步骤都经 deltaSink 推送原始文本增量，
+   * 确保工具调用后的最终回复仍可流式输出；deltaSink 为 null 时与 {@link #run} 等价。
+   */
+  public ReActResult runStreaming(ReActRequest request, ReActBudget budget, Consumer<String> deltaSink) {
     long deadlineNanos = System.nanoTime() + budget.deadline().toNanos();
     var observations = new ArrayList<ToolObservation>();
     var toolExecutions = new ArrayList<ToolExecution>();
@@ -47,8 +56,11 @@ public class BoundedReActRuntime {
     boolean finalReplyDemanded = false;
 
     for (int step = 0; step < maxSteps; step++) {
+      Consumer<String> stepSink = deltaSink;
       AgentAction action = deadlineExecutor.invoke(
-          () -> modelGateway.nextAction(new ReActModelContext(request, observations)),
+          () -> stepSink == null
+              ? modelGateway.nextAction(new ReActModelContext(request, observations))
+              : modelGateway.nextActionStreaming(new ReActModelContext(request, observations), stepSink),
           deadlineNanos,
           "Agent 面试执行"
       );

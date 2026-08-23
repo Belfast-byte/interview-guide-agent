@@ -26,6 +26,8 @@ export interface AdaptiveInterviewSession {
   maxTurns: number;
   currentQuestion: string | null;
   failureReason: string | null;
+  llmProviderName: string | null;
+  llmModel: string | null;
   dimensions: AdaptiveInterviewDimension[];
   turns: AdaptiveInterviewTurn[];
 }
@@ -33,7 +35,25 @@ export interface AdaptiveInterviewSession {
 export interface CreateAdaptiveInterviewRequest {
   jd: string;
   resume: string;
-  llmProvider?: string;
+  providerId?: string;
+}
+
+export interface AdaptiveInterviewSummary {
+  sessionId: string;
+  status: AdaptiveSessionStatus;
+  currentTurn: number;
+  maxTurns: number;
+  jdSummary: string;
+  createdAt: string;
+  completedAt: string | null;
+}
+
+export interface AdaptiveInterviewHistoryPage {
+  content: AdaptiveInterviewSummary[];
+  page: number;
+  size: number;
+  totalElements: number;
+  totalPages: number;
 }
 
 export interface SubmitAdaptiveAnswerRequest {

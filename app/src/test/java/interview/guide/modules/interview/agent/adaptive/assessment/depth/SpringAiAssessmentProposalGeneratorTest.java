@@ -7,6 +7,7 @@ import interview.guide.common.exception.ErrorCode;
 import interview.guide.modules.interview.agent.adaptive.application.AdaptiveAgentProperties;
 import interview.guide.modules.interview.agent.adaptive.observability.AdaptiveAgentTelemetry;
 import interview.guide.modules.interview.agent.adaptive.observability.AdaptiveInputTokenBudget;
+import interview.guide.modules.interview.agent.adaptive.role.AdaptiveModelOptionsFactory;
 import interview.guide.modules.interview.agent.adaptive.runtime.DeadlineExecutor;
 import java.util.List;
 import org.junit.jupiter.api.BeforeEach;
@@ -20,6 +21,7 @@ import org.mockito.junit.jupiter.MockitoExtension;
 import org.slf4j.Logger;
 import org.springframework.ai.chat.client.ChatClient;
 import org.springframework.ai.converter.BeanOutputConverter;
+import org.springframework.ai.openai.OpenAiChatOptions;
 import org.springframework.core.io.DefaultResourceLoader;
 import tools.jackson.databind.ObjectMapper;
 
@@ -49,6 +51,15 @@ class SpringAiAssessmentProposalGeneratorTest {
   @Mock
   private ChatClient chatClient;
 
+  @Mock
+  private ChatClient.Builder chatClientBuilder;
+
+  @Mock
+  private AdaptiveModelOptionsFactory modelOptionsFactory;
+
+  @Mock
+  private OpenAiChatOptions.Builder modelOptions;
+
   private SpringAiAssessmentProposalGenerator generator;
 
   @BeforeEach
@@ -61,10 +72,15 @@ class SpringAiAssessmentProposalGeneratorTest {
         inputTokenBudget,
         new DeadlineExecutor(),
         new AdaptiveAgentProperties(),
+        modelOptionsFactory,
         new PromptLoader(new DefaultResourceLoader())
     );
-    when(llmProviderRegistry.getChatClientOrDefault("provider-1"))
+    when(llmProviderRegistry.getPlainChatClient("provider-1"))
         .thenReturn(chatClient);
+    when(chatClient.mutate()).thenReturn(chatClientBuilder);
+    when(modelOptionsFactory.structured()).thenReturn(modelOptions);
+    when(chatClientBuilder.defaultOptions(modelOptions)).thenReturn(chatClientBuilder);
+    when(chatClientBuilder.build()).thenReturn(chatClient);
     when(telemetry.observeTokenUsage(
         eq(chatClient),
         eq("depth_assessor"),

@@ -25,12 +25,15 @@ import interview.guide.modules.interview.agent.adaptive.core.context.PlanningSki
 import interview.guide.modules.interview.agent.adaptive.core.context.ProbeGap;
 import interview.guide.modules.interview.agent.adaptive.core.context.UnverifiedClaim;
 import interview.guide.modules.interview.agent.adaptive.core.action.RespondAction;
+import interview.guide.modules.interview.agent.adaptive.core.context.DimensionBrief;
 import interview.guide.modules.interview.agent.adaptive.core.event.ToolResultEvent;
 import interview.guide.modules.interview.agent.adaptive.memory.ContextAssembler;
 import interview.guide.modules.interview.agent.adaptive.memory.profile.CandidateMemoryService;
+import interview.guide.modules.interview.agent.adaptive.memory.claim.CandidateClaim;
 import interview.guide.modules.interview.agent.adaptive.memory.claim.CandidateClaimExtractionService;
 import interview.guide.modules.interview.agent.adaptive.memory.brief.DimensionBriefService;
 import interview.guide.modules.interview.agent.adaptive.persistence.session.AdaptiveInterviewPersistenceService;
+import interview.guide.modules.interview.agent.adaptive.persistence.session.AdaptiveSessionCreation;
 import interview.guide.modules.interview.agent.adaptive.observability.AdaptiveAgentTelemetry;
 import interview.guide.modules.interview.agent.adaptive.observability.AlgorithmInterviewTelemetry;
 import interview.guide.modules.interview.agent.adaptive.planning.DimensionProposal;
@@ -49,8 +52,13 @@ import interview.guide.modules.interview.agent.adaptive.runtime.ToolExecution;
 import interview.guide.modules.interview.agent.adaptive.runtime.ToolExecutionOutcome;
 import interview.guide.modules.interview.agent.adaptive.tool.SandboxSubmitTool;
 import interview.guide.modules.interview.skill.InterviewSkillService;
+import interview.guide.modules.llmprovider.service.CandidateChatProvider;
+import interview.guide.modules.llmprovider.service.CandidateLlmProviderService;
+import java.util.UUID;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.atomic.AtomicReference;
+import java.util.function.Consumer;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -72,7 +80,10 @@ import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.ArgumentMatchers.isNull;
 import static org.mockito.ArgumentMatchers.nullable;
+import static org.mockito.ArgumentMatchers.same;
+import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.inOrder;
+import static org.mockito.Mockito.lenient;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoInteractions;
@@ -120,11 +131,57 @@ class AdaptiveInterviewApplicationServiceTest {
   @Mock
   private InterviewSkillService skillService;
 
+  @Mock
+  private CandidateLlmProviderService candidateProviderService;
+
+  @Mock
+  private AdaptiveInterviewAnswerExecutor answerExecutor;
+
   private AdaptiveInterviewApplicationService service;
 
   @BeforeEach
   void setUp() {
+    // 维度记忆异步任务在测试中同步执行，保持断言时序确定
+    lenient().doAnswer(invocation -> {
+      invocation.<Runnable>getArgument(0).run();
+      return null;
+    }).when(answerExecutor).execute(any(Runnable.class));
     service = serviceWithAssessmentAgent(assessmentAgent());
+  }
+
+  @Test
+  @DisplayName("候选人创建面试时固化所选 Provider 名称和模型")
+  void shouldResolveAndSnapshotCandidateProvider() {
+    UUID candidateId = UUID.randomUUID();
+    PlannedInterview expected = interviewAtTurn(1);
+    when(candidateProviderService.resolveChatProvider(candidateId, "provider-2"))
+        .thenReturn(new CandidateChatProvider("provider-2", "我的模型", "chat-model"));
+    when(persistenceService.createSkeleton(any(AdaptiveSessionCreation.class)))
+        .thenReturn(expected);
+    AdaptiveInterviewApplicationService lazyService = serviceWithAssessmentAgent(
+        assessmentAgent(),
+        task -> {
+        }
+    );
+
+    PlannedInterview actual = lazyService.createForCandidate(
+        candidateId,
+        "JD",
+        "Resume",
+        "provider-2"
+    );
+
+    assertThat(actual).isSameAs(expected);
+    ArgumentCaptor<AdaptiveSessionCreation> captor = ArgumentCaptor.forClass(
+        AdaptiveSessionCreation.class
+    );
+    verify(persistenceService).createSkeleton(captor.capture());
+    assertThat(captor.getValue()).satisfies(creation -> {
+      assertThat(creation.candidateId()).isEqualTo(candidateId.toString());
+      assertThat(creation.llmProviderId()).isEqualTo("provider-2");
+      assertThat(creation.llmProviderNameSnapshot()).isEqualTo("我的模型");
+      assertThat(creation.llmModelSnapshot()).isEqualTo("chat-model");
+    });
   }
 
   private AdaptiveInterviewApplicationService serviceWithAssessmentAgent(
@@ -149,7 +206,9 @@ class AdaptiveInterviewApplicationServiceTest {
         algorithmTelemetry,
         codeAnalysisContextService,
         skillService,
-        task -> task.run()
+        candidateProviderService,
+        task -> task.run(),
+        answerExecutor
     );
   }
 
@@ -176,7 +235,9 @@ class AdaptiveInterviewApplicationServiceTest {
         algorithmTelemetry,
         codeAnalysisContextService,
         skillService,
-        creationExecutor
+        candidateProviderService,
+        creationExecutor,
+        answerExecutor
     );
   }
 
@@ -201,13 +262,12 @@ class AdaptiveInterviewApplicationServiceTest {
     when(planningAgent.propose(any(), any())).thenReturn(proposal());
     RespondAction firstQuestion = RespondAction.ask("第一题？", "验证基础");
     PlannedInterview expected = interviewAtTurn(1);
-    when(persistenceService.createSkeleton(
-        isNull(), anyString(), eq("candidate-1"), eq("JD"), eq("Resume"), isNull()
-    )).thenReturn(expected);
+    when(persistenceService.createSkeleton(any(AdaptiveSessionCreation.class)))
+        .thenReturn(expected);
     when(persistenceService.completeCreation(
         anyString(), any(InterviewPlan.class), any(RespondAction.class), anyList()
     )).thenReturn(expected);
-    when(runtime.run(any(ReActRequest.class), any(ReActBudget.class)))
+    when(runtime.runStreaming(any(ReActRequest.class), any(ReActBudget.class), isNull()))
         .thenReturn(ReActResult.withoutTools(firstQuestion));
 
     PlannedInterview actual = service.create("candidate-1", "JD", "Resume", null);
@@ -226,23 +286,58 @@ class AdaptiveInterviewApplicationServiceTest {
     verify(planningTaxonomy).validate(any(InterviewPlan.class));
     verify(telemetry).decisionSucceeded(eq(AgentResponseType.ASK), anyLong());
     InOrder order = inOrder(persistenceService, planningAgent, runtime);
-    order.verify(persistenceService).createSkeleton(
-        isNull(), anyString(), eq("candidate-1"), eq("JD"), eq("Resume"), isNull()
-    );
+    order.verify(persistenceService).createSkeleton(any(AdaptiveSessionCreation.class));
     order.verify(planningAgent).propose(any(), any());
-    order.verify(runtime).run(any(ReActRequest.class), any(ReActBudget.class));
+    order.verify(runtime).runStreaming(any(ReActRequest.class), any(ReActBudget.class), isNull());
     order.verify(persistenceService).completeCreation(
         anyString(), any(InterviewPlan.class), any(RespondAction.class), anyList()
     );
   }
 
   @Test
+  @DisplayName("流式创建按骨架→首题增量→完成会话顺序推送")
+  void shouldStreamFirstQuestionDuringCandidateCreation() {
+    UUID candidateId = UUID.randomUUID();
+    PlannedInterview skeleton = interviewAtTurn(1);
+    PlannedInterview completed = interviewAtTurn(1);
+    Consumer<String> deltaSink = delta -> {};
+    InterviewCreationEventSink sink = org.mockito.Mockito.mock(
+        InterviewCreationEventSink.class
+    );
+    when(sink.deltaSink()).thenReturn(deltaSink);
+    when(candidateProviderService.resolveChatProvider(candidateId, "provider-2"))
+        .thenReturn(new CandidateChatProvider("provider-2", "我的模型", "chat-model"));
+    when(persistenceService.createSkeleton(any(AdaptiveSessionCreation.class)))
+        .thenReturn(skeleton);
+    when(planningAgent.propose(any(), any())).thenReturn(proposal());
+    when(runtime.runStreaming(any(ReActRequest.class), any(ReActBudget.class), same(deltaSink)))
+        .thenReturn(ReActResult.withoutTools(RespondAction.ask("第一题？", "验证基础")));
+    when(persistenceService.completeCreation(
+        anyString(), any(InterviewPlan.class), any(RespondAction.class), anyList()
+    )).thenReturn(completed);
+
+    service.createForCandidateStreaming(
+        new CandidateInterviewCreationCommand(candidateId, "JD", "Resume", "provider-2"),
+        sink
+    );
+
+    InOrder order = inOrder(sink, runtime, persistenceService);
+    order.verify(sink).onCreated(skeleton);
+    order.verify(runtime).runStreaming(
+        any(ReActRequest.class), any(ReActBudget.class), same(deltaSink)
+    );
+    order.verify(persistenceService).completeCreation(
+        anyString(), any(InterviewPlan.class), any(RespondAction.class), anyList()
+    );
+    order.verify(sink).onCompleted(completed);
+  }
+
+  @Test
   @DisplayName("骨架落库后创建请求立即返回，不等规划完成")
   void shouldReturnSkeletonBeforePlanningRuns() {
     PlannedInterview skeleton = interviewAtTurn(1);
-    when(persistenceService.createSkeleton(
-        isNull(), anyString(), eq("candidate-1"), eq("JD"), eq("Resume"), isNull()
-    )).thenReturn(skeleton);
+    when(persistenceService.createSkeleton(any(AdaptiveSessionCreation.class)))
+        .thenReturn(skeleton);
     AdaptiveInterviewApplicationService lazyService = serviceWithAssessmentAgent(
         assessmentAgent(),
         task -> {
@@ -261,9 +356,8 @@ class AdaptiveInterviewApplicationServiceTest {
   @Test
   @DisplayName("创建队列打满时骨架置 FAILED 并向调用方报错")
   void shouldFailSkeletonWhenCreationQueueIsFull() {
-    when(persistenceService.createSkeleton(
-        isNull(), anyString(), eq("candidate-1"), eq("JD"), eq("Resume"), isNull()
-    )).thenReturn(interviewAtTurn(1));
+    when(persistenceService.createSkeleton(any(AdaptiveSessionCreation.class)))
+        .thenReturn(interviewAtTurn(1));
     AdaptiveInterviewApplicationService rejectingService = serviceWithAssessmentAgent(
         assessmentAgent(),
         task -> {
@@ -282,9 +376,8 @@ class AdaptiveInterviewApplicationServiceTest {
   @Test
   @DisplayName("规划失败时骨架置为 FAILED 且不生成首题")
   void shouldFailSkeletonWhenPlanningFails() {
-    when(persistenceService.createSkeleton(
-        isNull(), anyString(), eq("candidate-1"), eq("JD"), eq("Resume"), isNull()
-    )).thenReturn(interviewAtTurn(1));
+    when(persistenceService.createSkeleton(any(AdaptiveSessionCreation.class)))
+        .thenReturn(interviewAtTurn(1));
     when(planningAgent.propose(any(), any())).thenThrow(new BusinessException(
         ErrorCode.AI_SERVICE_ERROR,
         "规划失败"
@@ -294,7 +387,7 @@ class AdaptiveInterviewApplicationServiceTest {
 
     assertThat(created).isNotNull();
     verify(persistenceService).failCreation(anyString(), eq("规划失败"));
-    verify(runtime, never()).run(any(ReActRequest.class), any(ReActBudget.class));
+    verify(runtime, never()).runStreaming(any(ReActRequest.class), any(ReActBudget.class), isNull());
     verify(persistenceService, never()).completeCreation(
         anyString(), any(), any(), anyList()
     );
@@ -303,9 +396,8 @@ class AdaptiveInterviewApplicationServiceTest {
   @Test
   @DisplayName("非法规划被代码拒绝并把骨架置为 FAILED")
   void shouldRejectInvalidPlanAndFailSkeleton() {
-    when(persistenceService.createSkeleton(
-        isNull(), anyString(), eq("candidate-1"), eq("JD"), eq("Resume"), isNull()
-    )).thenReturn(interviewAtTurn(1));
+    when(persistenceService.createSkeleton(any(AdaptiveSessionCreation.class)))
+        .thenReturn(interviewAtTurn(1));
     when(planningAgent.propose(any(), any())).thenReturn(new PlanProposal(List.of()));
 
     PlannedInterview created = service.create("candidate-1", "JD", "Resume", null);
@@ -325,7 +417,7 @@ class AdaptiveInterviewApplicationServiceTest {
   @DisplayName("模型失败时不写入回答和下一题")
   void shouldNotAdvanceWhenModelFails() {
     when(persistenceService.get("session-1")).thenReturn(interviewAtTurn(1));
-    when(runtime.run(any(ReActRequest.class), any(ReActBudget.class)))
+    when(runtime.runStreaming(any(ReActRequest.class), any(ReActBudget.class), isNull()))
         .thenThrow(new BusinessException(ErrorCode.AI_SERVICE_ERROR, "模型失败"));
 
     assertThatThrownBy(() -> service.submitAnswer(
@@ -368,7 +460,7 @@ class AdaptiveInterviewApplicationServiceTest {
     when(persistenceService.get("session-1")).thenReturn(interview);
     when(skillService.buildEvaluationReferenceSection("java-backend"))
         .thenReturn("### Redis (REDIS)\n- 缓存穿透");
-    when(runtime.run(any(ReActRequest.class), any(ReActBudget.class)))
+    when(runtime.runStreaming(any(ReActRequest.class), any(ReActBudget.class), isNull()))
         .thenReturn(ReActResult.withoutTools(action));
     when(persistenceService.recordDecision(
         eq("session-1"), eq(answer), eq(action), eq(List.of()),
@@ -378,7 +470,7 @@ class AdaptiveInterviewApplicationServiceTest {
 
     gapService.submitAnswer("session-1", answer);
 
-    verify(runtime).run(request.capture(), any(ReActBudget.class));
+    verify(runtime).runStreaming(request.capture(), any(ReActBudget.class), isNull());
     assertThat(request.getValue().interviewerContext().currentAnswerGaps())
         .containsExactly(gap);
     verify(skillService).buildEvaluationReferenceSection("java-backend");
@@ -402,11 +494,12 @@ class AdaptiveInterviewApplicationServiceTest {
     CandidateAnswer answer = new CandidateAnswer(2, "第二轮回答");
     RespondAction action = RespondAction.ask("项目经验问题？", "切换维度");
     when(persistenceService.get("session-1")).thenReturn(interview);
-    when(runtime.run(any(ReActRequest.class), any(ReActBudget.class)))
+    when(runtime.runStreaming(any(ReActRequest.class), any(ReActBudget.class), isNull()))
         .thenReturn(ReActResult.withoutTools(action));
     when(dimensionBriefService.summarize(
         eq("session-1"), any(), anyList(), eq(answer), nullable(String.class)
     )).thenReturn(null);
+    when(planningTaxonomy.catalog()).thenReturn(List.of());
     when(candidateClaimExtractionService.extract(
         eq("session-1"), any(), anyList(), eq(answer), anyList(), nullable(String.class)
     )).thenReturn(List.of());
@@ -420,9 +513,15 @@ class AdaptiveInterviewApplicationServiceTest {
 
     gapService.submitAnswer("session-1", answer);
 
-    verify(runtime).run(request.capture(), any(ReActBudget.class));
+    verify(runtime).runStreaming(request.capture(), any(ReActBudget.class), isNull());
     assertThat(request.getValue().interviewerContext().currentAnswerGaps()).isEmpty();
     assertThat(request.getValue().interviewerContext().targetDimension()).isEqualTo("项目经验");
+    // 非末轮维度完成：记忆异步生成单独落库，当轮决策拿到的是空小结/空声明
+    verify(persistenceService).saveDimensionMemory("session-1", null, List.of());
+    verify(persistenceService).recordDecision(
+        eq("session-1"), eq(answer), eq(action), eq(List.of()),
+        isNull(), eq(List.of()), any(), anyList(), eq(List.of())
+    );
   }
 
   @Test
@@ -447,10 +546,11 @@ class AdaptiveInterviewApplicationServiceTest {
     when(dimensionBriefService.summarize(
         eq("session-1"), any(), anyList(), eq(answer), nullable(String.class)
     )).thenReturn(null);
+    when(planningTaxonomy.catalog()).thenReturn(List.of());
     when(candidateClaimExtractionService.extract(
         eq("session-1"), any(), anyList(), eq(answer), anyList(), nullable(String.class)
     )).thenReturn(List.of());
-    when(runtime.run(any(ReActRequest.class), any(ReActBudget.class)))
+    when(runtime.runStreaming(any(ReActRequest.class), any(ReActBudget.class), isNull()))
         .thenReturn(ReActResult.withoutTools(action));
     when(persistenceService.recordDecision(
         eq("session-1"), eq(answer), eq(action), eq(List.of()),
@@ -460,13 +560,15 @@ class AdaptiveInterviewApplicationServiceTest {
 
     l4Service.submitAnswer("session-1", answer);
 
-    verify(runtime).run(request.capture(), any(ReActBudget.class));
+    verify(runtime).runStreaming(request.capture(), any(ReActBudget.class), isNull());
     assertThat(request.getValue().interviewerContext().targetDimension())
         .isEqualTo("项目经验");
     assertThat(request.getValue().interviewerContext().currentAnswerGaps()).isEmpty();
+    // 提前完成的维度记忆走异步任务生成并单独落库
     verify(dimensionBriefService).summarize(
         eq("session-1"), any(), anyList(), eq(answer), nullable(String.class)
     );
+    verify(persistenceService).saveDimensionMemory("session-1", null, List.of());
   }
 
   @Test
@@ -486,7 +588,7 @@ class AdaptiveInterviewApplicationServiceTest {
     CandidateAnswer answer = new CandidateAnswer(5, "末维度第一轮回答");
     RespondAction action = RespondAction.ask("末维度第二题？", "继续验证");
     when(persistenceService.get("session-1")).thenReturn(interview);
-    when(runtime.run(any(ReActRequest.class), any(ReActBudget.class)))
+    when(runtime.runStreaming(any(ReActRequest.class), any(ReActBudget.class), isNull()))
         .thenReturn(ReActResult.withoutTools(action));
     when(persistenceService.recordDecision(
         eq("session-1"), eq(answer), eq(action), eq(List.of()),
@@ -496,7 +598,7 @@ class AdaptiveInterviewApplicationServiceTest {
 
     l4Service.submitAnswer("session-1", answer);
 
-    verify(runtime).run(request.capture(), any(ReActBudget.class));
+    verify(runtime).runStreaming(request.capture(), any(ReActBudget.class), isNull());
     assertThat(request.getValue().interviewerContext().targetDimension())
         .isEqualTo("系统设计");
     verifyNoInteractions(dimensionBriefService);
@@ -527,7 +629,7 @@ class AdaptiveInterviewApplicationServiceTest {
         5
     );
     when(persistenceService.get("session-1")).thenReturn(interview);
-    when(runtime.run(any(ReActRequest.class), any(ReActBudget.class)))
+    when(runtime.runStreaming(any(ReActRequest.class), any(ReActBudget.class), isNull()))
         .thenReturn(new ReActResult(action, List.of(pending)));
     when(persistenceService.recordDecision(
         eq("session-1"), eq(answer), eq(action), eq(List.of(pending)),
@@ -537,7 +639,7 @@ class AdaptiveInterviewApplicationServiceTest {
 
     service.submitAnswer("session-1", answer);
 
-    verify(runtime).run(request.capture(), any(ReActBudget.class));
+    verify(runtime).runStreaming(request.capture(), any(ReActBudget.class), isNull());
     assertThat(request.getValue().interviewerContext().currentCodeSubmission())
         .isEqualTo(answer);
     verify(persistenceService).recordDecision(
@@ -555,7 +657,7 @@ class AdaptiveInterviewApplicationServiceTest {
         new CandidateCodeSubmission("two-sum", "JAVA", "FULL")
     );
     when(persistenceService.get("session-1")).thenReturn(interviewAtTurn(1));
-    when(runtime.run(any(ReActRequest.class), any(ReActBudget.class)))
+    when(runtime.runStreaming(any(ReActRequest.class), any(ReActBudget.class), isNull()))
         .thenReturn(ReActResult.withoutTools(RespondAction.ask("下一题？", "继续")));
 
     assertThatThrownBy(() -> service.submitAnswer("session-1", answer))
@@ -598,10 +700,10 @@ class AdaptiveInterviewApplicationServiceTest {
   }
 
   @Test
-  @DisplayName("维度小结失败时不调用下一维度面试官也不推进状态")
-  void shouldNotAdvanceWhenDimensionBriefFails() {
-    PlannedInterview interview = interviewAtTurn(2);
-    CandidateAnswer answer = new CandidateAnswer(2, "第二轮回答");
+  @DisplayName("末轮维度小结同步生成失败时不推进状态")
+  void shouldNotAdvanceWhenLastTurnDimensionBriefFails() {
+    PlannedInterview interview = interviewAtTurn(6);
+    CandidateAnswer answer = new CandidateAnswer(6, "最终回答");
     when(persistenceService.get("session-1")).thenReturn(interview);
     when(dimensionBriefService.summarize(
         eq("session-1"),
@@ -627,14 +729,16 @@ class AdaptiveInterviewApplicationServiceTest {
         anyList(),
         anyList()
     );
+    verify(persistenceService, never()).saveDimensionMemory(anyString(), any(), anyList());
   }
 
   @Test
-  @DisplayName("声明抽取失败时不调用下一维度面试官也不推进状态")
-  void shouldNotAdvanceWhenClaimExtractionFails() {
-    PlannedInterview interview = interviewAtTurn(2);
-    CandidateAnswer answer = new CandidateAnswer(2, "第二轮回答");
+  @DisplayName("末轮声明同步抽取失败时不推进状态")
+  void shouldNotAdvanceWhenLastTurnClaimExtractionFails() {
+    PlannedInterview interview = interviewAtTurn(6);
+    CandidateAnswer answer = new CandidateAnswer(6, "最终回答");
     when(persistenceService.get("session-1")).thenReturn(interview);
+    when(planningTaxonomy.catalog()).thenReturn(List.of());
     when(candidateClaimExtractionService.extract(
         eq("session-1"),
         any(),
@@ -660,6 +764,122 @@ class AdaptiveInterviewApplicationServiceTest {
         anyList(),
         anyList()
     );
+    verify(persistenceService, never()).saveDimensionMemory(anyString(), any(), anyList());
+  }
+
+  @Test
+  @DisplayName("非末轮维度记忆异步生成失败只记日志，不阻塞面试主流程")
+  void shouldContinueWhenAsyncDimensionMemoryFails() {
+    PlannedInterview interview = interviewAtTurn(2);
+    CandidateAnswer answer = new CandidateAnswer(2, "第二轮回答");
+    RespondAction action = RespondAction.ask("项目经验问题？", "切换维度");
+    when(persistenceService.get("session-1")).thenReturn(interview);
+    when(dimensionBriefService.summarize(
+        eq("session-1"), any(), anyList(), eq(answer), nullable(String.class)
+    )).thenThrow(new BusinessException(ErrorCode.AI_SERVICE_ERROR, "维度小结生成失败"));
+    when(runtime.runStreaming(any(ReActRequest.class), any(ReActBudget.class), isNull()))
+        .thenReturn(ReActResult.withoutTools(action));
+    when(persistenceService.latestAssessmentDepth("session-1", 0))
+        .thenReturn(DepthLevel.L1);
+    when(persistenceService.recordDecision(
+        eq("session-1"), eq(answer), eq(action), eq(List.of()),
+        isNull(), eq(List.of()), any(), anyList(), eq(List.of())
+    )).thenReturn(interview);
+
+    PlannedInterview updated = service.submitAnswer("session-1", answer);
+
+    assertThat(updated).isSameAs(interview);
+    // 异步任务失败被吞掉：不写维度记忆，但当轮决策正常落库
+    verify(persistenceService, never()).saveDimensionMemory(anyString(), any(), anyList());
+    verify(persistenceService).recordDecision(
+        eq("session-1"), eq(answer), eq(action), eq(List.of()),
+        isNull(), eq(List.of()), any(), anyList(), eq(List.of())
+    );
+  }
+
+  @Test
+  @DisplayName("末轮维度完成仍同步生成小结和声明并随决策落库")
+  void shouldGenerateDimensionMemorySynchronouslyOnLastTurn() {
+    PlannedInterview interview = interviewAtTurn(6);
+    CandidateAnswer answer = new CandidateAnswer(6, "最终回答");
+    DimensionBrief brief = new DimensionBrief(
+        "session-1", 2, "系统设计", "扩展边界", "能说明方案权衡", List.of(5, 6)
+    );
+    List<CandidateClaim> claims = List.of(new CandidateClaim(
+        CandidateClaimType.PROJECT_EXPERIENCE, "system-design", "DISTRIBUTED", 6
+    ));
+    when(persistenceService.get("session-1")).thenReturn(interview);
+    when(dimensionBriefService.summarize(
+        eq("session-1"), any(), anyList(), eq(answer), nullable(String.class)
+    )).thenReturn(brief);
+    when(planningTaxonomy.catalog()).thenReturn(List.of());
+    when(candidateClaimExtractionService.extract(
+        eq("session-1"), any(), anyList(), eq(answer), anyList(), nullable(String.class)
+    )).thenReturn(claims);
+    when(practiceRecommendationService.recommend(eq("session-1"), any(), any()))
+        .thenReturn(List.of());
+    when(persistenceService.latestAssessmentDepth("session-1", 2))
+        .thenReturn(DepthLevel.L1);
+    when(persistenceService.recordDecision(
+        eq("session-1"), eq(answer), any(), eq(List.of()),
+        eq(brief), eq(claims), any(), anyList(), eq(List.of())
+    )).thenReturn(interview);
+
+    PlannedInterview updated = service.submitAnswer("session-1", answer);
+
+    assertThat(updated).isSameAs(interview);
+    verify(persistenceService).recordDecision(
+        eq("session-1"), eq(answer), any(), eq(List.of()),
+        eq(brief), eq(claims), any(), anyList(), eq(List.of())
+    );
+    verify(persistenceService, never()).saveDimensionMemory(anyString(), any(), anyList());
+    verify(answerExecutor, never()).execute(any(Runnable.class));
+    verifyNoInteractions(runtime);
+  }
+
+  @Test
+  @DisplayName("流式答题先鉴权，再按 ASSESSING→GENERATING 顺序推送阶段事件")
+  void shouldEmitStagesInOrderWhenStreamingAnswer() {
+    PlannedInterview interview = interviewAtTurn(1);
+    CandidateAnswer answer = new CandidateAnswer(1, "回答");
+    RespondAction action = RespondAction.ask("下一题？", "继续验证");
+    List<AnswerEventSink.AnswerStage> stages = new ArrayList<>();
+    List<String> deltas = new ArrayList<>();
+    Consumer<String> deltaConsumer = deltas::add;
+    AnswerEventSink sink = new AnswerEventSink() {
+      @Override
+      public void onStage(AnswerStage stage) {
+        stages.add(stage);
+      }
+
+      @Override
+      public Consumer<String> deltaSink() {
+        return deltaConsumer;
+      }
+    };
+    when(persistenceService.get("session-1")).thenReturn(interview);
+    when(runtime.runStreaming(any(ReActRequest.class), any(ReActBudget.class), eq(deltaConsumer)))
+        .thenReturn(ReActResult.withoutTools(action));
+    when(persistenceService.recordDecision(
+        eq("session-1"), eq(answer), eq(action), eq(List.of()),
+        isNull(), eq(List.of()), any(), anyList(), eq(List.of())
+    )).thenReturn(interview);
+
+    PlannedInterview updated = service.submitAnswerStreaming(
+        "candidate-1", "session-1", answer, sink
+    );
+
+    assertThat(updated).isSameAs(interview);
+    InOrder order = inOrder(persistenceService);
+    order.verify(persistenceService).requireCandidateSession("candidate-1", "session-1");
+    order.verify(persistenceService).get("session-1");
+    assertThat(stages).containsExactly(
+        AnswerEventSink.AnswerStage.ASSESSING,
+        AnswerEventSink.AnswerStage.GENERATING
+    );
+    verify(runtime).runStreaming(
+        any(ReActRequest.class), any(ReActBudget.class), eq(deltaConsumer)
+    );
   }
 
   @Test
@@ -683,7 +903,7 @@ class AdaptiveInterviewApplicationServiceTest {
     CandidateAnswer answer = new CandidateAnswer(1, "回答");
     RespondAction action = RespondAction.ask("下一题？", "继续验证");
     when(persistenceService.get("session-1")).thenReturn(interview);
-    when(runtime.run(any(ReActRequest.class), any(ReActBudget.class)))
+    when(runtime.runStreaming(any(ReActRequest.class), any(ReActBudget.class), isNull()))
         .thenReturn(ReActResult.withoutTools(action));
     when(persistenceService.recordDecision(
         eq("session-1"), eq(answer), eq(action), eq(List.of()),
@@ -705,7 +925,7 @@ class AdaptiveInterviewApplicationServiceTest {
     CandidateAnswer answer = new CandidateAnswer(1, "相同质量的回答");
     RespondAction action = RespondAction.ask("下一题？", "继续验证");
     when(persistenceService.get("session-1")).thenReturn(interview);
-    when(runtime.run(any(ReActRequest.class), any(ReActBudget.class)))
+    when(runtime.runStreaming(any(ReActRequest.class), any(ReActBudget.class), isNull()))
         .thenReturn(ReActResult.withoutTools(action));
     when(persistenceService.recordDecision(
         eq("session-1"), eq(answer), eq(action), eq(List.of()),
@@ -859,13 +1079,13 @@ class AdaptiveInterviewApplicationServiceTest {
     PlannedInterview interview = interviewAtTurn(1);
     RespondAction followUp = RespondAction.ask("第 7 个用例失败可能是哪类边界？", "基于判题结果追问");
     when(persistenceService.get("session-1")).thenReturn(interview);
-    when(runtime.run(any(ReActRequest.class), any(ReActBudget.class)))
+    when(runtime.runStreaming(any(ReActRequest.class), any(ReActBudget.class), isNull()))
         .thenReturn(ReActResult.withoutTools(followUp));
     ArgumentCaptor<ReActRequest> request = ArgumentCaptor.forClass(ReActRequest.class);
 
     assertThat(service.handleToolResult("session-1", event)).contains(followUp);
 
-    verify(runtime).run(request.capture(), any(ReActBudget.class));
+    verify(runtime).runStreaming(request.capture(), any(ReActBudget.class), isNull());
     assertThat(request.getValue().interviewerContext().currentToolResult()).isEqualTo(event);
     verify(persistenceService).completeToolResultEvent(
         "session-1",
@@ -890,7 +1110,7 @@ class AdaptiveInterviewApplicationServiceTest {
     );
     when(persistenceService.get("session-1")).thenReturn(interviewAtTurn(1));
     RuntimeException failure = new RuntimeException("database unavailable");
-    when(runtime.run(any(ReActRequest.class), any(ReActBudget.class)))
+    when(runtime.runStreaming(any(ReActRequest.class), any(ReActBudget.class), isNull()))
         .thenThrow(failure);
 
     assertThatThrownBy(() -> service.handleToolResult("session-1", event))

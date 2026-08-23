@@ -3,6 +3,7 @@ package interview.guide.modules.llmprovider.service;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
@@ -18,6 +19,7 @@ import interview.guide.modules.llmprovider.model.LlmProviderEntity;
 import interview.guide.modules.llmprovider.repository.CandidateLlmSettingRepository;
 import interview.guide.modules.llmprovider.repository.LlmProviderRepository;
 import interview.guide.modules.llmprovider.service.ProviderConnectionTester.ProviderConnectionConfig;
+import interview.guide.modules.interview.agent.adaptive.persistence.session.AdaptiveAgentSessionRepository;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
@@ -39,6 +41,7 @@ class CandidateLlmProviderServiceTest {
   @Mock private ApiKeyEncryptionService encryptionService;
   @Mock private LlmProviderRegistry registry;
   @Mock private ProviderConnectionTester connectionTester;
+  @Mock private AdaptiveAgentSessionRepository sessionRepository;
 
   private CandidateLlmProviderService service;
   private UUID candidateId;
@@ -50,7 +53,8 @@ class CandidateLlmProviderServiceTest {
         settingRepository,
         encryptionService,
         registry,
-        connectionTester
+        connectionTester,
+        sessionRepository
     );
     candidateId = UUID.randomUUID();
   }
@@ -75,6 +79,7 @@ class CandidateLlmProviderServiceTest {
       assertThat(response.maskedApiKey()).isEqualTo("sk-***xyz");
       assertThat(response.defaultChatProvider()).isTrue();
       assertThat(response.defaultEmbeddingProvider()).isTrue();
+      assertThat(response.thinkingDisabled()).isTrue();
     });
   }
 
@@ -96,6 +101,7 @@ class CandidateLlmProviderServiceTest {
     assertThat(saved.getApiKeyCiphertext()).isEqualTo("cipher-new");
     assertThat(saved.getApiKeyNonce()).isEqualTo("nonce-new");
     assertThat(saved.getApiKeyCiphertext()).doesNotContain("secret-key");
+    assertThat(saved.isThinkingDisabled()).isTrue();
   }
 
   @Test
@@ -123,8 +129,31 @@ class CandidateLlmProviderServiceTest {
 
     assertThat(provider.getApiKeyNonce()).isEqualTo("nonce");
     assertThat(provider.getApiKeyCiphertext()).isEqualTo("ciphertext");
+    assertThat(provider.isThinkingDisabled()).isTrue();
     verify(encryptionService, never()).encrypt(any());
     verify(registry).reload();
+  }
+
+  @Test
+  @DisplayName("创建中或进行中的面试使用 Provider 时禁止编辑")
+  void updateRejectsProviderInUse() {
+    LlmProviderEntity provider = provider("provider-1", false);
+    when(providerRepository.findByIdAndCandidateId("provider-1", candidateId))
+        .thenReturn(Optional.of(provider));
+    when(sessionRepository.existsByLlmProviderAndTenantIdIsNullAndStatusIn(
+        eq("provider-1"),
+        any()
+    )).thenReturn(true);
+
+    assertThatThrownBy(() -> service.update(
+        candidateId,
+        "provider-1",
+        updateRequest("")
+    )).isInstanceOf(BusinessException.class)
+        .extracting(exception -> ((BusinessException) exception).getCode())
+        .isEqualTo(ErrorCode.PROVIDER_IN_USE.getCode());
+
+    verify(providerRepository, never()).saveAndFlush(any());
   }
 
   @Test
@@ -184,6 +213,89 @@ class CandidateLlmProviderServiceTest {
     verify(settingRepository, never()).save(any());
   }
 
+  @Test
+  @DisplayName("启动面试时解析候选人的默认文本 Provider")
+  void resolveChatProviderUsesCandidateDefault() {
+    CandidateLlmSettingEntity setting = new CandidateLlmSettingEntity(candidateId);
+    setting.setDefaultChatProviderId("provider-1");
+    when(settingRepository.findById(candidateId)).thenReturn(Optional.of(setting));
+    when(providerRepository.findByIdAndCandidateId("provider-1", candidateId))
+        .thenReturn(Optional.of(provider("provider-1", false)));
+
+    CandidateChatProvider resolved = service.resolveChatProvider(candidateId, null);
+
+    assertThat(resolved).isEqualTo(new CandidateChatProvider(
+        "provider-1",
+        "我的 Provider",
+        "chat-model"
+    ));
+  }
+
+  @Test
+  @DisplayName("未设置默认文本 Provider 时不能启动面试")
+  void resolveChatProviderRequiresDefault() {
+    when(settingRepository.findById(candidateId)).thenReturn(Optional.empty());
+
+    assertThatThrownBy(() -> service.resolveChatProvider(candidateId, "provider-1"))
+        .isInstanceOf(BusinessException.class)
+        .extracting(exception -> ((BusinessException) exception).getCode())
+        .isEqualTo(ErrorCode.PROVIDER_DEFAULT_REQUIRED.getCode());
+
+    verify(providerRepository, never()).findByIdAndCandidateId(any(), any());
+  }
+
+  @Test
+  @DisplayName("默认 Provider 不能删除")
+  void deleteRejectsDefaultProvider() {
+    LlmProviderEntity provider = provider("provider-1", false);
+    CandidateLlmSettingEntity setting = new CandidateLlmSettingEntity(candidateId);
+    setting.setDefaultChatProviderId("provider-1");
+    when(providerRepository.findByIdAndCandidateId("provider-1", candidateId))
+        .thenReturn(Optional.of(provider));
+    when(settingRepository.findById(candidateId)).thenReturn(Optional.of(setting));
+
+    assertThatThrownBy(() -> service.delete(candidateId, "provider-1"))
+        .isInstanceOf(BusinessException.class)
+        .extracting(exception -> ((BusinessException) exception).getCode())
+        .isEqualTo(ErrorCode.PROVIDER_DEFAULT_CANNOT_DELETE.getCode());
+
+    verify(providerRepository, never()).delete(any());
+  }
+
+  @Test
+  @DisplayName("活跃面试使用的非默认 Provider 不能删除")
+  void deleteRejectsProviderInUse() {
+    LlmProviderEntity provider = provider("provider-1", false);
+    when(providerRepository.findByIdAndCandidateId("provider-1", candidateId))
+        .thenReturn(Optional.of(provider));
+    when(settingRepository.findById(candidateId)).thenReturn(Optional.empty());
+    when(sessionRepository.existsByLlmProviderAndTenantIdIsNullAndStatusIn(
+        any(),
+        any()
+    )).thenReturn(true);
+
+    assertThatThrownBy(() -> service.delete(candidateId, "provider-1"))
+        .isInstanceOf(BusinessException.class)
+        .extracting(exception -> ((BusinessException) exception).getCode())
+        .isEqualTo(ErrorCode.PROVIDER_IN_USE.getCode());
+
+    verify(providerRepository, never()).delete(any());
+  }
+
+  @Test
+  @DisplayName("没有默认角色且无活跃面试时可以删除 Provider")
+  void deleteRemovesUnusedProvider() {
+    LlmProviderEntity provider = provider("provider-1", false);
+    when(providerRepository.findByIdAndCandidateId("provider-1", candidateId))
+        .thenReturn(Optional.of(provider));
+    when(settingRepository.findById(candidateId)).thenReturn(Optional.empty());
+
+    service.delete(candidateId, "provider-1");
+
+    verify(providerRepository).delete(provider);
+    verify(registry).reload();
+  }
+
   private CreateCandidateProviderRequest createRequest() {
     return new CreateCandidateProviderRequest(
         " 我的 Provider ",
@@ -192,7 +304,8 @@ class CandidateLlmProviderServiceTest {
         " chat-model ",
         null,
         null,
-        0.2
+        0.2,
+        true
     );
   }
 
@@ -204,7 +317,8 @@ class CandidateLlmProviderServiceTest {
         "chat-model",
         null,
         null,
-        0.2
+        0.2,
+        true
     );
   }
 
@@ -220,6 +334,7 @@ class CandidateLlmProviderServiceTest {
         .embeddingModel(supportsEmbedding ? "embedding-model" : null)
         .embeddingDimensions(supportsEmbedding ? 1024 : null)
         .supportsEmbedding(supportsEmbedding)
+        .thinkingDisabled(true)
         .enabled(true)
         .builtin(false)
         .build();

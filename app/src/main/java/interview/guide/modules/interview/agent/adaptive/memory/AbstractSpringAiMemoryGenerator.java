@@ -6,6 +6,7 @@ import interview.guide.common.exception.BusinessException;
 import interview.guide.common.exception.ErrorCode;
 import interview.guide.modules.interview.agent.adaptive.observability.AdaptiveAgentTelemetry;
 import interview.guide.modules.interview.agent.adaptive.observability.AdaptiveInputTokenBudget;
+import interview.guide.modules.interview.agent.adaptive.role.AdaptiveModelOptionsFactory;
 import interview.guide.modules.interview.agent.adaptive.runtime.DeadlineExecutor;
 import java.time.Duration;
 import java.util.Map;
@@ -32,6 +33,7 @@ public abstract class AbstractSpringAiMemoryGenerator<REQ, RES> {
   private final AdaptiveAgentTelemetry telemetry;
   private final AdaptiveInputTokenBudget inputTokenBudget;
   private final DeadlineExecutor deadlineExecutor;
+  private final AdaptiveModelOptionsFactory modelOptionsFactory;
 
   protected AbstractSpringAiMemoryGenerator(
       LlmProviderRegistry llmProviderRegistry,
@@ -39,7 +41,8 @@ public abstract class AbstractSpringAiMemoryGenerator<REQ, RES> {
       ObjectMapper objectMapper,
       AdaptiveAgentTelemetry telemetry,
       AdaptiveInputTokenBudget inputTokenBudget,
-      DeadlineExecutor deadlineExecutor
+      DeadlineExecutor deadlineExecutor,
+      AdaptiveModelOptionsFactory modelOptionsFactory
   ) {
     this.llmProviderRegistry = llmProviderRegistry;
     this.structuredOutputInvoker = structuredOutputInvoker;
@@ -47,6 +50,7 @@ public abstract class AbstractSpringAiMemoryGenerator<REQ, RES> {
     this.telemetry = telemetry;
     this.inputTokenBudget = inputTokenBudget;
     this.deadlineExecutor = deadlineExecutor;
+    this.modelOptionsFactory = modelOptionsFactory;
   }
 
   protected RES generate(REQ request, String llmProvider, GenerationSpec<RES> spec) {
@@ -61,7 +65,9 @@ public abstract class AbstractSpringAiMemoryGenerator<REQ, RES> {
       ));
       inputTokenBudget.verify(spec.model(), systemPrompt, userPrompt);
       ChatClient chatClient = telemetry.observeTokenUsage(
-          llmProviderRegistry.getChatClientOrDefault(llmProvider),
+          llmProviderRegistry.getPlainChatClient(llmProvider).mutate()
+              .defaultOptions(modelOptionsFactory.structured())
+              .build(),
           spec.model(),
           spec.sessionId()
       );

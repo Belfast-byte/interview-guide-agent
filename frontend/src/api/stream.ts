@@ -12,6 +12,8 @@ interface StreamSseOptions {
   trimDataPrefixSpace?: boolean;
   unescapeEscapedNewlines?: boolean;
   dataJoiner?: string;
+  /** event 模式下按事件名分发；提供后 onMessage 不再接收具名事件内容 */
+  onEvent?: (eventName: string, content: string) => void;
 }
 
 function toApiUrl(url: string): string {
@@ -207,6 +209,11 @@ function processEventBlock(block: string, options: StreamSseOptions): void {
     const parsed = parseJsonObject(content);
     const businessError = parsed ? getBusinessEventError(parsed) : null;
     throw businessError ?? new Error(content.trim() || '请求失败');
+  }
+
+  if (options.onEvent) {
+    options.onEvent(eventName ?? 'message', content);
+    return;
   }
 
   emitContent(content, options);

@@ -12,6 +12,7 @@ import interview.guide.modules.interview.agent.adaptive.algorithm.sandbox.Sandbo
 import interview.guide.modules.interview.agent.adaptive.core.session.AdaptiveInterviewSession;
 import interview.guide.modules.interview.agent.adaptive.core.session.AdaptiveSessionStatus;
 import interview.guide.modules.interview.agent.adaptive.persistence.session.AdaptiveAgentSessionEntity;
+import interview.guide.modules.interview.agent.adaptive.persistence.session.AdaptiveSessionCreation;
 import jakarta.persistence.EntityManager;
 import java.time.LocalDateTime;
 import java.util.List;
@@ -124,11 +125,16 @@ class JpaAlgorithmResultReadyDeliveryStoreIntegrationTest {
         );
     entityManager.persist(new AdaptiveAgentSessionEntity(
         session,
-        null,
-        "candidate-1",
-        "JD",
-        "Resume",
-        null
+        new AdaptiveSessionCreation(
+            null,
+            sessionId,
+            "candidate-1",
+            "JD",
+            "Resume",
+            null,
+            null,
+            null
+        )
     ));
   }
 

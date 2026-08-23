@@ -1,4 +1,4 @@
-import { Bot, Home, LogOut, Menu, Moon, Sparkles, Sun, X } from 'lucide-react';
+import { Bot, History, Home, LogOut, Menu, Moon, ServerCog, Sparkles, Sun, X } from 'lucide-react';
 import { useState } from 'react';
 import { Link, Outlet, useLocation } from 'react-router-dom';
 import { useAuth } from '../auth/AuthContext';
@@ -12,6 +12,18 @@ const NAV_ITEMS = [
     label: '自适应面试',
     description: '按能力维度动态追问',
     icon: Bot,
+  },
+  {
+    path: ROUTES.interviewHistory,
+    label: '面试历史',
+    description: '继续会话与查看报告',
+    icon: History,
+  },
+  {
+    path: ROUTES.providers,
+    label: '模型服务',
+    description: '管理私有 Provider',
+    icon: ServerCog,
   },
 ] as const;
 

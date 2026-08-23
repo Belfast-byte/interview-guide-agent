@@ -59,6 +59,7 @@ public class LlmProviderBootstrapService {
           .embeddingDimensions(resolveEmbeddingDimensions(config.getEmbeddingDimensions()))
           .supportsEmbedding(supportsEmbedding)
           .temperature(config.getTemperature())
+          .thinkingDisabled(config.isThinkingDisabled())
           .enabled(true)
           .builtin(true)
           .build();

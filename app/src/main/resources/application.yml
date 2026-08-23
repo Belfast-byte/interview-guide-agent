@@ -161,7 +161,7 @@ app:
       message-chat-memory-enabled: ${APP_AI_ADVISORS_MESSAGE_CHAT_MEMORY_ENABLED:false}
       message-chat-memory-max-messages: ${APP_AI_ADVISORS_MESSAGE_CHAT_MEMORY_MAX_MESSAGES:120}
       simple-logger-enabled: ${APP_AI_ADVISORS_SIMPLE_LOGGER_ENABLED:false}
-    # 结构化输出重试次数（用于 BeanOutputConverter 解析失败时的业务层重试）
+    # 结构化输出总尝试次数：默认首次调用 + 1 次业务层重试
     structured-max-attempts: ${APP_AI_STRUCTURED_MAX_ATTEMPTS:2}
     # 重试时是否将上次错误原因注入提示词，帮助模型定向修复输出
     structured-include-last-error: ${APP_AI_STRUCTURED_INCLUDE_LAST_ERROR:true}
@@ -173,8 +173,6 @@ app:
     structured-error-message-max-length: ${APP_AI_STRUCTURED_ERROR_MESSAGE_MAX_LENGTH:200}
     # 是否开启结构化输出调用指标（invocations/attempts/latency）
     structured-metrics-enabled: ${APP_AI_STRUCTURED_METRICS_ENABLED:true}
-    # 是否启用 Spring AI 2.0 entity schema validation retry（失败时仍受 structured-max-attempts 外层控制）
-    structured-schema-validation-enabled: ${APP_AI_STRUCTURED_SCHEMA_VALIDATION_ENABLED:true}
     rag:
       rewrite:
         enabled: ${APP_AI_RAG_REWRITE_ENABLED:true}
@@ -195,6 +193,9 @@ app:
       brief-deadline: ${APP_INTERVIEW_ADAPTIVE_AGENT_BRIEF_DEADLINE:30s}
       claim-deadline: ${APP_INTERVIEW_ADAPTIVE_AGENT_CLAIM_DEADLINE:30s}
       assessment-deadline: ${APP_INTERVIEW_ADAPTIVE_AGENT_ASSESSMENT_DEADLINE:30s}
+      planner-max-output-tokens: ${APP_INTERVIEW_ADAPTIVE_AGENT_PLANNER_MAX_OUTPUT_TOKENS:2048}
+      interviewer-max-output-tokens: ${APP_INTERVIEW_ADAPTIVE_AGENT_INTERVIEWER_MAX_OUTPUT_TOKENS:1024}
+      reasoning-effort: ${APP_INTERVIEW_ADAPTIVE_AGENT_REASONING_EFFORT:low}
       # MCP server 租户凭证：启用 adaptive-agent 后 MCP 端点默认要求凭证，
       # 未配置 credentials 时所有 MCP 调用返回 401。每个凭证包含：
       #   tenant-id 租户标识；api-key 调用方密钥；

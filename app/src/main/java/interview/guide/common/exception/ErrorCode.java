@@ -82,7 +82,9 @@ public enum ErrorCode {
     VOICE_CONFIG_READ_FAILED(11009, "读取语音服务配置失败"),
     VOICE_CONFIG_WRITE_FAILED(11010, "写入语音服务配置失败"),
     VOICE_CONFIG_TEST_FAILED(11011, "语音服务连通性测试失败"),
-    PROVIDER_EMBEDDING_NOT_CONFIGURED(11012, "Provider 未配置嵌入模型");
+    PROVIDER_EMBEDDING_NOT_CONFIGURED(11012, "Provider 未配置嵌入模型"),
+    PROVIDER_IN_USE(11013, "Provider 正被进行中的面试使用"),
+    PROVIDER_DEFAULT_REQUIRED(11014, "请先设置默认文本 Provider");
 
     private final Integer code;
     private final String message;
