@@ -132,4 +132,8 @@ public class EpisodeFactEntity {
         updatedAt
     );
   }
+
+  public long id() {
+    return id;
+  }
 }
