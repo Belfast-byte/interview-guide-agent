@@ -1,6 +1,7 @@
 package interview.guide.modules.interview.agent.adaptive.role;
 
 import interview.guide.modules.interview.agent.adaptive.core.context.InterviewerContext;
+import interview.guide.modules.interview.agent.adaptive.core.context.EpisodePromptFact;
 import interview.guide.modules.interview.agent.adaptive.core.context.ProjectInterviewContext;
 import interview.guide.modules.interview.agent.adaptive.core.event.CandidateAnswer;
 import interview.guide.modules.interview.agent.adaptive.runtime.ReActModelContext;
@@ -68,6 +69,30 @@ final class AdaptiveAgentRoleTestFixtures {
             null,
             List.of(),
             List.of(),
+            null,
+            null,
+            null
+        )),
+        List.of()
+    );
+  }
+
+  static ReActModelContext contextWithEpisodeHistory(EpisodePromptFact fact) {
+    return new ReActModelContext(
+        request(new InterviewerContext(
+            "JD",
+            "Resume",
+            0,
+            MAX_TURNS,
+            0,
+            "专业基础",
+            "缓存与并发",
+            List.of(),
+            "java-backend",
+            List.of(),
+            null,
+            List.of(),
+            List.of(fact),
             null,
             null,
             null

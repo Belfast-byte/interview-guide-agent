@@ -2,6 +2,7 @@ package interview.guide.modules.interview.agent.adaptive.memory.episode;
 
 import interview.guide.common.exception.BusinessException;
 import interview.guide.common.exception.ErrorCode;
+import interview.guide.modules.interview.agent.adaptive.core.context.EpisodePromptFact;
 import interview.guide.modules.interview.agent.adaptive.core.context.TopicKey;
 import java.util.ArrayList;
 import java.util.Comparator;
@@ -30,6 +31,7 @@ public class EpisodePromptSelector {
   ) {
     List<EpisodePromptFact> selected = new ArrayList<>();
     candidates.stream()
+        .filter(candidate -> sameSkill(candidate.fact(), currentTopic))
         .sorted(orderFor(currentTopic))
         .map(EpisodePromptCandidate::fact)
         .forEach(fact -> appendIfFits(selected, fact));
@@ -59,8 +61,11 @@ public class EpisodePromptSelector {
   }
 
   private boolean sameTopic(EpisodePromptFact fact, TopicKey topic) {
-    return fact.skillId().equals(topic.skillId())
-        && fact.focusId().equals(topic.focusId());
+    return sameSkill(fact, topic) && fact.focusId().equals(topic.focusId());
+  }
+
+  private boolean sameSkill(EpisodePromptFact fact, TopicKey topic) {
+    return fact.skillId().equals(topic.skillId());
   }
 
   private String toJson(List<EpisodePromptFact> facts) {

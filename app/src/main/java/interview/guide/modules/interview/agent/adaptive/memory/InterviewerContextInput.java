@@ -1,38 +1,33 @@
-package interview.guide.modules.interview.agent.adaptive.core.context;
+package interview.guide.modules.interview.agent.adaptive.memory;
 
+import interview.guide.modules.interview.agent.adaptive.core.context.EpisodePromptFact;
+import interview.guide.modules.interview.agent.adaptive.core.context.ProbeGap;
+import interview.guide.modules.interview.agent.adaptive.core.context.ProjectInterviewContext;
 import interview.guide.modules.interview.agent.adaptive.core.event.CandidateAnswer;
-import interview.guide.modules.interview.agent.adaptive.core.event.ToolResultEvent;
 import interview.guide.modules.interview.agent.adaptive.core.session.AdaptiveInterviewTurn;
-
 import java.util.List;
 
-/**
- * 面试官上下文，包含当前维度、历史、记忆和可用工具，用于生成下一轮问题。
- */
-public record InterviewerContext(
+/** 面试官上下文装配输入。 */
+public record InterviewerContextInput(
     String jd,
     String resume,
-    int currentTurn,
     int maxTurns,
     int targetDimensionOrder,
     String targetDimension,
     String targetFocus,
     List<String> suggestedTools,
     String suggestedSkill,
-    List<AdaptiveInterviewTurn> currentDimensionTurns,
-    CandidateAnswer currentDimensionAnswer,
+    List<AdaptiveInterviewTurn> turns,
+    CandidateAnswer candidateAnswer,
     List<ProbeGap> currentAnswerGaps,
     List<EpisodePromptFact> episodeHistory,
-    ToolResultEvent currentToolResult,
-    CandidateAnswer currentCodeSubmission,
     ProjectInterviewContext project
 ) {
 
-  public InterviewerContext {
+  public InterviewerContextInput {
     suggestedTools = List.copyOf(suggestedTools);
-    currentDimensionTurns = List.copyOf(currentDimensionTurns);
+    turns = List.copyOf(turns);
     currentAnswerGaps = List.copyOf(currentAnswerGaps);
     episodeHistory = List.copyOf(episodeHistory);
   }
-
 }

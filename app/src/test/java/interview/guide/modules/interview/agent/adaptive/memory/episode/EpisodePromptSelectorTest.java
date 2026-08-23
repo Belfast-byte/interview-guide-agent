@@ -6,6 +6,7 @@ import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
 import interview.guide.modules.interview.agent.adaptive.assessment.depth.DepthLevel;
+import interview.guide.modules.interview.agent.adaptive.core.context.EpisodePromptFact;
 import interview.guide.modules.interview.agent.adaptive.core.context.TopicKey;
 import java.time.LocalDateTime;
 import java.util.List;
@@ -29,7 +30,15 @@ class EpisodePromptSelectorTest {
         candidate(3, "JVM", 3),
         candidate(1, "REDIS", 1),
         candidate(4, "JVM", 4),
-        candidate(2, "REDIS", 2)
+        candidate(2, "REDIS", 2),
+        new EpisodePromptCandidate(5, new EpisodePromptFact(
+            "frontend",
+            "REACT",
+            DepthLevel.L2,
+            List.of(),
+            List.of(),
+            BASE_TIME.plusMinutes(5)
+        ))
     ));
 
     assertThat(selected).extracting(EpisodePromptFact::focusId)

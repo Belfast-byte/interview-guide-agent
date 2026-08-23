@@ -20,15 +20,18 @@ import interview.guide.modules.interview.agent.adaptive.core.action.AgentRespons
 import interview.guide.modules.interview.agent.adaptive.core.event.CandidateAnswer;
 import interview.guide.modules.interview.agent.adaptive.core.event.CandidateCodeSubmission;
 import interview.guide.modules.interview.agent.adaptive.core.context.CoveredTopic;
+import interview.guide.modules.interview.agent.adaptive.core.context.EpisodePromptFact;
 import interview.guide.modules.interview.agent.adaptive.core.context.CandidateClaimType;
 import interview.guide.modules.interview.agent.adaptive.core.context.PlanningSkill;
 import interview.guide.modules.interview.agent.adaptive.core.context.ProbeGap;
+import interview.guide.modules.interview.agent.adaptive.core.context.TopicKey;
 import interview.guide.modules.interview.agent.adaptive.core.context.UnverifiedClaim;
 import interview.guide.modules.interview.agent.adaptive.core.action.RespondAction;
 import interview.guide.modules.interview.agent.adaptive.core.context.DimensionBrief;
 import interview.guide.modules.interview.agent.adaptive.core.event.ToolResultEvent;
 import interview.guide.modules.interview.agent.adaptive.memory.ContextAssembler;
 import interview.guide.modules.interview.agent.adaptive.memory.profile.CandidateMemoryService;
+import interview.guide.modules.interview.agent.adaptive.memory.episode.EpisodePromptMemoryService;
 import interview.guide.modules.interview.agent.adaptive.memory.claim.CandidateClaim;
 import interview.guide.modules.interview.agent.adaptive.memory.claim.CandidateClaimExtractionService;
 import interview.guide.modules.interview.agent.adaptive.memory.brief.DimensionBriefService;
@@ -57,6 +60,7 @@ import interview.guide.modules.llmprovider.service.CandidateLlmProviderService;
 import java.util.UUID;
 import java.util.ArrayList;
 import java.util.List;
+import java.time.LocalDateTime;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Consumer;
 import org.junit.jupiter.api.BeforeEach;
@@ -111,6 +115,9 @@ class AdaptiveInterviewApplicationServiceTest {
   private CandidateMemoryService candidateMemoryService;
 
   @Mock
+  private EpisodePromptMemoryService episodePromptMemoryService;
+
+  @Mock
   private PlanningTaxonomy planningTaxonomy;
 
   @Mock
@@ -146,6 +153,8 @@ class AdaptiveInterviewApplicationServiceTest {
       invocation.<Runnable>getArgument(0).run();
       return null;
     }).when(answerExecutor).execute(any(Runnable.class));
+    lenient().when(episodePromptMemoryService.select(anyString(), any()))
+        .thenReturn(List.of());
     service = serviceWithAssessmentAgent(assessmentAgent());
   }
 
@@ -197,6 +206,7 @@ class AdaptiveInterviewApplicationServiceTest {
         new ContextAssembler(),
         dimensionBriefService,
         candidateMemoryService,
+        episodePromptMemoryService,
         planningTaxonomy,
         candidateClaimExtractionService,
         assessmentAgent,
@@ -226,6 +236,7 @@ class AdaptiveInterviewApplicationServiceTest {
         new ContextAssembler(),
         dimensionBriefService,
         candidateMemoryService,
+        episodePromptMemoryService,
         planningTaxonomy,
         candidateClaimExtractionService,
         assessmentAgent,
@@ -244,45 +255,89 @@ class AdaptiveInterviewApplicationServiceTest {
   @Test
   @DisplayName("创建立即返回骨架，后台按骨架→规划→首题→落库顺序完成")
   void shouldReturnSkeletonThenGenerateFirstTurnInBackground() {
-    CoveredTopic coveredTopic = new CoveredTopic("java-backend", "REDIS");
-    UnverifiedClaim unverifiedClaim = new UnverifiedClaim(
-        CandidateClaimType.PROJECT_EXPERIENCE,
-        "java-backend",
-        "PROJECT"
-    );
-    PlanningSkill planningSkill = new PlanningSkill(
-        "java-backend",
-        List.of("JAVA", "REDIS", "PROJECT")
-    );
-    when(candidateMemoryService.coveredTopics("candidate-1"))
-        .thenReturn(List.of(coveredTopic));
-    when(candidateMemoryService.unverifiedClaims("candidate-1"))
-        .thenReturn(List.of(unverifiedClaim));
-    when(planningTaxonomy.catalog()).thenReturn(List.of(planningSkill));
-    when(planningAgent.propose(any(), any())).thenReturn(proposal());
-    RespondAction firstQuestion = RespondAction.ask("第一题？", "验证基础");
+    PlanningMemoryFixture memory = planningMemory();
+    EpisodePromptFact historicalFact = episodePromptFact();
     PlannedInterview expected = interviewAtTurn(1);
+    stubFirstTurn(memory, historicalFact, expected);
+
+    PlannedInterview actual = service.create("candidate-1", "JD", "Resume", null);
+
+    assertThat(actual).isSameAs(expected);
+    assertFirstTurnContexts(memory, historicalFact);
+    verifyCreationSequence();
+  }
+
+  private PlanningMemoryFixture planningMemory() {
+    return new PlanningMemoryFixture(
+        new CoveredTopic("java-backend", "REDIS"),
+        new UnverifiedClaim(
+            CandidateClaimType.PROJECT_EXPERIENCE,
+            "java-backend",
+            "PROJECT"
+        ),
+        new PlanningSkill("java-backend", List.of("JAVA", "REDIS", "PROJECT"))
+    );
+  }
+
+  private EpisodePromptFact episodePromptFact() {
+    return new EpisodePromptFact(
+        "java-backend",
+        "JAVA",
+        DepthLevel.L3,
+        List.of("MISSING_CONCURRENCY_ANALYSIS"),
+        List.of("STRUCTURED_REASONING"),
+        LocalDateTime.of(2026, 8, 1, 10, 0)
+    );
+  }
+
+  private void stubFirstTurn(
+      PlanningMemoryFixture memory,
+      EpisodePromptFact historicalFact,
+      PlannedInterview expected
+  ) {
+    when(candidateMemoryService.coveredTopics("candidate-1"))
+        .thenReturn(List.of(memory.coveredTopic()));
+    when(candidateMemoryService.unverifiedClaims("candidate-1"))
+        .thenReturn(List.of(memory.unverifiedClaim()));
+    when(planningTaxonomy.catalog()).thenReturn(List.of(memory.planningSkill()));
+    when(planningAgent.propose(any(), any())).thenReturn(proposal());
+    when(episodePromptMemoryService.select(
+        anyString(), eq(new TopicKey("java-backend", "JAVA"))
+    )).thenReturn(List.of(historicalFact));
     when(persistenceService.createSkeleton(any(AdaptiveSessionCreation.class)))
         .thenReturn(expected);
     when(persistenceService.completeCreation(
         anyString(), any(InterviewPlan.class), any(RespondAction.class), anyList()
     )).thenReturn(expected);
     when(runtime.runStreaming(any(ReActRequest.class), any(ReActBudget.class), isNull()))
-        .thenReturn(ReActResult.withoutTools(firstQuestion));
+        .thenReturn(ReActResult.withoutTools(RespondAction.ask("第一题？", "验证基础")));
+  }
 
-    PlannedInterview actual = service.create("candidate-1", "JD", "Resume", null);
-
-    assertThat(actual).isSameAs(expected);
+  private void assertFirstTurnContexts(
+      PlanningMemoryFixture memory,
+      EpisodePromptFact historicalFact
+  ) {
     ArgumentCaptor<PlanningRequest> planningRequest = ArgumentCaptor.forClass(
         PlanningRequest.class
     );
     verify(planningAgent).propose(planningRequest.capture(), any());
     assertThat(planningRequest.getValue().context().coveredTopics())
-        .containsExactly(coveredTopic);
+        .containsExactly(memory.coveredTopic());
     assertThat(planningRequest.getValue().context().skillCatalog())
-        .containsExactly(planningSkill);
+        .containsExactly(memory.planningSkill());
     assertThat(planningRequest.getValue().context().unverifiedClaims())
-        .containsExactly(unverifiedClaim);
+        .containsExactly(memory.unverifiedClaim());
+    ArgumentCaptor<ReActRequest> interviewerRequest = ArgumentCaptor.forClass(
+        ReActRequest.class
+    );
+    verify(runtime).runStreaming(
+        interviewerRequest.capture(), any(ReActBudget.class), isNull()
+    );
+    assertThat(interviewerRequest.getValue().interviewerContext().episodeHistory())
+        .containsExactly(historicalFact);
+  }
+
+  private void verifyCreationSequence() {
     verify(planningTaxonomy).validate(any(InterviewPlan.class));
     verify(telemetry).decisionSucceeded(eq(AgentResponseType.ASK), anyLong());
     InOrder order = inOrder(persistenceService, planningAgent, runtime);
@@ -293,6 +348,12 @@ class AdaptiveInterviewApplicationServiceTest {
         anyString(), any(InterviewPlan.class), any(RespondAction.class), anyList()
     );
   }
+
+  private record PlanningMemoryFixture(
+      CoveredTopic coveredTopic,
+      UnverifiedClaim unverifiedClaim,
+      PlanningSkill planningSkill
+  ) {}
 
   @Test
   @DisplayName("流式创建按骨架→首题增量→完成会话顺序推送")

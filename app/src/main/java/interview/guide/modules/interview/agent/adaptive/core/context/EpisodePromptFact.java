@@ -1,4 +1,4 @@
-package interview.guide.modules.interview.agent.adaptive.memory.episode;
+package interview.guide.modules.interview.agent.adaptive.core.context;
 
 import interview.guide.modules.interview.agent.adaptive.assessment.depth.DepthLevel;
 import java.time.LocalDateTime;

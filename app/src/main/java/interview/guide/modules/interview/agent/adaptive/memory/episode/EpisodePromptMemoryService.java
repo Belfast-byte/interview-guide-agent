@@ -1,5 +1,6 @@
 package interview.guide.modules.interview.agent.adaptive.memory.episode;
 
+import interview.guide.modules.interview.agent.adaptive.core.context.EpisodePromptFact;
 import interview.guide.modules.interview.agent.adaptive.core.context.TopicKey;
 import java.util.List;
 import lombok.RequiredArgsConstructor;

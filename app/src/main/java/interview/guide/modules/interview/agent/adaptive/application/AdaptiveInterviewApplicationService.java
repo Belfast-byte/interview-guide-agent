@@ -26,7 +26,10 @@ import interview.guide.modules.interview.agent.adaptive.core.action.RespondActio
 import interview.guide.modules.interview.agent.adaptive.core.event.ToolResultEvent;
 import interview.guide.modules.interview.agent.adaptive.core.event.ToolResultFollowUp;
 import interview.guide.modules.interview.agent.adaptive.memory.ContextAssembler;
+import interview.guide.modules.interview.agent.adaptive.memory.InterviewerContextInput;
+import interview.guide.modules.interview.agent.adaptive.memory.ToolResultContextInput;
 import interview.guide.modules.interview.agent.adaptive.memory.profile.CandidateMemoryService;
+import interview.guide.modules.interview.agent.adaptive.memory.episode.EpisodePromptMemoryService;
 import interview.guide.modules.interview.agent.adaptive.memory.claim.CandidateClaim;
 import interview.guide.modules.interview.agent.adaptive.memory.claim.CandidateClaimExtractionService;
 import interview.guide.modules.interview.agent.adaptive.memory.brief.DimensionBriefService;
@@ -60,7 +63,6 @@ import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.RejectedExecutionException;
 import java.util.function.Consumer;
-import java.util.stream.Stream;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.dao.DataIntegrityViolationException;
@@ -83,6 +85,7 @@ public class AdaptiveInterviewApplicationService {
   private final ContextAssembler contextAssembler;
   private final DimensionBriefService dimensionBriefService;
   private final CandidateMemoryService candidateMemoryService;
+  private final EpisodePromptMemoryService episodePromptMemoryService;
   private final PlanningTaxonomy planningTaxonomy;
   private final CandidateClaimExtractionService candidateClaimExtractionService;
   private final DepthAssessmentAgent assessmentAgent;
@@ -247,6 +250,31 @@ public class AdaptiveInterviewApplicationService {
       InterviewCreationInput input,
       Consumer<String> deltaSink
   ) {
+    InterviewPlan plan = decidePlan(sessionId, input);
+    PlannedDimension firstDimension = plan.dimensionForTurn(1);
+    ReActResult firstDecision = runDecision(
+        request(new InterviewerDecisionInput(
+            sessionId,
+            input.llmProviderId(),
+            input.jd(),
+            input.resume(),
+            plan.maxTurns(),
+            firstDimension,
+            List.of(),
+            null,
+            firstWorkingMemory(sessionId, firstDimension)
+        )),
+        deltaSink
+    );
+    return persistenceService.completeCreation(
+        sessionId,
+        plan,
+        firstDecision.response(),
+        firstDecision.toolExecutions()
+    );
+  }
+
+  private InterviewPlan decidePlan(String sessionId, InterviewCreationInput input) {
     PlanProposal proposal = planningAgent.propose(
         new PlanningRequest(sessionId, contextAssembler.planner(
             input.jd(),
@@ -269,39 +297,22 @@ public class AdaptiveInterviewApplicationService {
       telemetry.planRejected(sessionId, e.getCode());
       throw e;
     }
-    PlannedDimension firstDimension = plan.dimensionForTurn(1);
-    ReActResult firstDecision = runDecision(
-        request(
-            sessionId,
-            input.llmProviderId(),
-            input.jd(),
-            input.resume(),
-            plan.maxTurns(),
-            firstDimension,
-            List.of(),
-            null,
-            List.of(),
-            contextAssembler.workingMemory(new WorkingMemoryInput(
-                sessionId,
-                1,
-                new TopicKey(
-                    firstDimension.suggestedSkill(),
-                    firstDimension.focusId()
-                ),
-                null,
-                TurnTriggerType.PLANNED,
-                List.of(),
-                List.of()
-            ))
-        ),
-        deltaSink
-    );
-    return persistenceService.completeCreation(
+    return plan;
+  }
+
+  private WorkingMemorySnapshot firstWorkingMemory(
+      String sessionId,
+      PlannedDimension dimension
+  ) {
+    return contextAssembler.workingMemory(new WorkingMemoryInput(
         sessionId,
-        plan,
-        firstDecision.response(),
-        firstDecision.toolExecutions()
-    );
+        1,
+        new TopicKey(dimension.suggestedSkill(), dimension.focusId()),
+        null,
+        TurnTriggerType.PLANNED,
+        List.of(),
+        List.of()
+    ));
   }
 
   private record InterviewCreationInput(
@@ -480,7 +491,7 @@ public class AdaptiveInterviewApplicationService {
           )
       );
       decision = runDecision(
-          request(
+          request(new InterviewerDecisionInput(
               sessionId,
               history.llmProvider(),
               history.jd(),
@@ -489,9 +500,8 @@ public class AdaptiveInterviewApplicationService {
               nextDimension,
               history.turns(),
               answer,
-              briefsForNextDecision(interview.dimensionBriefs(), dimensionBrief),
               workingMemory
-          ),
+          )),
           sink.deltaSink()
       );
     }
@@ -621,7 +631,7 @@ public class AdaptiveInterviewApplicationService {
           sessionId,
           AgentRole.INTERVIEWER,
           interview.history().llmProvider(),
-          contextAssembler.toolResult(
+          contextAssembler.toolResult(new ToolResultContextInput(
               interview.history().jd(),
               interview.history().resume(),
               interview.history().session().maxTurns(),
@@ -632,9 +642,12 @@ public class AdaptiveInterviewApplicationService {
               dimension.suggestedSkill(),
               interview.history().turns(),
               event,
-              interview.dimensionBriefs(),
+              episodePromptMemoryService.select(
+                  sessionId,
+                  new TopicKey(dimension.suggestedSkill(), dimension.focusId())
+              ),
               codeAnalysisContextService.findForSession(sessionId).orElse(null)
-          )
+          ))
       ));
       if (decision.response().type() != AgentResponseType.ASK) {
         throw new BusinessException(ErrorCode.AI_SERVICE_ERROR, "工具结果事件只能生成追问");
@@ -730,37 +743,29 @@ public class AdaptiveInterviewApplicationService {
     return toolResultFollowUps(sessionId);
   }
 
-  private ReActRequest request(
-      String sessionId,
-      String llmProvider,
-      String jd,
-      String resume,
-      int maxTurns,
-      PlannedDimension dimension,
-      List<AdaptiveInterviewTurn> turns,
-      CandidateAnswer candidateAnswer,
-      List<DimensionBrief> dimensionBriefs,
-      WorkingMemorySnapshot workingMemory
-  ) {
+  private ReActRequest request(InterviewerDecisionInput input) {
     return new ReActRequest(
-        sessionId,
+        input.sessionId(),
         AgentRole.INTERVIEWER,
-        llmProvider,
-        contextAssembler.interviewer(
-            jd,
-            resume,
-            maxTurns,
-            dimension.order(),
-            dimension.dimension(),
-            dimension.focus(),
-            allowedSuggestedTools(dimension),
-            dimension.suggestedSkill(),
-            turns,
-            candidateAnswer,
-            selectedGaps(workingMemory),
-            dimensionBriefs,
-            codeAnalysisContextService.findForSession(sessionId).orElse(null)
-        )
+        input.llmProvider(),
+        contextAssembler.interviewer(new InterviewerContextInput(
+            input.jd(),
+            input.resume(),
+            input.maxTurns(),
+            input.dimension().order(),
+            input.dimension().dimension(),
+            input.dimension().focus(),
+            allowedSuggestedTools(input.dimension()),
+            input.dimension().suggestedSkill(),
+            input.turns(),
+            input.candidateAnswer(),
+            selectedGaps(input.workingMemory()),
+            episodePromptMemoryService.select(
+                input.sessionId(),
+                input.workingMemory().currentTopic()
+            ),
+            codeAnalysisContextService.findForSession(input.sessionId()).orElse(null)
+        ))
     );
   }
 
@@ -781,17 +786,6 @@ public class AdaptiveInterviewApplicationService {
   private List<String> allowedSuggestedTools(PlannedDimension dimension) {
     return dimension.suggestedTools().stream()
         .filter(roleRegistry.get(AgentRole.INTERVIEWER).allowedTools()::contains)
-        .toList();
-  }
-
-  private List<DimensionBrief> briefsForNextDecision(
-      List<DimensionBrief> persistedBriefs,
-      DimensionBrief newBrief
-  ) {
-    if (newBrief == null) {
-      return persistedBriefs;
-    }
-    return Stream.concat(persistedBriefs.stream(), Stream.of(newBrief))
         .toList();
   }
 

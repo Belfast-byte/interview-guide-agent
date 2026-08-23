@@ -1,7 +1,7 @@
 package interview.guide.modules.interview.agent.adaptive.persistence.memory;
 
 import interview.guide.modules.interview.agent.adaptive.memory.episode.EpisodePromptCandidate;
-import interview.guide.modules.interview.agent.adaptive.memory.episode.EpisodePromptFact;
+import interview.guide.modules.interview.agent.adaptive.core.context.EpisodePromptFact;
 import interview.guide.modules.interview.agent.adaptive.memory.episode.EpisodePromptFactSource;
 import interview.guide.modules.interview.agent.adaptive.memory.episode.EpisodeTagCategory;
 import java.util.List;

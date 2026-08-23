@@ -3,14 +3,11 @@ package interview.guide.modules.interview.agent.adaptive.memory;
 import interview.guide.modules.interview.agent.adaptive.core.session.AdaptiveInterviewTurn;
 import interview.guide.modules.interview.agent.adaptive.core.event.CandidateAnswer;
 import interview.guide.modules.interview.agent.adaptive.core.context.CoveredTopic;
-import interview.guide.modules.interview.agent.adaptive.core.context.DimensionBrief;
 import interview.guide.modules.interview.agent.adaptive.core.context.InterviewerContext;
 import interview.guide.modules.interview.agent.adaptive.core.context.PlannerContext;
 import interview.guide.modules.interview.agent.adaptive.core.context.PlanningSkill;
 import interview.guide.modules.interview.agent.adaptive.core.context.ProbeGap;
-import interview.guide.modules.interview.agent.adaptive.core.context.ProjectInterviewContext;
 import interview.guide.modules.interview.agent.adaptive.core.context.UnverifiedClaim;
-import interview.guide.modules.interview.agent.adaptive.core.event.ToolResultEvent;
 import interview.guide.modules.interview.agent.adaptive.core.session.TurnTriggerType;
 import interview.guide.modules.interview.agent.adaptive.memory.working.WorkingMemoryInput;
 import interview.guide.modules.interview.agent.adaptive.memory.working.WorkingMemorySnapshot;
@@ -117,104 +114,64 @@ public class ContextAssembler {
    * 组装带追问缺口的面试官上下文。
    */
   public InterviewerContext interviewer(
-      String jd,
-      String resume,
-      int maxTurns,
-      int targetDimensionOrder,
-      String targetDimension,
-      String targetFocus,
-      List<String> suggestedTools,
-      String suggestedSkill,
-      List<AdaptiveInterviewTurn> turns,
-      CandidateAnswer candidateAnswer,
-      List<ProbeGap> currentAnswerGaps,
-      List<DimensionBrief> dimensionBriefs,
-      ProjectInterviewContext project
+      InterviewerContextInput input
   ) {
-    List<AdaptiveInterviewTurn> currentDimensionTurns = turns.stream()
-        .filter(turn -> turn.dimensionOrder() == targetDimensionOrder)
+    List<AdaptiveInterviewTurn> currentDimensionTurns = input.turns().stream()
+        .filter(turn -> turn.dimensionOrder() == input.targetDimensionOrder())
         .toList();
-    CandidateAnswer currentDimensionAnswer = candidateAnswer;
-    if (candidateAnswer != null
-        && turns.get(candidateAnswer.turnIndex() - 1).dimensionOrder() != targetDimensionOrder) {
+    CandidateAnswer currentDimensionAnswer = input.candidateAnswer();
+    if (input.candidateAnswer() != null
+        && input.turns().get(input.candidateAnswer().turnIndex() - 1).dimensionOrder()
+            != input.targetDimensionOrder()) {
       currentDimensionAnswer = null;
     }
     return new InterviewerContext(
-        truncate(jd),
-        truncate(resume),
-        turns.size(),
-        maxTurns,
-        targetDimensionOrder,
-        targetDimension,
-        targetFocus,
-        suggestedTools,
-        suggestedSkill,
+        truncate(input.jd()),
+        truncate(input.resume()),
+        input.turns().size(),
+        input.maxTurns(),
+        input.targetDimensionOrder(),
+        input.targetDimension(),
+        input.targetFocus(),
+        input.suggestedTools(),
+        input.suggestedSkill(),
         currentDimensionTurns,
         currentDimensionAnswer,
-        currentDimensionAnswer == null ? List.of() : currentAnswerGaps,
-        dimensionBriefs.stream()
-            .filter(brief -> brief.dimensionOrder() != targetDimensionOrder)
-            .toList(),
+        currentDimensionAnswer == null ? List.of() : input.currentAnswerGaps(),
+        input.episodeHistory(),
         null,
-        candidateAnswer != null && candidateAnswer.codeSubmission() != null
-            ? candidateAnswer
+        input.candidateAnswer() != null && input.candidateAnswer().codeSubmission() != null
+            ? input.candidateAnswer()
             : null,
-        project
+        input.project()
     );
   }
 
   /**
    * 组装“工具结果到达后”的面试官上下文，用于生成基于客观结果的追问。
-   *
-   * @param jd 职位描述
-   * @param resume 候选人简历
-   * @param maxTurns 最大轮次数
-   * @param targetDimensionOrder 目标维度序号
-   * @param targetDimension 目标维度
-   * @param targetFocus 当前考察重点
-   * @param suggestedTools 建议工具
-   * @param suggestedSkill 建议技能
-   * @param turns 历史轮次
-   * @param event 工具结果事件
-   * @param dimensionBriefs 已有维度简报
-   * @param project 项目代码分析上下文
-   * @return 面试官上下文
    */
   public InterviewerContext toolResult(
-      String jd,
-      String resume,
-      int maxTurns,
-      int targetDimensionOrder,
-      String targetDimension,
-      String targetFocus,
-      List<String> suggestedTools,
-      String suggestedSkill,
-      List<AdaptiveInterviewTurn> turns,
-      ToolResultEvent event,
-      List<DimensionBrief> dimensionBriefs,
-      ProjectInterviewContext project
+      ToolResultContextInput input
   ) {
     return new InterviewerContext(
-        truncate(jd),
-        truncate(resume),
-        event.turnIndex(),
-        maxTurns,
-        targetDimensionOrder,
-        targetDimension,
-        targetFocus,
-        suggestedTools,
-        suggestedSkill,
-        turns.stream()
-            .filter(turn -> turn.dimensionOrder() == targetDimensionOrder)
+        truncate(input.jd()),
+        truncate(input.resume()),
+        input.event().turnIndex(),
+        input.maxTurns(),
+        input.targetDimensionOrder(),
+        input.targetDimension(),
+        input.targetFocus(),
+        input.suggestedTools(),
+        input.suggestedSkill(),
+        input.turns().stream()
+            .filter(turn -> turn.dimensionOrder() == input.targetDimensionOrder())
             .toList(),
         null,
         List.of(),
-        dimensionBriefs.stream()
-            .filter(brief -> brief.dimensionOrder() != targetDimensionOrder)
-            .toList(),
-        event,
+        input.episodeHistory(),
+        input.event(),
         null,
-        project
+        input.project()
     );
   }
 

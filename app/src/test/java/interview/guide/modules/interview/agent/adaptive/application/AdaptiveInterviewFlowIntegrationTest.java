@@ -18,6 +18,7 @@ import interview.guide.modules.interview.agent.adaptive.core.context.CoveredTopi
 import interview.guide.modules.interview.agent.adaptive.core.action.RespondAction;
 import interview.guide.modules.interview.agent.adaptive.memory.ContextAssembler;
 import interview.guide.modules.interview.agent.adaptive.memory.profile.CandidateMemoryService;
+import interview.guide.modules.interview.agent.adaptive.memory.episode.EpisodePromptMemoryService;
 import interview.guide.modules.interview.agent.adaptive.persistence.memory.EpisodeFactPersistence;
 import interview.guide.modules.interview.agent.adaptive.persistence.memory.AssessmentReconciliationService;
 import interview.guide.modules.interview.agent.adaptive.persistence.memory.AssessmentReconciliationDependencies;
@@ -100,6 +101,7 @@ class AdaptiveInterviewFlowIntegrationTest {
         new ContextAssembler(),
         briefService(),
         candidateMemoryService,
+        episodePromptMemoryService(),
         mock(PlanningTaxonomy.class),
         claimService(),
         assessmentAgent(),
@@ -146,7 +148,7 @@ class AdaptiveInterviewFlowIntegrationTest {
     AtomicInteger modelCalls = new AtomicInteger();
     List<String> questionDimensions = new ArrayList<>();
     List<Integer> visibleHistorySizes = new ArrayList<>();
-    List<Integer> visibleBriefCounts = new ArrayList<>();
+    List<Integer> visibleEpisodeCounts = new ArrayList<>();
     BoundedReActRuntime runtime = new BoundedReActRuntime(
         context -> {
           questionDimensions.add(
@@ -155,8 +157,8 @@ class AdaptiveInterviewFlowIntegrationTest {
           visibleHistorySizes.add(
               context.request().interviewerContext().currentDimensionTurns().size()
           );
-          visibleBriefCounts.add(
-              context.request().interviewerContext().completedDimensionBriefs().size()
+          visibleEpisodeCounts.add(
+              context.request().interviewerContext().episodeHistory().size()
           );
           return RespondAction.ask(
               "第 " + (modelCalls.incrementAndGet()) + " 题？",
@@ -177,6 +179,7 @@ class AdaptiveInterviewFlowIntegrationTest {
         new ContextAssembler(),
         briefService(),
         candidateMemoryService,
+        episodePromptMemoryService(),
         mock(PlanningTaxonomy.class),
         claimService(),
         assessmentAgent(),
@@ -217,8 +220,7 @@ class AdaptiveInterviewFlowIntegrationTest {
         "维度-2"
     );
     assertThat(visibleHistorySizes).containsExactly(0, 1, 0, 1, 0, 1);
-    // 非末轮维度记忆异步生成：小结落库晚于当轮决策，从下一轮决策起可见
-    assertThat(visibleBriefCounts).containsExactly(0, 0, 0, 1, 1, 2);
+    assertThat(visibleEpisodeCounts).containsOnly(0);
     assertThat(interview.dimensionBriefs()).hasSize(3);
     assertThat(interview.dimensionBriefs())
         .flatExtracting(brief -> brief.turnIndexes())
@@ -294,6 +296,7 @@ class AdaptiveInterviewFlowIntegrationTest {
         new ContextAssembler(),
         briefService(),
         candidateMemoryService,
+        episodePromptMemoryService(),
         mock(PlanningTaxonomy.class),
         claimService(),
         assessmentAgent(),
@@ -317,6 +320,12 @@ class AdaptiveInterviewFlowIntegrationTest {
       return null;
     }).when(executor).execute(any(Runnable.class));
     return executor;
+  }
+
+  private EpisodePromptMemoryService episodePromptMemoryService() {
+    EpisodePromptMemoryService service = mock(EpisodePromptMemoryService.class);
+    doAnswer(invocation -> List.of()).when(service).select(any(), any());
+    return service;
   }
 
   private PlanProposal proposal(int dimensionCount) {
