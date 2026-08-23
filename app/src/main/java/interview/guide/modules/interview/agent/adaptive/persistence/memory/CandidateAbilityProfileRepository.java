@@ -4,6 +4,7 @@ import interview.guide.modules.interview.agent.adaptive.core.context.MemoryOwner
 import interview.guide.modules.interview.agent.adaptive.core.context.TopicKey;
 import interview.guide.modules.interview.agent.adaptive.memory.semantic.AbilityProfileRevisionReason;
 import jakarta.persistence.LockModeType;
+import java.util.Collection;
 import java.util.List;
 import java.util.Optional;
 import org.springframework.data.jpa.repository.JpaRepository;
@@ -49,17 +50,36 @@ public interface CandidateAbilityProfileRepository
       );
 
   @Query("""
-      SELECT (COUNT(profile) > 0)
+      SELECT profile
       FROM CandidateAbilityProfileEntity profile
-      WHERE profile.sourceSessionId = :sessionId
-        AND profile.skillId = :#{#topic.skillId}
-        AND profile.focusId = :#{#topic.focusId}
+      WHERE profile.candidateId = :#{#owner.candidateId}
+        AND ((:#{#owner.tenantId} IS NULL AND profile.tenantId IS NULL)
+             OR profile.tenantId = :#{#owner.tenantId})
+        AND profile.sourceSessionId = :sessionId
         AND profile.revisionReason = :reason
       """)
-  boolean existsBySource(
+  List<CandidateAbilityProfileEntity> findProfilesBySource(
+      MemoryOwner owner,
       String sessionId,
-      TopicKey topic,
       AbilityProfileRevisionReason reason
+  );
+
+  @Lock(LockModeType.PESSIMISTIC_WRITE)
+  @Query("""
+      SELECT profile
+      FROM CandidateAbilityProfileEntity profile
+      WHERE profile.candidateId = :#{#owner.candidateId}
+        AND ((:#{#owner.tenantId} IS NULL AND profile.tenantId IS NULL)
+             OR profile.tenantId = :#{#owner.tenantId})
+        AND profile.skillId IN :skillIds
+        AND profile.focusId IN :focusIds
+        AND profile.supersededAt IS NULL
+      ORDER BY profile.skillId, profile.focusId
+      """)
+  List<CandidateAbilityProfileEntity> findCurrentProfiles(
+      MemoryOwner owner,
+      Collection<String> skillIds,
+      Collection<String> focusIds
   );
 
   List<CandidateAbilityProfileEntity>

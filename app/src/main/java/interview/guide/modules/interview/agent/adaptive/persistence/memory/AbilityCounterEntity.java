@@ -83,6 +83,10 @@ public class AbilityCounterEntity {
     return id;
   }
 
+  public TopicKey topic() {
+    return new TopicKey(skillId, focusId);
+  }
+
   public void increment(DepthLevel level) {
     apply(toDomain().increment(level));
   }

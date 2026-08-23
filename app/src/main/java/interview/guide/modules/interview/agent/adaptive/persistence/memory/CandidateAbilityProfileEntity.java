@@ -120,4 +120,8 @@ public class CandidateAbilityProfileEntity {
   public long id() {
     return id;
   }
+
+  public TopicKey topic() {
+    return new TopicKey(skillId, focusId);
+  }
 }

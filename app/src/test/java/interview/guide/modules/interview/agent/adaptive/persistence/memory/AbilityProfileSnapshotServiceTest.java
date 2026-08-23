@@ -1,12 +1,16 @@
 package interview.guide.modules.interview.agent.adaptive.persistence.memory;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.mockito.Mockito.clearInvocations;
+import static org.mockito.Mockito.times;
+import static org.mockito.Mockito.verify;
 
 import interview.guide.modules.interview.agent.adaptive.core.context.DepthLevel;
 import interview.guide.modules.interview.agent.adaptive.core.context.MemoryOwner;
 import interview.guide.modules.interview.agent.adaptive.core.context.TopicKey;
 import interview.guide.modules.interview.agent.adaptive.core.session.AdaptiveInterviewSession;
 import interview.guide.modules.interview.agent.adaptive.core.session.AdaptiveSessionStatus;
+import interview.guide.modules.interview.agent.adaptive.memory.semantic.AbilityProfileRevisionReason;
 import interview.guide.modules.interview.agent.adaptive.memory.semantic.SemanticAbility;
 import interview.guide.modules.interview.agent.adaptive.persistence.plan.AdaptiveAgentPlanEntity;
 import interview.guide.modules.interview.agent.adaptive.persistence.session.AdaptiveAgentSessionEntity;
@@ -14,11 +18,13 @@ import interview.guide.modules.interview.agent.adaptive.persistence.session.Adap
 import interview.guide.modules.interview.agent.adaptive.planning.PlanDimensionStatus;
 import interview.guide.modules.interview.agent.adaptive.planning.PlannedDimension;
 import java.util.List;
+import java.util.Set;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.data.jpa.test.autoconfigure.DataJpaTest;
 import org.springframework.context.annotation.Import;
+import org.springframework.test.context.bean.override.mockito.MockitoSpyBean;
 
 @DataJpaTest(properties = {
     "spring.flyway.enabled=false",
@@ -36,10 +42,10 @@ class AbilityProfileSnapshotServiceTest {
   @Autowired
   private AbilityProfileSnapshotService service;
 
-  @Autowired
+  @MockitoSpyBean
   private AbilityCounterRepository counterRepository;
 
-  @Autowired
+  @MockitoSpyBean
   private CandidateAbilityProfileRepository profileRepository;
 
   @Test
@@ -47,16 +53,31 @@ class AbilityProfileSnapshotServiceTest {
   void shouldSnapshotAllObservedTopics() {
     saveCounter(REDIS, DepthLevel.L3);
     saveCounter(JVM, DepthLevel.L1);
+    clearInvocations(counterRepository);
+    clearInvocations(profileRepository);
 
     service.snapshotCompletedSession(
         session("profile-session-1"),
-        List.of(plan("profile-session-1", REDIS), plan("profile-session-1", JVM))
+        List.of(
+            plan("profile-session-1", REDIS),
+            plan("profile-session-1", JVM),
+            plan("profile-session-1", REDIS)
+        )
     );
 
     assertThat(profileRepository
         .findByTenantIdIsNullAndCandidateIdOrderByCreatedAtAscIdAsc(OWNER.candidateId()))
         .extracting(entity -> entity.toDomain().ability())
         .containsExactlyInAnyOrder(SemanticAbility.PROFICIENT, SemanticAbility.WEAK);
+    verify(counterRepository, times(1)).findCounters(
+        OWNER, Set.of("java-backend"), Set.of("REDIS", "JVM"));
+    verify(profileRepository, times(1)).findProfilesBySource(
+        OWNER,
+        "profile-session-1",
+        AbilityProfileRevisionReason.SESSION_COMPLETED
+    );
+    verify(profileRepository, times(1)).findCurrentProfiles(
+        OWNER, Set.of("java-backend"), Set.of("REDIS", "JVM"));
   }
 
   @Test
@@ -108,13 +129,51 @@ class AbilityProfileSnapshotServiceTest {
     assertThat(profileRepository.count()).isZero();
   }
 
+  @Test
+  @DisplayName("candidate 与 tenant owner 的批量快照严格隔离")
+  void shouldIsolateOwnersWhenBatching() {
+    MemoryOwner tenantOwner = new MemoryOwner("tenant-snapshot", OWNER.candidateId());
+    saveCounter(OWNER, REDIS, DepthLevel.L1);
+    saveCounter(tenantOwner, REDIS, DepthLevel.L4);
+
+    service.snapshotCompletedSession(
+        session("profile-session-candidate", OWNER),
+        List.of(plan("profile-session-candidate", REDIS))
+    );
+    service.snapshotCompletedSession(
+        session("profile-session-tenant", tenantOwner),
+        List.of(plan("profile-session-tenant", REDIS))
+    );
+
+    assertThat(profileRepository.findCurrentCandidateProfile(OWNER.candidateId(), REDIS))
+        .get()
+        .extracting(entity -> entity.toDomain().ability())
+        .isEqualTo(SemanticAbility.WEAK);
+    assertThat(profileRepository.findCurrentTenantProfile(tenantOwner, REDIS))
+        .get()
+        .extracting(entity -> entity.toDomain().ability())
+        .isEqualTo(SemanticAbility.PROFICIENT);
+  }
+
   private AbilityCounterEntity saveCounter(TopicKey topic, DepthLevel level) {
-    AbilityCounterEntity counter = new AbilityCounterEntity(OWNER, topic);
+    return saveCounter(OWNER, topic, level);
+  }
+
+  private AbilityCounterEntity saveCounter(
+      MemoryOwner owner,
+      TopicKey topic,
+      DepthLevel level
+  ) {
+    AbilityCounterEntity counter = new AbilityCounterEntity(owner, topic);
     counter.increment(level);
     return counterRepository.saveAndFlush(counter);
   }
 
   private AdaptiveAgentSessionEntity session(String sessionId) {
+    return session(sessionId, OWNER);
+  }
+
+  private AdaptiveAgentSessionEntity session(String sessionId, MemoryOwner owner) {
     return new AdaptiveAgentSessionEntity(
         new AdaptiveInterviewSession(
             sessionId,
@@ -124,9 +183,9 @@ class AbilityProfileSnapshotServiceTest {
             FIRST_TURN
         ),
         new AdaptiveSessionCreation(
-            null,
+            owner.tenantId(),
             sessionId,
-            OWNER.candidateId(),
+            owner.candidateId(),
             "JD",
             "Resume",
             null,
