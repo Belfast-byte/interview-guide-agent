@@ -10,7 +10,8 @@ public record AssessmentRevision(
     String sessionId,
     int turnIndex,
     DepthLevel oldLevel,
-    DepthLevel newLevel
+    DepthLevel newLevel,
+    String llmProvider
 ) {
 
   public AssessmentRevision {

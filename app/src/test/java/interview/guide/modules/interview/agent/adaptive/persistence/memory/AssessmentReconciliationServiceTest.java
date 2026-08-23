@@ -7,6 +7,12 @@ import interview.guide.modules.interview.agent.adaptive.assessment.depth.Assessm
 import interview.guide.modules.interview.agent.adaptive.assessment.depth.DepthLevel;
 import interview.guide.modules.interview.agent.adaptive.core.context.TopicKey;
 import interview.guide.modules.interview.agent.adaptive.core.session.AdaptiveInterviewSession;
+import interview.guide.modules.interview.agent.adaptive.memory.episode.AnswerHabit;
+import interview.guide.modules.interview.agent.adaptive.memory.episode.EpisodeEnrichmentRequested;
+import interview.guide.modules.interview.agent.adaptive.memory.episode.EpisodeEnrichmentStatus;
+import interview.guide.modules.interview.agent.adaptive.memory.episode.EpisodeTagSource;
+import interview.guide.modules.interview.agent.adaptive.memory.episode.EpisodeTagSourceType;
+import interview.guide.modules.interview.agent.adaptive.memory.episode.EpisodeTagValue;
 import interview.guide.modules.interview.agent.adaptive.memory.semantic.AssessmentRevision;
 import interview.guide.modules.interview.agent.adaptive.persistence.assessment.AdaptiveAgentAssessmentEntity;
 import interview.guide.modules.interview.agent.adaptive.persistence.assessment.AdaptiveAgentAssessmentRepository;
@@ -22,12 +28,19 @@ import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.data.jpa.test.autoconfigure.DataJpaTest;
 import org.springframework.context.annotation.Import;
+import org.springframework.test.context.event.ApplicationEvents;
+import org.springframework.test.context.event.RecordApplicationEvents;
 
 @DataJpaTest(properties = {
     "spring.flyway.enabled=false",
     "spring.jpa.hibernate.ddl-auto=create-drop"
 })
-@Import({EpisodeFactPersistence.class, AssessmentReconciliationService.class})
+@Import({
+    EpisodeFactPersistence.class,
+    EpisodeAssessmentCorrectionPersistence.class,
+    AssessmentReconciliationService.class
+})
+@RecordApplicationEvents
 class AssessmentReconciliationServiceTest {
 
   private static final String SESSION_ID = "session-revision";
@@ -45,6 +58,15 @@ class AssessmentReconciliationServiceTest {
 
   @Autowired
   private AbilityCounterRepository counterRepository;
+
+  @Autowired
+  private EpisodeFactRepository episodeRepository;
+
+  @Autowired
+  private EpisodeTagRepository tagRepository;
+
+  @Autowired
+  private ApplicationEvents applicationEvents;
 
   @Test
   @DisplayName("等级修订原子执行旧等级递减和新等级递增")
@@ -82,11 +104,41 @@ class AssessmentReconciliationServiceTest {
         .hasMessageContaining("下溢");
   }
 
-  private void persistEpisode() {
+  @Test
+  @DisplayName("修订原子清除旧补全结果并单次登记重补全")
+  void shouldResetEnrichmentAndRequestOnce() {
+    EpisodeFactEntity episode = persistEpisode();
+    episode.claimEnrichment();
+    episode.completeEnrichment("旧摘要");
+    episodeRepository.saveAndFlush(episode);
+    tagRepository.saveAndFlush(new EpisodeTagEntity(
+        episode,
+        EpisodeTagValue.habit(AnswerHabit.STRUCTURED_REASONING),
+        new EpisodeTagSource(EpisodeTagSourceType.ASSESSMENT_EVIDENCE, 7)
+    ));
+    long assessmentId = episode.toDomain().assessmentId();
+    applicationEvents.clear();
+
+    reconciliationService.reconcile(revision(DepthLevel.L2, DepthLevel.L4));
+
+    var corrected = episodeRepository.findById(episode.id()).orElseThrow().toDomain();
+    assertThat(corrected.assessmentId()).isEqualTo(assessmentId);
+    assertThat(corrected.enrichmentStatus()).isEqualTo(EpisodeEnrichmentStatus.PENDING);
+    assertThat(corrected.answerSummary()).isNull();
+    assertThat(tagRepository.findByEpisodeIdOrderById(episode.id())).isEmpty();
+    assertThat(applicationEvents.stream(EpisodeEnrichmentRequested.class))
+        .singleElement()
+        .satisfies(event -> {
+          assertThat(event.episodeId()).isEqualTo(episode.id());
+          assertThat(event.llmProvider()).isEqualTo("provider-a");
+        });
+  }
+
+  private EpisodeFactEntity persistEpisode() {
     AdaptiveAgentAssessmentEntity assessment = assessmentRepository.saveAndFlush(
         new AdaptiveAgentAssessmentEntity(0, assessment())
     );
-    episodePersistence.create(session(), assessment, dimension());
+    return episodePersistence.create(session(), assessment, dimension());
   }
 
   private AbilityCounterEntity counter() {
@@ -94,7 +146,7 @@ class AssessmentReconciliationServiceTest {
   }
 
   private AssessmentRevision revision(DepthLevel oldLevel, DepthLevel newLevel) {
-    return new AssessmentRevision(SESSION_ID, 1, oldLevel, newLevel);
+    return new AssessmentRevision(SESSION_ID, 1, oldLevel, newLevel, "provider-a");
   }
 
   private AssessmentDecision assessment() {

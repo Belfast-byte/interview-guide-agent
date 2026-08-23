@@ -76,5 +76,19 @@ class EpisodeEnrichmentStateTest {
 
     assertThatThrownBy(legacy::claim).isInstanceOf(IllegalStateException.class);
     assertThatThrownBy(legacy::retry).isInstanceOf(IllegalStateException.class);
+    assertThatThrownBy(legacy::resetAfterAssessmentCorrection)
+        .isInstanceOf(IllegalStateException.class);
+  }
+
+  @Test
+  @DisplayName("Assessment 修订可让任意在线状态重新进入 PENDING")
+  void shouldResetOnlineStateAfterAssessmentCorrection() {
+    EpisodeEnrichmentState completed = EpisodeEnrichmentState.pending().claim().complete();
+    EpisodeEnrichmentState failed = EpisodeEnrichmentState.pending().claim().fail("error");
+
+    assertThat(completed.resetAfterAssessmentCorrection())
+        .isEqualTo(EpisodeEnrichmentState.pending());
+    assertThat(failed.resetAfterAssessmentCorrection())
+        .isEqualTo(EpisodeEnrichmentState.pending());
   }
 }

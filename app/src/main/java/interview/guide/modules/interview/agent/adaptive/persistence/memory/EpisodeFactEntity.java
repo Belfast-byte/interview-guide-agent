@@ -177,6 +177,11 @@ public class EpisodeFactEntity {
     answerSummary = null;
   }
 
+  public void resetEnrichmentAfterAssessmentCorrection() {
+    apply(state().resetAfterAssessmentCorrection());
+    answerSummary = null;
+  }
+
   private EpisodeEnrichmentState state() {
     return new EpisodeEnrichmentState(enrichmentStatus, enrichmentError);
   }

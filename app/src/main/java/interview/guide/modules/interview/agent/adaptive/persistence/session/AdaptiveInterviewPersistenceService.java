@@ -241,11 +241,17 @@ public class AdaptiveInterviewPersistenceService
             ErrorCode.AI_SERVICE_ERROR,
             "算法判题结果缺少对应的回答评估"
         ));
+    AdaptiveAgentSessionEntity session = sessionRepository.findById(sessionId)
+        .orElseThrow(() -> new BusinessException(
+            ErrorCode.INTERVIEW_SESSION_NOT_FOUND,
+            "Agent 面试会话不存在"
+        ));
     assessmentReconciliationService.reconcile(new AssessmentRevision(
         sessionId,
         turnIndex,
         assessment.depthLevel(),
-        decision.depthLevel()
+        decision.depthLevel(),
+        session.llmProvider()
     ));
     assessment.replace(decision);
     evidenceRepository.deleteByAssessmentId(assessment.id());

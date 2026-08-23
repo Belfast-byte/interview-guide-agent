@@ -20,6 +20,7 @@ import interview.guide.modules.interview.agent.adaptive.memory.ContextAssembler;
 import interview.guide.modules.interview.agent.adaptive.memory.profile.CandidateMemoryService;
 import interview.guide.modules.interview.agent.adaptive.persistence.memory.EpisodeFactPersistence;
 import interview.guide.modules.interview.agent.adaptive.persistence.memory.AssessmentReconciliationService;
+import interview.guide.modules.interview.agent.adaptive.persistence.memory.EpisodeAssessmentCorrectionPersistence;
 import interview.guide.modules.interview.agent.adaptive.memory.claim.CandidateClaimExtractionService;
 import interview.guide.modules.interview.agent.adaptive.memory.claim.CandidateClaimsProposal;
 import interview.guide.modules.interview.agent.adaptive.memory.brief.DimensionBriefProposal;
@@ -60,6 +61,7 @@ import static org.mockito.Mockito.mock;
     AdaptiveInterviewPersistenceService.class,
     CandidateMemoryService.class,
     EpisodeFactPersistence.class,
+    EpisodeAssessmentCorrectionPersistence.class,
     AssessmentReconciliationService.class
 })
 class AdaptiveInterviewFlowIntegrationTest {

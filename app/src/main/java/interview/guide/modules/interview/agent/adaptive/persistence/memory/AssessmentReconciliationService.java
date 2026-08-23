@@ -16,19 +16,26 @@ public class AssessmentReconciliationService {
 
   private final EpisodeFactRepository episodeRepository;
   private final AbilityCounterRepository counterRepository;
+  private final EpisodeAssessmentCorrectionPersistence correctionPersistence;
 
   public void reconcile(AssessmentRevision revision) {
-    if (!revision.changesLevel()) {
-      return;
-    }
-    EpisodeFact episode = episodeRepository
+    EpisodeFactEntity episode = episodeRepository
         .findBySessionIdAndTurnIndex(revision.sessionId(), revision.turnIndex())
         .orElseThrow(() -> new BusinessException(
             ErrorCode.INTERNAL_ERROR,
             "Assessment 修订缺少 EpisodeFact"
-        ))
-        .toDomain();
-    AbilityCounterEntity counter = findCounter(episode);
+        ));
+    if (revision.changesLevel()) {
+      compensateCounter(episode, revision);
+    }
+    correctionPersistence.reset(episode, revision.llmProvider());
+  }
+
+  private void compensateCounter(
+      EpisodeFactEntity episodeEntity,
+      AssessmentRevision revision
+  ) {
+    AbilityCounterEntity counter = findCounter(episodeEntity.toDomain());
     counter.decrement(revision.oldLevel());
     counter.increment(revision.newLevel());
   }
