@@ -13,4 +13,16 @@ public interface EpisodeTagRepository extends JpaRepository<EpisodeTagEntity, Lo
   @Modifying(flushAutomatically = true)
   @Query("DELETE FROM EpisodeTagEntity tag WHERE tag.episode.id = :episodeId")
   int deleteByEpisodeId(@Param("episodeId") Long episodeId);
+
+  @Query("""
+      SELECT tag.episode.id AS episodeId,
+             tag.category AS category,
+             tag.tag AS tag
+      FROM EpisodeTagEntity tag
+      WHERE tag.episode.id IN :episodeIds
+      ORDER BY tag.episode.id ASC, tag.category ASC, tag.tag ASC, tag.id ASC
+      """)
+  List<EpisodePromptTagProjection> findPromptTagsByEpisodeIdIn(
+      @Param("episodeIds") List<Long> episodeIds
+  );
 }
