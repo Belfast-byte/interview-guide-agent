@@ -20,6 +20,8 @@ import interview.guide.modules.interview.agent.adaptive.memory.ContextAssembler;
 import interview.guide.modules.interview.agent.adaptive.memory.profile.CandidateMemoryService;
 import interview.guide.modules.interview.agent.adaptive.persistence.memory.EpisodeFactPersistence;
 import interview.guide.modules.interview.agent.adaptive.persistence.memory.AssessmentReconciliationService;
+import interview.guide.modules.interview.agent.adaptive.persistence.memory.AssessmentReconciliationDependencies;
+import interview.guide.modules.interview.agent.adaptive.persistence.memory.AbilityProfileSnapshotService;
 import interview.guide.modules.interview.agent.adaptive.persistence.memory.EpisodeAssessmentCorrectionPersistence;
 import interview.guide.modules.interview.agent.adaptive.memory.claim.CandidateClaimExtractionService;
 import interview.guide.modules.interview.agent.adaptive.memory.claim.CandidateClaimsProposal;
@@ -59,9 +61,11 @@ import static org.mockito.Mockito.mock;
 })
 @Import({
     AdaptiveInterviewPersistenceService.class,
+    AbilityProfileSnapshotService.class,
     CandidateMemoryService.class,
     EpisodeFactPersistence.class,
     EpisodeAssessmentCorrectionPersistence.class,
+    AssessmentReconciliationDependencies.class,
     AssessmentReconciliationService.class
 })
 class AdaptiveInterviewFlowIntegrationTest {

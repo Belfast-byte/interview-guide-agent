@@ -14,6 +14,8 @@ import interview.guide.modules.interview.agent.adaptive.persistence.assessment.A
 import interview.guide.modules.interview.agent.adaptive.persistence.assessment.AssessmentProbeGapRepository;
 import interview.guide.modules.interview.agent.adaptive.persistence.memory.EpisodeFactPersistence;
 import interview.guide.modules.interview.agent.adaptive.persistence.memory.AssessmentReconciliationService;
+import interview.guide.modules.interview.agent.adaptive.persistence.memory.AssessmentReconciliationDependencies;
+import interview.guide.modules.interview.agent.adaptive.persistence.memory.AbilityProfileSnapshotService;
 import interview.guide.modules.interview.agent.adaptive.persistence.memory.EpisodeAssessmentCorrectionPersistence;
 import interview.guide.modules.interview.agent.adaptive.planning.DimensionProposal;
 import interview.guide.modules.interview.agent.adaptive.planning.InterviewPlan;
@@ -31,8 +33,10 @@ import org.springframework.context.annotation.Import;
 })
 @Import({
     AdaptiveInterviewPersistenceService.class,
+    AbilityProfileSnapshotService.class,
     EpisodeFactPersistence.class,
     EpisodeAssessmentCorrectionPersistence.class,
+    AssessmentReconciliationDependencies.class,
     AssessmentReconciliationService.class
 })
 class AssessmentProbeGapPersistenceTest {

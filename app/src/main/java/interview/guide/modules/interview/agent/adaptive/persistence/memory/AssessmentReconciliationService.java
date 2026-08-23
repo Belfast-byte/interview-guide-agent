@@ -4,6 +4,7 @@ import interview.guide.common.exception.BusinessException;
 import interview.guide.common.exception.ErrorCode;
 import interview.guide.modules.interview.agent.adaptive.memory.episode.EpisodeFact;
 import interview.guide.modules.interview.agent.adaptive.memory.semantic.AssessmentRevision;
+import interview.guide.modules.interview.agent.adaptive.persistence.session.AdaptiveAgentSessionEntity;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Component;
 
@@ -14,12 +15,10 @@ import org.springframework.stereotype.Component;
 @RequiredArgsConstructor
 public class AssessmentReconciliationService {
 
-  private final EpisodeFactRepository episodeRepository;
-  private final AbilityCounterRepository counterRepository;
-  private final EpisodeAssessmentCorrectionPersistence correctionPersistence;
+  private final AssessmentReconciliationDependencies dependencies;
 
   public void reconcile(AssessmentRevision revision) {
-    EpisodeFactEntity episode = episodeRepository
+    EpisodeFactEntity episode = dependencies.episodes()
         .findBySessionIdAndTurnIndex(revision.sessionId(), revision.turnIndex())
         .orElseThrow(() -> new BusinessException(
             ErrorCode.INTERNAL_ERROR,
@@ -28,7 +27,8 @@ public class AssessmentReconciliationService {
     if (revision.changesLevel()) {
       compensateCounter(episode, revision);
     }
-    correctionPersistence.reset(episode, revision.llmProvider());
+    dependencies.episodeCorrection().reset(episode, revision.llmProvider());
+    snapshotCorrection(episode, revision);
   }
 
   private void compensateCounter(
@@ -40,14 +40,33 @@ public class AssessmentReconciliationService {
     counter.increment(revision.newLevel());
   }
 
+  private void snapshotCorrection(
+      EpisodeFactEntity episode,
+      AssessmentRevision revision
+  ) {
+    if (!revision.changesLevel()) {
+      return;
+    }
+    AdaptiveAgentSessionEntity session = dependencies.sessions()
+        .findById(revision.sessionId())
+        .orElseThrow(() -> new BusinessException(
+            ErrorCode.INTERVIEW_SESSION_NOT_FOUND,
+            "Assessment 修订缺少会话"
+        ));
+    dependencies.profiles().snapshotAssessmentCorrection(
+        session,
+        episode.toDomain().topic()
+    );
+  }
+
   private AbilityCounterEntity findCounter(EpisodeFact episode) {
     if (episode.owner().tenantId() == null) {
-      return counterRepository.findCandidateCounter(
+      return dependencies.counters().findCandidateCounter(
           episode.owner().candidateId(),
           episode.topic()
       ).orElseThrow(this::missingCounter);
     }
-    return counterRepository.findTenantCounter(
+    return dependencies.counters().findTenantCounter(
         episode.owner(),
         episode.topic()
     ).orElseThrow(this::missingCounter);

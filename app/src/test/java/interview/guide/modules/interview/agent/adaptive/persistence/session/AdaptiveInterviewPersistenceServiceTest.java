@@ -18,6 +18,7 @@ import interview.guide.modules.interview.agent.adaptive.core.context.CodeFactUsa
 import interview.guide.modules.interview.agent.adaptive.core.context.CodeQuestionProvenance;
 import interview.guide.modules.interview.agent.adaptive.core.context.DimensionBrief;
 import interview.guide.modules.interview.agent.adaptive.core.context.QuestionProvenance;
+import interview.guide.modules.interview.agent.adaptive.core.context.TopicKey;
 import interview.guide.modules.interview.agent.adaptive.core.action.RespondAction;
 import interview.guide.modules.interview.agent.adaptive.core.context.UnverifiedClaim;
 import interview.guide.modules.interview.agent.adaptive.memory.claim.CandidateClaim;
@@ -36,6 +37,8 @@ import interview.guide.modules.interview.agent.adaptive.persistence.assessment.J
 import interview.guide.modules.interview.agent.adaptive.persistence.memory.CandidateAbilityProfileRepository;
 import interview.guide.modules.interview.agent.adaptive.persistence.memory.EpisodeFactPersistence;
 import interview.guide.modules.interview.agent.adaptive.persistence.memory.AssessmentReconciliationService;
+import interview.guide.modules.interview.agent.adaptive.persistence.memory.AssessmentReconciliationDependencies;
+import interview.guide.modules.interview.agent.adaptive.persistence.memory.AbilityProfileSnapshotService;
 import interview.guide.modules.interview.agent.adaptive.persistence.memory.EpisodeAssessmentCorrectionPersistence;
 import java.util.List;
 import org.junit.jupiter.api.DisplayName;
@@ -53,8 +56,10 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 })
 @Import({
     AdaptiveInterviewPersistenceService.class,
+    AbilityProfileSnapshotService.class,
     EpisodeFactPersistence.class,
     EpisodeAssessmentCorrectionPersistence.class,
+    AssessmentReconciliationDependencies.class,
     AssessmentReconciliationService.class,
     CandidateMemoryService.class,
     JpaAlgorithmEvidenceSource.class,
@@ -642,11 +647,13 @@ class AdaptiveInterviewPersistenceServiceTest {
         .findByTenantIdIsNullAndCandidateIdOrderByCreatedAtAscIdAsc("candidate-1"))
         .hasSize(2)
         .satisfiesExactly(
-            profile -> assertThat(profile.current()).isFalse(),
+            profile -> assertThat(profile.toDomain().current()).isFalse(),
             profile -> {
-              assertThat(profile.current()).isTrue();
-              assertThat(profile.sourceSessionId()).isEqualTo("session-2-retest");
-              assertThat(profile.sourceAssessmentId()).isNotNull();
+              assertThat(profile.toDomain().current()).isTrue();
+              assertThat(profile.toDomain().sourceSessionId())
+                  .isEqualTo("session-2-retest");
+              assertThat(profile.toDomain().topic())
+                  .isEqualTo(new TopicKey("java-backend", "FOCUS_0"));
             }
         );
   }

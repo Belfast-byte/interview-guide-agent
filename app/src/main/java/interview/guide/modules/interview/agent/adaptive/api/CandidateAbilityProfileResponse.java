@@ -1,6 +1,6 @@
 package interview.guide.modules.interview.agent.adaptive.api;
 
-import interview.guide.modules.interview.agent.adaptive.memory.profile.CandidateAbilityProfile;
+import interview.guide.modules.interview.agent.adaptive.memory.semantic.AbilityProfileSnapshot;
 import java.util.List;
 
 /**
@@ -13,7 +13,7 @@ public record CandidateAbilityProfileResponse(
 
   static CandidateAbilityProfileResponse from(
       String candidateId,
-      List<CandidateAbilityProfile> trajectory
+      List<AbilityProfileSnapshot> trajectory
   ) {
     return new CandidateAbilityProfileResponse(
         candidateId,

@@ -1,5 +1,6 @@
 package interview.guide.modules.interview.agent.adaptive.persistence.plan;
 
+import interview.guide.modules.interview.agent.adaptive.core.context.TopicKey;
 import interview.guide.modules.interview.agent.adaptive.planning.PlanDimensionStatus;
 import interview.guide.modules.interview.agent.adaptive.planning.PlannedDimension;
 import jakarta.persistence.Column;
@@ -130,5 +131,9 @@ public class AdaptiveAgentPlanEntity {
 
   public String focus() {
     return focus;
+  }
+
+  public TopicKey topic() {
+    return new TopicKey(suggestedSkill, focusId);
   }
 }

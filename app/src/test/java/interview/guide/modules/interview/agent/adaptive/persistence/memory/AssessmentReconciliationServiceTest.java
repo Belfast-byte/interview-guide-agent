@@ -6,7 +6,9 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import interview.guide.modules.interview.agent.adaptive.assessment.depth.AssessmentDecision;
 import interview.guide.modules.interview.agent.adaptive.assessment.depth.DepthLevel;
 import interview.guide.modules.interview.agent.adaptive.core.context.TopicKey;
+import interview.guide.modules.interview.agent.adaptive.core.context.MemoryOwner;
 import interview.guide.modules.interview.agent.adaptive.core.session.AdaptiveInterviewSession;
+import interview.guide.modules.interview.agent.adaptive.core.session.AdaptiveSessionStatus;
 import interview.guide.modules.interview.agent.adaptive.memory.episode.AnswerHabit;
 import interview.guide.modules.interview.agent.adaptive.memory.episode.EpisodeEnrichmentRequested;
 import interview.guide.modules.interview.agent.adaptive.memory.episode.EpisodeEnrichmentStatus;
@@ -14,9 +16,13 @@ import interview.guide.modules.interview.agent.adaptive.memory.episode.EpisodeTa
 import interview.guide.modules.interview.agent.adaptive.memory.episode.EpisodeTagSourceType;
 import interview.guide.modules.interview.agent.adaptive.memory.episode.EpisodeTagValue;
 import interview.guide.modules.interview.agent.adaptive.memory.semantic.AssessmentRevision;
+import interview.guide.modules.interview.agent.adaptive.memory.semantic.AbilityCounter;
+import interview.guide.modules.interview.agent.adaptive.memory.semantic.AbilityProfileRevisionReason;
+import interview.guide.modules.interview.agent.adaptive.memory.semantic.AbilityProfileSnapshotCreation;
 import interview.guide.modules.interview.agent.adaptive.persistence.assessment.AdaptiveAgentAssessmentEntity;
 import interview.guide.modules.interview.agent.adaptive.persistence.assessment.AdaptiveAgentAssessmentRepository;
 import interview.guide.modules.interview.agent.adaptive.persistence.session.AdaptiveAgentSessionEntity;
+import interview.guide.modules.interview.agent.adaptive.persistence.session.AdaptiveAgentSessionRepository;
 import interview.guide.modules.interview.agent.adaptive.persistence.session.AdaptiveSessionCreation;
 import interview.guide.modules.interview.agent.adaptive.planning.DimensionProposal;
 import interview.guide.modules.interview.agent.adaptive.planning.InterviewPlan;
@@ -37,7 +43,9 @@ import org.springframework.test.context.event.RecordApplicationEvents;
 })
 @Import({
     EpisodeFactPersistence.class,
+    AbilityProfileSnapshotService.class,
     EpisodeAssessmentCorrectionPersistence.class,
+    AssessmentReconciliationDependencies.class,
     AssessmentReconciliationService.class
 })
 @RecordApplicationEvents
@@ -67,6 +75,12 @@ class AssessmentReconciliationServiceTest {
 
   @Autowired
   private ApplicationEvents applicationEvents;
+
+  @Autowired
+  private AdaptiveAgentSessionRepository sessionRepository;
+
+  @Autowired
+  private CandidateAbilityProfileRepository profileRepository;
 
   @Test
   @DisplayName("等级修订原子执行旧等级递减和新等级递增")
@@ -134,11 +148,49 @@ class AssessmentReconciliationServiceTest {
         });
   }
 
+  @Test
+  @DisplayName("已完成会话等级修订生成 ASSESSMENT_CORRECTED 快照")
+  void shouldSnapshotCorrectionForCompletedSession() {
+    persistEpisode(AdaptiveSessionStatus.COMPLETED);
+    profileRepository.saveAndFlush(profile(AbilityProfileRevisionReason.SESSION_COMPLETED));
+
+    reconciliationService.reconcile(revision(DepthLevel.L2, DepthLevel.L4));
+
+    assertThat(profileRepository
+        .findByTenantIdIsNullAndCandidateIdOrderByCreatedAtAscIdAsc(CANDIDATE_ID))
+        .hasSize(2)
+        .satisfiesExactly(
+            profile -> assertThat(profile.toDomain().current()).isFalse(),
+            profile -> {
+              assertThat(profile.toDomain().current()).isTrue();
+              assertThat(profile.toDomain().revisionReason())
+                  .isEqualTo(AbilityProfileRevisionReason.ASSESSMENT_CORRECTED);
+              assertThat(profile.toDomain().counter())
+                  .isEqualTo(new AbilityCounter(0, 0, 0, 0, 1));
+            }
+        );
+  }
+
+  @Test
+  @DisplayName("进行中会话等级修订不生成 Profile")
+  void shouldNotSnapshotCorrectionForActiveSession() {
+    persistEpisode(AdaptiveSessionStatus.IN_PROGRESS);
+
+    reconciliationService.reconcile(revision(DepthLevel.L2, DepthLevel.L4));
+
+    assertThat(profileRepository.count()).isZero();
+  }
+
   private EpisodeFactEntity persistEpisode() {
+    return persistEpisode(AdaptiveSessionStatus.IN_PROGRESS);
+  }
+
+  private EpisodeFactEntity persistEpisode(AdaptiveSessionStatus status) {
     AdaptiveAgentAssessmentEntity assessment = assessmentRepository.saveAndFlush(
         new AdaptiveAgentAssessmentEntity(0, assessment())
     );
-    return episodePersistence.create(session(), assessment, dimension());
+    AdaptiveAgentSessionEntity session = sessionRepository.saveAndFlush(session(status));
+    return episodePersistence.create(session, assessment, dimension());
   }
 
   private AbilityCounterEntity counter() {
@@ -161,9 +213,25 @@ class AssessmentReconciliationServiceTest {
     );
   }
 
-  private AdaptiveAgentSessionEntity session() {
+  private CandidateAbilityProfileEntity profile(AbilityProfileRevisionReason reason) {
+    return new CandidateAbilityProfileEntity(new AbilityProfileSnapshotCreation(
+        new MemoryOwner(null, CANDIDATE_ID),
+        TOPIC,
+        new AbilityCounter(0, 0, 1, 0, 0),
+        SESSION_ID,
+        reason
+    ));
+  }
+
+  private AdaptiveAgentSessionEntity session(AdaptiveSessionStatus status) {
     return new AdaptiveAgentSessionEntity(
-        AdaptiveInterviewSession.create(SESSION_ID, 2),
+        new AdaptiveInterviewSession(
+            SESSION_ID,
+            AdaptiveInterviewSession.RUNTIME_VERSION,
+            status,
+            1,
+            2
+        ),
         new AdaptiveSessionCreation(
             null,
             SESSION_ID,

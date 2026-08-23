@@ -1,5 +1,6 @@
 package interview.guide.modules.interview.agent.adaptive.memory.profile;
 
+import interview.guide.modules.interview.agent.adaptive.memory.semantic.AbilityProfileSnapshot;
 import interview.guide.modules.interview.agent.adaptive.persistence.memory.CandidateAbilityProfileRepository;
 import java.util.List;
 import lombok.RequiredArgsConstructor;
@@ -16,18 +17,11 @@ public class CandidateAbilityProfileService {
   private final CandidateAbilityProfileRepository repository;
 
   @Transactional(readOnly = true)
-  public List<CandidateAbilityProfile> trajectory(String candidateId) {
+  public List<AbilityProfileSnapshot> trajectory(String candidateId) {
     return repository
         .findByTenantIdIsNullAndCandidateIdOrderByCreatedAtAscIdAsc(candidateId)
         .stream()
-        .map(profile -> new CandidateAbilityProfile(
-            profile.dimension(),
-            profile.depthLevel(),
-            profile.sourceSessionId(),
-            profile.sourceAssessmentId(),
-            profile.current(),
-            profile.createdAt()
-        ))
+        .map(profile -> profile.toDomain())
         .toList();
   }
 }

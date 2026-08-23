@@ -33,8 +33,7 @@ import interview.guide.modules.interview.agent.adaptive.persistence.assessment.A
 import interview.guide.modules.interview.agent.adaptive.persistence.assessment.AssessmentProbeGapRepository;
 import interview.guide.modules.interview.agent.adaptive.persistence.memory.AdaptiveDimensionBriefEntity;
 import interview.guide.modules.interview.agent.adaptive.persistence.memory.AdaptiveDimensionBriefRepository;
-import interview.guide.modules.interview.agent.adaptive.persistence.memory.CandidateAbilityProfileEntity;
-import interview.guide.modules.interview.agent.adaptive.persistence.memory.CandidateAbilityProfileRepository;
+import interview.guide.modules.interview.agent.adaptive.persistence.memory.AbilityProfileSnapshotService;
 import interview.guide.modules.interview.agent.adaptive.persistence.memory.CandidateMemoryClaimEntity;
 import interview.guide.modules.interview.agent.adaptive.persistence.memory.CandidateMemoryClaimRepository;
 import interview.guide.modules.interview.agent.adaptive.persistence.memory.CandidateMemoryTopicEntity;
@@ -72,7 +71,7 @@ public class AdaptiveInterviewPersistenceService
   private final AssessmentProbeGapRepository probeGapRepository;
   private final PracticeRecordRepository practiceRecordRepository;
   private final AdaptiveAgentToolResultEventRepository toolResultEventRepository;
-  private final CandidateAbilityProfileRepository abilityProfileRepository;
+  private final AbilityProfileSnapshotService abilityProfileSnapshotService;
   private final EpisodeFactPersistence episodeFactPersistence;
   private final AssessmentReconciliationService assessmentReconciliationService;
 
@@ -267,10 +266,6 @@ public class AdaptiveInterviewPersistenceService
         .findBySessionIdAndTurnIndex(sessionId, turnIndex)
         .orElseThrow(() -> new BusinessException(ErrorCode.NOT_FOUND, "面试轮次不存在"));
     saveCodeFactEvidence(assessment, sourceTurn);
-    abilityProfileRepository.findBySourceSessionIdAndDimensionOrder(
-        sessionId,
-        assessment.dimensionOrder()
-    ).ifPresent(profile -> profile.replaceAssessment(assessment));
   }
 
   /**
@@ -500,55 +495,7 @@ public class AdaptiveInterviewPersistenceService
       AdaptiveAgentSessionEntity session,
       List<AdaptiveAgentPlanEntity> dimensions
   ) {
-    if (session.status() != AdaptiveSessionStatus.COMPLETED) {
-      return;
-    }
-    for (AdaptiveAgentPlanEntity dimension : dimensions) {
-      AdaptiveAgentAssessmentEntity assessment = assessmentRepository
-          .findTopBySessionIdAndDimensionOrderOrderByTurnIndexDesc(
-              session.id(),
-              dimension.dimensionOrder()
-          )
-          .orElse(null);
-      if (assessment == null) {
-        // 模型提前结束面试时，未开考维度没有评估事实，跳过画像刷新
-        continue;
-      }
-      CandidateAbilityProfileEntity existing = abilityProfileRepository
-          .findBySourceSessionIdAndDimensionOrder(
-              session.id(),
-              dimension.dimensionOrder()
-          )
-          .orElse(null);
-      if (existing != null) {
-        existing.replaceAssessment(assessment);
-        continue;
-      }
-      CandidateAbilityProfileEntity current = session.tenantId() == null
-          ? abilityProfileRepository
-              .findByTenantIdIsNullAndCandidateIdAndDimensionAndSupersededByIsNull(
-                  session.candidateId(),
-                  dimension.dimension()
-              )
-              .orElse(null)
-          : abilityProfileRepository
-              .findByTenantIdAndCandidateIdAndDimensionAndSupersededByIsNull(
-                  session.tenantId(),
-                  session.candidateId(),
-                  dimension.dimension()
-              )
-              .orElse(null);
-      CandidateAbilityProfileEntity profile = abilityProfileRepository.save(
-          new CandidateAbilityProfileEntity(session, dimension, assessment)
-      );
-      if (current != null && !current.sourceSessionId().equals(session.id())) {
-        if (current.createdAt().isBefore(profile.createdAt())) {
-          current.supersede(profile.id());
-        } else {
-          profile.supersede(current.id());
-        }
-      }
-    }
+    abilityProfileSnapshotService.snapshotCompletedSession(session, dimensions);
   }
 
   private void saveCodeFactEvidence(

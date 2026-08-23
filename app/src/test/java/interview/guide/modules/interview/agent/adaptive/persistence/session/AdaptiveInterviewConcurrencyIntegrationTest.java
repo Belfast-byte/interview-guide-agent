@@ -14,6 +14,8 @@ import interview.guide.modules.interview.agent.adaptive.planning.PlanProposal;
 import interview.guide.modules.interview.agent.adaptive.planning.PlannedInterview;
 import interview.guide.modules.interview.agent.adaptive.persistence.memory.EpisodeFactPersistence;
 import interview.guide.modules.interview.agent.adaptive.persistence.memory.AssessmentReconciliationService;
+import interview.guide.modules.interview.agent.adaptive.persistence.memory.AssessmentReconciliationDependencies;
+import interview.guide.modules.interview.agent.adaptive.persistence.memory.AbilityProfileSnapshotService;
 import interview.guide.modules.interview.agent.adaptive.persistence.memory.EpisodeAssessmentCorrectionPersistence;
 import java.util.ArrayList;
 import java.util.List;
@@ -40,8 +42,10 @@ import static org.assertj.core.api.Assertions.assertThat;
 })
 @Import({
     AdaptiveInterviewPersistenceService.class,
+    AbilityProfileSnapshotService.class,
     EpisodeFactPersistence.class,
     EpisodeAssessmentCorrectionPersistence.class,
+    AssessmentReconciliationDependencies.class,
     AssessmentReconciliationService.class
 })
 @Transactional(propagation = Propagation.NOT_SUPPORTED)
