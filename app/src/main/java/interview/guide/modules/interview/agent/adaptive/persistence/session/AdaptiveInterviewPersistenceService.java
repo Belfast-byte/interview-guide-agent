@@ -29,6 +29,8 @@ import interview.guide.modules.interview.agent.adaptive.persistence.assessment.A
 import interview.guide.modules.interview.agent.adaptive.persistence.assessment.AdaptiveAgentAssessmentRepository;
 import interview.guide.modules.interview.agent.adaptive.persistence.assessment.AdaptiveAgentEvidenceEntity;
 import interview.guide.modules.interview.agent.adaptive.persistence.assessment.AdaptiveAgentEvidenceRepository;
+import interview.guide.modules.interview.agent.adaptive.persistence.assessment.AssessmentProbeGapEntity;
+import interview.guide.modules.interview.agent.adaptive.persistence.assessment.AssessmentProbeGapRepository;
 import interview.guide.modules.interview.agent.adaptive.persistence.memory.AdaptiveDimensionBriefEntity;
 import interview.guide.modules.interview.agent.adaptive.persistence.memory.AdaptiveDimensionBriefRepository;
 import interview.guide.modules.interview.agent.adaptive.persistence.memory.CandidateAbilityProfileEntity;
@@ -41,6 +43,7 @@ import interview.guide.modules.interview.agent.adaptive.persistence.plan.Adaptiv
 import interview.guide.modules.interview.agent.adaptive.persistence.plan.AdaptiveAgentPlanRepository;
 import interview.guide.modules.interview.agent.adaptive.persistence.practice.PracticeRecordEntity;
 import interview.guide.modules.interview.agent.adaptive.persistence.practice.PracticeRecordRepository;
+import java.util.ArrayList;
 import java.util.List;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
@@ -63,6 +66,7 @@ public class AdaptiveInterviewPersistenceService
   private final CandidateMemoryClaimRepository candidateMemoryClaimRepository;
   private final AdaptiveAgentAssessmentRepository assessmentRepository;
   private final AdaptiveAgentEvidenceRepository evidenceRepository;
+  private final AssessmentProbeGapRepository probeGapRepository;
   private final PracticeRecordRepository practiceRecordRepository;
   private final AdaptiveAgentToolResultEventRepository toolResultEventRepository;
   private final CandidateAbilityProfileRepository abilityProfileRepository;
@@ -388,6 +392,7 @@ public class AdaptiveInterviewPersistenceService
     AdaptiveAgentAssessmentEntity assessment = assessmentRepository.save(
         new AdaptiveAgentAssessmentEntity(answeredDimension.order(), assessmentDecision)
     );
+    saveProbeGaps(assessment, assessmentDecision);
 
     if (transition.appliedAction().type() == AgentResponseType.ASK) {
       int nextTurn = transition.session().currentTurn();
@@ -454,6 +459,21 @@ public class AdaptiveInterviewPersistenceService
       return TurnProvenance.assessmentGap(answer.turnIndex(), assessmentId);
     }
     return TurnProvenance.plannedAfter(answer.turnIndex());
+  }
+
+  private void saveProbeGaps(
+      AdaptiveAgentAssessmentEntity assessment,
+      AssessmentDecision decision
+  ) {
+    List<AssessmentProbeGapEntity> gaps = new ArrayList<>();
+    for (int index = 0; index < decision.probeGaps().size(); index++) {
+      gaps.add(new AssessmentProbeGapEntity(
+          assessment,
+          index + 1,
+          decision.probeGaps().get(index)
+      ));
+    }
+    probeGapRepository.saveAll(gaps);
   }
 
   private void refreshProfiles(
