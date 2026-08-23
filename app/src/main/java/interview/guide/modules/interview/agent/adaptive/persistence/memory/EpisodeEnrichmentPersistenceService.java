@@ -2,10 +2,10 @@ package interview.guide.modules.interview.agent.adaptive.persistence.memory;
 
 import interview.guide.common.exception.BusinessException;
 import interview.guide.common.exception.ErrorCode;
-import interview.guide.modules.interview.agent.adaptive.memory.episode.EpisodeEnrichmentStatus;
+import interview.guide.modules.interview.agent.adaptive.memory.episode.EpisodeEnrichmentCompletion;
+import interview.guide.modules.interview.agent.adaptive.memory.episode.EpisodeEnrichmentStore;
 import interview.guide.modules.interview.agent.adaptive.memory.episode.EpisodeFact;
 import interview.guide.modules.interview.agent.adaptive.memory.episode.ValidatedEpisodeTag;
-import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Optional;
 import lombok.RequiredArgsConstructor;
@@ -17,12 +17,13 @@ import org.springframework.transaction.annotation.Transactional;
  */
 @Service
 @RequiredArgsConstructor
-public class EpisodeEnrichmentPersistenceService {
+public class EpisodeEnrichmentPersistenceService implements EpisodeEnrichmentStore {
 
   private final EpisodeFactRepository episodeRepository;
   private final EpisodeTagRepository tagRepository;
 
   @Transactional
+  @Override
   public Optional<EpisodeFact> claim(long episodeId) {
     EpisodeFactEntity episode = findLocked(episodeId);
     if (!episode.claimEnrichment()) {
@@ -32,6 +33,7 @@ public class EpisodeEnrichmentPersistenceService {
   }
 
   @Transactional
+  @Override
   public void complete(EpisodeEnrichmentCompletion completion) {
     EpisodeFactEntity episode = findLocked(completion.episodeId());
     episode.completeEnrichment(completion.answerSummary());
@@ -41,31 +43,12 @@ public class EpisodeEnrichmentPersistenceService {
   }
 
   @Transactional
+  @Override
   public void fail(long episodeId, String error) {
     EpisodeFactEntity episode = findLocked(episodeId);
     episode.failEnrichment(error);
     tagRepository.deleteByEpisodeId(episodeId);
     episodeRepository.saveAndFlush(episode);
-  }
-
-  @Transactional
-  public void retry(long episodeId) {
-    EpisodeFactEntity episode = findLocked(episodeId);
-    episode.retryEnrichment();
-    tagRepository.deleteByEpisodeId(episodeId);
-    episodeRepository.saveAndFlush(episode);
-  }
-
-  @Transactional
-  public List<Long> recoverStale(LocalDateTime cutoff) {
-    List<EpisodeFactEntity> episodes = episodeRepository
-        .findByEnrichmentStatusAndUpdatedAtBeforeOrderByUpdatedAtAscIdAsc(
-            EpisodeEnrichmentStatus.PROCESSING,
-            cutoff
-        );
-    episodes.forEach(EpisodeFactEntity::recoverStaleEnrichment);
-    episodeRepository.flush();
-    return episodes.stream().map(EpisodeFactEntity::id).toList();
   }
 
   private EpisodeFactEntity findLocked(long episodeId) {

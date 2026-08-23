@@ -1,6 +1,5 @@
 package interview.guide.modules.interview.agent.adaptive.memory.episode;
 
-import interview.guide.modules.interview.agent.adaptive.persistence.memory.EpisodeEnrichmentCompletion;
 import java.util.List;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
@@ -15,7 +14,7 @@ public class EpisodeEnrichmentService {
   private final EpisodeEnrichmentServiceDependencies dependencies;
 
   public boolean enrich(long episodeId, String llmProvider) {
-    if (dependencies.persistence().claim(episodeId).isEmpty()) {
+    if (dependencies.store().claim(episodeId).isEmpty()) {
       return false;
     }
     try {
@@ -28,14 +27,14 @@ public class EpisodeEnrichmentService {
           proposal.tags(),
           request.sourceFacts()
       );
-      dependencies.persistence().complete(new EpisodeEnrichmentCompletion(
+      dependencies.store().complete(new EpisodeEnrichmentCompletion(
           episodeId,
           proposal.answerSummary(),
           tags
       ));
       return true;
     } catch (RuntimeException error) {
-      dependencies.persistence().fail(episodeId, describe(error));
+      dependencies.store().fail(episodeId, describe(error));
       throw error;
     }
   }

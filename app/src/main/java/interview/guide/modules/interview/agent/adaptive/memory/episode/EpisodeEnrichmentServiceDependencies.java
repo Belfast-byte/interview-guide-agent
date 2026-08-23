@@ -1,7 +1,5 @@
 package interview.guide.modules.interview.agent.adaptive.memory.episode;
 
-import interview.guide.modules.interview.agent.adaptive.persistence.memory.EpisodeEnrichmentContextReader;
-import interview.guide.modules.interview.agent.adaptive.persistence.memory.EpisodeEnrichmentPersistenceService;
 import org.springframework.stereotype.Component;
 
 /**
@@ -9,8 +7,8 @@ import org.springframework.stereotype.Component;
  */
 @Component
 public record EpisodeEnrichmentServiceDependencies(
-    EpisodeEnrichmentPersistenceService persistence,
-    EpisodeEnrichmentContextReader contextReader,
+    EpisodeEnrichmentStore store,
+    EpisodeEnrichmentContextSource contextReader,
     EpisodeEnrichmentGenerator generator,
     EpisodeTagValidator tagValidator
 ) {}

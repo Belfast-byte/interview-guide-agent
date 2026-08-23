@@ -1,6 +1,5 @@
-package interview.guide.modules.interview.agent.adaptive.persistence.memory;
+package interview.guide.modules.interview.agent.adaptive.memory.episode;
 
-import interview.guide.modules.interview.agent.adaptive.memory.episode.ValidatedEpisodeTag;
 import java.util.List;
 
 /**

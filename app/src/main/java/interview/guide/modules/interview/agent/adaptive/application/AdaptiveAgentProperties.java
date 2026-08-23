@@ -21,6 +21,7 @@ public class AdaptiveAgentProperties {
   private Duration claimDeadline = Duration.ofSeconds(20);
   private Duration assessmentDeadline = Duration.ofSeconds(20);
   private Duration episodeEnrichmentDeadline = Duration.ofSeconds(20);
+  private Duration episodeEnrichmentProcessingTimeout = Duration.ofMinutes(5);
   private int maxInputTokens = 12_000;
   private int plannerMaxOutputTokens = 2_048;
   private int interviewerMaxOutputTokens = 1_024;

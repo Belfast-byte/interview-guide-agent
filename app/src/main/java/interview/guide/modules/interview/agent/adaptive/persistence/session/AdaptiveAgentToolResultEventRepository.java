@@ -5,6 +5,7 @@ import java.util.Optional;
 import java.util.List;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
+import org.springframework.data.repository.query.Param;
 
 /**
  * AdaptiveAgentToolResultEventRepository 数据访问接口，提供相关实体的 Spring Data Repository。
@@ -52,5 +53,17 @@ public interface AdaptiveAgentToolResultEventRepository
   List<EpisodeToolResultFact> findEpisodeFactsBySessionIdAndTurnIndex(
       String sessionId,
       int turnIndex
+  );
+
+  @Query("""
+      select new interview.guide.modules.interview.agent.adaptive.memory.episode.EpisodeToolResultFact(
+        event.id, event.resultSummary, event.resultOutput
+      )
+      from AdaptiveAgentToolResultEventEntity event
+      where event.id = :eventId and event.sessionId = :sessionId
+      """)
+  Optional<EpisodeToolResultFact> findEpisodeFactByIdAndSessionId(
+      @Param("eventId") long eventId,
+      @Param("sessionId") String sessionId
   );
 }

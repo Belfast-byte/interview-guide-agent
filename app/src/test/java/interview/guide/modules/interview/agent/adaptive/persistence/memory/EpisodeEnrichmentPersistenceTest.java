@@ -8,6 +8,7 @@ import interview.guide.modules.interview.agent.adaptive.core.context.DepthLevel;
 import interview.guide.modules.interview.agent.adaptive.core.context.MemoryOwner;
 import interview.guide.modules.interview.agent.adaptive.core.context.TopicKey;
 import interview.guide.modules.interview.agent.adaptive.memory.episode.AnswerHabit;
+import interview.guide.modules.interview.agent.adaptive.memory.episode.EpisodeEnrichmentCompletion;
 import interview.guide.modules.interview.agent.adaptive.memory.episode.EpisodeEnrichmentStatus;
 import interview.guide.modules.interview.agent.adaptive.memory.episode.EpisodeFact;
 import interview.guide.modules.interview.agent.adaptive.memory.episode.EpisodeFactCreation;
@@ -19,7 +20,6 @@ import interview.guide.modules.interview.agent.adaptive.memory.episode.Validated
 import interview.guide.modules.interview.agent.adaptive.persistence.assessment.AdaptiveAgentAssessmentEntity;
 import interview.guide.modules.interview.agent.adaptive.persistence.assessment.AdaptiveAgentAssessmentRepository;
 import jakarta.persistence.EntityManager;
-import java.time.LocalDateTime;
 import java.util.List;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
@@ -101,8 +101,8 @@ class EpisodeEnrichmentPersistenceTest {
   }
 
   @Test
-  @DisplayName("失败明确落库且只能显式 retry")
-  void shouldPersistFailureAndRetryExplicitly() {
+  @DisplayName("失败明确落库且不会被普通 claim 重试")
+  void shouldPersistFailureWithoutImplicitRetry() {
     service.claim(episode.id());
     service.fail(episode.id(), "LLM unavailable");
 
@@ -113,10 +113,6 @@ class EpisodeEnrichmentPersistenceTest {
       assertThat(fact.answerSummary()).isNull();
     });
 
-    service.retry(episode.id());
-
-    assertThat(reload().enrichmentStatus()).isEqualTo(EpisodeEnrichmentStatus.PENDING);
-    assertThat(service.claim(episode.id())).isPresent();
   }
 
   @Test
@@ -130,16 +126,6 @@ class EpisodeEnrichmentPersistenceTest {
         List.of()
     ))).isInstanceOf(IllegalArgumentException.class)
         .hasMessageContaining("answerSummary");
-  }
-
-  @Test
-  @DisplayName("超时 PROCESSING 可原子恢复并返回待重排队 ID")
-  void shouldRecoverStaleProcessing() {
-    service.claim(episode.id());
-
-    assertThat(service.recoverStale(LocalDateTime.now().plusMinutes(1)))
-        .containsExactly(episode.id());
-    assertThat(reload().enrichmentStatus()).isEqualTo(EpisodeEnrichmentStatus.PENDING);
   }
 
   private AssessmentDecision assessment() {
