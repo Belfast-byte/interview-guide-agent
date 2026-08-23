@@ -6,6 +6,7 @@ import interview.guide.modules.interview.agent.adaptive.memory.episode.EpisodeFa
 import interview.guide.modules.interview.agent.adaptive.persistence.assessment.AdaptiveAgentAssessmentEntity;
 import interview.guide.modules.interview.agent.adaptive.persistence.session.AdaptiveAgentSessionEntity;
 import interview.guide.modules.interview.agent.adaptive.planning.PlannedDimension;
+import java.util.Optional;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Component;
 
@@ -17,6 +18,7 @@ import org.springframework.stereotype.Component;
 public class EpisodeFactPersistence {
 
   private final EpisodeFactRepository repository;
+  private final AbilityCounterRepository counterRepository;
 
   public EpisodeFactEntity create(
       AdaptiveAgentSessionEntity session,
@@ -29,6 +31,23 @@ public class EpisodeFactPersistence {
         assessment.turnIndex(),
         new TopicKey(dimension.suggestedSkill(), dimension.focusId())
     );
-    return repository.save(new EpisodeFactEntity(creation, assessment));
+    EpisodeFactEntity episode = repository.save(new EpisodeFactEntity(creation, assessment));
+    AbilityCounterEntity counter = findCounter(creation)
+        .orElseGet(() -> new AbilityCounterEntity(creation.owner(), creation.topic()));
+    counter.increment(assessment.depthLevel());
+    counterRepository.save(counter);
+    return episode;
+  }
+
+  private Optional<AbilityCounterEntity> findCounter(
+      EpisodeFactCreation creation
+  ) {
+    if (creation.owner().tenantId() == null) {
+      return counterRepository.findCandidateCounter(
+          creation.owner().candidateId(),
+          creation.topic()
+      );
+    }
+    return counterRepository.findTenantCounter(creation.owner(), creation.topic());
   }
 }

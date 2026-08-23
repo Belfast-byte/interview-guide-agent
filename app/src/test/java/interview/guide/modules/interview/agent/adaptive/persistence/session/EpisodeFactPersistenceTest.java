@@ -14,6 +14,7 @@ import interview.guide.modules.interview.agent.adaptive.memory.episode.EpisodeEn
 import interview.guide.modules.interview.agent.adaptive.persistence.memory.EpisodeFactEntity;
 import interview.guide.modules.interview.agent.adaptive.persistence.memory.EpisodeFactPersistence;
 import interview.guide.modules.interview.agent.adaptive.persistence.memory.EpisodeFactRepository;
+import interview.guide.modules.interview.agent.adaptive.persistence.memory.AbilityCounterRepository;
 import interview.guide.modules.interview.agent.adaptive.planning.DimensionProposal;
 import interview.guide.modules.interview.agent.adaptive.planning.InterviewPlan;
 import interview.guide.modules.interview.agent.adaptive.planning.PlanProposal;
@@ -39,6 +40,9 @@ class EpisodeFactPersistenceTest {
 
   @Autowired
   private EpisodeFactRepository episodeRepository;
+
+  @Autowired
+  private AbilityCounterRepository counterRepository;
 
   @BeforeEach
   void createInterview() {
@@ -92,7 +96,7 @@ class EpisodeFactPersistenceTest {
         List.of()
     )).isInstanceOf(BusinessException.class);
 
-    assertThat(episodeRepository.count()).isZero();
+    assertThat(episodeRepository.countBySessionId(SESSION_ID)).isZero();
   }
 
   @Test
@@ -102,7 +106,11 @@ class EpisodeFactPersistenceTest {
 
     assertThatThrownBy(this::recordFirstAnswer)
         .isInstanceOf(BusinessException.class);
-    assertThat(episodeRepository.count()).isEqualTo(1);
+    assertThat(episodeRepository.countBySessionId(SESSION_ID)).isEqualTo(1);
+    assertThat(counterRepository.findCandidateCounter(
+        "candidate-1",
+        new TopicKey("java-backend", "REDIS")
+    ).orElseThrow().toDomain().l2Count()).isEqualTo(1);
   }
 
   private void recordFirstAnswer() {
