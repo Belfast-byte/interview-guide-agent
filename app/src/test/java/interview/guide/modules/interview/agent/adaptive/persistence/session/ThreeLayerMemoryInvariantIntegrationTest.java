@@ -9,6 +9,7 @@ import interview.guide.modules.interview.agent.adaptive.assessment.evidence.Evid
 import interview.guide.modules.interview.agent.adaptive.assessment.evidence.ValidatedAssessmentEvidence;
 import interview.guide.modules.interview.agent.adaptive.core.action.RespondAction;
 import interview.guide.modules.interview.agent.adaptive.core.context.DepthLevel;
+import interview.guide.modules.interview.agent.adaptive.core.context.MemoryOwner;
 import interview.guide.modules.interview.agent.adaptive.core.context.TopicKey;
 import interview.guide.modules.interview.agent.adaptive.core.event.CandidateAnswer;
 import interview.guide.modules.interview.agent.adaptive.core.session.NextTurnProvenanceDraft;
@@ -34,6 +35,7 @@ import interview.guide.modules.interview.agent.adaptive.persistence.memory.Episo
 import interview.guide.modules.interview.agent.adaptive.persistence.memory.EpisodeFactRepository;
 import interview.guide.modules.interview.agent.adaptive.persistence.memory.EpisodeTagEntity;
 import interview.guide.modules.interview.agent.adaptive.persistence.memory.EpisodeTagRepository;
+import interview.guide.modules.interview.agent.adaptive.persistence.memory.JdbcAbilityCounterIncrementStore;
 import interview.guide.modules.interview.agent.adaptive.planning.DimensionProposal;
 import interview.guide.modules.interview.agent.adaptive.planning.InterviewPlan;
 import interview.guide.modules.interview.agent.adaptive.planning.PlanProposal;
@@ -53,6 +55,7 @@ import org.springframework.context.annotation.Import;
     AdaptiveInterviewPersistenceService.class,
     AbilityProfileSnapshotService.class,
     EpisodeFactPersistence.class,
+    JdbcAbilityCounterIncrementStore.class,
     EpisodeAssessmentCorrectionPersistence.class,
     AssessmentReconciliationDependencies.class,
     AssessmentReconciliationService.class
@@ -209,6 +212,7 @@ class ThreeLayerMemoryInvariantIntegrationTest {
 
   private void answer(int turnIndex, DepthLevel level, RespondAction action) {
     service.recordDecision(new AdaptiveDecisionPersistenceInput(
+        new MemoryOwner(null, CANDIDATE_ID),
         SESSION_ID,
         new CandidateAnswer(turnIndex, "回答-" + turnIndex),
         action,

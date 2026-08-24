@@ -22,6 +22,7 @@ import interview.guide.modules.interview.agent.adaptive.persistence.memory.Asses
 import interview.guide.modules.interview.agent.adaptive.persistence.memory.AssessmentReconciliationDependencies;
 import interview.guide.modules.interview.agent.adaptive.persistence.memory.AbilityProfileSnapshotService;
 import interview.guide.modules.interview.agent.adaptive.persistence.memory.EpisodeAssessmentCorrectionPersistence;
+import interview.guide.modules.interview.agent.adaptive.persistence.memory.JdbcAbilityCounterIncrementStore;
 import interview.guide.modules.interview.agent.adaptive.planning.DimensionProposal;
 import interview.guide.modules.interview.agent.adaptive.planning.InterviewPlan;
 import interview.guide.modules.interview.agent.adaptive.planning.PlanProposal;
@@ -40,6 +41,7 @@ import org.springframework.context.annotation.Import;
     AdaptiveInterviewPersistenceService.class,
     AbilityProfileSnapshotService.class,
     EpisodeFactPersistence.class,
+    JdbcAbilityCounterIncrementStore.class,
     EpisodeAssessmentCorrectionPersistence.class,
     AssessmentReconciliationDependencies.class,
     AssessmentReconciliationService.class,
@@ -69,6 +71,7 @@ class AssessmentProbeGapPersistenceTest {
     ProbeGap second = new ProbeGap("版本号", "未说明推进规则");
 
     service.recordDecision(new AdaptiveDecisionPersistenceInput(
+        new MemoryOwner(null, "candidate-1"),
         SESSION_ID,
         new CandidateAnswer(1, "使用缓存和版本号"),
         RespondAction.ask("缓存失败时怎么办？", "追问缺口"),

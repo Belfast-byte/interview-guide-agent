@@ -6,6 +6,7 @@ import interview.guide.modules.interview.agent.adaptive.assessment.evidence.Evid
 import interview.guide.modules.interview.agent.adaptive.assessment.evidence.ValidatedAssessmentEvidence;
 import interview.guide.modules.interview.agent.adaptive.core.session.AdaptiveInterviewHistory;
 import interview.guide.modules.interview.agent.adaptive.core.event.CandidateAnswer;
+import interview.guide.modules.interview.agent.adaptive.core.context.MemoryOwner;
 import interview.guide.modules.interview.agent.adaptive.core.session.NextTurnProvenanceDraft;
 import interview.guide.modules.interview.agent.adaptive.core.event.ToolResultEvent;
 import interview.guide.modules.interview.agent.adaptive.core.action.RespondAction;
@@ -18,6 +19,7 @@ import interview.guide.modules.interview.agent.adaptive.persistence.memory.Asses
 import interview.guide.modules.interview.agent.adaptive.persistence.memory.AssessmentReconciliationDependencies;
 import interview.guide.modules.interview.agent.adaptive.persistence.memory.AbilityProfileSnapshotService;
 import interview.guide.modules.interview.agent.adaptive.persistence.memory.EpisodeAssessmentCorrectionPersistence;
+import interview.guide.modules.interview.agent.adaptive.persistence.memory.JdbcAbilityCounterIncrementStore;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.Callable;
@@ -45,6 +47,7 @@ import static org.assertj.core.api.Assertions.assertThat;
     AdaptiveInterviewPersistenceService.class,
     AbilityProfileSnapshotService.class,
     EpisodeFactPersistence.class,
+    JdbcAbilityCounterIncrementStore.class,
     EpisodeAssessmentCorrectionPersistence.class,
     AssessmentReconciliationDependencies.class,
     AssessmentReconciliationService.class
@@ -93,6 +96,7 @@ class AdaptiveInterviewConcurrencyIntegrationTest {
       ready.countDown();
       start.await();
       return persistenceService.recordDecision(new AdaptiveDecisionPersistenceInput(
+          new MemoryOwner(null, "candidate-1"),
           "concurrent-session",
           new CandidateAnswer(1, "并发回答"),
           RespondAction.ask("第二题？", "继续验证"),

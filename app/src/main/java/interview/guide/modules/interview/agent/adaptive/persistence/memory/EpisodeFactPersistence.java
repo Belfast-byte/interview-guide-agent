@@ -4,10 +4,10 @@ import interview.guide.modules.interview.agent.adaptive.core.context.MemoryOwner
 import interview.guide.modules.interview.agent.adaptive.core.context.TopicKey;
 import interview.guide.modules.interview.agent.adaptive.memory.episode.EpisodeEnrichmentRequested;
 import interview.guide.modules.interview.agent.adaptive.memory.episode.EpisodeFactCreation;
+import interview.guide.modules.interview.agent.adaptive.memory.profile.AbilityCounterIncrementStore;
 import interview.guide.modules.interview.agent.adaptive.persistence.assessment.AdaptiveAgentAssessmentEntity;
 import interview.guide.modules.interview.agent.adaptive.persistence.session.AdaptiveAgentSessionEntity;
 import interview.guide.modules.interview.agent.adaptive.planning.PlannedDimension;
-import java.util.Optional;
 import lombok.RequiredArgsConstructor;
 import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Component;
@@ -20,7 +20,7 @@ import org.springframework.stereotype.Component;
 public class EpisodeFactPersistence {
 
   private final EpisodeFactRepository repository;
-  private final AbilityCounterRepository counterRepository;
+  private final AbilityCounterIncrementStore counterIncrementStore;
   private final ApplicationEventPublisher eventPublisher;
 
   public EpisodeFactEntity create(
@@ -35,26 +35,13 @@ public class EpisodeFactPersistence {
         new TopicKey(dimension.suggestedSkill(), dimension.focusId())
     );
     EpisodeFactEntity episode = repository.save(new EpisodeFactEntity(creation, assessment));
-    AbilityCounterEntity counter = findCounter(creation)
-        .orElseGet(() -> new AbilityCounterEntity(creation.owner(), creation.topic()));
-    counter.increment(assessment.depthLevel());
-    counterRepository.save(counter);
+    counterIncrementStore.increment(
+        creation.owner(), creation.topic(), assessment.depthLevel()
+    );
     eventPublisher.publishEvent(new EpisodeEnrichmentRequested(
         episode.id(),
         session.llmProvider()
     ));
     return episode;
-  }
-
-  private Optional<AbilityCounterEntity> findCounter(
-      EpisodeFactCreation creation
-  ) {
-    if (creation.owner().tenantId() == null) {
-      return counterRepository.findCandidateCounter(
-          creation.owner().candidateId(),
-          creation.topic()
-      );
-    }
-    return counterRepository.findTenantCounter(creation.owner(), creation.topic());
   }
 }

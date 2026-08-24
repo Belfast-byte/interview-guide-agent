@@ -15,6 +15,7 @@ import interview.guide.modules.interview.agent.adaptive.memory.episode.EpisodeEn
 import interview.guide.modules.interview.agent.adaptive.persistence.memory.EpisodeFactEntity;
 import interview.guide.modules.interview.agent.adaptive.persistence.memory.EpisodeFactPersistence;
 import interview.guide.modules.interview.agent.adaptive.persistence.memory.EpisodeFactRepository;
+import interview.guide.modules.interview.agent.adaptive.persistence.memory.JdbcAbilityCounterIncrementStore;
 import interview.guide.modules.interview.agent.adaptive.persistence.memory.AbilityCounterRepository;
 import interview.guide.modules.interview.agent.adaptive.persistence.memory.AssessmentReconciliationService;
 import interview.guide.modules.interview.agent.adaptive.persistence.memory.AssessmentReconciliationDependencies;
@@ -39,6 +40,7 @@ import org.springframework.context.annotation.Import;
     AdaptiveInterviewPersistenceService.class,
     AbilityProfileSnapshotService.class,
     EpisodeFactPersistence.class,
+    JdbcAbilityCounterIncrementStore.class,
     EpisodeAssessmentCorrectionPersistence.class,
     AssessmentReconciliationDependencies.class,
     AssessmentReconciliationService.class
@@ -98,6 +100,7 @@ class EpisodeFactPersistenceTest {
   @DisplayName("过期回答失败时不创建 EpisodeFact")
   void shouldNotCreateEpisodeForRejectedAnswer() {
     assertThatThrownBy(() -> service.recordDecision(new AdaptiveDecisionPersistenceInput(
+        new MemoryOwner(null, CANDIDATE_ID),
         SESSION_ID,
         new CandidateAnswer(2, "过期回答"),
         RespondAction.ask("下一题", "继续"),
@@ -129,6 +132,7 @@ class EpisodeFactPersistenceTest {
 
   private void recordFirstAnswer() {
     service.recordDecision(new AdaptiveDecisionPersistenceInput(
+        new MemoryOwner(null, CANDIDATE_ID),
         SESSION_ID,
         new CandidateAnswer(1, "通过版本号保证一致性"),
         RespondAction.ask("失败时怎么办？", "继续追问"),

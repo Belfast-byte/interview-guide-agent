@@ -14,6 +14,7 @@ import interview.guide.modules.interview.agent.adaptive.core.session.AdaptiveSes
 import interview.guide.modules.interview.agent.adaptive.core.action.AgentResponseType;
 import interview.guide.modules.interview.agent.adaptive.core.event.CandidateAnswer;
 import interview.guide.modules.interview.agent.adaptive.core.context.DimensionBrief;
+import interview.guide.modules.interview.agent.adaptive.core.context.MemoryOwner;
 import interview.guide.modules.interview.agent.adaptive.core.action.RespondAction;
 import interview.guide.modules.interview.agent.adaptive.core.session.SessionTransition;
 import interview.guide.modules.interview.agent.adaptive.core.session.TurnProvenance;
@@ -48,6 +49,7 @@ import interview.guide.modules.interview.agent.adaptive.persistence.practice.Pra
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
@@ -376,8 +378,7 @@ public class AdaptiveInterviewPersistenceService
     AssessmentDecision assessmentDecision = input.assessmentDecision();
     List<ValidatedAssessmentEvidence> assessmentEvidences = input.assessmentEvidences();
     List<PracticeRecommendation> practiceRecommendations = input.practiceRecommendations();
-    AdaptiveAgentSessionEntity sessionEntity = sessionRepository
-        .findByIdAndTenantIdIsNull(sessionId)
+    AdaptiveAgentSessionEntity sessionEntity = findOwnedSession(input.owner(), sessionId)
         .orElseThrow(() -> new BusinessException(
             ErrorCode.INTERVIEW_SESSION_NOT_FOUND,
             "Agent 面试会话不存在"
@@ -469,6 +470,22 @@ public class AdaptiveInterviewPersistenceService
       refreshProfiles(sessionEntity, planEntities);
     }
     return plannedInterview(sessionEntity, updatedPlan);
+  }
+
+  private Optional<AdaptiveAgentSessionEntity> findOwnedSession(
+      MemoryOwner owner,
+      String sessionId
+  ) {
+    return owner.tenantId() == null
+        ? sessionRepository.findByIdAndCandidateIdAndTenantIdIsNull(
+            sessionId,
+            owner.candidateId()
+        )
+        : sessionRepository.findByIdAndCandidateIdAndTenantId(
+            sessionId,
+            owner.candidateId(),
+            owner.tenantId()
+        );
   }
 
   private List<AssessmentProbeGapEntity> saveProbeGaps(

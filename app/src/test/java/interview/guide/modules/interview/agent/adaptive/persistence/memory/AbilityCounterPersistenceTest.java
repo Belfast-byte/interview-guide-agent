@@ -25,7 +25,10 @@ import org.springframework.context.annotation.Import;
     "spring.flyway.enabled=false",
     "spring.jpa.hibernate.ddl-auto=create-drop"
 })
-@Import(EpisodeFactPersistence.class)
+@Import({
+    EpisodeFactPersistence.class,
+    JdbcAbilityCounterIncrementStore.class
+})
 class AbilityCounterPersistenceTest {
 
   private static final String CANDIDATE_ID = "candidate-1";

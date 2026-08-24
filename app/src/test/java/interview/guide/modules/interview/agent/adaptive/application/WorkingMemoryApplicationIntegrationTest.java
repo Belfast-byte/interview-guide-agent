@@ -36,6 +36,7 @@ import interview.guide.modules.interview.agent.adaptive.persistence.memory.Asses
 import interview.guide.modules.interview.agent.adaptive.persistence.memory.AssessmentReconciliationService;
 import interview.guide.modules.interview.agent.adaptive.persistence.memory.EpisodeAssessmentCorrectionPersistence;
 import interview.guide.modules.interview.agent.adaptive.persistence.memory.EpisodeFactPersistence;
+import interview.guide.modules.interview.agent.adaptive.persistence.memory.JdbcAbilityCounterIncrementStore;
 import interview.guide.modules.interview.agent.adaptive.persistence.session.AdaptiveInterviewPersistenceService;
 import interview.guide.modules.interview.agent.adaptive.planning.DimensionProposal;
 import interview.guide.modules.interview.agent.adaptive.planning.PlanProposal;
@@ -64,6 +65,7 @@ import org.springframework.context.annotation.Import;
     AdaptiveInterviewPersistenceService.class,
     AbilityProfileSnapshotService.class,
     EpisodeFactPersistence.class,
+    JdbcAbilityCounterIncrementStore.class,
     EpisodeAssessmentCorrectionPersistence.class,
     AssessmentReconciliationDependencies.class,
     AssessmentReconciliationService.class,

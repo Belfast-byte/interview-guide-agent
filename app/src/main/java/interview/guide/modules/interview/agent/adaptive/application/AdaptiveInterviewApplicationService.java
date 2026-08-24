@@ -361,7 +361,12 @@ public class AdaptiveInterviewApplicationService {
    * @return 推进后的面试状态
    */
   public PlannedInterview submitAnswer(String sessionId, CandidateAnswer answer) {
-    return submitAnswer(sessionId, answer, AnswerEventSink.noop());
+    return submitAnswer(new AnswerSubmissionInput(
+        null,
+        sessionId,
+        answer,
+        AnswerEventSink.noop()
+    ));
   }
 
   /**
@@ -381,16 +386,18 @@ public class AdaptiveInterviewApplicationService {
       AnswerEventSink sink
   ) {
     persistenceService.requireCandidateSession(candidateId, sessionId);
-    return submitAnswer(sessionId, answer, sink);
+    return submitAnswer(new AnswerSubmissionInput(null, sessionId, answer, sink));
   }
 
-  private PlannedInterview submitAnswer(
-      String sessionId,
-      CandidateAnswer answer,
-      AnswerEventSink sink
-  ) {
-    PlannedInterview interview = persistenceService.get(sessionId);
+  private PlannedInterview submitAnswer(AnswerSubmissionInput input) {
+    String sessionId = input.sessionId();
+    CandidateAnswer answer = input.answer();
+    AnswerEventSink sink = input.sink();
+    PlannedInterview interview = input.tenantId() == null
+        ? persistenceService.get(sessionId)
+        : persistenceService.getForTenant(input.tenantId(), sessionId);
     AdaptiveInterviewHistory history = interview.history();
+    MemoryOwner owner = new MemoryOwner(input.tenantId(), history.candidateId());
     history.session().assertCanAnswer(answer);
     PlannedDimension currentDimension = interview.plan().dimensionForTurn(answer.turnIndex());
     algorithmTelemetry.interviewTurnSubmitted(sessionId);
@@ -493,7 +500,7 @@ public class AdaptiveInterviewApplicationService {
               new TopicKey(nextDimension.suggestedSkill(), nextDimension.focusId()),
               nextProbeGaps,
               workingMemoryFactSource.findProbeGaps(
-                  new MemoryOwner(null, history.candidateId()),
+                  owner,
                   sessionId
               ),
               history.turns()
@@ -540,6 +547,7 @@ public class AdaptiveInterviewApplicationService {
     try {
       PlannedInterview updated = persistenceService.recordDecision(
           new AdaptiveDecisionPersistenceInput(
+              owner,
               sessionId,
               answer,
               decision.response(),
@@ -582,6 +590,26 @@ public class AdaptiveInterviewApplicationService {
     persistenceService.requireCandidateSession(candidateId, sessionId);
     return submitAnswer(sessionId, answer);
   }
+
+  public PlannedInterview submitAnswerForTenant(
+      String tenantId,
+      String sessionId,
+      CandidateAnswer answer
+  ) {
+    return submitAnswer(new AnswerSubmissionInput(
+        tenantId,
+        sessionId,
+        answer,
+        AnswerEventSink.noop()
+    ));
+  }
+
+  private record AnswerSubmissionInput(
+      String tenantId,
+      String sessionId,
+      CandidateAnswer answer,
+      AnswerEventSink sink
+  ) {}
 
   /**
    * 获取指定自适应面试的当前状态。

@@ -5,6 +5,7 @@ import interview.guide.modules.interview.agent.adaptive.assessment.evidence.Vali
 import interview.guide.modules.interview.agent.adaptive.assessment.practice.PracticeRecommendation;
 import interview.guide.modules.interview.agent.adaptive.core.action.RespondAction;
 import interview.guide.modules.interview.agent.adaptive.core.context.DimensionBrief;
+import interview.guide.modules.interview.agent.adaptive.core.context.MemoryOwner;
 import interview.guide.modules.interview.agent.adaptive.core.event.CandidateAnswer;
 import interview.guide.modules.interview.agent.adaptive.core.session.NextTurnProvenanceDraft;
 import interview.guide.modules.interview.agent.adaptive.memory.claim.CandidateClaim;
@@ -14,6 +15,7 @@ import java.util.Objects;
 
 /** 一次答题事实短事务的完整不可变输入。 */
 public record AdaptiveDecisionPersistenceInput(
+    MemoryOwner owner,
     String sessionId,
     CandidateAnswer answer,
     RespondAction proposedAction,
@@ -27,6 +29,7 @@ public record AdaptiveDecisionPersistenceInput(
 ) {
 
   public AdaptiveDecisionPersistenceInput {
+    Objects.requireNonNull(owner, "owner 不能为空");
     toolExecutions = List.copyOf(toolExecutions);
     candidateClaims = List.copyOf(candidateClaims);
     assessmentEvidences = List.copyOf(assessmentEvidences);

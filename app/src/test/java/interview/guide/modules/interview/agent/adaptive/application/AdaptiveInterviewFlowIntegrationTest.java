@@ -34,6 +34,7 @@ import interview.guide.modules.interview.agent.adaptive.persistence.session.Adap
 import interview.guide.modules.interview.agent.adaptive.observability.AdaptiveAgentTelemetry;
 import interview.guide.modules.interview.agent.adaptive.observability.AlgorithmInterviewTelemetry;
 import interview.guide.modules.interview.agent.adaptive.planning.DimensionProposal;
+import interview.guide.modules.interview.agent.adaptive.persistence.memory.JdbcAbilityCounterIncrementStore;
 import interview.guide.modules.interview.agent.adaptive.planning.PlanDimensionStatus;
 import interview.guide.modules.interview.agent.adaptive.planning.PlanProposal;
 import interview.guide.modules.interview.agent.adaptive.planning.PlannedInterview;
@@ -67,6 +68,7 @@ import static org.mockito.Mockito.mock;
     AbilityProfileSnapshotService.class,
     CandidateMemoryService.class,
     EpisodeFactPersistence.class,
+    JdbcAbilityCounterIncrementStore.class,
     EpisodeAssessmentCorrectionPersistence.class,
     AssessmentReconciliationDependencies.class,
     AssessmentReconciliationService.class,

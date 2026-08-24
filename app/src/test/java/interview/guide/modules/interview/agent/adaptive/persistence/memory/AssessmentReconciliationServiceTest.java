@@ -43,6 +43,7 @@ import org.springframework.test.context.event.RecordApplicationEvents;
 })
 @Import({
     EpisodeFactPersistence.class,
+    JdbcAbilityCounterIncrementStore.class,
     AbilityProfileSnapshotService.class,
     EpisodeAssessmentCorrectionPersistence.class,
     AssessmentReconciliationDependencies.class,

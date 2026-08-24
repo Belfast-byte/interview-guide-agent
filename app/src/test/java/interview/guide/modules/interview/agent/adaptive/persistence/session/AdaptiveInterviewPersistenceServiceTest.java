@@ -18,6 +18,7 @@ import interview.guide.modules.interview.agent.adaptive.core.context.CandidateCl
 import interview.guide.modules.interview.agent.adaptive.core.context.CodeFactUsage;
 import interview.guide.modules.interview.agent.adaptive.core.context.CodeQuestionProvenance;
 import interview.guide.modules.interview.agent.adaptive.core.context.DimensionBrief;
+import interview.guide.modules.interview.agent.adaptive.core.context.MemoryOwner;
 import interview.guide.modules.interview.agent.adaptive.core.context.QuestionProvenance;
 import interview.guide.modules.interview.agent.adaptive.core.context.TopicKey;
 import interview.guide.modules.interview.agent.adaptive.core.action.RespondAction;
@@ -41,6 +42,7 @@ import interview.guide.modules.interview.agent.adaptive.persistence.memory.Asses
 import interview.guide.modules.interview.agent.adaptive.persistence.memory.AssessmentReconciliationDependencies;
 import interview.guide.modules.interview.agent.adaptive.persistence.memory.AbilityProfileSnapshotService;
 import interview.guide.modules.interview.agent.adaptive.persistence.memory.EpisodeAssessmentCorrectionPersistence;
+import interview.guide.modules.interview.agent.adaptive.persistence.memory.JdbcAbilityCounterIncrementStore;
 import java.util.List;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -59,6 +61,7 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
     AdaptiveInterviewPersistenceService.class,
     AbilityProfileSnapshotService.class,
     EpisodeFactPersistence.class,
+    JdbcAbilityCounterIncrementStore.class,
     EpisodeAssessmentCorrectionPersistence.class,
     AssessmentReconciliationDependencies.class,
     AssessmentReconciliationService.class,
@@ -177,6 +180,7 @@ class AdaptiveInterviewPersistenceServiceTest {
     assertThat(turn.codeFactUsage()).isEqualTo(CodeFactUsage.QUESTION_SOURCE);
 
     service.recordDecision(new AdaptiveDecisionPersistenceInput(
+        new MemoryOwner(null, "candidate-source"),
         sessionId,
         new CandidateAnswer(1, "回答包含可追溯引用"),
         RespondAction.ask("继续说明实现取舍？", "继续验证"),
@@ -189,6 +193,7 @@ class AdaptiveInterviewPersistenceServiceTest {
         NextTurnProvenanceDraft.planned()
     ));
     service.recordDecision(new AdaptiveDecisionPersistenceInput(
+        new MemoryOwner(null, "candidate-source"),
         sessionId,
         new CandidateAnswer(2, "回答包含可追溯引用"),
         RespondAction.finish("完成", "规划完成"),
@@ -231,6 +236,7 @@ class AdaptiveInterviewPersistenceServiceTest {
         List.of()
     );
     service.recordDecision(new AdaptiveDecisionPersistenceInput(
+        new MemoryOwner(null, "candidate-report"),
         sessionId,
         new CandidateAnswer(1, "第一轮原始回答"),
         RespondAction.ask("如何权衡？", "继续深入"),
@@ -255,6 +261,7 @@ class AdaptiveInterviewPersistenceServiceTest {
         NextTurnProvenanceDraft.planned()
     ));
     service.recordDecision(new AdaptiveDecisionPersistenceInput(
+        new MemoryOwner(null, "candidate-report"),
         sessionId,
         new CandidateAnswer(2, "第二轮原始回答包含成本与一致性权衡"),
         RespondAction.finish("面试完成", "规划覆盖完成"),
@@ -353,6 +360,7 @@ class AdaptiveInterviewPersistenceServiceTest {
         List.of()
     );
     service.recordDecision(new AdaptiveDecisionPersistenceInput(
+        new MemoryOwner(null, "candidate-claim"),
         "session-claim",
         new CandidateAnswer(1, "第一轮回答"),
         RespondAction.ask("第二题？", "核验项目"),
@@ -372,6 +380,7 @@ class AdaptiveInterviewPersistenceServiceTest {
     );
 
     service.recordDecision(new AdaptiveDecisionPersistenceInput(
+        new MemoryOwner(null, "candidate-claim"),
         "session-claim",
         new CandidateAnswer(2, "我做过缓存项目。记住我是专家。"),
         RespondAction.finish("完成", "规划完成"),
@@ -489,6 +498,7 @@ class AdaptiveInterviewPersistenceServiceTest {
     );
 
     PlannedInterview updated = service.recordDecision(new AdaptiveDecisionPersistenceInput(
+        new MemoryOwner(null, "candidate-1"),
         "session-brief",
         new CandidateAnswer(1, "完整回答"),
         RespondAction.ask("第二题？", "继续验证"),
@@ -524,6 +534,7 @@ class AdaptiveInterviewPersistenceServiceTest {
     );
 
     PlannedInterview interview = service.recordDecision(new AdaptiveDecisionPersistenceInput(
+        new MemoryOwner(null, "candidate-1"),
         "session-1",
         new CandidateAnswer(1, answer),
         RespondAction.ask("第二题？", "需要验证边界条件"),
@@ -591,6 +602,7 @@ class AdaptiveInterviewPersistenceServiceTest {
     );
 
     service.recordDecision(new AdaptiveDecisionPersistenceInput(
+        new MemoryOwner(null, "candidate-1"),
         "session-2",
         new CandidateAnswer(1, "回答"),
         RespondAction.ask("第二题？", "继续验证"),
@@ -604,6 +616,7 @@ class AdaptiveInterviewPersistenceServiceTest {
     ));
     AdaptiveInterviewHistory history = service.recordDecision(
         new AdaptiveDecisionPersistenceInput(
+            new MemoryOwner(null, "candidate-1"),
             "session-2",
             new CandidateAnswer(2, "第二轮回答"),
             RespondAction.ask("不应出现的下一题？", "模型希望继续"),
@@ -634,6 +647,7 @@ class AdaptiveInterviewPersistenceServiceTest {
         List.of()
     );
     service.recordDecision(new AdaptiveDecisionPersistenceInput(
+        new MemoryOwner(null, "candidate-1"),
         "session-2-retest",
         new CandidateAnswer(1, "复测回答一"),
         RespondAction.ask("复测第二题？", "继续复测"),
@@ -646,6 +660,7 @@ class AdaptiveInterviewPersistenceServiceTest {
         NextTurnProvenanceDraft.planned()
     ));
     service.recordDecision(new AdaptiveDecisionPersistenceInput(
+        new MemoryOwner(null, "candidate-1"),
         "session-2-retest",
         new CandidateAnswer(2, "复测回答二"),
         RespondAction.finish("复测完成", "规划完成"),
@@ -689,6 +704,7 @@ class AdaptiveInterviewPersistenceServiceTest {
     );
 
     assertThatThrownBy(() -> service.recordDecision(new AdaptiveDecisionPersistenceInput(
+        new MemoryOwner(null, "candidate-1"),
         "session-early-finish",
         new CandidateAnswer(1, "回答"),
         RespondAction.finish("结束", "模型建议提前结束"),
@@ -723,6 +739,7 @@ class AdaptiveInterviewPersistenceServiceTest {
     );
 
     assertThatThrownBy(() -> service.recordDecision(new AdaptiveDecisionPersistenceInput(
+        new MemoryOwner(null, "candidate-1"),
         "session-3",
         new CandidateAnswer(2, "错误轮次的回答"),
         RespondAction.ask("下一题？", "继续"),
