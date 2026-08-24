@@ -1,0 +1,8 @@
+id,task,status,acceptance_criteria,validation_command,completed_at,retry_count,notes
+1,实现 TopicKey 与计划唯一性,DONE,"同 pair 拒绝且跨 skill 同 focus 合法","timeout 60s ./gradlew :app:test --no-daemon --console=plain --tests '*TopicKeyTest' --tests '*InterviewPlanTest'",2026-08-23 20:36,1,"初次测试暴露旧夹具重复 TopicKey，修正后通过"
+2,实现 TurnTrigger 领域约束,DONE,"三种 trigger/source 组合确定且非法组合失败","timeout 60s ./gradlew :app:test --no-daemon --console=plain --tests '*TurnTriggerTest'",2026-08-23 20:36,0,"合法/非法 source 组合测试通过"
+3,持久化 turn provenance,DONE,"turn 字段往返且父链非法时失败","timeout 60s ./gradlew :app:test --no-daemon --console=plain --tests '*AdaptiveAgentTurnEntityTest' --tests '*AdaptiveInterviewPersistenceServiceTest'",2026-08-23 20:38,0,"实体映射、JPA 往返和服务回归通过"
+4,持久化 ProbeGap,DONE,"gap 与 assessment 关联且顺序唯一","timeout 60s ./gradlew :app:test --no-daemon --console=plain --tests '*AssessmentProbeGap*'",2026-08-23 20:41,0,"仓储约束、稳定顺序和 recordDecision 同事务测试通过"
+5,实现 ProbeGapSelector,DONE,"稳定选择首个当前主题未使用 gap","timeout 60s ./gradlew :app:test --no-daemon --console=plain --tests '*ProbeGapSelectorTest'",2026-08-23 20:43,0,"稳定排序、已使用、跨主题和空结果测试通过"
+6,实现 WorkingMemorySnapshot 与组装,DONE,"根问题/追问/tool 深度和来源准确","timeout 60s ./gradlew :app:test --no-daemon --console=plain --tests '*WorkingMemory*' --tests '*AdaptiveInterviewApplicationServiceTest'",2026-08-23 20:48,1,"首次门禁发现首题旧参数遗漏，修正初始 snapshot 后通过"
+7,执行 T02 回归门禁,DONE,"目标测试与并发测试通过","timeout 60s ./gradlew :app:test --no-daemon --console=plain --tests '*WorkingMemory*' --tests '*TurnTrigger*' --tests '*AdaptiveInterviewPersistenceServiceTest' --tests '*AdaptiveInterviewConcurrencyIntegrationTest'",2026-08-23 20:48,0,"扩展门禁同时覆盖 ProbeGap、Turn Entity 与 Application，18 秒通过"

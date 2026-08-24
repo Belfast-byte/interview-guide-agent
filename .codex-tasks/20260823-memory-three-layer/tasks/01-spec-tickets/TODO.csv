@@ -1,0 +1,4 @@
+id,task,status,acceptance_criteria,validation_command,completed_at,retry_count,notes
+1,将关闭方案合并进 v3 spec,DONE,"所有阻断项有唯一裁决","rg -n 'EpisodeFact|enrichment_status|ASSESSMENT_GAP|PROFICIENT' docs/design/34-memory-three-layer-spec.md",2026-08-23 20:30,0,"v3 共 242 行，核心身份、事务、迁移和公平性均有唯一裁决"
+2,编写可验收 tickets,DONE,"T01-T24 均包含 Goal 实现 测试和依赖","rg -n '^## T([0-1][0-9]|2[0-4]) |Goal|怎么实现|测试验证' docs/design/35-memory-three-layer-tickets.md",2026-08-23 20:30,0,"拆分 24 个单一职责实现 tickets"
+3,执行文档一致性验证,DONE,"无旧枚举/outcome/Redis WM 和影响实现的未决项","! rg -n 'PARTIALLY_COVERED|candidate_memory_episodes.*outcome|Redis key|实现时定' docs/design/34-memory-three-layer-spec.md",2026-08-23 20:30,0,"文档一致性门禁通过"

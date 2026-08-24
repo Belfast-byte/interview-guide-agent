@@ -1,0 +1,6 @@
+id,task,status,acceptance_criteria,validation_command,completed_at,retry_count,notes
+1,审计 spec §9 八条不变量,DONE,"每条不变量有直接代码和测试证据","timeout 60s ./gradlew :app:test --no-daemon --console=plain --tests '*ThreeLayerMemoryInvariant*'",2026-08-24 21:33,1,"核心 2 项与八类 32 项组合测试通过"
+2,补齐缺失端到端测试,DONE,"审计发现的缺口均有可复现测试","timeout 60s ./gradlew :app:test --no-daemon --console=plain --tests '*ThreeLayerMemoryInvariant*'",2026-08-24 21:33,2,"补齐 DataJpaTest 原子 Counter 实现装配；T23 测试固定迁移目标并由生产迁移测试覆盖完整链"
+3,执行完整后端门禁,DONE,"全部后端测试 60 秒内通过","timeout 60s ./gradlew :app:test --no-daemon --console=plain",2026-08-24 21:36,1,"单 fork 首次超时；双 fork 后完整后端 BUILD SUCCESSFUL in 41s"
+4,执行最终前端门禁,DONE,"候选人记忆测试与生产构建通过","cd frontend && pnpm run test:candidate-memory && pnpm run build",2026-08-24 21:37,1,"首次命令使用错误相对路径未执行；修正后 Vitest 4/4 与生产构建通过"
+5,核对 tickets 提交与发布状态,IN_PROGRESS,"T01-T24 均有实现和测试证据，分支已推送","git status --short --branch && git log --oneline origin/feat/memory-three-layer..HEAD",,0,

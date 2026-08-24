@@ -1,0 +1,8 @@
+id,task,status,acceptance_criteria,validation_command,completed_at,retry_count,notes
+1,实现 enrichment 状态机,DONE,"五状态合法迁移、error 和显式重试准确","timeout 60s ./gradlew :app:test --no-daemon --console=plain --tests '*EpisodeEnrichmentStateTest'",2026-08-23 21:06,1,"首次测试发现非 FAILED 可携带 error，改为显式双 guard 后通过"
+2,实现标签枚举与表,DONE,"16 个白名单标签和 category/source 持久化","timeout 60s ./gradlew :app:test --no-daemon --console=plain --tests '*EpisodeTagRepositoryTest'",2026-08-23 21:08,0,"8+8 白名单、category 匹配、唯一来源关系和 JPA 测试通过"
+3,实现标签来源校验,DONE,"三类 source 必须属于 Episode 且非法单标签可丢弃","timeout 60s ./gradlew :app:test --no-daemon --console=plain --tests '*EpisodeTagValidatorTest'",2026-08-23 21:10,0,"三类归属源、跨 Episode 过滤、白名单和确定性去重测试通过"
+4,实现 enrichment claim/complete/fail 短事务,DONE,"状态和 replace 写入幂等且失败可见","timeout 60s ./gradlew :app:test --no-daemon --console=plain --tests '*EpisodeEnrichmentPersistenceTest'",2026-08-23 21:14,0,"行锁 claim、结果替换、失败、显式 retry、stale recovery 和空摘要拒绝测试通过"
+5,实现结构化 LLM worker 与显式重试,DONE,"LLM 在事务外且重复消费/异常/非法标签可验证","timeout 60s ./gradlew :app:test --no-daemon --console=plain --tests '*EpisodeEnrichmentServiceTest'",2026-08-23 21:24,1,"首次测试发现 Episode 脱离事务读取 assessmentId 触发懒加载，改为只读外键映射后通过；组合门禁通过"
+6,接入 Assessment 修订再 enrichment,DONE,"旧标签清除、Episode 引用不变、回 PENDING","timeout 60s ./gradlew :app:test --no-daemon --console=plain --tests '*AssessmentReconciliationServiceTest'",2026-08-23 21:32,0,"计数补偿、payload 清理、引用不变、单次事件和 LEGACY 拒绝测试通过"
+7,执行 T04 回归门禁,DONE,"Enrichment/Tag/Reconciliation/Application 测试通过","timeout 60s ./gradlew :app:test --no-daemon --console=plain --tests '*EpisodeEnrichment*' --tests '*EpisodeTag*' --tests '*AssessmentReconciliation*' --tests '*AdaptiveInterviewApplicationServiceTest'",2026-08-23 21:33,0,"组合门禁 19 秒通过"

@@ -105,6 +105,7 @@ class ThreeLayerMemoryHistoryBackfillIntegrationTest {
         .locations("classpath:db/migration")
         .baselineOnMigrate(true)
         .baselineVersion("20260920")
+        .target("20260921")
         .load()
         .migrate();
   }

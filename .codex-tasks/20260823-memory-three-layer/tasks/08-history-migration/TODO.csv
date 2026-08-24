@@ -1,0 +1,4 @@
+id,task,status,acceptance_criteria,validation_command,completed_at,retry_count,notes
+1,实现确定性历史回填,DONE,"只按 session+dimensionOrder 映射并回填 Episode/Counter/Profile","timeout 60s ./gradlew :app:test --no-daemon --console=plain --tests '*ThreeLayerMemoryHistoryBackfillIntegrationTest'",2026-08-23 22:37,0,"提交 5125b7a"
+2,验证迁移幂等和失败边界,DONE,"重复执行不增量；缺 plan 失败；同名文本不误映射","timeout 60s ./gradlew :app:test --no-daemon --console=plain --tests '*ThreeLayerMemoryHistoryBackfillIntegrationTest'",2026-08-23 22:37,0,"5 个场景通过；重复执行 Counter version 不变"
+3,执行 T08 门禁,DONE,"完整迁移测试通过且 SQL/Java migration 无未决分支","timeout 60s ./gradlew :app:test --no-daemon --console=plain --tests '*ThreeLayerMemoryHistoryBackfillIntegrationTest'",2026-08-23 22:37,0,"BUILD SUCCESSFUL in 7s"

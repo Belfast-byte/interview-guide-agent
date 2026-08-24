@@ -1,0 +1,5 @@
+id,task,status,acceptance_criteria,validation_command,completed_at,retry_count,notes
+1,迁移并实现 Profile 快照模型,DONE,"owner+TopicKey current 唯一、历史保留、完整计数快照","timeout 60s ./gradlew :app:test --no-daemon --console=plain --tests '*CandidateAbilityProfileRepositoryTest'",2026-08-23 21:45,0,"与 SnapshotService/Reconciliation 组合定向门禁 20 秒通过"
+2,会话完成生成 SESSION_COMPLETED Profile,DONE,"多主题、total=0、幂等和 supersede 正确","timeout 60s ./gradlew :app:test --no-daemon --console=plain --tests '*AdaptiveInterviewPersistenceServiceTest'",2026-08-23 21:45,0,"真实 recordDecision 完成链路 14 秒通过；聚焦 SnapshotService 测试覆盖多主题与空计数"
+3,Assessment 修订生成 ASSESSMENT_CORRECTED Profile,DONE,"仅完成会话生成并 supersede current","timeout 60s ./gradlew :app:test --no-daemon --console=plain --tests '*AssessmentReconciliationServiceTest'",2026-08-23 21:45,0,"完成/进行中分支、reason、计数快照和 supersede 通过"
+4,执行 T05 回归门禁,DONE,"Semantic/Profile/AlgorithmResult 回归通过","timeout 60s ./gradlew :app:test --no-daemon --console=plain --tests '*Semantic*' --tests '*AbilityProfile*' --tests '*AlgorithmResult*'",2026-08-23 21:45,0,"组合门禁 17 秒通过"

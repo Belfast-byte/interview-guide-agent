@@ -1,0 +1,7 @@
+id,task,status,acceptance_criteria,validation_command,completed_at,retry_count,notes
+1,实现 EpisodeFact 表与仓储,DONE,"最小事实字段、owner 查询和 session-turn 唯一","timeout 60s ./gradlew :app:test --no-daemon --console=plain --tests '*EpisodeFactRepositoryTest'",2026-08-23 20:50,0,"最小事实、PENDING、唯一键和 owner 隔离测试通过"
+2,接入 EpisodeFact 同事务写入,DONE,"answered turn 原子产生 PENDING fact","timeout 60s ./gradlew :app:test --no-daemon --console=plain --tests '*EpisodeFactPersistenceTest'",2026-08-23 20:53,1,"首次重放暴露校验顺序根因，前移 session 裁决后完整回归通过"
+3,实现 AbilityCounter 模型与算法,DONE,"L0-L4 计数非负且三级阈值准确","timeout 60s ./gradlew :app:test --no-daemon --console=plain --tests '*AbilityCounter*'",2026-08-23 20:56,0,"阈值/增减/下溢/JPA/tenant 隔离测试通过；补齐 V20260918 migration"
+4,接入新 Assessment 增量计数,DONE,"Episode 唯一创建控制单次增量","timeout 60s ./gradlew :app:test --no-daemon --console=plain --tests '*AbilityCounterPersistenceTest'",2026-08-23 20:59,1,"首次组合门禁受跨测试已提交数据污染，改为 session 范围断言后通过"
+5,实现 Assessment replace 补偿,DONE,"old-- new++ 且下溢失败","timeout 60s ./gradlew :app:test --no-daemon --console=plain --tests '*AssessmentReconciliationServiceTest'",2026-08-23 21:02,0,"同级 no-op、跨级补偿、下溢和乐观锁冲突测试通过"
+6,执行 T03 回归门禁,DONE,"Episode/Counter/Persistence/Algorithm 测试通过","timeout 60s ./gradlew :app:test --no-daemon --console=plain --tests '*Episode*' --tests '*AbilityCounter*' --tests '*AssessmentReconciliation*' --tests '*AdaptiveInterviewPersistenceServiceTest' --tests '*AlgorithmPersistenceServiceTest'",2026-08-23 21:04,1,"首次门禁 fixture 与并发提交共享 candidate，隔离后 72 项 31 秒通过"

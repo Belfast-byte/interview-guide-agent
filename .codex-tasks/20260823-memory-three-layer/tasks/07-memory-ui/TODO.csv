@@ -1,0 +1,4 @@
+id,task,status,acceptance_criteria,validation_command,completed_at,retry_count,notes
+1,实现候选人记忆查询 API,DONE,"Profile/Counter/标签/Episode 安全组合且 owner 隔离","timeout 60s ./gradlew :app:test --no-daemon --console=plain --tests '*CandidateMemoryControllerTest'",2026-08-23 22:13,0,"3 tests 通过；字段白名单、稳定排序、空结果与跨 owner 隔离"
+2,实现候选人记忆前端,DONE,"主题卡、标签计数、Episode 链和补全状态可见","cd frontend && pnpm run test:candidate-memory && pnpm run build",2026-08-23 22:12,0,"组件测试与生产构建通过；仅既有 Tailwind minify warning"
+3,执行 T07 契约回归,DONE,"前后端字段逐项一致且组合门禁通过","timeout 60s ./gradlew :app:test --no-daemon --console=plain --tests '*CandidateMemoryControllerTest' && cd frontend && pnpm run test:candidate-memory && pnpm run build",2026-08-24 21:28,2,"修正 triggerType 白名单断言并补齐真实组件测试；后端 3 项、前端 4 项与生产构建通过"

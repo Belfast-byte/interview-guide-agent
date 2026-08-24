@@ -1,0 +1,6 @@
+id,task,status,acceptance_criteria,validation_command,completed_at,retry_count,notes
+1,实现 EpisodePromptFact 安全投影,DONE,"投影只含 TopicKey/depth/tags/createdAt 且 owner 查询隔离","timeout 60s ./gradlew :app:test --no-daemon --console=plain --tests '*EpisodePromptFactRepositoryTest'",2026-08-23 22:06,0,"完成态 session + COMPLETED enrichment；排除当前场；owner/tenant 隔离；标签批量查询"
+2,实现稳定优先级与 2000 token 选择器,DONE,"同 TopicKey 优先、稳定排序、边界和 skip-continue 正确","timeout 60s ./gradlew :app:test --no-daemon --console=plain --tests '*EpisodePromptSelectorTest'",2026-08-23 22:06,1,"首次测试替身误用非函数式 TokenCountEstimator，改为显式 mock 后通过"
+3,接入 Interviewer ContextAssembler,DONE,"仅 Interviewer 接收安全投影且总预算不超限","timeout 60s ./gradlew :app:test --no-daemon --console=plain --tests '*ContextAssemblerTest'",2026-08-23 22:18,0,"首题、普通下一题、工具结果三条路径均按 TopicKey 注入 Episode history"
+4,建立 Planner/Assessment 公平性契约,DONE,"禁止历史文本/Profile/Counter/Episode 泄漏","timeout 60s ./gradlew :app:test --no-daemon --console=plain --tests '*CandidateMemoryFairnessContractTest'",2026-08-23 22:18,0,"移除 completedDimensionBriefs；六字段白名单与 Assessment/Planner 结构契约通过"
+5,执行 T06 回归门禁,DONE,"EpisodeSelection/Fairness/Context 回归通过","timeout 60s ./gradlew :app:test --no-daemon --console=plain --tests '*EpisodeSelection*' --tests '*CandidateMemoryFairnessContractTest' --tests '*ContextAssemblerTest'",2026-08-23 22:20,0,"T19/T20 八类定向测试合并通过，18 秒"
