@@ -1,6 +1,8 @@
 package interview.guide.modules.interview.agent.adaptive.persistence.memory;
 
 import interview.guide.modules.interview.agent.adaptive.core.context.MemoryOwner;
+import java.util.Collection;
+import java.util.List;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.Query;
@@ -15,6 +17,7 @@ public interface CandidateMemoryEpisodeQueryRepository
           SELECT episode.sessionId AS sessionId,
                  episode.turnIndex AS turnIndex,
                  turn.parentTurnIndex AS parentTurnIndex,
+                 turn.triggerType AS triggerType,
                  episode.skillId AS skillId,
                  episode.focusId AS focusId,
                  assessment.depthLevel AS depthLevel,
@@ -44,5 +47,31 @@ public interface CandidateMemoryEpisodeQueryRepository
   Page<CandidateMemoryEpisodeProjection> findByOwner(
       MemoryOwner owner,
       Pageable pageable
+  );
+
+  @Query("""
+      SELECT episode.sessionId AS sessionId,
+             episode.turnIndex AS turnIndex,
+             turn.parentTurnIndex AS parentTurnIndex,
+             turn.triggerType AS triggerType,
+             episode.skillId AS skillId,
+             episode.focusId AS focusId,
+             assessment.depthLevel AS depthLevel,
+             episode.enrichmentStatus AS enrichmentStatus,
+             episode.createdAt AS createdAt
+      FROM EpisodeFactEntity episode,
+           AdaptiveAgentTurnEntity turn
+      JOIN episode.assessment assessment
+      WHERE turn.sessionId = episode.sessionId
+        AND turn.turnIndex = episode.turnIndex
+        AND episode.sessionId IN :sessionIds
+        AND episode.candidateId = :#{#owner.candidateId}
+        AND ((:#{#owner.tenantId} IS NULL AND episode.tenantId IS NULL)
+             OR episode.tenantId = :#{#owner.tenantId})
+      ORDER BY episode.createdAt DESC, episode.id DESC
+      """)
+  List<CandidateMemoryEpisodeProjection> findByOwnerAndSessionIdIn(
+      MemoryOwner owner,
+      Collection<String> sessionIds
   );
 }

@@ -1,6 +1,7 @@
 package interview.guide.modules.interview.agent.adaptive.persistence.memory;
 
 import interview.guide.modules.interview.agent.adaptive.core.context.DepthLevel;
+import interview.guide.modules.interview.agent.adaptive.core.session.TurnTriggerType;
 import interview.guide.modules.interview.agent.adaptive.memory.episode.EpisodeEnrichmentStatus;
 import java.time.LocalDateTime;
 
@@ -12,6 +13,8 @@ public interface CandidateMemoryEpisodeProjection {
   int getTurnIndex();
 
   Integer getParentTurnIndex();
+
+  TurnTriggerType getTriggerType();
 
   String getSkillId();
 

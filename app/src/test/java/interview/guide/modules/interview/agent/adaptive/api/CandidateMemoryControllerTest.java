@@ -142,6 +142,7 @@ class CandidateMemoryControllerTest {
             "sessionId",
             "turnIndex",
             "parentTurnIndex",
+            "triggerType",
             "skillId",
             "focusId",
             "depthLevel",

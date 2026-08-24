@@ -2,6 +2,10 @@ import type { AdaptiveDepthLevel } from './adaptiveInterview';
 
 export type SemanticAbility = 'WEAK' | 'COMPETENT' | 'PROFICIENT';
 export type MemoryTagCategory = 'ERROR_PATTERN' | 'ANSWER_HABIT';
+export type CandidateMemoryTurnTriggerType =
+  | 'PLANNED'
+  | 'ASSESSMENT_GAP'
+  | 'TOOL_RESULT';
 export type EpisodeEnrichmentStatus =
   | 'PENDING'
   | 'PROCESSING'
@@ -31,6 +35,7 @@ export interface CandidateMemoryEpisode {
   sessionId: string;
   turnIndex: number;
   parentTurnIndex: number | null;
+  triggerType: CandidateMemoryTurnTriggerType;
   skillId: string;
   focusId: string;
   depthLevel: AdaptiveDepthLevel;
@@ -40,6 +45,7 @@ export interface CandidateMemoryEpisode {
 
 export interface CandidateMemoryEpisodePage {
   content: CandidateMemoryEpisode[];
+  ancestors: CandidateMemoryEpisode[];
   page: number;
   size: number;
   totalElements: number;

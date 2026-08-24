@@ -2,6 +2,7 @@ package interview.guide.modules.interview.agent.adaptive.application;
 
 import interview.guide.modules.interview.agent.adaptive.core.context.DepthLevel;
 import interview.guide.modules.interview.agent.adaptive.core.context.TopicKey;
+import interview.guide.modules.interview.agent.adaptive.core.session.TurnTriggerType;
 import interview.guide.modules.interview.agent.adaptive.memory.episode.EpisodeEnrichmentStatus;
 import interview.guide.modules.interview.agent.adaptive.memory.episode.EpisodeTagCategory;
 import interview.guide.modules.interview.agent.adaptive.memory.semantic.AbilityCounter;
@@ -14,7 +15,8 @@ import org.springframework.data.domain.Page;
 public record CandidateMemoryQueryResult(
     String candidateId,
     List<TopicProfile> topics,
-    Page<Episode> episodes
+    Page<Episode> episodes,
+    List<Episode> episodeAncestors
 ) {
 
   public record TopicProfile(
@@ -34,6 +36,7 @@ public record CandidateMemoryQueryResult(
       String sessionId,
       int turnIndex,
       Integer parentTurnIndex,
+      TurnTriggerType triggerType,
       TopicKey topic,
       DepthLevel depthLevel,
       EpisodeEnrichmentStatus enrichmentStatus,

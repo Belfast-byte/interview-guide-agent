@@ -2,6 +2,7 @@ package interview.guide.modules.interview.agent.adaptive.api;
 
 import interview.guide.modules.interview.agent.adaptive.application.CandidateMemoryQueryResult;
 import interview.guide.modules.interview.agent.adaptive.core.context.DepthLevel;
+import interview.guide.modules.interview.agent.adaptive.core.session.TurnTriggerType;
 import interview.guide.modules.interview.agent.adaptive.memory.episode.EpisodeEnrichmentStatus;
 import interview.guide.modules.interview.agent.adaptive.memory.episode.EpisodeTagCategory;
 import interview.guide.modules.interview.agent.adaptive.memory.semantic.SemanticAbility;
@@ -63,6 +64,7 @@ public record CandidateMemoryResponse(
 
   public record EpisodePageResponse(
       List<EpisodeResponse> content,
+      List<EpisodeResponse> ancestors,
       int page,
       int size,
       long totalElements,
@@ -74,6 +76,7 @@ public record CandidateMemoryResponse(
       var episodes = source.episodes();
       return new EpisodePageResponse(
           episodes.getContent().stream().map(EpisodeResponse::from).toList(),
+          source.episodeAncestors().stream().map(EpisodeResponse::from).toList(),
           episodes.getNumber(),
           episodes.getSize(),
           episodes.getTotalElements(),
@@ -87,6 +90,7 @@ public record CandidateMemoryResponse(
       String sessionId,
       int turnIndex,
       Integer parentTurnIndex,
+      TurnTriggerType triggerType,
       String skillId,
       String focusId,
       DepthLevel depthLevel,
@@ -99,6 +103,7 @@ public record CandidateMemoryResponse(
           source.sessionId(),
           source.turnIndex(),
           source.parentTurnIndex(),
+          source.triggerType(),
           source.topic().skillId(),
           source.topic().focusId(),
           source.depthLevel(),

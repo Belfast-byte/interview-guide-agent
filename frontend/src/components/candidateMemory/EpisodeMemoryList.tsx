@@ -6,6 +6,7 @@ import type {
 import { formatDateTime } from '../../utils/date';
 import {
   buildEpisodeChains,
+  getEpisodeTriggerLabel,
   getEnrichmentStatusLabel,
   type CandidateMemoryEpisodeNode,
 } from './candidateMemoryView';
@@ -14,7 +15,10 @@ export default function EpisodeMemoryList(props: {
   episodes: CandidateMemoryEpisodePage;
   onPage: (page: number) => void;
 }) {
-  const chains = buildEpisodeChains(props.episodes.content);
+  const chains = buildEpisodeChains(
+    props.episodes.content,
+    props.episodes.ancestors,
+  );
   if (chains.length === 0) {
     return <p className="rounded-2xl border border-dashed border-slate-300 bg-white/70 p-8 text-center text-sm text-slate-500 dark:border-slate-700 dark:bg-slate-900/70">暂无问答记忆</p>;
   }
@@ -25,7 +29,6 @@ export default function EpisodeMemoryList(props: {
           <EpisodeNode
             key={`${root.episode.sessionId}:${root.episode.turnIndex}`}
             node={root}
-            followUp={root.episode.parentTurnIndex !== null}
           />
         ))}
       </div>
@@ -34,10 +37,11 @@ export default function EpisodeMemoryList(props: {
   );
 }
 
-function EpisodeNode(props: { node: CandidateMemoryEpisodeNode; followUp: boolean }) {
+function EpisodeNode(props: { node: CandidateMemoryEpisodeNode }) {
   const episode = props.node.episode;
+  const followUp = episode.triggerType !== 'PLANNED';
   return (
-    <div className={props.followUp ? 'ml-5 border-l-2 border-primary-200 pl-4 sm:ml-8 dark:border-primary-900' : ''}>
+    <div className={followUp ? 'ml-5 border-l-2 border-primary-200 pl-4 sm:ml-8 dark:border-primary-900' : ''}>
       <article className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm dark:border-slate-700 dark:bg-slate-900">
         <div className="flex flex-wrap items-start justify-between gap-3">
           <div>
@@ -45,9 +49,12 @@ function EpisodeNode(props: { node: CandidateMemoryEpisodeNode; followUp: boolea
               {episode.skillId} / {episode.focusId}
             </p>
             <p className="mt-1 text-sm font-bold text-slate-800 dark:text-slate-100">
-              {props.followUp && <GitBranch className="mr-1.5 inline h-4 w-4" />}
-              {props.followUp ? '追问' : '起始问题'} · 第 {episode.turnIndex} 轮 · {episode.depthLevel}
+              {followUp && <GitBranch className="mr-1.5 inline h-4 w-4" />}
+              {getEpisodeTriggerLabel(episode.triggerType)} · 第 {episode.turnIndex} 轮 · {episode.depthLevel}
             </p>
+            {props.node.contextOnly && (
+              <p className="mt-1 text-xs font-medium text-slate-400">跨页链路上文</p>
+            )}
           </div>
           <EnrichmentStatus status={episode.enrichmentStatus} />
         </div>
@@ -61,7 +68,6 @@ function EpisodeNode(props: { node: CandidateMemoryEpisodeNode; followUp: boolea
             <EpisodeNode
               key={`${child.episode.sessionId}:${child.episode.turnIndex}`}
               node={child}
-              followUp
             />
           ))}
         </div>
