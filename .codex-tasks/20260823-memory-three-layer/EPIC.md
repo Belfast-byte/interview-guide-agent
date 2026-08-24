@@ -54,7 +54,7 @@
 
 ## Done-When
 
-- [ ] `SUBTASKS.csv` 全部为 `DONE`。
-- [ ] v3 spec 与 tickets 文档没有影响实现的未决项。
-- [ ] 定向测试、迁移测试、前端构建和 60 秒后端门禁均有记录。
-- [ ] 所有主题改动已分主题提交到 `feat/memory-three-layer`。
+- [x] `SUBTASKS.csv` 全部为 `DONE`。
+- [x] v3 spec 与 tickets 文档没有影响实现的未决项。
+- [x] 定向测试、迁移测试、前端构建和 60 秒后端门禁均有记录。
+- [x] 所有主题改动已分主题提交到 `feat/memory-three-layer`。

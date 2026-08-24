@@ -12,12 +12,18 @@
 ## Context Recovery Block
 
 - **Current milestone**: T09 — 三层记忆端到端门禁
-- **Current status**: IN_PROGRESS
-- **Last completed**: T07 — 候选人记忆 API 与 UI
+- **Current status**: DONE
+- **Last completed**: T09 — 三层记忆端到端门禁
 - **Current artifact**: `tasks/09-release-gate/TODO.csv`
 - **Key context**: v2 已纠正事实错误，但 Episode 事实/enrichment、计数器事务、outcome、Prompt 安全和画像来源仍未闭合；本 Epic 采用会话中确认的关闭方案。
 - **Known issues**: 工作区保留 `.gradle-agent/`、`.zcode/`、旧 `.codex-tasks/` 和 token 统计导出，均不纳入产品提交。
-- **Next action**: 审计 spec §9 八条不变量并运行直接测试。
+- **Next action**: 无；Epic 已完成。
+
+## 2026-08-24 21:45
+
+- Epic 进度：9/9。
+- §9 八条不变量、完整后端 60 秒门禁、候选人记忆前端测试与生产构建全部通过。
+- 所有记忆系统主题提交已推送到 `origin/feat/memory-three-layer`。
 
 ## 2026-08-24 21:28
 
