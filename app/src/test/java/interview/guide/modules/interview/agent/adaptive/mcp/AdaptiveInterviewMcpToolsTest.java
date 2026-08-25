@@ -8,6 +8,7 @@ import interview.guide.modules.interview.agent.adaptive.assessment.report.Enterp
 import interview.guide.modules.interview.agent.adaptive.core.session.AdaptiveInterviewHistory;
 import interview.guide.modules.interview.agent.adaptive.core.session.AdaptiveInterviewSession;
 import interview.guide.modules.interview.agent.adaptive.core.session.AdaptiveSessionStatus;
+import interview.guide.modules.interview.agent.adaptive.core.event.CandidateAnswer;
 import interview.guide.modules.interview.agent.adaptive.planning.InterviewPlan;
 import interview.guide.modules.interview.agent.adaptive.planning.PlannedInterview;
 import io.modelcontextprotocol.common.McpTransportContext;
@@ -58,16 +59,72 @@ class AdaptiveInterviewMcpToolsTest {
   }
 
   @Test
-  @DisplayName("Spring AI 扫描出评估阶段启用的四个 MCP 工具")
+  @DisplayName("Spring AI 扫描出评估阶段启用的五个 MCP 工具")
   void shouldExposeDocumentedTools() {
     assertThat(new SyncMcpToolProvider(List.of(tools)).getToolSpecifications())
         .extracting(specification -> specification.tool().name())
         .containsExactlyInAnyOrder(
             "interview.create",
+            "interview.submit_answer",
             "interview.get_status",
             "interview.list_dimensions",
             "interview.get_report"
         );
+  }
+
+  @Test
+  @DisplayName("提交回答必须通过独立写 scope")
+  void shouldRejectAnswerWithoutWriteScope() {
+    when(context.transportContext()).thenReturn(transportContext);
+    McpTenantPrincipal principal = principal(Set.of(McpInterviewScope.INTERVIEW_READ));
+    when(transportContext.get(McpTenantTransportConfiguration.PRINCIPAL_KEY))
+        .thenReturn(principal);
+
+    assertThatThrownBy(() -> tools.submitAnswer(
+        context,
+        "session-a",
+        new McpSubmitAnswerRequest(1, "回答")
+    )).hasFieldOrPropertyWithValue("code", ErrorCode.FORBIDDEN.getCode());
+
+    verify(auditService).record(
+        principal,
+        "interview.submit_answer",
+        null,
+        McpAuditOutcome.FORBIDDEN
+    );
+    verify(applicationService, never()).submitAnswerForTenant(
+        "tenant-a",
+        "session-a",
+        new CandidateAnswer(1, "回答")
+    );
+  }
+
+  @Test
+  @DisplayName("提交回答只传递凭证租户并记录成功审计")
+  void shouldSubmitAnswerForCredentialTenant() {
+    when(context.transportContext()).thenReturn(transportContext);
+    McpTenantPrincipal principal = principal(Set.of(McpInterviewScope.INTERVIEW_WRITE));
+    when(transportContext.get(McpTenantTransportConfiguration.PRINCIPAL_KEY))
+        .thenReturn(principal);
+    when(applicationService.submitAnswerForTenant(
+        "tenant-a",
+        "session-a",
+        new CandidateAnswer(1, "回答")
+    )).thenReturn(createdSkeleton("session-a"));
+
+    McpInterviewStatusResponse response = tools.submitAnswer(
+        context,
+        "session-a",
+        new McpSubmitAnswerRequest(1, "回答")
+    );
+
+    assertThat(response.sessionId()).isEqualTo("session-a");
+    verify(auditService).record(
+        principal,
+        "interview.submit_answer",
+        "session-a",
+        McpAuditOutcome.SUCCEEDED
+    );
   }
 
   @Test

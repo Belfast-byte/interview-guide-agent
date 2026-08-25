@@ -275,6 +275,7 @@ MCP 用在两个方向：
 企业自己的 Agent（如招聘助理）可以调用平台暴露的工具：
 
 - `interview.create`：创建面试会话（传 JD 引用 + 候选人引用）；
+- `interview.submit_answer`：向本租户会话提交当前轮文本回答；
 - `interview.get_status`：查询进行中状态；
 - `interview.get_report`：获取完成的证据报告；
 - `interview.list_candidates`：按维度筛选候选人。

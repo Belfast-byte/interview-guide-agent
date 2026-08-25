@@ -202,7 +202,7 @@ app:
       # MCP server 租户凭证：启用 adaptive-agent 后 MCP 端点默认要求凭证，
       # 未配置 credentials 时所有 MCP 调用返回 401。每个凭证包含：
       #   tenant-id 租户标识；api-key 调用方密钥；
-      #   scopes 允许的工具范围（INTERVIEW_CREATE / INTERVIEW_READ /
+      #   scopes 允许的工具范围（INTERVIEW_CREATE / INTERVIEW_WRITE / INTERVIEW_READ /
       #   CODE_ANALYSIS_SUBMIT / CODE_ANALYSIS_READ / CODE_ANALYSIS_TRACE）
       # mcp:
       #   server:
@@ -210,7 +210,7 @@ app:
       #       demo-credential:
       #         tenant-id: demo-tenant
       #         api-key: ${APP_INTERVIEW_ADAPTIVE_AGENT_MCP_API_KEY:}
-      #         scopes: INTERVIEW_CREATE,INTERVIEW_READ,CODE_ANALYSIS_SUBMIT,CODE_ANALYSIS_READ,CODE_ANALYSIS_TRACE
+      #         scopes: INTERVIEW_CREATE,INTERVIEW_WRITE,INTERVIEW_READ,CODE_ANALYSIS_SUBMIT,CODE_ANALYSIS_READ,CODE_ANALYSIS_TRACE
     evaluation:
       batch-size: ${APP_INTERVIEW_EVALUATION_BATCH_SIZE:8}
     code-analysis:

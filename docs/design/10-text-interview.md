@@ -190,7 +190,7 @@ loop:
 
 暴露平台能力给企业/外部 Agent（Spring AI MCP Server）：
 
-- M4 暴露：`interview.create`、`interview.get_status`、`interview.list_dimensions`；
+- M4 暴露：`interview.create`、`interview.submit_answer`、`interview.get_status`、`interview.list_dimensions`；
 - M5 后暴露：`interview.get_report`（报告依赖评估体系）；
 - 治理（平台设计 6.2）：租户凭证、scope、审计、404 而非 403 的跨租户姿势——M4 第一天就带租户模型，不然后补是破坏性变更。
 

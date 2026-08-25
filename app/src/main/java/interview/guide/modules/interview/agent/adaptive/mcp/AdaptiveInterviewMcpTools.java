@@ -5,6 +5,7 @@ import interview.guide.common.exception.ErrorCode;
 import interview.guide.modules.interview.agent.adaptive.application.AdaptiveInterviewApplicationService;
 import interview.guide.modules.interview.agent.adaptive.assessment.report.AssessmentReportService;
 import interview.guide.modules.interview.agent.adaptive.assessment.report.EnterpriseAssessmentReport;
+import interview.guide.modules.interview.agent.adaptive.core.event.CandidateAnswer;
 import interview.guide.modules.interview.agent.adaptive.planning.PlannedInterview;
 import java.util.List;
 import java.util.function.Supplier;
@@ -28,6 +29,7 @@ import org.springframework.stereotype.Component;
 public class AdaptiveInterviewMcpTools {
 
   private static final String CREATE_TOOL = "interview.create";
+  private static final String SUBMIT_ANSWER_TOOL = "interview.submit_answer";
   private static final String STATUS_TOOL = "interview.get_status";
   private static final String DIMENSIONS_TOOL = "interview.list_dimensions";
   private static final String REPORT_TOOL = "interview.get_report";
@@ -65,6 +67,41 @@ public class AdaptiveInterviewMcpTools {
         principal,
         CREATE_TOOL,
         interview.history().session().id(),
+        McpAuditOutcome.SUCCEEDED
+    );
+    return McpInterviewStatusResponse.from(interview);
+  }
+
+  @McpTool(
+      name = SUBMIT_ANSWER_TOOL,
+      description = "Submit an answer to an authenticated tenant interview"
+  )
+  public McpInterviewStatusResponse submitAnswer(
+      McpSyncRequestContext context,
+      @McpToolParam(description = "Interview session identifier") String sessionId,
+      @McpToolParam(description = "Turn index and text answer")
+      McpSubmitAnswerRequest request
+  ) {
+    validateAnswerInput(request);
+    McpTenantPrincipal principal = requireScope(
+        context,
+        SUBMIT_ANSWER_TOOL,
+        McpInterviewScope.INTERVIEW_WRITE
+    );
+    PlannedInterview interview = withNotFoundAudit(
+        principal,
+        SUBMIT_ANSWER_TOOL,
+        sessionId,
+        () -> applicationService.submitAnswerForTenant(
+            principal.tenantId(),
+            sessionId,
+            new CandidateAnswer(request.turnIndex(), request.answer())
+        )
+    );
+    auditService.record(
+        principal,
+        SUBMIT_ANSWER_TOOL,
+        sessionId,
         McpAuditOutcome.SUCCEEDED
     );
     return McpInterviewStatusResponse.from(interview);
@@ -198,6 +235,15 @@ public class AdaptiveInterviewMcpTools {
     }
     if (llmProvider != null && llmProvider.length() > 64) {
       throw new BusinessException(ErrorCode.BAD_REQUEST, "LLM Provider 标识无效");
+    }
+  }
+
+  private void validateAnswerInput(McpSubmitAnswerRequest request) {
+    if (request == null || request.turnIndex() < 1) {
+      throw new BusinessException(ErrorCode.BAD_REQUEST, "回答轮次无效");
+    }
+    if (request.answer() == null || request.answer().isBlank()) {
+      throw new BusinessException(ErrorCode.BAD_REQUEST, "回答不能为空");
     }
   }
 }
