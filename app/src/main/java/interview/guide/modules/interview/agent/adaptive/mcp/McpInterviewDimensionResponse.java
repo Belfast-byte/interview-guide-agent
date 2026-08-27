@@ -1,7 +1,7 @@
 package interview.guide.modules.interview.agent.adaptive.mcp;
 
-import interview.guide.modules.interview.agent.adaptive.planning.PlanDimensionStatus;
-import interview.guide.modules.interview.agent.adaptive.planning.PlannedDimension;
+import interview.guide.modules.interview.agent.adaptive.core.memory.TargetWorkState;
+import interview.guide.modules.interview.agent.adaptive.core.memory.TargetWorkStatus;
 
 /**
  * MCP 面试维度响应。
@@ -12,17 +12,18 @@ public record McpInterviewDimensionResponse(
     String focus,
     int allocatedTurns,
     int completedTurns,
-    PlanDimensionStatus status
+    TargetWorkStatus status
 ) {
 
-  static McpInterviewDimensionResponse from(PlannedDimension dimension) {
+  static McpInterviewDimensionResponse from(TargetWorkState state) {
+    var target = state.target();
     return new McpInterviewDimensionResponse(
-        dimension.order(),
-        dimension.dimension(),
-        dimension.focus(),
-        dimension.allocatedTurns(),
-        dimension.completedTurns(),
-        dimension.status()
+        target.identity().order(),
+        target.identity().dimension(),
+        target.identity().focus(),
+        target.budget().turnBudget(),
+        target.budget().turnBudget() - state.remainingBudget().turns(),
+        state.status()
     );
   }
 }

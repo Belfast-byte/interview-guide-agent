@@ -77,7 +77,6 @@ class AssessmentProbeGapRepositoryTest {
             DepthLevel.L2,
             0.8,
             "达到基础深度",
-            false,
             List.of()
         )
     ));

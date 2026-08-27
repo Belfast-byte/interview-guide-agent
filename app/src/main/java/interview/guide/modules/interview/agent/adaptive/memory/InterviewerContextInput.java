@@ -1,8 +1,7 @@
 package interview.guide.modules.interview.agent.adaptive.memory;
 
-import interview.guide.modules.interview.agent.adaptive.core.context.EpisodePromptFact;
+import interview.guide.modules.interview.agent.adaptive.core.context.InterviewerWorkView;
 import interview.guide.modules.interview.agent.adaptive.core.context.ProjectInterviewContext;
-import interview.guide.modules.interview.agent.adaptive.core.context.WorkingMemorySnapshot;
 import interview.guide.modules.interview.agent.adaptive.core.event.CandidateAnswer;
 import interview.guide.modules.interview.agent.adaptive.core.session.AdaptiveInterviewTurn;
 import java.util.List;
@@ -19,14 +18,12 @@ public record InterviewerContextInput(
     String suggestedSkill,
     List<AdaptiveInterviewTurn> turns,
     CandidateAnswer candidateAnswer,
-    WorkingMemorySnapshot workingMemory,
-    List<EpisodePromptFact> episodeHistory,
+    InterviewerWorkView working,
     ProjectInterviewContext project
 ) {
 
   public InterviewerContextInput {
     suggestedTools = List.copyOf(suggestedTools);
     turns = List.copyOf(turns);
-    episodeHistory = List.copyOf(episodeHistory);
   }
 }

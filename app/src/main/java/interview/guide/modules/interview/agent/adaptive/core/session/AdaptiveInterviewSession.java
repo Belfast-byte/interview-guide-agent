@@ -25,8 +25,6 @@ public record AdaptiveInterviewSession(
    */
   public static final int MAX_TURNS = 12;
 
-  public static final int FINISH_MIN_TURN_DIVISOR = 2;
-
   public static AdaptiveInterviewSession create(
       String id,
       int maxTurns,
@@ -62,19 +60,10 @@ public record AdaptiveInterviewSession(
   public SessionTransition apply(CandidateAnswer answer, RespondAction proposedAction) {
     assertCanAnswer(answer);
 
-    if (proposedAction.type() == AgentResponseType.FINISH
-        && !canFinishEarly(maxTurns, currentTurn)) {
-      throw new BusinessException(ErrorCode.BAD_REQUEST, "面试轮次尚未达到可提前结束的门槛");
-    }
-    RespondAction appliedAction = proposedAction;
-    if (proposedAction.type() == AgentResponseType.ASK && currentTurn == maxTurns) {
-      appliedAction = RespondAction.finish("面试已达到轮次上限。", "轮次预算已用尽");
-    }
-
-    AdaptiveSessionStatus nextStatus = appliedAction.type() == AgentResponseType.FINISH
+    AdaptiveSessionStatus nextStatus = proposedAction.type() == AgentResponseType.FINISH
         ? AdaptiveSessionStatus.COMPLETED
         : AdaptiveSessionStatus.IN_PROGRESS;
-    int nextTurn = appliedAction.type() == AgentResponseType.ASK
+    int nextTurn = proposedAction.type() == AgentResponseType.ASK
         ? currentTurn + 1
         : currentTurn;
 
@@ -87,19 +76,8 @@ public record AdaptiveInterviewSession(
             maxTurns,
             settings
         ),
-        appliedAction
+        proposedAction
     );
-  }
-
-  /**
-   * 模型提案 FINISH 的轮次门槛：已回答轮次达到计划轮次的至少一半才接受提前结束。
-   *
-   * @param maxTurns 计划轮次上限
-   * @param answeredTurns 已回答轮次
-   * @return 是否允许提前结束
-   */
-  public static boolean canFinishEarly(int maxTurns, int answeredTurns) {
-    return answeredTurns >= (maxTurns + FINISH_MIN_TURN_DIVISOR - 1) / FINISH_MIN_TURN_DIVISOR;
   }
 
   public void assertCanAnswer(CandidateAnswer answer) {

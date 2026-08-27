@@ -8,6 +8,7 @@ import interview.guide.modules.interview.agent.adaptive.core.context.DimensionBr
 import interview.guide.modules.interview.agent.adaptive.core.context.MemoryOwner;
 import interview.guide.modules.interview.agent.adaptive.core.event.CandidateAnswer;
 import interview.guide.modules.interview.agent.adaptive.core.session.NextTurnProvenanceDraft;
+import interview.guide.modules.interview.agent.adaptive.core.memory.WorkStatePatch;
 import interview.guide.modules.interview.agent.adaptive.memory.claim.CandidateClaim;
 import interview.guide.modules.interview.agent.adaptive.runtime.ToolExecution;
 import java.util.List;
@@ -25,7 +26,8 @@ public record AdaptiveDecisionPersistenceInput(
     AssessmentDecision assessmentDecision,
     List<ValidatedAssessmentEvidence> assessmentEvidences,
     List<PracticeRecommendation> practiceRecommendations,
-    NextTurnProvenanceDraft nextTurnProvenance
+    NextTurnProvenanceDraft nextTurnProvenance,
+    List<WorkStatePatch> workStatePatches
 ) {
 
   public AdaptiveDecisionPersistenceInput {
@@ -35,5 +37,9 @@ public record AdaptiveDecisionPersistenceInput(
     assessmentEvidences = List.copyOf(assessmentEvidences);
     practiceRecommendations = List.copyOf(practiceRecommendations);
     Objects.requireNonNull(nextTurnProvenance, "nextTurnProvenance 不能为空");
+    workStatePatches = List.copyOf(workStatePatches);
+    if (workStatePatches.isEmpty()) {
+      throw new IllegalArgumentException("回答决策必须包含 WorkState Patch");
+    }
   }
 }

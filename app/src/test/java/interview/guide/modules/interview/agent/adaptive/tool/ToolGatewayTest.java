@@ -3,9 +3,9 @@ package interview.guide.modules.interview.agent.adaptive.tool;
 import interview.guide.common.exception.BusinessException;
 import interview.guide.modules.interview.agent.adaptive.application.AdaptiveAgentProperties;
 import interview.guide.modules.interview.agent.adaptive.core.context.InterviewerContext;
+import interview.guide.modules.interview.agent.adaptive.core.context.InterviewerWorkView;
+import interview.guide.modules.interview.agent.adaptive.core.context.DepthLevel;
 import interview.guide.modules.interview.agent.adaptive.core.context.TopicKey;
-import interview.guide.modules.interview.agent.adaptive.core.context.WorkingMemorySnapshot;
-import interview.guide.modules.interview.agent.adaptive.core.session.TurnTriggerType;
 import interview.guide.modules.interview.agent.adaptive.core.action.ToolCallAction;
 import interview.guide.modules.interview.agent.adaptive.observability.AdaptiveAgentTelemetry;
 import io.micrometer.core.instrument.simple.SimpleMeterRegistry;
@@ -126,7 +126,6 @@ class ToolGatewayTest {
             List.of(),
             null,
             plannedMemory(),
-            List.of(),
             null,
             null,
             null
@@ -142,14 +141,18 @@ class ToolGatewayTest {
     );
   }
 
-  private WorkingMemorySnapshot plannedMemory() {
-    return new WorkingMemorySnapshot(
-        "session-1",
-        1,
+  private InterviewerWorkView plannedMemory() {
+    return new InterviewerWorkView(
+        "target-0",
         new TopicKey("java-backend", "CACHE"),
+        DepthLevel.L2,
+        DepthLevel.L3,
+        DepthLevel.L0,
+        "缓存与并发",
         null,
-        0,
-        TurnTriggerType.PLANNED
+        5,
+        2,
+        1
     );
   }
 

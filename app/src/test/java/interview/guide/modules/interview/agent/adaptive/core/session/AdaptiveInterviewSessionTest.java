@@ -61,7 +61,7 @@ class AdaptiveInterviewSessionTest {
     }
 
     @Test
-    @DisplayName("达到结束门槛的结束动作完成会话且不增加轮次")
+    @DisplayName("本地策略结束动作完成会话且不增加轮次")
     void shouldCompleteWithoutAdvancingTurn() {
       AdaptiveInterviewSession session = testSession("session-1", 2).start();
 
@@ -76,22 +76,8 @@ class AdaptiveInterviewSessionTest {
     }
 
     @Test
-    @DisplayName("未达结束门槛的模型结束提案被拒绝")
-    void shouldRejectFinishBelowTurnThreshold() {
-      AdaptiveInterviewSession session = testSession("session-1", 6).start();
-
-      assertThatThrownBy(() -> session.apply(
-          new CandidateAnswer(1, "回答"),
-          RespondAction.finish("面试结束。", "模型想提前结束")
-      )).isInstanceOf(BusinessException.class)
-          .hasMessageContaining("门槛");
-
-      assertThat(session.currentTurn()).isEqualTo(1);
-    }
-
-    @Test
-    @DisplayName("已回答轮次达到计划一半时接受提前结束")
-    void shouldAcceptFinishAtHalfOfPlannedTurns() {
+    @DisplayName("本地策略可以在预算未耗尽时结束")
+    void shouldAcceptPolicyFinishBeforeBudgetExhaustion() {
       AdaptiveInterviewSession session = new AdaptiveInterviewSession(
           "session-1",
           AdaptiveInterviewSession.RUNTIME_VERSION,
@@ -108,21 +94,6 @@ class AdaptiveInterviewSessionTest {
 
       assertThat(transition.session().status()).isEqualTo(AdaptiveSessionStatus.COMPLETED);
       assertThat(transition.session().currentTurn()).isEqualTo(3);
-    }
-
-    @Test
-    @DisplayName("达到轮次上限时由代码覆盖模型的追问建议")
-    void shouldFinishAtTurnBudget() {
-      AdaptiveInterviewSession session = testSession("session-1", 1).start();
-
-      SessionTransition transition = session.apply(
-          new CandidateAnswer(1, "回答"),
-          RespondAction.ask("模型仍想追问？", "模型建议继续")
-      );
-
-      assertThat(transition.session().status()).isEqualTo(AdaptiveSessionStatus.COMPLETED);
-      assertThat(transition.appliedAction().type()).isEqualTo(AgentResponseType.FINISH);
-      assertThat(transition.appliedAction().reason()).isEqualTo("轮次预算已用尽");
     }
 
     @Test

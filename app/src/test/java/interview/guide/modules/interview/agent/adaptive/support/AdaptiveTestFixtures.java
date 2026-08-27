@@ -11,7 +11,6 @@ import interview.guide.modules.interview.agent.adaptive.core.session.SessionMode
 import interview.guide.modules.interview.agent.adaptive.application.TenantInterviewCreationCommand;
 import interview.guide.modules.interview.agent.adaptive.planning.InterviewPlan;
 import interview.guide.modules.interview.agent.adaptive.planning.DimensionProposal;
-import interview.guide.modules.interview.agent.adaptive.planning.PlanDimensionStatus;
 import interview.guide.modules.interview.agent.adaptive.planning.PlanProposal;
 import interview.guide.modules.interview.agent.adaptive.planning.PlannedDimension;
 import java.util.List;
@@ -75,9 +74,6 @@ public final class AdaptiveTestFixtures {
         )),
         proposal.suggestedTools()
     );
-    PlanDimensionStatus status = completedTurns == proposal.suggestedTurns()
-        ? PlanDimensionStatus.COMPLETED
-        : PlanDimensionStatus.IN_PROGRESS;
-    return new PlannedDimension(target, completedTurns, status);
+    return new PlannedDimension(target);
   }
 }

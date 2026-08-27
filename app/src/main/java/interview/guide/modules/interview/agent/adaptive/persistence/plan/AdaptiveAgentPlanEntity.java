@@ -3,7 +3,6 @@ package interview.guide.modules.interview.agent.adaptive.persistence.plan;
 import interview.guide.modules.interview.agent.adaptive.core.context.CapabilityTarget;
 import interview.guide.modules.interview.agent.adaptive.core.context.DepthLevel;
 import interview.guide.modules.interview.agent.adaptive.core.context.TopicKey;
-import interview.guide.modules.interview.agent.adaptive.planning.PlanDimensionStatus;
 import interview.guide.modules.interview.agent.adaptive.planning.PlannedDimension;
 import jakarta.persistence.Column;
 import jakarta.persistence.Convert;
@@ -82,13 +81,6 @@ public class AdaptiveAgentPlanEntity {
   @Column(name = "evidence_objectives_json", nullable = false, columnDefinition = "TEXT")
   private List<CapabilityTarget.EvidenceObjective> evidenceObjectives;
 
-  @Column(name = "completed_turns", nullable = false)
-  private int completedTurns;
-
-  @Enumerated(EnumType.STRING)
-  @Column(nullable = false, length = 20)
-  private PlanDimensionStatus status;
-
   @Column(name = "created_at", nullable = false)
   private LocalDateTime createdAt;
 
@@ -120,9 +112,7 @@ public class AdaptiveAgentPlanEntity {
             new CapabilityTarget.Depth(expectedDepth, depthCeiling),
             evidenceObjectives,
             suggestedTools.isBlank() ? List.of() : List.of(suggestedTools.split(","))
-        ),
-        completedTurns,
-        status
+        )
     );
   }
 
@@ -140,8 +130,6 @@ public class AdaptiveAgentPlanEntity {
     followUpBudget = plannedDimension.followUpBudget();
     toolBudget = plannedDimension.toolBudget();
     evidenceObjectives = plannedDimension.evidenceObjectives();
-    completedTurns = plannedDimension.completedTurns();
-    status = plannedDimension.status();
   }
 
   @PrePersist

@@ -2,7 +2,7 @@ package interview.guide.modules.interview.agent.adaptive.application;
 
 import interview.guide.modules.interview.agent.adaptive.core.event.CandidateAnswer;
 import interview.guide.modules.interview.agent.adaptive.core.session.AdaptiveInterviewTurn;
-import interview.guide.modules.interview.agent.adaptive.core.context.WorkingMemorySnapshot;
+import interview.guide.modules.interview.agent.adaptive.core.context.InterviewerWorkView;
 import interview.guide.modules.interview.agent.adaptive.planning.PlannedDimension;
 import java.util.List;
 
@@ -16,7 +16,7 @@ record InterviewerDecisionInput(
     PlannedDimension dimension,
     List<AdaptiveInterviewTurn> turns,
     CandidateAnswer candidateAnswer,
-    WorkingMemorySnapshot workingMemory
+    InterviewerWorkView working
 ) {
 
   InterviewerDecisionInput {

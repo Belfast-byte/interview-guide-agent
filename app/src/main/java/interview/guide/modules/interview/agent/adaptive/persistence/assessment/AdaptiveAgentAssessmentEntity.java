@@ -51,9 +51,6 @@ public class AdaptiveAgentAssessmentEntity {
   @Column(name = "rationale_summary", nullable = false, length = 500)
   private String rationaleSummary;
 
-  @Column(name = "recommend_switch_question", nullable = false)
-  private boolean recommendSwitchQuestion;
-
   @Column(name = "created_at", nullable = false)
   private LocalDateTime createdAt;
 
@@ -69,14 +66,12 @@ public class AdaptiveAgentAssessmentEntity {
     this.depthLevel = decision.depthLevel();
     this.confidence = BigDecimal.valueOf(decision.confidence());
     this.rationaleSummary = decision.rationaleSummary();
-    this.recommendSwitchQuestion = decision.recommendSwitchQuestion();
   }
 
   public void replace(AssessmentDecision decision) {
     this.depthLevel = decision.depthLevel();
     this.confidence = BigDecimal.valueOf(decision.confidence());
     this.rationaleSummary = decision.rationaleSummary();
-    this.recommendSwitchQuestion = decision.recommendSwitchQuestion();
   }
 
   @PrePersist

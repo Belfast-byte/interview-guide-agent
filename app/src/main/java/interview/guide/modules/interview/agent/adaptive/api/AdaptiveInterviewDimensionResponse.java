@@ -2,8 +2,8 @@ package interview.guide.modules.interview.agent.adaptive.api;
 
 import interview.guide.modules.interview.agent.adaptive.core.context.CapabilityTarget;
 import interview.guide.modules.interview.agent.adaptive.core.context.DepthLevel;
-import interview.guide.modules.interview.agent.adaptive.planning.PlanDimensionStatus;
-import interview.guide.modules.interview.agent.adaptive.planning.PlannedDimension;
+import interview.guide.modules.interview.agent.adaptive.core.memory.TargetWorkState;
+import interview.guide.modules.interview.agent.adaptive.core.memory.TargetWorkStatus;
 import java.util.List;
 
 /**
@@ -20,22 +20,23 @@ public record AdaptiveInterviewDimensionResponse(
     DepthLevel depthCeiling,
     List<CapabilityTarget.EvidenceObjective> evidenceObjectives,
     int completedTurns,
-    PlanDimensionStatus status
+    TargetWorkStatus status
 ) {
 
-  static AdaptiveInterviewDimensionResponse from(PlannedDimension dimension) {
+  static AdaptiveInterviewDimensionResponse from(TargetWorkState state) {
+    CapabilityTarget target = state.target();
     return new AdaptiveInterviewDimensionResponse(
-        dimension.order(),
-        dimension.dimension(),
-        dimension.focus(),
-        dimension.allocatedTurns(),
-        dimension.followUpBudget(),
-        dimension.toolBudget(),
-        dimension.expectedDepth(),
-        dimension.depthCeiling(),
-        dimension.evidenceObjectives(),
-        dimension.completedTurns(),
-        dimension.status()
+        target.identity().order(),
+        target.identity().dimension(),
+        target.identity().focus(),
+        target.budget().turnBudget(),
+        target.budget().followUpBudget(),
+        target.budget().toolBudget(),
+        target.depth().expected(),
+        target.depth().ceiling(),
+        target.evidenceObjectives(),
+        target.budget().turnBudget() - state.remainingBudget().turns(),
+        state.status()
     );
   }
 }

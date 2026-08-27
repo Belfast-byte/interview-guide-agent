@@ -4,17 +4,13 @@ import interview.guide.modules.interview.agent.adaptive.core.session.AdaptiveInt
 import interview.guide.modules.interview.agent.adaptive.core.action.AgentResponseType;
 import interview.guide.modules.interview.agent.adaptive.core.event.CandidateAnswer;
 import interview.guide.modules.interview.agent.adaptive.core.context.DepthLevel;
-import interview.guide.modules.interview.agent.adaptive.core.context.EpisodePromptFact;
 import interview.guide.modules.interview.agent.adaptive.core.context.InterviewerContext;
+import interview.guide.modules.interview.agent.adaptive.core.context.InterviewerWorkView;
 import interview.guide.modules.interview.agent.adaptive.core.context.PlannerContext;
-import interview.guide.modules.interview.agent.adaptive.core.context.ProbeGap;
 import interview.guide.modules.interview.agent.adaptive.core.context.PlanningSkill;
 import interview.guide.modules.interview.agent.adaptive.core.context.TopicKey;
-import interview.guide.modules.interview.agent.adaptive.core.context.WorkingMemorySnapshot;
-import interview.guide.modules.interview.agent.adaptive.core.session.TurnTriggerType;
 import interview.guide.modules.interview.agent.adaptive.core.session.CandidateLevel;
 import interview.guide.modules.interview.agent.adaptive.core.session.SessionMode;
-import java.time.LocalDateTime;
 import java.util.List;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -60,7 +56,6 @@ class ContextAssemblerTest {
         List.of(previousDimension, currentDimension),
         answer,
         plannedMemory(3, "java-backend", "PROJECT"),
-        List.of(),
         null
     ));
 
@@ -70,67 +65,9 @@ class ContextAssemblerTest {
   }
 
   @Test
-  @DisplayName("同维度追问缺口随当前回答进入面试官上下文")
-  void shouldExposeCurrentAnswerGapsForSameDimension() {
-    AdaptiveInterviewTurn currentDimension = turn(2, 1, "当前维度问题", null);
-    CandidateAnswer answer = new CandidateAnswer(2, "当前维度回答");
-    ProbeGap gap = new ProbeGap("当前维度回答", "未说明失败场景");
-
-    InterviewerContext context = assembler.interviewer(new InterviewerContextInput(
-        "JD",
-        "Resume",
-        6,
-        1,
-        "项目经验",
-        "架构取舍",
-        List.of(),
-        null,
-        List.of(turn(1, 0, "上一维度问题", "上一维度回答"), currentDimension),
-        answer,
-        gapMemory(3, gap),
-        List.of(),
-        null
-    ));
-
-    assertThat(context.workingMemory().selectedGap()).isEqualTo(gap);
-  }
-
-  @Test
-  @DisplayName("切换维度时清空上一维度的追问缺口")
-  void shouldClearProbeGapsAfterDimensionSwitch() {
+  @DisplayName("切换维度时清除上一维度回答")
+  void shouldExcludePreviousAnswer() {
     AdaptiveInterviewTurn answeredTurn = turn(1, 0, "专业基础问题", null);
-
-    InterviewerContext context = assembler.interviewer(new InterviewerContextInput(
-        "JD",
-        "Resume",
-        6,
-        1,
-        "项目经验",
-        "架构取舍",
-        List.of(),
-        null,
-        List.of(answeredTurn),
-        new CandidateAnswer(1, "上一维度回答"),
-        plannedMemory(2, "java-backend", "PROJECT"),
-        List.of(),
-        null
-    ));
-
-    assertThat(context.workingMemory().selectedGap()).isNull();
-  }
-
-  @Test
-  @DisplayName("切换维度时清除上一维度回答但保留白名单历史事实")
-  void shouldExcludePreviousAnswerAndExposeEpisodeFacts() {
-    AdaptiveInterviewTurn answeredTurn = turn(1, 0, "专业基础问题", null);
-    EpisodePromptFact episode = new EpisodePromptFact(
-        "java-backend",
-        "CACHE",
-        DepthLevel.L2,
-        List.of("MISSING_CONSISTENCY_ANALYSIS"),
-        List.of("STRUCTURED_REASONING"),
-        LocalDateTime.of(2026, 8, 1, 10, 0)
-    );
 
     InterviewerContext context = assembler.interviewer(new InterviewerContextInput(
         "JD",
@@ -144,13 +81,11 @@ class ContextAssemblerTest {
         List.of(answeredTurn),
         new CandidateAnswer(1, "包含敏感锚定内容的上一维度回答"),
         plannedMemory(2, "java-backend", "PROJECT"),
-        List.of(episode),
         null
     ));
 
     assertThat(context.currentDimensionTurns()).isEmpty();
     assertThat(context.currentDimensionAnswer()).isNull();
-    assertThat(context.episodeHistory()).containsExactly(episode);
   }
 
   @Test
@@ -170,7 +105,7 @@ class ContextAssemblerTest {
     InterviewerContext interviewerContext = assembler.interviewer(new InterviewerContextInput(
         longJd, shortResume, 6, 0, "专业基础", "缓存与并发",
         List.of(), "java-backend", List.of(), null,
-        plannedMemory(1, "java-backend", "CACHE"), List.of(), null
+        plannedMemory(1, "java-backend", "CACHE"), null
     ));
 
     assertThat(plannerContext.jd())
@@ -199,29 +134,22 @@ class ContextAssemblerTest {
     );
   }
 
-  private WorkingMemorySnapshot plannedMemory(
+  private InterviewerWorkView plannedMemory(
       int turnIndex,
       String skillId,
       String focusId
   ) {
-    return new WorkingMemorySnapshot(
-        "session-1",
-        turnIndex,
+    return new InterviewerWorkView(
+        "target-0",
         new TopicKey(skillId, focusId),
+        DepthLevel.L2,
+        DepthLevel.L3,
+        DepthLevel.L0,
+        "当前焦点",
         null,
-        0,
-        TurnTriggerType.PLANNED
-    );
-  }
-
-  private WorkingMemorySnapshot gapMemory(int turnIndex, ProbeGap gap) {
-    return new WorkingMemorySnapshot(
-        "session-1",
-        turnIndex,
-        new TopicKey("java-backend", "PROJECT"),
-        gap,
-        1,
-        TurnTriggerType.ASSESSMENT_GAP
+        6 - turnIndex,
+        2,
+        1
     );
   }
 }

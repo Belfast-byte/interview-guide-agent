@@ -212,7 +212,6 @@ class AssessmentReconciliationServiceTest {
         DepthLevel.L2,
         0.8,
         "初始评估",
-        false,
         List.of()
     );
   }

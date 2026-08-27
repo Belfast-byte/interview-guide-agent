@@ -53,7 +53,6 @@ public class DepthAssessmentAgent {
         proposal.depthLevel(),
         proposal.confidence(),
         proposal.rationaleSummary().trim(),
-        proposal.recommendSwitchQuestion(),
         proposal.evidenceQuotes(),
         proposal.probeGaps()
     );
@@ -67,7 +66,6 @@ public class DepthAssessmentAgent {
         proposal.depthLevel(),
         proposal.confidence(),
         proposal.rationaleSummary(),
-        proposal.recommendSwitchQuestion(),
         proposal.evidenceQuotes(),
         proposal.probeGaps().subList(0, MAX_PROBE_GAPS)
     );
@@ -110,7 +108,6 @@ public class DepthAssessmentAgent {
         proposal.depthLevel(),
         proposal.confidence(),
         proposal.rationaleSummary(),
-        proposal.recommendSwitchQuestion(),
         proposal.evidenceQuotes(),
         validGaps
     );

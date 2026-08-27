@@ -2,7 +2,6 @@ package interview.guide.modules.interview.agent.adaptive.memory;
 
 import interview.guide.modules.interview.agent.adaptive.assessment.depth.AssessmentContext;
 import interview.guide.modules.interview.agent.adaptive.assessment.depth.AssessmentRequest;
-import interview.guide.modules.interview.agent.adaptive.core.context.EpisodePromptFact;
 import interview.guide.modules.interview.agent.adaptive.core.context.InterviewerContext;
 import interview.guide.modules.interview.agent.adaptive.core.context.PlannerContext;
 import interview.guide.modules.interview.agent.adaptive.persistence.memory.CandidateMemoryClaimEntity;
@@ -49,24 +48,6 @@ class CandidateMemoryFairnessContractTest {
   }
 
   @Test
-  @DisplayName("Interviewer 的跨场 Episode 输入严格限定为六个白名单字段")
-  void shouldWhitelistEpisodePromptFields() {
-    assertThat(componentNames(EpisodePromptFact.class)).containsExactly(
-        "skillId",
-        "focusId",
-        "depthLevel",
-        "errorTags",
-        "answerHabitTags",
-        "createdAt"
-    );
-    assertThat(componentNames(InterviewerContext.class))
-        .contains("episodeHistory")
-        .doesNotContain("completedDimensionBriefs", "profiles", "counters");
-    assertThat(componentTypeNames(InterviewerContext.class))
-        .noneMatch(type -> type.contains("DimensionBrief"));
-  }
-
-  @Test
   @DisplayName("Planner 与 Assessment 请求结构不接收 Episode Profile Counter 或标签")
   void shouldKeepHistoricalMemoryOutOfPlannerAndAssessment() {
     assertThat(componentNames(PlannerContext.class))
@@ -85,12 +66,11 @@ class CandidateMemoryFairnessContractTest {
   @DisplayName("面试官可以接收追问缺口但不得接收评级结论")
   void shouldAllowProbeGapsButNotRatingsInInterviewerContext() {
     assertThat(componentNames(InterviewerContext.class))
-        .contains("currentDimensionAnswer", "workingMemory")
+        .contains("currentDimensionAnswer", "working")
         .doesNotContain(
             "depthLevel",
             "confidence",
             "rationaleSummary",
-            "recommendSwitchQuestion",
             "evidenceQuotes"
         );
   }
@@ -99,11 +79,6 @@ class CandidateMemoryFairnessContractTest {
     return Arrays.stream(type.getRecordComponents())
         .map(component -> component.getName())
         .toArray(String[]::new);
-  }
-
-  private Stream<String> componentTypeNames(Class<? extends Record> type) {
-    return Arrays.stream(type.getRecordComponents())
-        .map(component -> component.getGenericType().getTypeName());
   }
 
   private boolean isHistoricalMemoryField(String field) {

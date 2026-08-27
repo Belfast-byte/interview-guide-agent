@@ -47,9 +47,7 @@ class AdaptiveInterviewResponseTest {
         ))
     );
 
-    PlannedInterview interview = new PlannedInterview(
-        history,
-        new InterviewPlan("session-1", 6, List.of(
+    InterviewPlan plan = new InterviewPlan("session-1", 6, List.of(
             testDimension(new DimensionProposal(
                 "专业基础",
                 "缓存与并发",
@@ -58,7 +56,11 @@ class AdaptiveInterviewResponseTest {
                 List.of(),
                 "java-backend"
             ), 0, 0)
-        )),
+        ));
+    PlannedInterview interview = new PlannedInterview(
+        history,
+        plan,
+        plan.initialWorkState(),
         List.of()
     );
 
@@ -97,6 +99,7 @@ class AdaptiveInterviewResponseTest {
             List.of()
         ),
         new InterviewPlan("session-1", 0, List.of()),
+        null,
         List.of()
     );
 

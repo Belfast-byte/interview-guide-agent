@@ -43,7 +43,6 @@ class DepthAssessmentAgentTest {
           DepthLevel.L3,
           0.85,
           " 能说明方案代价和边界 ",
-          false,
           List.of("延迟双删只能降低概率")
       );
     });
@@ -68,7 +67,6 @@ class DepthAssessmentAgentTest {
             DepthLevel.L2,
             0.8,
             "描述了应用",
-            false,
             List.of("重要数据使用版本号"),
             List.of(gap)
         )
@@ -89,7 +87,6 @@ class DepthAssessmentAgentTest {
             DepthLevel.L2,
             0.8,
             "描述了应用",
-            false,
             List.of("重要数据使用版本号"),
             List.of(new ProbeGap("布隆过滤器", "未说明误判率"))
         );
@@ -98,7 +95,6 @@ class DepthAssessmentAgentTest {
           DepthLevel.L2,
           0.8,
           "描述了应用",
-          false,
           List.of("重要数据使用版本号"),
           List.of(new ProbeGap("版本号", "未说明版本号如何推进"))
       );
@@ -121,7 +117,6 @@ class DepthAssessmentAgentTest {
           DepthLevel.L2,
           0.8,
           "描述了应用",
-          false,
           List.of("重要数据使用版本号"),
           List.of(
               new ProbeGap("布隆过滤器", "未说明误判率"),
@@ -163,7 +158,6 @@ class DepthAssessmentAgentTest {
             DepthLevel.L2,
             0.8,
             "描述了应用",
-            false,
             List.of("重要数据使用版本号"),
             List.of(new ProbeGap("布隆过滤器", "未说明误判率"))
         );
@@ -172,7 +166,6 @@ class DepthAssessmentAgentTest {
           null,
           0.8,
           "描述了应用",
-          false,
           List.of("重要数据使用版本号")
       );
     });
@@ -191,7 +184,6 @@ class DepthAssessmentAgentTest {
             DepthLevel.L2,
             0.8,
             "描述了应用",
-            false,
             List.of("重要数据使用版本号"),
             List.of(
                 new ProbeGap("版本号", "未说明版本号如何推进"),
@@ -217,7 +209,6 @@ class DepthAssessmentAgentTest {
             DepthLevel.L2,
             0.8,
             "描述了应用",
-            false,
             List.of("缓存使用 Redis 做延迟双删"),
             List.of(new ProbeGap("缓存使用 Ｒｅｄｉｓ 做延迟双删", "未说明延迟窗口"))
         )
@@ -247,7 +238,6 @@ class DepthAssessmentAgentTest {
             DepthLevel.L0,
             0.9,
             "答非所问",
-            false,
             List.of()
         )
     );
@@ -268,7 +258,6 @@ class DepthAssessmentAgentTest {
           DepthLevel.L2,
           Double.NaN,
           "描述了应用",
-          false,
           List.of("使用 Redis")
       );
     });

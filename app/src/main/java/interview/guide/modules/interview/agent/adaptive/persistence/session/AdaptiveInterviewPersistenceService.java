@@ -22,7 +22,9 @@ import interview.guide.modules.interview.agent.adaptive.core.event.ToolResultEve
 import interview.guide.modules.interview.agent.adaptive.core.event.ToolResultFollowUp;
 import interview.guide.modules.interview.agent.adaptive.memory.claim.CandidateClaim;
 import interview.guide.modules.interview.agent.adaptive.planning.InterviewPlan;
-import interview.guide.modules.interview.agent.adaptive.planning.PlanDimensionStatus;
+import interview.guide.modules.interview.agent.adaptive.core.memory.InterviewWorkState;
+import interview.guide.modules.interview.agent.adaptive.core.memory.TargetWorkStatus;
+import interview.guide.modules.interview.agent.adaptive.core.memory.WorkStatePatch;
 import interview.guide.modules.interview.agent.adaptive.planning.PlannedDimension;
 import interview.guide.modules.interview.agent.adaptive.planning.PlannedInterview;
 import interview.guide.modules.interview.agent.adaptive.runtime.ToolExecution;
@@ -46,6 +48,7 @@ import interview.guide.modules.interview.agent.adaptive.persistence.plan.Adaptiv
 import interview.guide.modules.interview.agent.adaptive.persistence.plan.AdaptiveAgentPlanRepository;
 import interview.guide.modules.interview.agent.adaptive.persistence.practice.PracticeRecordEntity;
 import interview.guide.modules.interview.agent.adaptive.persistence.practice.PracticeRecordRepository;
+import interview.guide.modules.interview.agent.adaptive.persistence.working.WorkStatePersistenceService;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
@@ -78,6 +81,7 @@ public class AdaptiveInterviewPersistenceService
   private final AbilityProfileSnapshotService abilityProfileSnapshotService;
   private final EpisodeFactPersistence episodeFactPersistence;
   private final AssessmentReconciliationService assessmentReconciliationService;
+  private final WorkStatePersistenceService workStatePersistenceService;
 
   @Transactional(readOnly = true)
   public void requireCandidateSession(String candidateId, String sessionId) {
@@ -121,7 +125,8 @@ public class AdaptiveInterviewPersistenceService
       String sessionId,
       ToolResultEvent event,
       RespondAction response,
-      List<ToolExecution> toolExecutions
+      List<ToolExecution> toolExecutions,
+      WorkStatePatch workStatePatch
   ) {
     AdaptiveAgentToolResultEventEntity entity = toolResultEventRepository
         .findBySessionIdAndToolNameAndResultId(
@@ -136,6 +141,7 @@ public class AdaptiveInterviewPersistenceService
     entity.complete(response);
     applyFollowUpQuestion(sessionId, event, entity.id(), response);
     saveToolExecutions(sessionId, toolExecutions);
+    workStatePersistenceService.apply(workStatePatch);
   }
 
   /**
@@ -351,9 +357,10 @@ public class AdaptiveInterviewPersistenceService
     planRepository.saveAll(plan.dimensions().stream()
         .map(dimension -> new AdaptiveAgentPlanEntity(sessionId, dimension))
         .toList());
+    workStatePersistenceService.initialize(plan);
     turnRepository.save(new AdaptiveAgentTurnEntity(AdaptiveTurnCreation.initial(
         sessionId,
-        plan.dimensionForTurn(1).order(),
+        plan.dimension(0).order(),
         firstAction
     )));
     saveToolExecutions(sessionId, toolExecutions);
@@ -390,11 +397,9 @@ public class AdaptiveInterviewPersistenceService
     List<AdaptiveAgentPlanEntity> planEntities = planRepository
         .findBySessionIdOrderByDimensionOrder(sessionId);
     InterviewPlan plan = toPlan(sessionId, sessionEntity.toDomain().maxTurns(), planEntities);
-    if (assessmentDecision.recommendsEarlyCompletion()) {
-      plan = plan.completeDimensionEarly(answer.turnIndex());
-    }
-    InterviewPlan updatedPlan = plan.answer(answer.turnIndex());
-    PlannedDimension answeredDimension = updatedPlan.dimensionForTurn(answer.turnIndex());
+    InterviewWorkState before = workStatePersistenceService.get(sessionId);
+    PlannedDimension answeredDimension = plan.dimension(
+        before.activeTarget().target().identity().order());
     SessionTransition transition = currentSession.apply(answer, proposedAction);
     AdaptiveAgentTurnEntity turnEntity = turnRepository
         .findBySessionIdAndTurnIndex(sessionId, answer.turnIndex())
@@ -402,8 +407,9 @@ public class AdaptiveInterviewPersistenceService
 
     turnEntity.complete(answer, transition.appliedAction());
     sessionEntity.apply(transition.session());
-    for (int index = 0; index < planEntities.size(); index++) {
-      planEntities.get(index).apply(updatedPlan.dimensions().get(index));
+    InterviewWorkState updatedState = before;
+    for (WorkStatePatch patch : input.workStatePatches()) {
+      updatedState = workStatePersistenceService.apply(patch);
     }
     sessionRepository.flush();
 
@@ -425,7 +431,7 @@ public class AdaptiveInterviewPersistenceService
       turnRepository.save(new AdaptiveAgentTurnEntity(new AdaptiveTurnCreation(
           sessionId,
           nextTurn,
-          updatedPlan.dimensionForTurn(nextTurn).order(),
+          updatedState.activeTarget().target().identity().order(),
           transition.appliedAction(),
           provenance
       )));
@@ -434,7 +440,7 @@ public class AdaptiveInterviewPersistenceService
     if (dimensionBrief != null) {
       dimensionBriefRepository.save(new AdaptiveDimensionBriefEntity(dimensionBrief));
     }
-    if (answeredDimension.status() == PlanDimensionStatus.COMPLETED) {
+    if (targetEnded(updatedState, before.activeTargetId())) {
       candidateMemoryTopicRepository.save(new CandidateMemoryTopicEntity(
           sessionEntity.tenantId(),
           sessionEntity.candidateId(),
@@ -471,7 +477,16 @@ public class AdaptiveInterviewPersistenceService
     if (transition.session().status() == AdaptiveSessionStatus.COMPLETED) {
       refreshProfiles(sessionEntity, planEntities);
     }
-    return plannedInterview(sessionEntity, updatedPlan);
+    return plannedInterview(sessionEntity, plan);
+  }
+
+  private boolean targetEnded(InterviewWorkState state, String targetId) {
+    TargetWorkStatus status = state.targets().stream()
+        .filter(target -> target.targetId().equals(targetId))
+        .findFirst()
+        .orElseThrow(() -> new IllegalStateException("WorkState 目标不存在"))
+        .status();
+    return status == TargetWorkStatus.COMPLETED || status == TargetWorkStatus.EXHAUSTED;
   }
 
   private Optional<AdaptiveAgentSessionEntity> findOwnedSession(
@@ -572,6 +587,7 @@ public class AdaptiveInterviewPersistenceService
     return new PlannedInterview(
         history(sessionEntity),
         plan,
+        workStatePersistenceService.find(sessionEntity.id()),
         dimensionBriefRepository
             .findBySessionIdOrderByDimensionOrder(sessionEntity.id())
             .stream()

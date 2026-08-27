@@ -13,7 +13,6 @@ public record AssessmentDecision(
     DepthLevel depthLevel,
     double confidence,
     String rationaleSummary,
-    boolean recommendSwitchQuestion,
     List<String> evidenceQuotes,
     List<ProbeGap> probeGaps
 ) {
@@ -23,25 +22,15 @@ public record AssessmentDecision(
     probeGaps = List.copyOf(probeGaps);
   }
 
-  /**
-   * 评估结论是否建议提前完成当前维度：模型建议换题或已达到 L4（当前维度可提前完成）。
-   *
-   * @return 是否建议提前完成
-   */
-  public boolean recommendsEarlyCompletion() {
-    return recommendSwitchQuestion || depthLevel == DepthLevel.L4;
-  }
-
   public AssessmentDecision(
       String sessionId,
       int turnIndex,
       DepthLevel depthLevel,
       double confidence,
       String rationaleSummary,
-      boolean recommendSwitchQuestion,
       List<String> evidenceQuotes
   ) {
     this(sessionId, turnIndex, depthLevel, confidence, rationaleSummary,
-        recommendSwitchQuestion, evidenceQuotes, List.of());
+        evidenceQuotes, List.of());
   }
 }

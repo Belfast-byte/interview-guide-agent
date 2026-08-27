@@ -259,7 +259,7 @@ class CandidateMemoryControllerTest {
 
   private AssessmentDecision assessment(String sessionId, int turnIndex, DepthLevel depth) {
     return new AssessmentDecision(
-        sessionId, turnIndex, depth, 0.8, "评估理由不进入响应", false, List.of()
+        sessionId, turnIndex, depth, 0.8, "评估理由不进入响应", List.of()
     );
   }
 

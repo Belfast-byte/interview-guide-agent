@@ -16,16 +16,6 @@ public record CapabilityTarget(
     suggestedTools = List.copyOf(suggestedTools);
   }
 
-  public CapabilityTarget withTurnBudget(int turnBudget) {
-    return new CapabilityTarget(
-        identity,
-        budget.withTurnBudget(turnBudget),
-        depth,
-        evidenceObjectives,
-        suggestedTools
-    );
-  }
-
   public record Identity(
       int order,
       String dimension,
@@ -39,10 +29,6 @@ public record CapabilityTarget(
       int followUpBudget,
       int toolBudget
   ) {
-
-    Budget withTurnBudget(int nextTurnBudget) {
-      return new Budget(suggestedTurns, nextTurnBudget, followUpBudget, toolBudget);
-    }
   }
 
   public record Depth(DepthLevel expected, DepthLevel ceiling) {}

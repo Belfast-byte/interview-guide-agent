@@ -16,7 +16,6 @@
   "depthLevel": "L1",
   "confidence": 0.9,
   "rationaleSummary": "只给出方案名称，未说明判断机制、误判率与删除场景",
-  "recommendSwitchQuestion": false,
   "evidenceQuotes": ["用布隆过滤器就行"],
   "probeGaps": [
     {
@@ -39,7 +38,6 @@
   "depthLevel": "L2",
   "confidence": 0.8,
   "rationaleSummary": "给出了可执行顺序和失败补偿，但未说明删除失败期间的一致性风险",
-  "recommendSwitchQuestion": false,
   "evidenceQuotes": ["先更新数据库再删除缓存", "删除失败就重试"],
   "probeGaps": [
     {
@@ -62,7 +60,6 @@
   "depthLevel": "L3",
   "confidence": 0.9,
   "rationaleSummary": "说明了执行顺序、失败补偿、不一致窗口和业务取舍",
-  "recommendSwitchQuestion": true,
   "evidenceQuotes": ["删除失败进 MQ 重试", "我们业务允许秒级不一致"],
   "probeGaps": []
 }

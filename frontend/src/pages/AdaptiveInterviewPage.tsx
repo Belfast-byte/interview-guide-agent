@@ -156,7 +156,7 @@ export default function AdaptiveInterviewPage() {
     [session?.turns],
   );
   const currentDimension = useMemo(
-    () => session?.dimensions.find(dimension => dimension.status === 'IN_PROGRESS'),
+    () => session?.dimensions.find(dimension => dimension.status === 'ACTIVE'),
     [session?.dimensions],
   );
   const codeWorkbenchActive = Boolean(
@@ -892,7 +892,7 @@ function DimensionRail({ dimensions }: { dimensions: AdaptiveInterviewDimension[
     <ol className="grid overflow-hidden rounded-2xl border border-slate-200 bg-white/85 dark:border-slate-700 dark:bg-slate-800/80 md:grid-flow-col md:auto-cols-fr">
       {dimensions.map((dimension, index) => (
         <li key={dimension.order} className="relative flex min-w-0 items-center gap-3 border-b border-slate-100 px-4 py-4 last:border-0 dark:border-slate-700 md:border-b-0 md:border-r">
-          <span className={`flex h-8 w-8 flex-none items-center justify-center rounded-full text-xs font-bold ${dimension.status === 'COMPLETED' ? 'bg-emerald-500 text-white' : dimension.status === 'IN_PROGRESS' ? 'bg-primary-600 text-white ring-4 ring-primary-500/15' : 'bg-slate-100 text-slate-400 dark:bg-slate-700'}`}>
+          <span className={`flex h-8 w-8 flex-none items-center justify-center rounded-full text-xs font-bold ${dimension.status === 'COMPLETED' ? 'bg-emerald-500 text-white' : dimension.status === 'EXHAUSTED' ? 'bg-amber-500 text-white' : dimension.status === 'ACTIVE' ? 'bg-primary-600 text-white ring-4 ring-primary-500/15' : 'bg-slate-100 text-slate-400 dark:bg-slate-700'}`}>
             {dimension.status === 'COMPLETED' ? <Check className="h-4 w-4" /> : dimension.order + 1}
           </span>
           <div className="min-w-0">
@@ -907,7 +907,7 @@ function DimensionRail({ dimensions }: { dimensions: AdaptiveInterviewDimension[
 }
 
 function CurrentFocus({ dimensions }: { dimensions: AdaptiveInterviewDimension[] }) {
-  const current = dimensions.find(dimension => dimension.status === 'IN_PROGRESS');
+  const current = dimensions.find(dimension => dimension.status === 'ACTIVE');
   if (!current) return null;
   return (
     <div className="rounded-2xl border border-slate-200 bg-white/90 p-5 dark:border-slate-700 dark:bg-slate-800/85">

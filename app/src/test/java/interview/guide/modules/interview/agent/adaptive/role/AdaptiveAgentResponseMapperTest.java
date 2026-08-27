@@ -193,15 +193,15 @@ class AdaptiveAgentResponseMapperTest {
   }
 
   @Test
-  @DisplayName("达到结束门槛时接受 FINISH 提案")
-  void shouldAcceptFinishProposalAboveTurnThreshold() {
+  @DisplayName("Interviewer 的 FINISH 提案被拒绝")
+  void shouldRejectFinishProposal() {
     String output = """
         {"type":"FINISH","content":"面试已覆盖核心考察点。","reason":"信息已充分"}
         """;
 
-    assertThat(mapper.map(response(output), contextAtTurn(3))).isEqualTo(
-        RespondAction.finish("面试已覆盖核心考察点。", "信息已充分")
-    );
+    assertThatThrownBy(() -> mapper.map(response(output), contextAtTurn(3)))
+        .isInstanceOf(AdaptiveAgentResponseMapper.ModelOutputRejectionException.class)
+        .hasMessageContaining("Unsupported");
   }
 
   @Test

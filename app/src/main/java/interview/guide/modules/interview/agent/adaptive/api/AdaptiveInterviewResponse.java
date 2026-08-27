@@ -46,7 +46,7 @@ public record AdaptiveInterviewResponse(
         history.failureReason(),
         history.llmProviderNameSnapshot(),
         history.llmModelSnapshot(),
-        interview.plan().dimensions().stream()
+        interview.workState() == null ? List.of() : interview.workState().targets().stream()
             .map(AdaptiveInterviewDimensionResponse::from)
             .toList(),
         history.turns().stream()

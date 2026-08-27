@@ -154,7 +154,6 @@ class EpisodeEnrichmentContextReaderTest {
             DepthLevel.L2,
             0.8,
             "基础回答",
-            false,
             List.of()
         )
     ));

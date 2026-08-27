@@ -93,7 +93,6 @@ class AbilityCounterPersistenceTest {
         level,
         0.8,
         "已裁决",
-        false,
         List.of()
     );
   }

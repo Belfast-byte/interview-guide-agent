@@ -2,6 +2,7 @@ package interview.guide.modules.interview.agent.adaptive.planning;
 
 import interview.guide.modules.interview.agent.adaptive.core.session.AdaptiveInterviewHistory;
 import interview.guide.modules.interview.agent.adaptive.core.context.DimensionBrief;
+import interview.guide.modules.interview.agent.adaptive.core.memory.InterviewWorkState;
 import java.util.List;
 
 /**
@@ -10,6 +11,7 @@ import java.util.List;
 public record PlannedInterview(
     AdaptiveInterviewHistory history,
     InterviewPlan plan,
+    InterviewWorkState workState,
     List<DimensionBrief> dimensionBriefs
 ) {
 

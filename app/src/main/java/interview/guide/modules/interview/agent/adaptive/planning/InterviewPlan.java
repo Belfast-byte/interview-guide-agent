@@ -3,8 +3,15 @@ package interview.guide.modules.interview.agent.adaptive.planning;
 import interview.guide.common.exception.BusinessException;
 import interview.guide.common.exception.ErrorCode;
 import interview.guide.modules.interview.agent.adaptive.core.context.CapabilityTarget;
-import interview.guide.modules.interview.agent.adaptive.core.session.AdaptiveInterviewSession;
+import interview.guide.modules.interview.agent.adaptive.core.context.DepthLevel;
 import interview.guide.modules.interview.agent.adaptive.core.context.TopicKey;
+import interview.guide.modules.interview.agent.adaptive.core.memory.InterviewWorkState;
+import interview.guide.modules.interview.agent.adaptive.core.memory.TargetWorkState;
+import interview.guide.modules.interview.agent.adaptive.core.memory.TargetWorkStatus;
+import interview.guide.modules.interview.agent.adaptive.core.memory.WorkBudget;
+import interview.guide.modules.interview.agent.adaptive.core.memory.WorkBudgetType;
+import interview.guide.modules.interview.agent.adaptive.core.memory.WorkPhase;
+import interview.guide.modules.interview.agent.adaptive.core.session.AdaptiveInterviewSession;
 import interview.guide.modules.interview.agent.adaptive.core.session.InterviewSessionSettings;
 import interview.guide.modules.interview.agent.adaptive.core.session.SessionMode;
 import java.util.ArrayList;
@@ -63,9 +70,7 @@ public record InterviewPlan(
     for (int index = 0; index < proposal.dimensions().size(); index++) {
       DimensionProposal proposed = proposal.dimensions().get(index);
       dimensions.add(new PlannedDimension(
-          target(new TargetInput(index, proposed, allocatedTurns[index], profile)),
-          0,
-          index == 0 ? PlanDimensionStatus.IN_PROGRESS : PlanDimensionStatus.PENDING
+          target(new TargetInput(index, proposed, allocatedTurns[index], profile))
       ));
     }
     return new InterviewPlan(sessionId, maxTurns, dimensions);
@@ -109,69 +114,49 @@ public record InterviewPlan(
       InterviewLevelProfile profile
   ) {}
 
-  public PlannedDimension dimensionForTurn(int turnIndex) {
-    int remaining = turnIndex;
-    for (PlannedDimension dimension : dimensions) {
-      if (remaining <= dimension.allocatedTurns()) {
-        return dimension;
-      }
-      remaining -= dimension.allocatedTurns();
-    }
-    throw new BusinessException(ErrorCode.BAD_REQUEST, "面试轮次超出规划预算");
+  public PlannedDimension dimension(int order) {
+    return dimensions.stream()
+        .filter(dimension -> dimension.order() == order)
+        .findFirst()
+        .orElseThrow(() -> new BusinessException(ErrorCode.BAD_REQUEST, "面试维度不存在"));
   }
 
-  public InterviewPlan answer(int turnIndex) {
-    PlannedDimension current = dimensionForTurn(turnIndex);
-    if (current.status() != PlanDimensionStatus.IN_PROGRESS) {
-      throw new BusinessException(ErrorCode.BAD_REQUEST, "当前规划维度不能接收回答");
-    }
-
-    List<PlannedDimension> updated = new ArrayList<>(dimensions);
-    PlannedDimension answered = current.answer();
-    updated.set(current.order(), answered);
-    if (answered.status() == PlanDimensionStatus.COMPLETED
-        && turnIndex < maxTurns) {
-      updated.set(current.order() + 1, updated.get(current.order() + 1).start());
-    }
-    return new InterviewPlan(sessionId, maxTurns, updated);
+  /** Planner 产出的能力目标是初始化运行状态的唯一输入。 */
+  public InterviewWorkState initialWorkState() {
+    List<TargetWorkState> states = dimensions.stream()
+        .map(this::initialTargetState)
+        .toList();
+    TargetWorkState active = states.getFirst().consume(WorkBudgetType.TURN);
+    List<TargetWorkState> initialized = new ArrayList<>(states);
+    initialized.set(0, active);
+    return new InterviewWorkState(
+        sessionId,
+        1,
+        WorkPhase.AWAITING_ANSWER,
+        initialized,
+        active.targetId(),
+        active.target().identity().focus(),
+        List.of(),
+        List.of(),
+        1,
+        null,
+        null
+    );
   }
 
-  public boolean isLastTurn(int turnIndex) {
-    return turnIndex == maxTurns;
-  }
-
-  /**
-   * 提前完成当前轮次所在维度：未用完的轮次按建议缺口贪心补给后续维度，总量守恒。
-   * 已无可回收轮次、后续没有维度或已是最后一轮时原样返回。
-   *
-   * @param turnIndex 当前作答轮次
-   * @return 提前完成后的计划
-   */
-  public InterviewPlan completeDimensionEarly(int turnIndex) {
-    PlannedDimension current = dimensionForTurn(turnIndex);
-    int consumedTurns = current.completedTurns() + 1;
-    int recovered = current.allocatedTurns() - consumedTurns;
-    if (recovered <= 0 || current.order() == dimensions.size() - 1 || isLastTurn(turnIndex)) {
-      return this;
-    }
-    List<PlannedDimension> updated = new ArrayList<>(dimensions);
-    updated.set(current.order(), current.withAllocatedTurns(consumedTurns));
-    int additional = recovered;
-    while (additional > 0) {
-      int selected = current.order() + 1;
-      int largestGap = Integer.MIN_VALUE;
-      for (int index = current.order() + 1; index < updated.size(); index++) {
-        int gap = updated.get(index).suggestedTurns() - updated.get(index).allocatedTurns();
-        if (gap > largestGap) {
-          selected = index;
-          largestGap = gap;
-        }
-      }
-      updated.set(selected, updated.get(selected)
-          .withAllocatedTurns(updated.get(selected).allocatedTurns() + 1));
-      additional--;
-    }
-    return new InterviewPlan(sessionId, maxTurns, updated);
+  private TargetWorkState initialTargetState(PlannedDimension dimension) {
+    int order = dimension.order();
+    return new TargetWorkState(
+        "target-" + order,
+        dimension.target(),
+        new WorkBudget(
+            dimension.allocatedTurns(),
+            dimension.followUpBudget(),
+            dimension.toolBudget()
+        ),
+        DepthLevel.L0,
+        order == 0 ? TargetWorkStatus.ACTIVE : TargetWorkStatus.PENDING
+    );
   }
 
   private static void validate(PlanProposal proposal) {

@@ -1,5 +1,5 @@
 export type AdaptiveSessionStatus = 'CREATED' | 'IN_PROGRESS' | 'COMPLETED' | 'FAILED';
-export type AdaptiveDimensionStatus = 'PENDING' | 'IN_PROGRESS' | 'COMPLETED';
+export type AdaptiveDimensionStatus = 'PENDING' | 'ACTIVE' | 'COMPLETED' | 'EXHAUSTED';
 export type AdaptiveDepthLevel = 'L0' | 'L1' | 'L2' | 'L3' | 'L4';
 export type AdaptiveSessionMode = 'EVALUATION' | 'PRACTICE';
 export type CandidateLevel = 'INTERN' | 'CAMPUS' | 'EXPERIENCED';

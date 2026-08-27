@@ -22,8 +22,7 @@ public record InterviewerContext(
     String suggestedSkill,
     List<AdaptiveInterviewTurn> currentDimensionTurns,
     CandidateAnswer currentDimensionAnswer,
-    WorkingMemorySnapshot workingMemory,
-    List<EpisodePromptFact> episodeHistory,
+    InterviewerWorkView working,
     ToolResultEvent currentToolResult,
     CandidateAnswer currentCodeSubmission,
     ProjectInterviewContext project
@@ -32,8 +31,7 @@ public record InterviewerContext(
   public InterviewerContext {
     suggestedTools = List.copyOf(suggestedTools);
     currentDimensionTurns = List.copyOf(currentDimensionTurns);
-    Objects.requireNonNull(workingMemory, "workingMemory 不能为空");
-    episodeHistory = List.copyOf(episodeHistory);
+    Objects.requireNonNull(working, "working 不能为空");
   }
 
 }

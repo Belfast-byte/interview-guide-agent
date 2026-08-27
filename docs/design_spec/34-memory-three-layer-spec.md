@@ -66,7 +66,7 @@ InterviewWorkState
   activeTargetId / attentionFocus
   activeEvidenceRefs[]
   openIssues[]: issueId / targetId / evidenceMethod / anchor / missingPoint / status / closeReason
-  awaitingAnswerTurnId? / activeActionIntentId?
+  awaitingAnswerTurnIndex? / awaitingIssueId? / activeActionIntentId?
 issue status = OPEN | INVESTIGATING | RESOLVED | ABANDONED; target status = PENDING | ACTIVE | COMPLETED | EXHAUSTED
 ```
 
@@ -108,7 +108,7 @@ operations:
 - Reducer 是纯 Java 代码：验证 `baseRevision`、状态迁移和预算，返回新的不可变 WorkState。
 - application 在一个短事务中保存 Patch 和新 WorkState；`resultRevision = baseRevision + 1`。
 - 同一 `(sessionId, sourceType, sourceId)` 只应用一次；revision 冲突直接失败并重新读取，不覆盖新状态。
-- Assessor 提议 currentDepth、evidence 和 issue 变化；工具结果只能关闭客观事实 issue，不能单独证明候选人能力。
+- Assessor、Policy、ActionResult 分别形成独立 Patch；Assessor 提议 currentDepth、evidence 和 issue 变化，工具结果只能关闭客观事实 issue，不能单独证明候选人能力。
 
 ### 2.4 确定性下一动作
 

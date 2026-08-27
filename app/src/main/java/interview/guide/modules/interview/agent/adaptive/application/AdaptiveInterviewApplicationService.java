@@ -17,30 +17,31 @@ import interview.guide.modules.interview.agent.adaptive.codeanalysis.CodeAnalysi
 import interview.guide.modules.interview.agent.adaptive.core.session.AdaptiveInterviewHistory;
 import interview.guide.modules.interview.agent.adaptive.core.session.AdaptiveInterviewTurn;
 import interview.guide.modules.interview.agent.adaptive.core.session.InterviewSessionSettings;
-import interview.guide.modules.interview.agent.adaptive.core.session.TurnTriggerType;
 import interview.guide.modules.interview.agent.adaptive.core.event.CandidateAnswer;
 import interview.guide.modules.interview.agent.adaptive.core.action.AgentResponseType;
 import interview.guide.modules.interview.agent.adaptive.core.context.DimensionBrief;
 import interview.guide.modules.interview.agent.adaptive.core.context.MemoryOwner;
 import interview.guide.modules.interview.agent.adaptive.core.context.PlannerContext;
-import interview.guide.modules.interview.agent.adaptive.core.context.ProbeGap;
-import interview.guide.modules.interview.agent.adaptive.core.context.TopicKey;
-import interview.guide.modules.interview.agent.adaptive.core.context.WorkingMemorySnapshot;
+import interview.guide.modules.interview.agent.adaptive.core.context.InterviewerWorkView;
 import interview.guide.modules.interview.agent.adaptive.core.action.RespondAction;
 import interview.guide.modules.interview.agent.adaptive.core.event.ToolResultEvent;
 import interview.guide.modules.interview.agent.adaptive.core.event.ToolResultFollowUp;
 import interview.guide.modules.interview.agent.adaptive.core.session.NextTurnProvenanceDraft;
+import interview.guide.modules.interview.agent.adaptive.core.memory.InterviewWorkState;
+import interview.guide.modules.interview.agent.adaptive.core.memory.NextActionType;
+import interview.guide.modules.interview.agent.adaptive.core.memory.TargetWorkStatus;
+import interview.guide.modules.interview.agent.adaptive.core.memory.WorkEvidenceRef;
+import interview.guide.modules.interview.agent.adaptive.core.memory.WorkIssueStatus;
+import interview.guide.modules.interview.agent.adaptive.core.memory.WorkStateOperation;
+import interview.guide.modules.interview.agent.adaptive.core.memory.WorkStatePatch;
+import interview.guide.modules.interview.agent.adaptive.core.memory.WorkStatePatchSource;
+import interview.guide.modules.interview.agent.adaptive.core.context.CapabilityTarget;
 import interview.guide.modules.interview.agent.adaptive.memory.ContextAssembler;
 import interview.guide.modules.interview.agent.adaptive.memory.InterviewerContextInput;
 import interview.guide.modules.interview.agent.adaptive.memory.ToolResultContextInput;
-import interview.guide.modules.interview.agent.adaptive.memory.episode.EpisodePromptMemoryService;
 import interview.guide.modules.interview.agent.adaptive.memory.claim.CandidateClaim;
 import interview.guide.modules.interview.agent.adaptive.memory.claim.CandidateClaimExtractionService;
 import interview.guide.modules.interview.agent.adaptive.memory.brief.DimensionBriefService;
-import interview.guide.modules.interview.agent.adaptive.memory.working.WorkingMemoryInput;
-import interview.guide.modules.interview.agent.adaptive.memory.working.NextQuestionWorkingMemoryInput;
-import interview.guide.modules.interview.agent.adaptive.memory.working.WorkingMemoryFactSource;
-import interview.guide.modules.interview.agent.adaptive.memory.working.WorkingMemorySelection;
 import interview.guide.modules.interview.agent.adaptive.observability.AdaptiveAgentTelemetry;
 import interview.guide.modules.interview.agent.adaptive.observability.AlgorithmInterviewTelemetry;
 import interview.guide.modules.interview.agent.adaptive.persistence.session.AdaptiveInterviewPersistenceService;
@@ -90,9 +91,7 @@ public class AdaptiveInterviewApplicationService {
   private final AdaptiveAgentTelemetry telemetry;
   private final PlanningAgent planningAgent;
   private final ContextAssembler contextAssembler;
-  private final WorkingMemoryFactSource workingMemoryFactSource;
   private final DimensionBriefService dimensionBriefService;
-  private final EpisodePromptMemoryService episodePromptMemoryService;
   private final PlanningTaxonomy planningTaxonomy;
   private final CandidateClaimExtractionService candidateClaimExtractionService;
   private final DepthAssessmentAgent assessmentAgent;
@@ -218,7 +217,8 @@ public class AdaptiveInterviewApplicationService {
       Consumer<String> deltaSink
   ) {
     InterviewPlan plan = decidePlan(sessionId, input);
-    PlannedDimension firstDimension = plan.dimensionForTurn(1);
+    PlannedDimension firstDimension = plan.dimension(0);
+    InterviewWorkState initialState = plan.initialWorkState();
     ReActResult firstDecision = runDecision(
         request(new InterviewerDecisionInput(
             sessionId,
@@ -229,7 +229,7 @@ public class AdaptiveInterviewApplicationService {
             firstDimension,
             List.of(),
             null,
-            firstWorkingMemory(sessionId, firstDimension)
+            InterviewerWorkView.from(initialState, null)
         )),
         deltaSink
     );
@@ -262,21 +262,6 @@ public class AdaptiveInterviewApplicationService {
       throw e;
     }
     return plan;
-  }
-
-  private WorkingMemorySnapshot firstWorkingMemory(
-      String sessionId,
-      PlannedDimension dimension
-  ) {
-    return contextAssembler.workingMemory(new WorkingMemoryInput(
-        sessionId,
-        1,
-        new TopicKey(dimension.suggestedSkill(), dimension.focusId()),
-        null,
-        TurnTriggerType.PLANNED,
-        List.of(),
-        List.of()
-    ));
   }
 
   private record InterviewCreationInput(
@@ -351,139 +336,177 @@ public class AdaptiveInterviewApplicationService {
   private PlannedInterview submitAnswer(AnswerSubmissionInput input) {
     String sessionId = input.sessionId();
     CandidateAnswer answer = input.answer();
-    AnswerEventSink sink = input.sink();
     PlannedInterview interview = input.tenantId() == null
         ? persistenceService.get(sessionId)
         : persistenceService.getForTenant(input.tenantId(), sessionId);
     AdaptiveInterviewHistory history = interview.history();
     MemoryOwner owner = new MemoryOwner(input.tenantId(), history.candidateId());
     history.session().assertCanAnswer(answer);
-    PlannedDimension currentDimension = interview.plan().dimensionForTurn(answer.turnIndex());
+    InterviewWorkState workState = interview.workState();
+    PlannedDimension currentDimension = interview.plan().dimension(
+        workState.activeTarget().target().identity().order());
     algorithmTelemetry.interviewTurnSubmitted(sessionId);
-    sink.onStage(AnswerEventSink.AnswerStage.ASSESSING);
-    AssessmentDecision assessment = assessmentAgent.assess(
+    input.sink().onStage(AnswerEventSink.AnswerStage.ASSESSING);
+    AssessmentResult assessed = assessAnswer(interview, currentDimension, answer);
+    AssessmentWorkStatePlanner.PreparedWorkDecision prepared =
+        AssessmentWorkStatePlanner.prepare(
+            workState, assessed.decision(), assessed.evidences());
+    boolean targetEnded = targetEnded(prepared, workState.activeTargetId());
+    boolean sessionEnded = prepared.action().type() == NextActionType.FINISH;
+    MemoryArtifacts artifacts = memoryArtifacts(new MemoryArtifactInput(
+        interview, currentDimension, answer, assessed.decision(), targetEnded, sessionEnded));
+    NextDecision nextDecision = decideNext(
+        interview, answer, prepared, input.sink());
+    validateCodeDecision(answer, nextDecision.decision());
+    Optional<DepthLevel> previousDepth = previousDepth(
+        sessionId, currentDimension, workState);
+    return persistDecision(new DecisionPersistence(
+        sessionId, owner, answer, currentDimension, assessed, prepared, artifacts,
+        nextDecision, previousDepth));
+  }
+
+  private AssessmentResult assessAnswer(
+      PlannedInterview interview,
+      PlannedDimension dimension,
+      CandidateAnswer answer
+  ) {
+    AdaptiveInterviewHistory history = interview.history();
+    AssessmentDecision decision = assessmentAgent.assess(
         new AssessmentRequest(
-            sessionId,
+            history.session().id(),
             answer.turnIndex(),
             AssessmentContext.currentAnswer(
-                currentDimension.dimension(),
-                currentDimension.focus(),
+                dimension.dimension(),
+                dimension.focus(),
                 history.turns().getLast().question(),
                 answer.content()
             ),
-            skillService.buildEvaluationReferenceSection(
-                currentDimension.suggestedSkill()
-            )
+            skillService.buildEvaluationReferenceSection(dimension.suggestedSkill())
         ),
         history.llmProvider()
     );
-    List<ValidatedAssessmentEvidence> assessmentEvidences =
-        assessmentEvidenceValidator.validate(
-            sessionId,
-            answer.turnIndex(),
-            answer.content(),
-            assessment.evidenceQuotes().stream()
-                .map(AssessmentEvidenceCandidate::quote)
-                .toList()
-        );
-    boolean naturallyCompletes = completesDimension(currentDimension);
-    InterviewPlan planAfterEarlyCompletion = assessment.recommendsEarlyCompletion()
-        ? interview.plan().completeDimensionEarly(answer.turnIndex())
-        : interview.plan();
-    // 末维度或末轮的提前完成是空操作（计划原样返回），按未提前完成处理，
-    // 避免重复写 DimensionBrief 和 claims
-    boolean earlyCompletion = !naturallyCompletes
-        && planAfterEarlyCompletion != interview.plan();
-    InterviewPlan planForNextTurn = earlyCompletion
-        ? planAfterEarlyCompletion
-        : interview.plan();
-    boolean dimensionCompleted = naturallyCompletes || earlyCompletion;
-    List<ProbeGap> nextProbeGaps = dimensionCompleted
-        ? List.of()
-        : assessment.probeGaps();
-    boolean lastTurn = interview.plan().isLastTurn(answer.turnIndex());
+    List<ValidatedAssessmentEvidence> evidences = assessmentEvidenceValidator.validate(
+        history.session().id(),
+        answer.turnIndex(),
+        answer.content(),
+        decision.evidenceQuotes().stream().map(AssessmentEvidenceCandidate::quote).toList()
+    );
+    return new AssessmentResult(decision, evidences);
+  }
+
+  private MemoryArtifacts memoryArtifacts(MemoryArtifactInput input) {
+    PlannedInterview interview = input.interview();
+    PlannedDimension dimension = input.dimension();
+    CandidateAnswer answer = input.answer();
+    AdaptiveInterviewHistory history = interview.history();
     DimensionBrief dimensionBrief = null;
     List<CandidateClaim> candidateClaims = List.of();
-    if (dimensionCompleted && lastTurn) {
-      // 末轮保持同步生成：维度小结与候选人声明是报告输入，必须随面试完成落库
+    if (input.targetEnded() && input.sessionEnded()) {
       dimensionBrief = dimensionBriefService.summarize(
-          sessionId,
-          currentDimension,
+          history.session().id(),
+          dimension,
           history.turns(),
           answer,
           history.llmProvider()
       );
       candidateClaims = candidateClaimExtractionService.extract(
-          sessionId,
-          currentDimension,
+          history.session().id(),
+          dimension,
           history.turns(),
           answer,
           planningTaxonomy.catalog(),
           history.llmProvider()
       );
-    } else if (dimensionCompleted) {
-      // 非末轮：维度记忆异步生成，不阻塞出题；新小结从下一轮决策起可见
+    } else if (input.targetEnded()) {
       answerExecutor.execute(() -> generateDimensionMemorySafely(
-          sessionId,
-          currentDimension,
+          history.session().id(),
+          dimension,
           history.turns(),
           answer,
           history.llmProvider()
       ));
     }
-    List<PracticeRecommendation> practiceRecommendations = lastTurn
+    List<PracticeRecommendation> recommendations = input.sessionEnded()
         ? practiceRecommendationService.recommend(
-            sessionId,
-            currentDimension,
-            assessment
+            history.session().id(),
+            dimension,
+            input.assessment()
         )
         : List.of();
-    NextDecision nextDecision;
-    if (lastTurn && answer.codeSubmission() == null) {
-      nextDecision = new NextDecision(
-          ReActResult.withoutTools(RespondAction.finish(
-              "面试已覆盖全部规划维度。",
-              "规划轮次已全部完成"
-          )),
-          NextTurnProvenanceDraft.planned()
-      );
-    } else {
-      PlannedDimension nextDimension = lastTurn
-          ? currentDimension
-          : planForNextTurn.dimensionForTurn(answer.turnIndex() + 1);
-      sink.onStage(AnswerEventSink.AnswerStage.GENERATING);
-      WorkingMemorySelection workingMemory = contextAssembler.nextQuestionWorkingMemory(
-          new NextQuestionWorkingMemoryInput(
-              sessionId,
-              answer.turnIndex() + 1,
-              new TopicKey(nextDimension.suggestedSkill(), nextDimension.focusId()),
-              nextProbeGaps,
-              workingMemoryFactSource.findProbeGaps(
-                  owner,
-                  sessionId
-              ),
-              history.turns()
-          )
-      );
-      nextDecision = new NextDecision(
-          runDecision(
-              request(new InterviewerDecisionInput(
-                  sessionId,
-                  history.llmProvider(),
-                  history.jd(),
-                  history.resume(),
-                  history.session().maxTurns(),
-                  nextDimension,
-                  history.turns(),
-                  answer,
-                  workingMemory.snapshot()
-              )),
-              sink.deltaSink()
-          ),
-          workingMemory.provenance()
+    return new MemoryArtifacts(dimensionBrief, candidateClaims, recommendations);
+  }
+
+  private PlannedInterview persistDecision(DecisionPersistence input) {
+    String sessionId = input.sessionId();
+    try {
+      PlannedInterview updated = persistenceService.recordDecision(persistenceInput(input));
+      recordAssessmentTelemetry(
+          input.dimension(), input.assessed(), input.previousDepth());
+      algorithmAssessmentEvidenceService.attachAvailable(
+          sessionId, input.answer().turnIndex());
+      return updated;
+    } catch (OptimisticLockingFailureException e) {
+      telemetry.stateConflict(sessionId, input.answer().turnIndex());
+      throw new BusinessException(
+          ErrorCode.BAD_REQUEST,
+          "面试会话已被其他请求推进，请刷新后重试",
+          e
       );
     }
-    ReActResult decision = nextDecision.decision();
+  }
+
+  private AdaptiveDecisionPersistenceInput persistenceInput(DecisionPersistence input) {
+    CandidateAnswer answer = input.answer();
+    ReActResult decision = input.nextDecision().decision();
+    MemoryArtifacts artifacts = input.artifacts();
+    return new AdaptiveDecisionPersistenceInput(
+        input.owner(),
+        input.sessionId(),
+        answer,
+        decision.response(),
+        decision.toolExecutions(),
+        artifacts.dimensionBrief(),
+        artifacts.candidateClaims(),
+        input.assessed().decision(),
+        input.assessed().evidences(),
+        artifacts.practiceRecommendations(),
+        input.nextDecision().provenance(),
+        input.prepared().finalPatches(nextTurnIndex(answer, decision))
+    );
+  }
+
+  private NextDecision decideNext(
+      PlannedInterview interview,
+      CandidateAnswer answer,
+      AssessmentWorkStatePlanner.PreparedWorkDecision prepared,
+      AnswerEventSink sink
+  ) {
+    if (prepared.action().type() == NextActionType.FINISH) {
+      return new NextDecision(ReActResult.withoutTools(RespondAction.finish(
+          "面试已覆盖全部能力目标。", "工作状态中的能力目标均已终态")),
+          NextTurnProvenanceDraft.planned());
+    }
+    sink.onStage(AnswerEventSink.AnswerStage.GENERATING);
+    PlannedDimension dimension = interview.plan().dimension(
+        prepared.projectedState().activeTarget().target().identity().order());
+    ReActResult result = runDecision(request(new InterviewerDecisionInput(
+        interview.history().session().id(),
+        interview.history().llmProvider(),
+        interview.history().jd(),
+        interview.history().resume(),
+        interview.history().session().maxTurns(),
+        dimension,
+        interview.history().turns(),
+        answer,
+        InterviewerWorkView.from(prepared.projectedState(), prepared.action().issueId())
+    )), sink.deltaSink());
+    if (result.response().type() != AgentResponseType.ASK) {
+      throw new BusinessException(ErrorCode.AI_SERVICE_ERROR, "确定性策略要求生成下一题");
+    }
+    return new NextDecision(result, prepared.provenance());
+  }
+
+  private void validateCodeDecision(CandidateAnswer answer, ReActResult decision) {
     if (answer.codeSubmission() != null) {
       List<ToolExecution> sandboxSubmissions = decision.toolExecutions().stream()
           .filter(execution -> SandboxSubmitTool.NAME.equals(execution.toolName()))
@@ -497,48 +520,49 @@ public class AdaptiveInterviewApplicationService {
         );
       }
     }
-    Optional<DepthLevel> previousDepth = currentDimension.completedTurns() == 0
+  }
+
+  private boolean targetEnded(
+      AssessmentWorkStatePlanner.PreparedWorkDecision prepared,
+      String targetId
+  ) {
+    TargetWorkStatus status = prepared.projectedState().targets().stream()
+        .filter(target -> target.targetId().equals(targetId))
+        .findFirst()
+        .orElseThrow(() -> new IllegalStateException("WorkState 目标不存在"))
+        .status();
+    return status == TargetWorkStatus.COMPLETED || status == TargetWorkStatus.EXHAUSTED;
+  }
+
+  private Optional<DepthLevel> previousDepth(
+      String sessionId,
+      PlannedDimension dimension,
+      InterviewWorkState state
+  ) {
+    int consumed = dimension.allocatedTurns() - state.activeTarget().remainingBudget().turns();
+    return consumed <= 1
         ? Optional.empty()
-        : Optional.of(persistenceService.latestAssessmentDepth(
-            sessionId,
-            currentDimension.order()
-        ));
-    try {
-      PlannedInterview updated = persistenceService.recordDecision(
-          new AdaptiveDecisionPersistenceInput(
-              owner,
-              sessionId,
-              answer,
-              decision.response(),
-              decision.toolExecutions(),
-              dimensionBrief,
-              candidateClaims,
-              assessment,
-              assessmentEvidences,
-              practiceRecommendations,
-              nextDecision.provenance()
-          )
-      );
-      algorithmAssessmentEvidenceService.attachAvailable(sessionId, answer.turnIndex());
-      telemetry.assessmentRecorded(
-          currentDimension.dimension(),
-          assessment.depthLevel(),
-          assessmentEvidences.size()
-      );
-      previousDepth.ifPresent(depthLevel -> telemetry.followUpAssessed(
-          currentDimension.dimension(),
-          depthLevel,
-          assessment.depthLevel()
-      ));
-      return updated;
-    } catch (OptimisticLockingFailureException e) {
-      telemetry.stateConflict(sessionId, answer.turnIndex());
-      throw new BusinessException(
-          ErrorCode.BAD_REQUEST,
-          "面试会话已被其他请求推进，请刷新后重试",
-          e
-      );
-    }
+        : Optional.of(persistenceService.latestAssessmentDepth(sessionId, dimension.order()));
+  }
+
+  private Integer nextTurnIndex(CandidateAnswer answer, ReActResult decision) {
+    return decision.response().type() == AgentResponseType.ASK
+        ? answer.turnIndex() + 1
+        : null;
+  }
+
+  private void recordAssessmentTelemetry(
+      PlannedDimension dimension,
+      AssessmentResult assessed,
+      Optional<DepthLevel> previousDepth
+  ) {
+    telemetry.assessmentRecorded(
+        dimension.dimension(),
+        assessed.decision().depthLevel(),
+        assessed.evidences().size()
+    );
+    previousDepth.ifPresent(depth -> telemetry.followUpAssessed(
+        dimension.dimension(), depth, assessed.decision().depthLevel()));
   }
 
   public PlannedInterview submitAnswerForCandidate(
@@ -625,10 +649,11 @@ public class AdaptiveInterviewApplicationService {
    */
   public Optional<RespondAction> handleToolResult(
       String sessionId,
-      ToolResultEvent event
+    ToolResultEvent event
   ) {
     PlannedInterview interview = persistenceService.get(sessionId);
-    PlannedDimension dimension = interview.plan().dimensionForTurn(event.turnIndex());
+    PlannedDimension dimension = interview.plan().dimension(
+        interview.workState().activeTarget().target().identity().order());
     try {
       ReActResult decision = runDecision(new ReActRequest(
           sessionId,
@@ -645,11 +670,7 @@ public class AdaptiveInterviewApplicationService {
               dimension.suggestedSkill(),
               interview.history().turns(),
               event,
-              toolResultWorkingMemory(interview, dimension, event),
-              episodePromptMemoryService.select(
-                  sessionId,
-                  new TopicKey(dimension.suggestedSkill(), dimension.focusId())
-              ),
+              InterviewerWorkView.from(interview.workState(), null),
               codeAnalysisContextService.findForSession(sessionId).orElse(null)
           ))
       ));
@@ -660,7 +681,8 @@ public class AdaptiveInterviewApplicationService {
           sessionId,
           event,
           decision.response(),
-          decision.toolExecutions()
+          decision.toolExecutions(),
+          toolResultPatch(interview.workState(), event)
       );
       return Optional.of(decision.response());
     } catch (Exception e) {
@@ -678,24 +700,27 @@ public class AdaptiveInterviewApplicationService {
     persistenceService.discardToolResultReservation(event);
   }
 
-  private WorkingMemorySnapshot toolResultWorkingMemory(
-      PlannedInterview interview,
-      PlannedDimension dimension,
+  private WorkStatePatch toolResultPatch(
+      InterviewWorkState state,
       ToolResultEvent event
   ) {
-    int currentTurnIndex = Math.max(
-        event.turnIndex() + 1,
-        interview.history().session().currentTurn()
+    List<WorkStateOperation> operations = new java.util.ArrayList<>();
+    operations.add(new WorkStateOperation.AddEvidenceRef(new WorkEvidenceRef(
+        state.activeTargetId(), event.toolName(), event.resultId(), event.summary())));
+    state.activeOpenIssues().stream()
+        .filter(issue -> issue.evidenceMethod() == CapabilityTarget.EvidenceMethod.TOOL_FACT)
+        .findFirst()
+        .ifPresent(issue -> operations.add(new WorkStateOperation.CloseIssue(
+            issue.issueId(), WorkIssueStatus.RESOLVED, "工具事实已经返回")));
+    return new WorkStatePatch(
+        UUID.randomUUID().toString(),
+        state.sessionId(),
+        state.revision(),
+        state.revision() + 1,
+        WorkStatePatchSource.TOOL_RESULT,
+        event.toolName() + ":" + event.resultId(),
+        operations
     );
-    return contextAssembler.workingMemory(new WorkingMemoryInput(
-        interview.history().session().id(),
-        currentTurnIndex,
-        new TopicKey(dimension.suggestedSkill(), dimension.focusId()),
-        event.turnIndex(),
-        TurnTriggerType.TOOL_RESULT,
-        List.of(),
-        interview.history().turns()
-    ));
   }
 
   /**
@@ -715,7 +740,7 @@ public class AdaptiveInterviewApplicationService {
         .filter(candidate -> candidate.turnIndex() == turnIndex)
         .findFirst()
         .orElseThrow(() -> new BusinessException(ErrorCode.NOT_FOUND, "面试轮次不存在"));
-    PlannedDimension dimension = interview.plan().dimensionForTurn(turnIndex);
+    PlannedDimension dimension = interview.plan().dimension(turn.dimensionOrder());
     AssessmentDecision assessment = assessmentAgent.assess(
         new AssessmentRequest(
             sessionId,
@@ -783,18 +808,10 @@ public class AdaptiveInterviewApplicationService {
             input.dimension().suggestedSkill(),
             input.turns(),
             input.candidateAnswer(),
-            input.workingMemory(),
-            episodePromptMemoryService.select(
-                input.sessionId(),
-                input.workingMemory().currentTopic()
-            ),
+            input.working(),
             codeAnalysisContextService.findForSession(input.sessionId()).orElse(null)
         ))
     );
-  }
-
-  private boolean completesDimension(PlannedDimension dimension) {
-    return dimension.completedTurns() + 1 == dimension.allocatedTurns();
   }
 
   /**
@@ -874,5 +891,37 @@ public class AdaptiveInterviewApplicationService {
   private record NextDecision(
       ReActResult decision,
       NextTurnProvenanceDraft provenance
+  ) {}
+
+  private record AssessmentResult(
+      AssessmentDecision decision,
+      List<ValidatedAssessmentEvidence> evidences
+  ) {}
+
+  private record MemoryArtifacts(
+      DimensionBrief dimensionBrief,
+      List<CandidateClaim> candidateClaims,
+      List<PracticeRecommendation> practiceRecommendations
+  ) {}
+
+  private record MemoryArtifactInput(
+      PlannedInterview interview,
+      PlannedDimension dimension,
+      CandidateAnswer answer,
+      AssessmentDecision assessment,
+      boolean targetEnded,
+      boolean sessionEnded
+  ) {}
+
+  private record DecisionPersistence(
+      String sessionId,
+      MemoryOwner owner,
+      CandidateAnswer answer,
+      PlannedDimension dimension,
+      AssessmentResult assessed,
+      AssessmentWorkStatePlanner.PreparedWorkDecision prepared,
+      MemoryArtifacts artifacts,
+      NextDecision nextDecision,
+      Optional<DepthLevel> previousDepth
   ) {}
 }

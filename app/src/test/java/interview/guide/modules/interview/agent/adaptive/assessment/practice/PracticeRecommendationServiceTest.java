@@ -58,7 +58,6 @@ class PracticeRecommendationServiceTest {
             DepthLevel.L1,
             0.8,
             "只复述了步骤",
-            false,
             List.of("回答")
         )
     );
@@ -111,7 +110,6 @@ class PracticeRecommendationServiceTest {
             DepthLevel.L1,
             0.8,
             "只复述概念",
-            false,
             List.of("回答")
         )
     )).isEmpty();

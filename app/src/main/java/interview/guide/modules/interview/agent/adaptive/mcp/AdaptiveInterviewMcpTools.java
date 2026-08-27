@@ -151,7 +151,7 @@ public class AdaptiveInterviewMcpTools {
         sessionId,
         McpAuditOutcome.SUCCEEDED
     );
-    return interview.plan().dimensions().stream()
+    return interview.workState().targets().stream()
         .map(McpInterviewDimensionResponse::from)
         .toList();
   }

@@ -4,12 +4,12 @@ import interview.guide.common.exception.BusinessException;
 import interview.guide.modules.interview.agent.adaptive.core.action.AgentAction;
 import interview.guide.modules.interview.agent.adaptive.core.event.CandidateAnswer;
 import interview.guide.modules.interview.agent.adaptive.core.context.InterviewerContext;
+import interview.guide.modules.interview.agent.adaptive.core.context.InterviewerWorkView;
+import interview.guide.modules.interview.agent.adaptive.core.context.DepthLevel;
 import interview.guide.modules.interview.agent.adaptive.core.context.TopicKey;
-import interview.guide.modules.interview.agent.adaptive.core.context.WorkingMemorySnapshot;
 import interview.guide.modules.interview.agent.adaptive.core.action.RespondAction;
 import interview.guide.modules.interview.agent.adaptive.core.action.ToolCallAction;
 import interview.guide.modules.interview.agent.adaptive.role.AgentRole;
-import interview.guide.modules.interview.agent.adaptive.core.session.TurnTriggerType;
 import java.time.Duration;
 import java.util.ArrayList;
 import java.util.List;
@@ -345,7 +345,6 @@ class BoundedReActRuntimeTest {
             List.of(),
             new CandidateAnswer(1, "候选人回答"),
             plannedMemory(2),
-            List.of(),
             null,
             null,
             null
@@ -357,14 +356,18 @@ class BoundedReActRuntimeTest {
     return new ReActBudget(maxSteps, maxToolCalls, Duration.ofSeconds(1));
   }
 
-  private WorkingMemorySnapshot plannedMemory(int turnIndex) {
-    return new WorkingMemorySnapshot(
-        "session-1",
-        turnIndex,
+  private InterviewerWorkView plannedMemory(int turnIndex) {
+    return new InterviewerWorkView(
+        "target-0",
         new TopicKey("java-backend", "CACHE"),
+        DepthLevel.L2,
+        DepthLevel.L3,
+        DepthLevel.L0,
+        "缓存与并发",
         null,
-        0,
-        TurnTriggerType.PLANNED
+        6 - turnIndex,
+        2,
+        1
     );
   }
 

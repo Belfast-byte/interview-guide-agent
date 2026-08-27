@@ -11,16 +11,12 @@ CREATE TABLE agent_plans (
   follow_up_budget INTEGER NOT NULL,
   tool_budget INTEGER NOT NULL,
   evidence_objectives_json TEXT NOT NULL,
-  completed_turns INTEGER NOT NULL DEFAULT 0,
-  status VARCHAR(20) NOT NULL,
   created_at TIMESTAMP(6) NOT NULL,
   updated_at TIMESTAMP(6) NOT NULL,
   CONSTRAINT fk_agent_plan_session
     FOREIGN KEY (session_id) REFERENCES agent_sessions(id) ON DELETE CASCADE,
   CONSTRAINT uk_agent_plan_session_order
     UNIQUE (session_id, dimension_order),
-  CONSTRAINT agent_plan_status_check
-    CHECK (status IN ('PENDING', 'IN_PROGRESS', 'COMPLETED')),
   CONSTRAINT agent_plan_depth_check
     CHECK (
       expected_depth IN ('L0', 'L1', 'L2', 'L3', 'L4')
@@ -30,7 +26,6 @@ CREATE TABLE agent_plans (
     CHECK (
       suggested_turns BETWEEN 1 AND 12
       AND allocated_turns BETWEEN 1 AND 12
-      AND completed_turns BETWEEN 0 AND allocated_turns
       AND follow_up_budget BETWEEN 0 AND 3
       AND tool_budget >= 0
     )
@@ -43,3 +38,38 @@ ALTER TABLE agent_turns
   ADD CONSTRAINT fk_agent_turn_plan_dimension
   FOREIGN KEY (session_id, dimension_order)
   REFERENCES agent_plans(session_id, dimension_order);
+
+CREATE TABLE agent_work_states (
+  session_id VARCHAR(36) PRIMARY KEY,
+  revision BIGINT NOT NULL,
+  phase VARCHAR(24) NOT NULL,
+  active_action_intent_id VARCHAR(36),
+  state_json TEXT NOT NULL,
+  version BIGINT NOT NULL DEFAULT 0,
+  created_at TIMESTAMP(6) NOT NULL,
+  updated_at TIMESTAMP(6) NOT NULL,
+  CONSTRAINT fk_work_state_session
+    FOREIGN KEY (session_id) REFERENCES agent_sessions(id) ON DELETE CASCADE,
+  CONSTRAINT work_state_phase_check
+    CHECK (phase IN ('READY_TO_DECIDE', 'ACTION_PENDING', 'AWAITING_ANSWER', 'FINISHED')),
+  CONSTRAINT work_state_revision_check CHECK (revision > 0)
+);
+
+CREATE TABLE agent_work_state_patches (
+  patch_id VARCHAR(64) PRIMARY KEY,
+  session_id VARCHAR(36) NOT NULL,
+  base_revision BIGINT NOT NULL,
+  result_revision BIGINT NOT NULL,
+  source_type VARCHAR(24) NOT NULL,
+  source_id VARCHAR(128) NOT NULL,
+  operations_json TEXT NOT NULL,
+  created_at TIMESTAMP(6) NOT NULL,
+  CONSTRAINT fk_work_state_patch_session
+    FOREIGN KEY (session_id) REFERENCES agent_sessions(id) ON DELETE CASCADE,
+  CONSTRAINT uk_work_state_patch_source
+    UNIQUE (session_id, source_type, source_id),
+  CONSTRAINT work_state_patch_revision_check
+    CHECK (result_revision = base_revision + 1),
+  CONSTRAINT work_state_patch_source_check
+    CHECK (source_type IN ('INITIALIZATION', 'ASSESSMENT', 'TOOL_RESULT', 'POLICY', 'ACTION_RESULT'))
+);

@@ -11,7 +11,6 @@ public record AssessmentProposal(
     DepthLevel depthLevel,
     double confidence,
     String rationaleSummary,
-    boolean recommendSwitchQuestion,
     List<String> evidenceQuotes,
     List<ProbeGap> probeGaps
 ) {
@@ -25,10 +24,8 @@ public record AssessmentProposal(
       DepthLevel depthLevel,
       double confidence,
       String rationaleSummary,
-      boolean recommendSwitchQuestion,
       List<String> evidenceQuotes
   ) {
-    this(depthLevel, confidence, rationaleSummary, recommendSwitchQuestion,
-        evidenceQuotes, List.of());
+    this(depthLevel, confidence, rationaleSummary, evidenceQuotes, List.of());
   }
 }

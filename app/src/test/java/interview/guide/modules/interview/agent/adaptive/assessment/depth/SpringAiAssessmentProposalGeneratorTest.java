@@ -97,7 +97,6 @@ class SpringAiAssessmentProposalGeneratorTest {
         DepthLevel.L3,
         0.8,
         "说明了权衡",
-        false,
         List.of("重要数据使用版本号")
     );
     when(invoke()).thenReturn(expected);
@@ -128,7 +127,6 @@ class SpringAiAssessmentProposalGeneratorTest {
         DepthLevel.L2,
         0.8,
         "说明了权衡",
-        false,
         List.of("重要数据使用版本号")
     );
     when(invoke()).thenReturn(expected);
@@ -170,7 +168,6 @@ class SpringAiAssessmentProposalGeneratorTest {
         DepthLevel.L3,
         0.8,
         "说明了权衡",
-        false,
         List.of("重要数据使用版本号")
     );
     when(invoke()).thenReturn(expected);

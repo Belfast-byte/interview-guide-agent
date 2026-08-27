@@ -10,7 +10,6 @@ import interview.guide.modules.interview.agent.adaptive.core.context.CodeFactUsa
 import interview.guide.modules.interview.agent.adaptive.core.context.CodeQuestionProvenance;
 import interview.guide.modules.interview.agent.adaptive.core.context.ProjectInterviewContext;
 import interview.guide.modules.interview.agent.adaptive.core.context.QuestionProvenance;
-import interview.guide.modules.interview.agent.adaptive.core.session.AdaptiveInterviewSession;
 import interview.guide.modules.interview.agent.adaptive.runtime.ReActModelContext;
 import interview.guide.modules.interview.agent.adaptive.runtime.ToolObservation;
 import interview.guide.modules.interview.agent.adaptive.tool.QuestionBankQuestion;
@@ -65,9 +64,6 @@ public class AdaptiveAgentResponseMapper {
   AgentAction mapText(String rawText, ReActModelContext context) {
     AgentStepOutput output = normalize(outputConverter.convert(rawText));
     validateRequiredFields(output);
-    if (output.type() == AgentResponseType.FINISH) {
-      return mapFinish(output, context);
-    }
     return mapAsk(output, context);
   }
 
@@ -128,18 +124,6 @@ public class AdaptiveAgentResponseMapper {
         || output.reason().length() > MAX_REASON_LENGTH) {
       throw new ModelOutputRejectionException("Agent response is too long");
     }
-  }
-
-  private RespondAction mapFinish(AgentStepOutput output, ReActModelContext context) {
-    if (!AdaptiveInterviewSession.canFinishEarly(
-        context.request().interviewerContext().maxTurns(),
-        context.request().inputTurnIndex()
-    )) {
-      throw new ModelOutputRejectionException(
-          "Interview turns have not reached the early-finish threshold; keep asking"
-      );
-    }
-    return RespondAction.finish(output.content(), output.reason());
   }
 
   private RespondAction mapAsk(AgentStepOutput output, ReActModelContext context) {

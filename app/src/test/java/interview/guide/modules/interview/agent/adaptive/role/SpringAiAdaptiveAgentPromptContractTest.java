@@ -6,16 +6,13 @@ import interview.guide.common.ai.PromptLoader;
 import interview.guide.common.exception.BusinessException;
 import interview.guide.common.exception.ErrorCode;
 import interview.guide.modules.interview.agent.adaptive.application.AdaptiveAgentProperties;
-import interview.guide.modules.interview.agent.adaptive.core.context.DepthLevel;
 import interview.guide.modules.interview.agent.adaptive.core.action.AgentAction;
 import interview.guide.modules.interview.agent.adaptive.core.action.RespondAction;
-import interview.guide.modules.interview.agent.adaptive.core.context.EpisodePromptFact;
 import interview.guide.modules.interview.agent.adaptive.core.event.CandidateAnswer;
 import interview.guide.modules.interview.agent.adaptive.observability.AdaptiveAgentTelemetry;
 import interview.guide.modules.interview.agent.adaptive.observability.AdaptiveInputTokenBudget;
 import interview.guide.modules.interview.agent.adaptive.tool.ToolGateway;
 import java.io.IOException;
-import java.time.LocalDateTime;
 import java.util.List;
 import java.util.function.Consumer;
 import org.junit.jupiter.api.BeforeEach;
@@ -34,7 +31,6 @@ import org.springframework.core.io.DefaultResourceLoader;
 import tools.jackson.databind.ObjectMapper;
 
 import static interview.guide.modules.interview.agent.adaptive.role.AdaptiveAgentRoleTestFixtures.context;
-import static interview.guide.modules.interview.agent.adaptive.role.AdaptiveAgentRoleTestFixtures.contextWithEpisodeHistory;
 import static interview.guide.modules.interview.agent.adaptive.role.AdaptiveAgentRoleTestFixtures.response;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
@@ -107,42 +103,10 @@ class SpringAiAdaptiveAgentPromptContractTest {
         "<data-boundary>",
         "候选人回答",
         "专业基础",
-        "\"workingMemory\"",
-        "\"followUpDepth\"",
-        "\"triggerType\""
+        "\"working\"",
+        "\"depthCeiling\"",
+        "\"remainingFollowUps\""
     );
-  }
-
-  @Test
-  @DisplayName("Interviewer prompt 的跨场历史只序列化 Episode 白名单字段")
-  void shouldSerializeOnlyWhitelistedEpisodeFields() {
-    respondWith("""
-        {"type":"ASK","content":"请分析缓存一致性边界","reason":"验证历史薄弱点"}
-        """);
-
-    gateway.nextAction(contextWithEpisodeHistory(episodeFact()));
-
-    ArgumentCaptor<String> userPrompt = ArgumentCaptor.forClass(String.class);
-    verify(requestSpec).user(userPrompt.capture());
-    assertThat(userPrompt.getValue())
-        .contains(
-            "<episode-memory-contract>",
-            "\"episodeHistory\"",
-            "\"skillId\"",
-            "\"focusId\"",
-            "\"depthLevel\"",
-            "\"errorTags\"",
-            "\"answerHabitTags\"",
-            "\"createdAt\""
-        )
-        .doesNotContain(
-            "\"question\"",
-            "\"answer\"",
-            "\"answerSummary\"",
-            "\"rationale\"",
-            "\"evidenceQuotes\"",
-            "\"completedDimensionBriefs\""
-        );
   }
 
   @Test
@@ -164,17 +128,6 @@ class SpringAiAdaptiveAgentPromptContractTest {
     )).isInstanceOf(BusinessException.class)
         .hasMessage("Agent interview model call failed");
     assertThat(output).doesNotContain(sensitiveAnswer);
-  }
-
-  private EpisodePromptFact episodeFact() {
-    return new EpisodePromptFact(
-        "java-backend",
-        "CACHE",
-        DepthLevel.L2,
-        List.of("MISSING_CONSISTENCY_ANALYSIS"),
-        List.of("STRUCTURED_REASONING"),
-        LocalDateTime.of(2026, 8, 1, 10, 0)
-    );
   }
 
   private SpringAiAdaptiveAgentModelGateway createGateway(
