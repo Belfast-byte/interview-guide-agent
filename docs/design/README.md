@@ -10,3 +10,4 @@
 |---|---|
 | [00-terminology.md](./00-terminology.md) | 领域术语与语义边界 |
 | [01-platform-design.md](./01-platform-design.md) | 平台级目标、架构判断、工具/MCP/多 Agent 边界与演进路线 |
+| [02-memory-design.md](./02-memory-design.md) | 三层记忆职责、正式评估与练习模式的消费边界 |
