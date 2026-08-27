@@ -10,13 +10,13 @@
 
 ## Context Recovery Block
 
-- **Current milestone**: #4 — 实现 WorkState Typed Patch 与确定性策略
+- **Current milestone**: #5 — 实现 ActionIntent 与恢复
 - **Current status**: IN_PROGRESS
-- **Last completed**: #3 — T01 commit `82a4759`
-- **Current artifact**: `docs/design_spec/35-memory-three-layer-tickets.md` T02
-- **Key context**: 会话模式与 CapabilityTarget 已落库；正式 Planner 已断开长期记忆。
-- **Known issues**: 现有 WorkingMemorySnapshot 是 Prompt 临时视图，尚无持久 WorkState、Typed Patch 和统一确定性下一动作策略。
-- **Next action**: 建立 Child 4 执行文件，审计 working memory、assessment、tool result 与动作裁决链。
+- **Last completed**: #4 — T02 commit `29100db`
+- **Current artifact**: `docs/design_spec/35-memory-three-layer-tickets.md` T03
+- **Key context**: WorkState、Typed Patch 和确定性策略已成为当前运行状态唯一写链，旧临时 Working 路径已删除。
+- **Known issues**: ASK/CALL_TOOL 尚未以 ActionIntent 先落库，进程故障后仍缺少确定性恢复入口。
+- **Next action**: 建立 Child 5 执行文件，核对现有 turn/tool result 持久化边界并接入 ActionIntent。
 
 ## Child 1: 定稿三层记忆 v4 技术规格
 
@@ -42,6 +42,15 @@
 - **Validation**: T01 定向后端测试、测试源码编译、前端构建、staged diff 检查均通过。
 - **Commit**: `82a4759`
 - **Next step**: Child 4 — WorkState Typed Patch 与确定性策略
+
+## Child 4: 实现 WorkState Typed Patch 与确定性策略
+
+- **Status**: DONE
+- **Completed**: 2026-08-28 06:06
+- **What was done**: 以持久 WorkState、Typed Patch Reducer 和确定性策略替换临时 Prompt Working Memory，并移除旧双轨与模型结束裁决。
+- **Validation**: 架构隔离、WorkState、NextActionPolicy 定向测试和测试编译通过；全量套件触及 60 秒硬超时，留作最终门禁处理。
+- **Commit**: `29100db`
+- **Next step**: Child 5 — ActionIntent 与恢复
 
 ## Shape Promotion
 

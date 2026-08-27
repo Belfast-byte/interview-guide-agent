@@ -1,8 +1,8 @@
 id,task,status,acceptance_criteria,validation_command,completed_at,retry_count,notes
-1,审计现有 Working 与动作裁决链,IN_PROGRESS,"依赖和替换清单写入 PROGRESS","rg -n 'WorkingMemory|ProbeGap|completeDimensionEarly|AgentResponseType' app/src/main/java/interview/guide/modules/interview/agent/adaptive",,0,
-2,实现 WorkState 与 Typed Patch Reducer,TODO,"Patch 不可变且 reducer 确定性测试通过","timeout 60s ./gradlew :app:test --no-daemon --console=plain --tests '*WorkState*'",,0,
-3,实现 NextActionPolicy,TODO,"ASK/CALL_TOOL/SWITCH_TARGET/FINISH 分支测试通过","timeout 60s ./gradlew :app:test --no-daemon --console=plain --tests '*NextActionPolicy*'",,0,
-4,实现 WorkState 持久化与初始化,TODO,"state/version 可重读且更新受乐观锁保护","timeout 60s ./gradlew :app:test --no-daemon --console=plain --tests '*WorkStatePersistence*'",,0,
-5,接入回答评估工具结果和动作完成 Patch,TODO,"三个事件边界均通过 application 短事务写 Patch","timeout 60s ./gradlew :app:test --no-daemon --console=plain --tests '*WorkingMemoryApplication*'",,0,
-6,删除旧临时 Working 路径,TODO,"无双轨和兼容适配器","git diff --check",,0,
-7,运行模块验证并提交 T02,TODO,"定向测试通过且提交纯净","git diff --cached --check",,0,
+1,审计现有 Working 与动作裁决链,DONE,"依赖和替换清单写入 PROGRESS","rg -n 'WorkingMemory|ProbeGap|completeDimensionEarly|AgentResponseType' app/src/main/java/interview/guide/modules/interview/agent/adaptive",2026-08-28 06:06,0,"旧临时 Working、计划运行态、模型结束建议和 Episode Prompt 注入均已定位并删除"
+2,实现 WorkState 与 Typed Patch Reducer,DONE,"Patch 不可变且 reducer 确定性测试通过","timeout 60s ./gradlew :app:test --no-daemon --console=plain --tests '*WorkState*'",2026-08-28 06:06,0,"Reducer 与 revision/source 幂等测试通过"
+3,实现 NextActionPolicy,DONE,"ASK/CALL_TOOL/SWITCH_TARGET/FINISH 分支测试通过","timeout 60s ./gradlew :app:test --no-daemon --console=plain --tests '*NextActionPolicy*'",2026-08-28 06:06,0,"固定优先级策略测试通过"
+4,实现 WorkState 持久化与初始化,DONE,"state/version 可重读且更新受乐观锁保护","timeout 60s ./gradlew :app:test --no-daemon --console=plain --tests '*WorkStatePersistence*'",2026-08-28 06:06,0,"PostgreSQL 聚合与 Patch 日志集成测试通过"
+5,接入回答评估工具结果和动作完成 Patch,DONE,"三个事件边界均通过 application 短事务写 Patch","timeout 60s ./gradlew :app:test --no-daemon --console=plain --tests '*WorkingMemoryApplication*'",2026-08-28 06:06,0,"由 AssessmentWorkStatePlannerTest 与 AdaptiveInterviewWorkStateIntegrationTest 替代旧测试"
+6,删除旧临时 Working 路径,DONE,"无双轨和兼容适配器","git diff --check",2026-08-28 06:06,0,"删除 WorkingMemorySnapshot、旧 selector/source 及失效投影"
+7,运行模块验证并提交 T02,DONE,"定向测试通过且提交纯净","git diff --cached --check",2026-08-28 06:06,0,"commit 29100db；架构隔离、定向测试与测试编译通过"
