@@ -1,12 +1,15 @@
 package interview.guide.modules.interview.agent.adaptive.api;
 
+import static interview.guide.modules.interview.agent.adaptive.support.AdaptiveTestFixtures.EVALUATION_SETTINGS;
+import static interview.guide.modules.interview.agent.adaptive.support.AdaptiveTestFixtures.testDimension;
+
+import interview.guide.modules.interview.agent.adaptive.core.context.DepthLevel;
 import interview.guide.modules.interview.agent.adaptive.core.session.AdaptiveInterviewHistory;
 import interview.guide.modules.interview.agent.adaptive.core.session.AdaptiveInterviewSession;
 import interview.guide.modules.interview.agent.adaptive.core.session.AdaptiveInterviewTurn;
 import interview.guide.modules.interview.agent.adaptive.core.session.AdaptiveSessionStatus;
 import interview.guide.modules.interview.agent.adaptive.planning.InterviewPlan;
-import interview.guide.modules.interview.agent.adaptive.planning.PlanDimensionStatus;
-import interview.guide.modules.interview.agent.adaptive.planning.PlannedDimension;
+import interview.guide.modules.interview.agent.adaptive.planning.DimensionProposal;
 import interview.guide.modules.interview.agent.adaptive.planning.PlannedInterview;
 import java.util.List;
 import org.junit.jupiter.api.DisplayName;
@@ -25,7 +28,8 @@ class AdaptiveInterviewResponseTest {
             AdaptiveInterviewSession.RUNTIME_VERSION,
             AdaptiveSessionStatus.IN_PROGRESS,
             1,
-            6
+            6,
+            EVALUATION_SETTINGS
         ),
         "candidate-1",
         "JD",
@@ -46,18 +50,14 @@ class AdaptiveInterviewResponseTest {
     PlannedInterview interview = new PlannedInterview(
         history,
         new InterviewPlan("session-1", 6, List.of(
-            new PlannedDimension(
-                0,
+            testDimension(new DimensionProposal(
                 "专业基础",
                 "缓存与并发",
                 "REDIS",
                 2,
                 List.of(),
-                "java-backend",
-                2,
-                0,
-                PlanDimensionStatus.IN_PROGRESS
-            )
+                "java-backend"
+            ), 0, 0)
         )),
         List.of()
     );
@@ -65,11 +65,16 @@ class AdaptiveInterviewResponseTest {
     AdaptiveInterviewResponse response = AdaptiveInterviewResponse.from(interview);
 
     assertThat(response.currentQuestion()).isEqualTo("第一题？");
+    assertThat(response.mode()).isEqualTo(EVALUATION_SETTINGS.mode());
+    assertThat(response.candidateLevel()).isEqualTo(EVALUATION_SETTINGS.candidateLevel());
+    assertThat(response.practiceScope()).isEmpty();
     assertThat(response.turns()).containsExactly(
         new AdaptiveInterviewTurnResponse(1, 0, "第一题？", null)
     );
     assertThat(response.dimensions()).extracting(AdaptiveInterviewDimensionResponse::dimension)
         .containsExactly("专业基础");
+    assertThat(response.dimensions().getFirst().expectedDepth()).isEqualTo(DepthLevel.L2);
+    assertThat(response.dimensions().getFirst().depthCeiling()).isEqualTo(DepthLevel.L3);
   }
 
   @Test
@@ -82,7 +87,8 @@ class AdaptiveInterviewResponseTest {
                 AdaptiveInterviewSession.RUNTIME_VERSION,
                 AdaptiveSessionStatus.CREATED,
                 0,
-                6
+                6,
+                EVALUATION_SETTINGS
             ),
             "candidate-1",
             "JD",

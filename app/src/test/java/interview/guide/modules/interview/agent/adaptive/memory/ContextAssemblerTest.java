@@ -3,18 +3,17 @@ package interview.guide.modules.interview.agent.adaptive.memory;
 import interview.guide.modules.interview.agent.adaptive.core.session.AdaptiveInterviewTurn;
 import interview.guide.modules.interview.agent.adaptive.core.action.AgentResponseType;
 import interview.guide.modules.interview.agent.adaptive.core.event.CandidateAnswer;
-import interview.guide.modules.interview.agent.adaptive.core.context.CoveredTopic;
 import interview.guide.modules.interview.agent.adaptive.core.context.DepthLevel;
 import interview.guide.modules.interview.agent.adaptive.core.context.EpisodePromptFact;
 import interview.guide.modules.interview.agent.adaptive.core.context.InterviewerContext;
 import interview.guide.modules.interview.agent.adaptive.core.context.PlannerContext;
 import interview.guide.modules.interview.agent.adaptive.core.context.ProbeGap;
 import interview.guide.modules.interview.agent.adaptive.core.context.PlanningSkill;
-import interview.guide.modules.interview.agent.adaptive.core.context.UnverifiedClaim;
-import interview.guide.modules.interview.agent.adaptive.core.context.CandidateClaimType;
 import interview.guide.modules.interview.agent.adaptive.core.context.TopicKey;
 import interview.guide.modules.interview.agent.adaptive.core.context.WorkingMemorySnapshot;
 import interview.guide.modules.interview.agent.adaptive.core.session.TurnTriggerType;
+import interview.guide.modules.interview.agent.adaptive.core.session.CandidateLevel;
+import interview.guide.modules.interview.agent.adaptive.core.session.SessionMode;
 import java.time.LocalDateTime;
 import java.util.List;
 import org.junit.jupiter.api.DisplayName;
@@ -27,22 +26,18 @@ class ContextAssemblerTest {
   private final ContextAssembler assembler = new ContextAssembler();
 
   @Test
-  @DisplayName("规划上下文包含职位事实、稳定技能目录和已覆盖主题")
+  @DisplayName("规划上下文只包含本次会话输入和稳定技能目录")
   void shouldExposeGovernedPlanningInputsToPlanner() {
-    List<CoveredTopic> topics = List.of(new CoveredTopic("java-backend", "REDIS"));
     List<PlanningSkill> skills = List.of(new PlanningSkill(
         "java-backend",
         List.of("JAVA", "REDIS")
     ));
-    List<UnverifiedClaim> claims = List.of(new UnverifiedClaim(
-        CandidateClaimType.PROJECT_EXPERIENCE,
-        "java-backend",
-        "REDIS"
+    PlannerContext context = assembler.planner(new PlannerContext(
+        "JD", "Resume", SessionMode.EVALUATION, CandidateLevel.CAMPUS, List.of(), skills
     ));
-    PlannerContext context = assembler.planner("JD", "Resume", topics, claims, skills);
 
     assertThat(context).isEqualTo(new PlannerContext(
-        "JD", "Resume", topics, claims, skills
+        "JD", "Resume", SessionMode.EVALUATION, CandidateLevel.CAMPUS, List.of(), skills
     ));
   }
 
@@ -164,9 +159,14 @@ class ContextAssemblerTest {
     String longJd = "岗位要求：熟悉分布式系统。".repeat(800);
     String shortResume = "三行简历";
 
-    PlannerContext plannerContext = assembler.planner(
-        longJd, longJd, List.of(), List.of(), List.of()
-    );
+    PlannerContext plannerContext = assembler.planner(new PlannerContext(
+        longJd,
+        longJd,
+        SessionMode.EVALUATION,
+        CandidateLevel.CAMPUS,
+        List.of(),
+        List.of()
+    ));
     InterviewerContext interviewerContext = assembler.interviewer(new InterviewerContextInput(
         longJd, shortResume, 6, 0, "专业基础", "缓存与并发",
         List.of(), "java-backend", List.of(), null,

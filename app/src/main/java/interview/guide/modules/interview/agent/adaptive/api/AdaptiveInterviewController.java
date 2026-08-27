@@ -67,12 +67,13 @@ public class AdaptiveInterviewController {
       @Valid @RequestBody CreateAdaptiveInterviewRequest request
   ) {
     return Result.success(AdaptiveInterviewResponse.from(
-        applicationService.createForCandidate(
+        applicationService.createForCandidate(new CandidateInterviewCreationCommand(
             principal.candidateId(),
             request.jd(),
             request.resume(),
-            request.providerId()
-        )
+            request.providerId(),
+            request.settings()
+        ))
     ));
   }
 
@@ -89,7 +90,8 @@ public class AdaptiveInterviewController {
             principal.candidateId(),
             request.jd(),
             request.resume(),
-            request.providerId()
+            request.providerId(),
+            request.settings()
         ),
         new SseInterviewCreationEventSink(emitter)
     );

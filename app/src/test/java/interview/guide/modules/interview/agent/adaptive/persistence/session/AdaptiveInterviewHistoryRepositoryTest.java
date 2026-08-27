@@ -1,5 +1,8 @@
 package interview.guide.modules.interview.agent.adaptive.persistence.session;
 
+import static interview.guide.modules.interview.agent.adaptive.support.AdaptiveTestFixtures.EVALUATION_SETTINGS;
+import static interview.guide.modules.interview.agent.adaptive.support.AdaptiveTestFixtures.testSession;
+
 import static org.assertj.core.api.Assertions.assertThat;
 
 import interview.guide.modules.interview.agent.adaptive.core.session.AdaptiveInterviewSession;
@@ -65,7 +68,7 @@ class AdaptiveInterviewHistoryRepositoryTest {
       String tenantId
   ) {
     return new AdaptiveAgentSessionEntity(
-        AdaptiveInterviewSession.create(sessionId, 4),
+        testSession(sessionId, 4),
         new AdaptiveSessionCreation(
             tenantId,
             sessionId,
@@ -74,7 +77,8 @@ class AdaptiveInterviewHistoryRepositoryTest {
             "Resume",
             null,
             null,
-            null
+            null,
+            EVALUATION_SETTINGS
         )
     );
   }

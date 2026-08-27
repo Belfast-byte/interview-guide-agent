@@ -1,9 +1,12 @@
 package interview.guide.modules.interview.agent.adaptive.persistence.plan;
 
+import interview.guide.modules.interview.agent.adaptive.core.context.CapabilityTarget;
+import interview.guide.modules.interview.agent.adaptive.core.context.DepthLevel;
 import interview.guide.modules.interview.agent.adaptive.core.context.TopicKey;
 import interview.guide.modules.interview.agent.adaptive.planning.PlanDimensionStatus;
 import interview.guide.modules.interview.agent.adaptive.planning.PlannedDimension;
 import jakarta.persistence.Column;
+import jakarta.persistence.Convert;
 import jakarta.persistence.Entity;
 import jakarta.persistence.EnumType;
 import jakarta.persistence.Enumerated;
@@ -61,6 +64,24 @@ public class AdaptiveAgentPlanEntity {
   @Column(name = "allocated_turns", nullable = false)
   private int allocatedTurns;
 
+  @Enumerated(EnumType.STRING)
+  @Column(name = "expected_depth", nullable = false, length = 8)
+  private DepthLevel expectedDepth;
+
+  @Enumerated(EnumType.STRING)
+  @Column(name = "depth_ceiling", nullable = false, length = 8)
+  private DepthLevel depthCeiling;
+
+  @Column(name = "follow_up_budget", nullable = false)
+  private int followUpBudget;
+
+  @Column(name = "tool_budget", nullable = false)
+  private int toolBudget;
+
+  @Convert(converter = EvidenceObjectivesJsonConverter.class)
+  @Column(name = "evidence_objectives_json", nullable = false, columnDefinition = "TEXT")
+  private List<CapabilityTarget.EvidenceObjective> evidenceObjectives;
+
   @Column(name = "completed_turns", nullable = false)
   private int completedTurns;
 
@@ -83,14 +104,23 @@ public class AdaptiveAgentPlanEntity {
 
   public PlannedDimension toDomain() {
     return new PlannedDimension(
-        dimensionOrder,
-        dimension,
-        focus,
-        focusId,
-        suggestedTurns,
-        suggestedTools.isBlank() ? List.of() : List.of(suggestedTools.split(",")),
-        suggestedSkill,
-        allocatedTurns,
+        new CapabilityTarget(
+            new CapabilityTarget.Identity(
+                dimensionOrder,
+                dimension,
+                focus,
+                new TopicKey(suggestedSkill, focusId)
+            ),
+            new CapabilityTarget.Budget(
+                suggestedTurns,
+                allocatedTurns,
+                followUpBudget,
+                toolBudget
+            ),
+            new CapabilityTarget.Depth(expectedDepth, depthCeiling),
+            evidenceObjectives,
+            suggestedTools.isBlank() ? List.of() : List.of(suggestedTools.split(","))
+        ),
         completedTurns,
         status
     );
@@ -105,6 +135,11 @@ public class AdaptiveAgentPlanEntity {
     suggestedTools = String.join(",", plannedDimension.suggestedTools());
     suggestedSkill = plannedDimension.suggestedSkill();
     allocatedTurns = plannedDimension.allocatedTurns();
+    expectedDepth = plannedDimension.expectedDepth();
+    depthCeiling = plannedDimension.depthCeiling();
+    followUpBudget = plannedDimension.followUpBudget();
+    toolBudget = plannedDimension.toolBudget();
+    evidenceObjectives = plannedDimension.evidenceObjectives();
     completedTurns = plannedDimension.completedTurns();
     status = plannedDimension.status();
   }

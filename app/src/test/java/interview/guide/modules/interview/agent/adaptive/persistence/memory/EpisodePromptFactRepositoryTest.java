@@ -1,5 +1,7 @@
 package interview.guide.modules.interview.agent.adaptive.persistence.memory;
 
+import static interview.guide.modules.interview.agent.adaptive.support.AdaptiveTestFixtures.EVALUATION_SETTINGS;
+
 import static org.assertj.core.api.Assertions.assertThat;
 
 import interview.guide.modules.interview.agent.adaptive.assessment.depth.AssessmentDecision;
@@ -263,7 +265,8 @@ class EpisodePromptFactRepositoryTest {
             AdaptiveInterviewSession.RUNTIME_VERSION,
             status,
             1,
-            1
+            1,
+            EVALUATION_SETTINGS
         ),
         new AdaptiveSessionCreation(
             owner.tenantId(),
@@ -273,7 +276,8 @@ class EpisodePromptFactRepositoryTest {
             "Resume",
             null,
             null,
-            null
+            null,
+            EVALUATION_SETTINGS
         )
     ));
   }

@@ -1,11 +1,13 @@
 package interview.guide.modules.interview.agent.adaptive.memory.claim;
 
+import static interview.guide.modules.interview.agent.adaptive.support.AdaptiveTestFixtures.testDimension;
+
 import interview.guide.common.exception.BusinessException;
 import interview.guide.modules.interview.agent.adaptive.core.session.AdaptiveInterviewTurn;
+import interview.guide.modules.interview.agent.adaptive.planning.DimensionProposal;
 import interview.guide.modules.interview.agent.adaptive.core.event.CandidateAnswer;
 import interview.guide.modules.interview.agent.adaptive.core.context.CandidateClaimType;
 import interview.guide.modules.interview.agent.adaptive.core.context.PlanningSkill;
-import interview.guide.modules.interview.agent.adaptive.planning.PlanDimensionStatus;
 import interview.guide.modules.interview.agent.adaptive.planning.PlannedDimension;
 import java.util.List;
 import org.junit.jupiter.api.DisplayName;
@@ -96,18 +98,14 @@ class CandidateClaimExtractionServiceTest {
   }
 
   private PlannedDimension dimension() {
-    return new PlannedDimension(
-        0,
+    return testDimension(new DimensionProposal(
         "缓存能力",
         "Redis 项目实践",
         "REDIS",
         1,
         List.of(),
-        "java-backend",
-        1,
-        0,
-        PlanDimensionStatus.IN_PROGRESS
-    );
+        "java-backend"
+    ), 0, 0);
   }
 
   private List<AdaptiveInterviewTurn> turns() {

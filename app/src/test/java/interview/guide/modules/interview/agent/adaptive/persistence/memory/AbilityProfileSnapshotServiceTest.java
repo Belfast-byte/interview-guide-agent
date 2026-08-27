@@ -1,5 +1,8 @@
 package interview.guide.modules.interview.agent.adaptive.persistence.memory;
 
+import static interview.guide.modules.interview.agent.adaptive.support.AdaptiveTestFixtures.EVALUATION_SETTINGS;
+import static interview.guide.modules.interview.agent.adaptive.support.AdaptiveTestFixtures.testDimension;
+
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.Mockito.clearInvocations;
 import static org.mockito.Mockito.times;
@@ -15,8 +18,7 @@ import interview.guide.modules.interview.agent.adaptive.memory.semantic.Semantic
 import interview.guide.modules.interview.agent.adaptive.persistence.plan.AdaptiveAgentPlanEntity;
 import interview.guide.modules.interview.agent.adaptive.persistence.session.AdaptiveAgentSessionEntity;
 import interview.guide.modules.interview.agent.adaptive.persistence.session.AdaptiveSessionCreation;
-import interview.guide.modules.interview.agent.adaptive.planning.PlanDimensionStatus;
-import interview.guide.modules.interview.agent.adaptive.planning.PlannedDimension;
+import interview.guide.modules.interview.agent.adaptive.planning.DimensionProposal;
 import java.util.List;
 import java.util.Set;
 import org.junit.jupiter.api.DisplayName;
@@ -180,7 +182,8 @@ class AbilityProfileSnapshotServiceTest {
             AdaptiveInterviewSession.RUNTIME_VERSION,
             AdaptiveSessionStatus.COMPLETED,
             FIRST_TURN,
-            FIRST_TURN
+            FIRST_TURN,
+            EVALUATION_SETTINGS
         ),
         new AdaptiveSessionCreation(
             owner.tenantId(),
@@ -190,23 +193,20 @@ class AbilityProfileSnapshotServiceTest {
             "Resume",
             null,
             null,
-            null
+            null,
+            EVALUATION_SETTINGS
         )
     );
   }
 
   private AdaptiveAgentPlanEntity plan(String sessionId, TopicKey topic) {
-    return new AdaptiveAgentPlanEntity(sessionId, new PlannedDimension(
-        FIRST_DIMENSION,
+    return new AdaptiveAgentPlanEntity(sessionId, testDimension(new DimensionProposal(
         topic.focusId(),
         topic.focusId(),
         topic.focusId(),
         FIRST_TURN,
         List.of(),
-        topic.skillId(),
-        FIRST_TURN,
-        FIRST_TURN,
-        PlanDimensionStatus.COMPLETED
-    ));
+        topic.skillId()
+    ), FIRST_DIMENSION, FIRST_TURN));
   }
 }

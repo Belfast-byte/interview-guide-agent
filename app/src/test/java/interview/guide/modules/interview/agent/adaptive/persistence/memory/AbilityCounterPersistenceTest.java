@@ -1,5 +1,9 @@
 package interview.guide.modules.interview.agent.adaptive.persistence.memory;
 
+import static interview.guide.modules.interview.agent.adaptive.support.AdaptiveTestFixtures.EVALUATION_SETTINGS;
+import static interview.guide.modules.interview.agent.adaptive.support.AdaptiveTestFixtures.testPlan;
+import static interview.guide.modules.interview.agent.adaptive.support.AdaptiveTestFixtures.testSession;
+
 import static org.assertj.core.api.Assertions.assertThat;
 
 import interview.guide.modules.interview.agent.adaptive.assessment.depth.AssessmentDecision;
@@ -67,7 +71,7 @@ class AbilityCounterPersistenceTest {
 
   private AdaptiveAgentSessionEntity session(String sessionId) {
     return new AdaptiveAgentSessionEntity(
-        AdaptiveInterviewSession.create(sessionId, 2),
+        testSession(sessionId, 2),
         new AdaptiveSessionCreation(
             null,
             sessionId,
@@ -76,7 +80,8 @@ class AbilityCounterPersistenceTest {
             "Resume",
             null,
             null,
-            null
+            null,
+            EVALUATION_SETTINGS
         )
     );
   }
@@ -94,7 +99,7 @@ class AbilityCounterPersistenceTest {
   }
 
   private PlannedDimension dimension(String sessionId) {
-    return InterviewPlan.decide(sessionId, new PlanProposal(List.of(
+    return testPlan(sessionId, new PlanProposal(List.of(
         new DimensionProposal(
             "专业基础",
             "缓存一致性",

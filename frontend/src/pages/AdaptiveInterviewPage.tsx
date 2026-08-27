@@ -21,6 +21,7 @@ import { Link, useNavigate, useParams } from 'react-router-dom';
 import { adaptiveInterviewApi } from '../api/adaptiveInterview';
 import { candidateProviderApi } from '../api/candidateProvider';
 import { getErrorMessage } from '../api/request';
+import { skillApi, type SkillDTO } from '../api/skill';
 import { ROUTES } from '../constants/routes';
 import { ADAPTIVE_INTERVIEW_TEST_SAMPLE } from './adaptiveInterviewTestSample';
 import { extractPartialContent } from './adaptiveInterviewStream';
@@ -33,6 +34,8 @@ import type {
   SandboxLanguage,
   SandboxRunMode,
   ToolResultFollowUp,
+  AdaptiveSessionMode,
+  CandidateLevel,
 } from '../types/adaptiveInterview';
 import type { CandidateProvider } from '../types/candidateProvider';
 
@@ -53,6 +56,11 @@ export default function AdaptiveInterviewPage() {
   const [jd, setJd] = useState('');
   const [resume, setResume] = useState('');
   const [providerId, setProviderId] = useState('');
+  const [mode, setMode] = useState<AdaptiveSessionMode>('EVALUATION');
+  const [candidateLevel, setCandidateLevel] = useState<CandidateLevel>('CAMPUS');
+  const [skills, setSkills] = useState<SkillDTO[]>([]);
+  const [practiceSkillId, setPracticeSkillId] = useState('');
+  const [practiceFocusId, setPracticeFocusId] = useState('');
   const [providers, setProviders] = useState<CandidateProvider[]>([]);
   const [providersLoading, setProvidersLoading] = useState(!sessionId);
   const [providerError, setProviderError] = useState('');
@@ -116,11 +124,12 @@ export default function AdaptiveInterviewPage() {
     let cancelled = false;
     setProvidersLoading(true);
     setProviderError('');
-    candidateProviderApi.list()
-      .then(items => {
+    Promise.all([candidateProviderApi.list(), skillApi.listSkills()])
+      .then(([items, loadedSkills]) => {
         if (cancelled) return;
         setProviders(items);
         setProviderId(items.find(item => item.defaultChatProvider)?.id ?? '');
+        setSkills(loadedSkills);
       })
       .catch(requestError => {
         if (!cancelled) setProviderError(getErrorMessage(requestError));
@@ -191,9 +200,18 @@ export default function AdaptiveInterviewPage() {
       jd: jd.trim(),
       resume: resume.trim(),
       ...(providerId ? { providerId } : {}),
+      mode,
+      candidateLevel,
+      practiceScope: mode === 'PRACTICE'
+        ? [{ skillId: practiceSkillId, focusId: practiceFocusId }]
+        : [],
     };
     if (!request.jd || !request.resume) {
       setError('请填写职位描述和简历内容。');
+      return;
+    }
+    if (mode === 'PRACTICE' && (!practiceSkillId || !practiceFocusId)) {
+      setError('练习模式请选择技能和考察重点。');
       return;
     }
 
@@ -370,6 +388,11 @@ export default function AdaptiveInterviewPage() {
         jd={jd}
         resume={resume}
         providerId={providerId}
+        mode={mode}
+        candidateLevel={candidateLevel}
+        skills={skills}
+        practiceSkillId={practiceSkillId}
+        practiceFocusId={practiceFocusId}
         providers={providers}
         providersLoading={providersLoading}
         providerError={providerError}
@@ -379,6 +402,13 @@ export default function AdaptiveInterviewPage() {
         onJdChange={setJd}
         onResumeChange={setResume}
         onProviderChange={setProviderId}
+        onModeChange={setMode}
+        onCandidateLevelChange={setCandidateLevel}
+        onPracticeSkillChange={value => {
+          setPracticeSkillId(value);
+          setPracticeFocusId('');
+        }}
+        onPracticeFocusChange={setPracticeFocusId}
         onFillSample={() => {
           setJd(ADAPTIVE_INTERVIEW_TEST_SAMPLE.jd);
           setResume(ADAPTIVE_INTERVIEW_TEST_SAMPLE.resume);
@@ -695,6 +725,11 @@ interface SetupViewProps {
   jd: string;
   resume: string;
   providerId: string;
+  mode: AdaptiveSessionMode;
+  candidateLevel: CandidateLevel;
+  skills: SkillDTO[];
+  practiceSkillId: string;
+  practiceFocusId: string;
   providers: CandidateProvider[];
   providersLoading: boolean;
   providerError: string;
@@ -704,6 +739,10 @@ interface SetupViewProps {
   onJdChange: (value: string) => void;
   onResumeChange: (value: string) => void;
   onProviderChange: (value: string) => void;
+  onModeChange: (value: AdaptiveSessionMode) => void;
+  onCandidateLevelChange: (value: CandidateLevel) => void;
+  onPracticeSkillChange: (value: string) => void;
+  onPracticeFocusChange: (value: string) => void;
   onFillSample: () => void;
   onCreate: () => void;
   onRetry: () => void;
@@ -711,6 +750,9 @@ interface SetupViewProps {
 
 function SetupView(props: SetupViewProps) {
   const hasDefaultProvider = props.providers.some(provider => provider.defaultChatProvider);
+  const practiceSkill = props.skills.find(skill => skill.id === props.practiceSkillId);
+  const practiceReady = props.mode === 'EVALUATION'
+    || Boolean(props.practiceSkillId && props.practiceFocusId);
   return (
     <div className="mx-auto max-w-6xl pb-12">
       <header className="relative mb-6 overflow-hidden rounded-3xl border border-primary-100 bg-white/90 px-6 py-9 shadow-xl shadow-primary-100/40 dark:border-primary-900/50 dark:bg-slate-800/85 dark:shadow-slate-950/20 sm:px-9">
@@ -738,6 +780,62 @@ function SetupView(props: SetupViewProps) {
         <SampleFillToolbar disabled={props.working} onFill={props.onFillSample} />
         <div className="grid gap-6 p-6 sm:p-8 lg:grid-cols-2">
           <div className="space-y-5">
+            <div className="grid gap-4 sm:grid-cols-2">
+              <label className="block text-sm font-semibold text-slate-800 dark:text-slate-100">
+                面试模式
+                <select
+                  value={props.mode}
+                  onChange={event => props.onModeChange(event.target.value as AdaptiveSessionMode)}
+                  className="dark-input mt-2 w-full rounded-xl px-3 py-3"
+                >
+                  <option value="EVALUATION">正式评估</option>
+                  <option value="PRACTICE">针对练习</option>
+                </select>
+              </label>
+              <label className="block text-sm font-semibold text-slate-800 dark:text-slate-100">
+                候选人阶段
+                <select
+                  value={props.candidateLevel}
+                  onChange={event => props.onCandidateLevelChange(event.target.value as CandidateLevel)}
+                  className="dark-input mt-2 w-full rounded-xl px-3 py-3"
+                >
+                  <option value="INTERN">实习</option>
+                  <option value="CAMPUS">校招</option>
+                  <option value="EXPERIENCED">社招</option>
+                </select>
+              </label>
+            </div>
+            {props.mode === 'PRACTICE' && (
+              <div className="grid gap-4 sm:grid-cols-2">
+                <label className="block text-sm font-semibold text-slate-800 dark:text-slate-100">
+                  练习技能
+                  <select
+                    value={props.practiceSkillId}
+                    onChange={event => props.onPracticeSkillChange(event.target.value)}
+                    className="dark-input mt-2 w-full rounded-xl px-3 py-3"
+                  >
+                    <option value="">请选择技能</option>
+                    {props.skills.map(skill => (
+                      <option key={skill.id} value={skill.id}>{skill.name}</option>
+                    ))}
+                  </select>
+                </label>
+                <label className="block text-sm font-semibold text-slate-800 dark:text-slate-100">
+                  考察重点
+                  <select
+                    value={props.practiceFocusId}
+                    onChange={event => props.onPracticeFocusChange(event.target.value)}
+                    disabled={!practiceSkill}
+                    className="dark-input mt-2 w-full rounded-xl px-3 py-3"
+                  >
+                    <option value="">请选择重点</option>
+                    {practiceSkill?.categories.map(category => (
+                      <option key={category.key} value={category.key}>{category.label}</option>
+                    ))}
+                  </select>
+                </label>
+              </div>
+            )}
             <label className="block text-sm font-semibold text-slate-800 dark:text-slate-100">
               文本 Provider
               <select
@@ -760,7 +858,7 @@ function SetupView(props: SetupViewProps) {
           <button
             type="button"
             onClick={props.onCreate}
-            disabled={props.working || props.providersLoading || !hasDefaultProvider || !props.providerId || !props.jd.trim() || !props.resume.trim()}
+            disabled={props.working || props.providersLoading || !hasDefaultProvider || !props.providerId || !props.jd.trim() || !props.resume.trim() || !practiceReady}
             className="btn-primary inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-xl px-6 py-3 text-sm disabled:cursor-not-allowed disabled:opacity-50"
           >
             {props.working ? <Loader2 className="h-4 w-4 animate-spin" /> : <BrainCircuit className="h-4 w-4" />}

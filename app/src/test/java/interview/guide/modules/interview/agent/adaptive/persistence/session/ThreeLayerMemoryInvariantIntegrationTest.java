@@ -1,5 +1,8 @@
 package interview.guide.modules.interview.agent.adaptive.persistence.session;
 
+import static interview.guide.modules.interview.agent.adaptive.support.AdaptiveTestFixtures.EVALUATION_SETTINGS;
+import static interview.guide.modules.interview.agent.adaptive.support.AdaptiveTestFixtures.testPlan;
+
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
@@ -200,7 +203,8 @@ class ThreeLayerMemoryInvariantIntegrationTest {
         "Resume",
         null,
         "provider-a",
-        null
+        null,
+        EVALUATION_SETTINGS
     ));
     service.completeCreation(
         SESSION_ID,
@@ -269,7 +273,7 @@ class ThreeLayerMemoryInvariantIntegrationTest {
   }
 
   private InterviewPlan plan() {
-    return InterviewPlan.decide(SESSION_ID, new PlanProposal(List.of(
+    return testPlan(SESSION_ID, new PlanProposal(List.of(
         new DimensionProposal(
             "专业基础",
             "缓存一致性",

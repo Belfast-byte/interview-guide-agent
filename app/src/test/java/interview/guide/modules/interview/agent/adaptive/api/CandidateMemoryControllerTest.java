@@ -1,5 +1,7 @@
 package interview.guide.modules.interview.agent.adaptive.api;
 
+import static interview.guide.modules.interview.agent.adaptive.support.AdaptiveTestFixtures.EVALUATION_SETTINGS;
+
 import static org.assertj.core.api.Assertions.assertThat;
 
 import interview.guide.common.security.AuthenticatedUser;
@@ -228,10 +230,12 @@ class CandidateMemoryControllerTest {
             AdaptiveInterviewSession.RUNTIME_VERSION,
             AdaptiveSessionStatus.COMPLETED,
             1,
-            2
+            2,
+            EVALUATION_SETTINGS
         ),
         new AdaptiveSessionCreation(
-            owner.tenantId(), sessionId, owner.candidateId(), "JD", "Resume", null, null, null
+            owner.tenantId(), sessionId, owner.candidateId(), "JD", "Resume", null, null, null,
+            EVALUATION_SETTINGS
         )
     ));
   }

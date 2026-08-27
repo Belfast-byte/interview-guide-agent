@@ -1,12 +1,29 @@
 export type AdaptiveSessionStatus = 'CREATED' | 'IN_PROGRESS' | 'COMPLETED' | 'FAILED';
 export type AdaptiveDimensionStatus = 'PENDING' | 'IN_PROGRESS' | 'COMPLETED';
 export type AdaptiveDepthLevel = 'L0' | 'L1' | 'L2' | 'L3' | 'L4';
+export type AdaptiveSessionMode = 'EVALUATION' | 'PRACTICE';
+export type CandidateLevel = 'INTERN' | 'CAMPUS' | 'EXPERIENCED';
+
+export interface InterviewTopic {
+  skillId: string;
+  focusId: string;
+}
+
+export interface EvidenceObjective {
+  description: string;
+  method: 'CANDIDATE_ANSWER' | 'TOOL_FACT';
+}
 
 export interface AdaptiveInterviewDimension {
   order: number;
   dimension: string;
   focus: string;
   allocatedTurns: number;
+  followUpBudget: number;
+  toolBudget: number;
+  expectedDepth: AdaptiveDepthLevel;
+  depthCeiling: AdaptiveDepthLevel;
+  evidenceObjectives: EvidenceObjective[];
   completedTurns: number;
   status: AdaptiveDimensionStatus;
 }
@@ -24,6 +41,9 @@ export interface AdaptiveInterviewSession {
   status: AdaptiveSessionStatus;
   currentTurn: number;
   maxTurns: number;
+  mode: AdaptiveSessionMode;
+  candidateLevel: CandidateLevel;
+  practiceScope: InterviewTopic[];
   currentQuestion: string | null;
   failureReason: string | null;
   llmProviderName: string | null;
@@ -36,6 +56,9 @@ export interface CreateAdaptiveInterviewRequest {
   jd: string;
   resume: string;
   providerId?: string;
+  mode: AdaptiveSessionMode;
+  candidateLevel: CandidateLevel;
+  practiceScope: InterviewTopic[];
 }
 
 export interface AdaptiveInterviewSummary {

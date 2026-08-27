@@ -1,5 +1,7 @@
 package interview.guide.modules.interview.agent.adaptive.api;
 
+import static interview.guide.modules.interview.agent.adaptive.support.AdaptiveTestFixtures.EVALUATION_SETTINGS;
+
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.Mockito.verify;
@@ -101,7 +103,10 @@ class AdaptiveInterviewControllerTest {
     CreateAdaptiveInterviewRequest request = new CreateAdaptiveInterviewRequest(
         "JD",
         "Resume",
-        "provider-1"
+        "provider-1",
+        EVALUATION_SETTINGS.mode(),
+        EVALUATION_SETTINGS.candidateLevel(),
+        List.of()
     );
 
     assertThat(controller.createStream(principal, request)).isNotNull();
@@ -109,7 +114,8 @@ class AdaptiveInterviewControllerTest {
     verify(applicationService).createForCandidateStreaming(
         argThat((CandidateInterviewCreationCommand command) ->
             command.candidateId().equals(candidateId)
-                && command.requestedProviderId().equals("provider-1")),
+                && command.requestedProviderId().equals("provider-1")
+                && command.settings().equals(EVALUATION_SETTINGS)),
         any(InterviewCreationEventSink.class)
     );
   }

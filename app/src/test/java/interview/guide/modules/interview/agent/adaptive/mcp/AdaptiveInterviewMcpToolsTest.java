@@ -1,8 +1,11 @@
 package interview.guide.modules.interview.agent.adaptive.mcp;
 
+import static interview.guide.modules.interview.agent.adaptive.support.AdaptiveTestFixtures.EVALUATION_SETTINGS;
+
 import interview.guide.common.exception.BusinessException;
 import interview.guide.common.exception.ErrorCode;
 import interview.guide.modules.interview.agent.adaptive.application.AdaptiveInterviewApplicationService;
+import interview.guide.modules.interview.agent.adaptive.application.TenantInterviewCreationCommand;
 import interview.guide.modules.interview.agent.adaptive.assessment.report.AssessmentReportService;
 import interview.guide.modules.interview.agent.adaptive.assessment.report.EnterpriseAssessmentReport;
 import interview.guide.modules.interview.agent.adaptive.core.session.AdaptiveInterviewHistory;
@@ -208,15 +211,23 @@ class AdaptiveInterviewMcpToolsTest {
     McpTenantPrincipal principal = principal(Set.of(McpInterviewScope.INTERVIEW_CREATE));
     when(transportContext.get(McpTenantTransportConfiguration.PRINCIPAL_KEY))
         .thenReturn(principal);
-    when(applicationService.createForTenant("tenant-a", "candidate-a", "JD", "Resume", null))
+    TenantInterviewCreationCommand command = new TenantInterviewCreationCommand(
+        "tenant-a", "candidate-a", "JD", "Resume", null, EVALUATION_SETTINGS
+    );
+    when(applicationService.createForTenant(command))
         .thenReturn(createdSkeleton("session-a"));
 
     McpInterviewStatusResponse response = tools.create(
         context,
-        "candidate-a",
-        "JD",
-        "Resume",
-        null
+        new McpCreateInterviewRequest(
+            "candidate-a",
+            "JD",
+            "Resume",
+            null,
+            EVALUATION_SETTINGS.mode(),
+            EVALUATION_SETTINGS.candidateLevel(),
+            List.of()
+        )
     );
 
     assertThat(response.status()).isEqualTo(AdaptiveSessionStatus.CREATED);
@@ -247,7 +258,8 @@ class AdaptiveInterviewMcpToolsTest {
                 AdaptiveInterviewSession.RUNTIME_VERSION,
                 AdaptiveSessionStatus.CREATED,
                 0,
-                AdaptiveInterviewSession.MAX_TURNS
+                AdaptiveInterviewSession.MAX_TURNS,
+                EVALUATION_SETTINGS
             ),
             "candidate-a",
             "JD",

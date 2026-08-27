@@ -1,13 +1,13 @@
 package interview.guide.modules.interview.agent.adaptive.application;
 
 import interview.guide.modules.interview.agent.adaptive.core.session.InterviewSessionSettings;
-import java.util.UUID;
 
-/** 候选人发起自适应面试所需的创建参数。 */
-public record CandidateInterviewCreationCommand(
-    UUID candidateId,
+/** 租户调用创建面试所需参数。 */
+public record TenantInterviewCreationCommand(
+    String tenantId,
+    String candidateId,
     String jd,
     String resume,
-    String requestedProviderId,
+    String llmProvider,
     InterviewSessionSettings settings
 ) {}

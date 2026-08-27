@@ -1,5 +1,7 @@
 package interview.guide.modules.interview.agent.adaptive.persistence.session;
 
+import interview.guide.modules.interview.agent.adaptive.core.session.InterviewSessionSettings;
+
 public record AdaptiveSessionCreation(
     String tenantId,
     String sessionId,
@@ -8,5 +10,6 @@ public record AdaptiveSessionCreation(
     String resume,
     String llmProviderId,
     String llmProviderNameSnapshot,
-    String llmModelSnapshot
+    String llmModelSnapshot,
+    InterviewSessionSettings settings
 ) {}

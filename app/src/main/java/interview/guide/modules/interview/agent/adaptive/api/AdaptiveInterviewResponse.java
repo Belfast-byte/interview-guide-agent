@@ -1,6 +1,9 @@
 package interview.guide.modules.interview.agent.adaptive.api;
 
+import interview.guide.modules.interview.agent.adaptive.core.context.TopicKey;
 import interview.guide.modules.interview.agent.adaptive.core.session.AdaptiveSessionStatus;
+import interview.guide.modules.interview.agent.adaptive.core.session.CandidateLevel;
+import interview.guide.modules.interview.agent.adaptive.core.session.SessionMode;
 import interview.guide.modules.interview.agent.adaptive.planning.PlannedInterview;
 import java.util.List;
 
@@ -13,6 +16,9 @@ public record AdaptiveInterviewResponse(
     AdaptiveSessionStatus status,
     int currentTurn,
     int maxTurns,
+    SessionMode mode,
+    CandidateLevel candidateLevel,
+    List<TopicKey> practiceScope,
     String currentQuestion,
     String failureReason,
     String llmProviderName,
@@ -33,6 +39,9 @@ public record AdaptiveInterviewResponse(
         history.session().status(),
         history.session().currentTurn(),
         history.session().maxTurns(),
+        history.session().settings().mode(),
+        history.session().settings().candidateLevel(),
+        history.session().settings().practiceScope().topics(),
         currentQuestion,
         history.failureReason(),
         history.llmProviderNameSnapshot(),

@@ -16,11 +16,13 @@ import interview.guide.modules.interview.agent.adaptive.algorithm.evidence.Algor
 import interview.guide.modules.interview.agent.adaptive.codeanalysis.CodeAnalysisInterviewContextService;
 import interview.guide.modules.interview.agent.adaptive.core.session.AdaptiveInterviewHistory;
 import interview.guide.modules.interview.agent.adaptive.core.session.AdaptiveInterviewTurn;
+import interview.guide.modules.interview.agent.adaptive.core.session.InterviewSessionSettings;
 import interview.guide.modules.interview.agent.adaptive.core.session.TurnTriggerType;
 import interview.guide.modules.interview.agent.adaptive.core.event.CandidateAnswer;
 import interview.guide.modules.interview.agent.adaptive.core.action.AgentResponseType;
 import interview.guide.modules.interview.agent.adaptive.core.context.DimensionBrief;
 import interview.guide.modules.interview.agent.adaptive.core.context.MemoryOwner;
+import interview.guide.modules.interview.agent.adaptive.core.context.PlannerContext;
 import interview.guide.modules.interview.agent.adaptive.core.context.ProbeGap;
 import interview.guide.modules.interview.agent.adaptive.core.context.TopicKey;
 import interview.guide.modules.interview.agent.adaptive.core.context.WorkingMemorySnapshot;
@@ -31,7 +33,6 @@ import interview.guide.modules.interview.agent.adaptive.core.session.NextTurnPro
 import interview.guide.modules.interview.agent.adaptive.memory.ContextAssembler;
 import interview.guide.modules.interview.agent.adaptive.memory.InterviewerContextInput;
 import interview.guide.modules.interview.agent.adaptive.memory.ToolResultContextInput;
-import interview.guide.modules.interview.agent.adaptive.memory.profile.CandidateMemoryService;
 import interview.guide.modules.interview.agent.adaptive.memory.episode.EpisodePromptMemoryService;
 import interview.guide.modules.interview.agent.adaptive.memory.claim.CandidateClaim;
 import interview.guide.modules.interview.agent.adaptive.memory.claim.CandidateClaimExtractionService;
@@ -91,7 +92,6 @@ public class AdaptiveInterviewApplicationService {
   private final ContextAssembler contextAssembler;
   private final WorkingMemoryFactSource workingMemoryFactSource;
   private final DimensionBriefService dimensionBriefService;
-  private final CandidateMemoryService candidateMemoryService;
   private final EpisodePromptMemoryService episodePromptMemoryService;
   private final PlanningTaxonomy planningTaxonomy;
   private final CandidateClaimExtractionService candidateClaimExtractionService;
@@ -106,44 +106,8 @@ public class AdaptiveInterviewApplicationService {
   private final AdaptiveInterviewCreationTaskRunner creationExecutor;
   private final AdaptiveInterviewAnswerExecutor answerExecutor;
 
-  /**
-   * 创建一次非租户维度的自适应面试：落 CREATED 骨架后立即返回，规划与首题在后台生成。
-   *
-   * @param candidateId 候选人 ID
-   * @param jd 职位描述
-   * @param resume 候选人简历
-   * @param llmProvider 使用的 LLM 供应商
-   * @return CREATED 骨架会话
-   */
-  PlannedInterview create(
-      String candidateId,
-      String jd,
-      String resume,
-      String llmProvider
-  ) {
-    return create(new InterviewCreationInput(
-        null,
-        candidateId,
-        jd,
-        resume,
-        llmProvider,
-        null,
-        null
-    ));
-  }
-
-  public PlannedInterview createForCandidate(
-      UUID candidateId,
-      String jd,
-      String resume,
-      String requestedProviderId
-  ) {
-    return create(resolveCandidateInput(new CandidateInterviewCreationCommand(
-        candidateId,
-        jd,
-        resume,
-        requestedProviderId
-    )));
+  public PlannedInterview createForCandidate(CandidateInterviewCreationCommand command) {
+    return create(resolveCandidateInput(command));
   }
 
   public PlannedInterview createForCandidateStreaming(
@@ -167,7 +131,8 @@ public class AdaptiveInterviewApplicationService {
         command.resume(),
         provider.id(),
         provider.displayName(),
-        provider.model()
+        provider.model(),
+        command.settings()
     );
   }
 
@@ -181,21 +146,16 @@ public class AdaptiveInterviewApplicationService {
    * @param llmProvider 使用的 LLM 供应商
    * @return CREATED 骨架会话
    */
-  public PlannedInterview createForTenant(
-      String tenantId,
-      String candidateId,
-      String jd,
-      String resume,
-      String llmProvider
-  ) {
+  public PlannedInterview createForTenant(TenantInterviewCreationCommand command) {
     return create(new InterviewCreationInput(
-        tenantId,
-        candidateId,
-        jd,
-        resume,
-        llmProvider,
+        command.tenantId(),
+        command.candidateId(),
+        command.jd(),
+        command.resume(),
+        command.llmProvider(),
         null,
-        null
+        null,
+        command.settings()
     ));
   }
 
@@ -283,22 +243,19 @@ public class AdaptiveInterviewApplicationService {
 
   private InterviewPlan decidePlan(String sessionId, InterviewCreationInput input) {
     PlanProposal proposal = planningAgent.propose(
-        new PlanningRequest(sessionId, contextAssembler.planner(
+        new PlanningRequest(sessionId, contextAssembler.planner(new PlannerContext(
             input.jd(),
             input.resume(),
-            input.tenantId() == null
-                ? candidateMemoryService.coveredTopics(input.candidateId())
-                : candidateMemoryService.coveredTopics(input.tenantId(), input.candidateId()),
-            input.tenantId() == null
-                ? candidateMemoryService.unverifiedClaims(input.candidateId())
-                : candidateMemoryService.unverifiedClaims(input.tenantId(), input.candidateId()),
+            input.settings().mode(),
+            input.settings().candidateLevel(),
+            input.settings().practiceScope().topics(),
             planningTaxonomy.catalog()
-        )),
+        ))),
         input.llmProviderId()
     );
     InterviewPlan plan;
     try {
-      plan = InterviewPlan.decide(sessionId, proposal);
+      plan = InterviewPlan.decide(sessionId, proposal, input.settings());
       planningTaxonomy.validate(plan);
     } catch (BusinessException e) {
       telemetry.planRejected(sessionId, e.getCode());
@@ -329,7 +286,8 @@ public class AdaptiveInterviewApplicationService {
       String resume,
       String llmProviderId,
       String llmProviderNameSnapshot,
-      String llmModelSnapshot
+      String llmModelSnapshot,
+      InterviewSessionSettings settings
   ) {
 
     AdaptiveSessionCreation toSessionCreation(String sessionId) {
@@ -341,7 +299,8 @@ public class AdaptiveInterviewApplicationService {
           resume,
           llmProviderId,
           llmProviderNameSnapshot,
-          llmModelSnapshot
+          llmModelSnapshot,
+          settings
       );
     }
   }

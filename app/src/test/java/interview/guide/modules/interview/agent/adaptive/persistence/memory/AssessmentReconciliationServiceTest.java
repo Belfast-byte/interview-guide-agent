@@ -1,5 +1,8 @@
 package interview.guide.modules.interview.agent.adaptive.persistence.memory;
 
+import static interview.guide.modules.interview.agent.adaptive.support.AdaptiveTestFixtures.EVALUATION_SETTINGS;
+import static interview.guide.modules.interview.agent.adaptive.support.AdaptiveTestFixtures.testPlan;
+
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
@@ -231,7 +234,8 @@ class AssessmentReconciliationServiceTest {
             AdaptiveInterviewSession.RUNTIME_VERSION,
             status,
             1,
-            2
+            2,
+            EVALUATION_SETTINGS
         ),
         new AdaptiveSessionCreation(
             null,
@@ -241,13 +245,14 @@ class AssessmentReconciliationServiceTest {
             "Resume",
             null,
             null,
-            null
+            null,
+            EVALUATION_SETTINGS
         )
     );
   }
 
   private PlannedDimension dimension() {
-    return InterviewPlan.decide(SESSION_ID, new PlanProposal(List.of(
+    return testPlan(SESSION_ID, new PlanProposal(List.of(
         new DimensionProposal(
             "专业基础",
             "缓存一致性",

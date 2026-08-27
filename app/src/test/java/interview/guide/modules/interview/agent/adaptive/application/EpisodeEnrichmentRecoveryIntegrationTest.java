@@ -1,5 +1,7 @@
 package interview.guide.modules.interview.agent.adaptive.application;
 
+import static interview.guide.modules.interview.agent.adaptive.support.AdaptiveTestFixtures.EVALUATION_SETTINGS;
+
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
@@ -160,7 +162,8 @@ class EpisodeEnrichmentRecoveryIntegrationTest {
             AdaptiveInterviewSession.RUNTIME_VERSION,
             AdaptiveSessionStatus.CREATED,
             1,
-            2
+            2,
+            EVALUATION_SETTINGS
         ),
         new AdaptiveSessionCreation(
             null,
@@ -170,7 +173,8 @@ class EpisodeEnrichmentRecoveryIntegrationTest {
             "Resume",
             PROVIDER,
             "Provider",
-            "Model"
+            "Model",
+            EVALUATION_SETTINGS
         )
     ));
   }

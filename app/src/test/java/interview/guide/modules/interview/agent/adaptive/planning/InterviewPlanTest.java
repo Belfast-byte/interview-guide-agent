@@ -1,6 +1,14 @@
 package interview.guide.modules.interview.agent.adaptive.planning;
 
+import static interview.guide.modules.interview.agent.adaptive.support.AdaptiveTestFixtures.testPlan;
+
 import interview.guide.common.exception.BusinessException;
+import interview.guide.modules.interview.agent.adaptive.core.context.DepthLevel;
+import interview.guide.modules.interview.agent.adaptive.core.context.TopicKey;
+import interview.guide.modules.interview.agent.adaptive.core.session.CandidateLevel;
+import interview.guide.modules.interview.agent.adaptive.core.session.InterviewSessionSettings;
+import interview.guide.modules.interview.agent.adaptive.core.session.PracticeScope;
+import interview.guide.modules.interview.agent.adaptive.core.session.SessionMode;
 import java.util.List;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
@@ -18,7 +26,7 @@ class InterviewPlanTest {
     @Test
     @DisplayName("三个维度由代码分配六轮且保持优先级顺序")
     void shouldAllocateTwoTurnsPerDimension() {
-      InterviewPlan plan = InterviewPlan.decide("session-1", proposal(3));
+      InterviewPlan plan = testPlan("session-1", proposal(3));
 
       assertThat(plan.maxTurns()).isEqualTo(6);
       assertThat(plan.dimensions()).extracting(PlannedDimension::allocatedTurns)
@@ -31,7 +39,7 @@ class InterviewPlanTest {
     @Test
     @DisplayName("七个维度不突破十二轮且每个维度至少一轮")
     void shouldCapBudgetAndCoverEveryDimension() {
-      InterviewPlan plan = InterviewPlan.decide("session-1", proposal(7));
+      InterviewPlan plan = testPlan("session-1", proposal(7));
 
       assertThat(plan.maxTurns()).isEqualTo(12);
       assertThat(plan.dimensions()).extracting(PlannedDimension::allocatedTurns)
@@ -42,7 +50,7 @@ class InterviewPlanTest {
     @Test
     @DisplayName("模型建议影响维度预算但不改变总轮次和覆盖保底")
     void shouldNormalizeSuggestedTurnsWithinHardBudget() {
-      InterviewPlan plan = InterviewPlan.decide(
+      InterviewPlan plan = testPlan(
           "session-1",
           new PlanProposal(List.of(
               new DimensionProposal(
@@ -63,6 +71,38 @@ class InterviewPlanTest {
     }
 
     @Test
+    @DisplayName("候选人阶段由代码裁决目标深度与追问预算")
+    void shouldDecideDepthAndFollowUpBudgetFromCandidateLevel() {
+      InterviewSessionSettings settings = new InterviewSessionSettings(
+          SessionMode.EVALUATION,
+          CandidateLevel.EXPERIENCED,
+          PracticeScope.none()
+      );
+
+      PlannedDimension target = InterviewPlan.decide("session-1", proposal(1), settings)
+          .dimensions().getFirst();
+
+      assertThat(target.expectedDepth()).isEqualTo(DepthLevel.L3);
+      assertThat(target.depthCeiling()).isEqualTo(DepthLevel.L4);
+      assertThat(target.followUpBudget()).isEqualTo(3);
+      assertThat(target.evidenceObjectives()).hasSize(1);
+    }
+
+    @Test
+    @DisplayName("练习计划不能越过用户指定主题")
+    void shouldRejectPracticePlanOutsideExplicitScope() {
+      InterviewSessionSettings settings = new InterviewSessionSettings(
+          SessionMode.PRACTICE,
+          CandidateLevel.CAMPUS,
+          new PracticeScope(List.of(new TopicKey("java-backend", "REDIS")))
+      );
+
+      assertThatThrownBy(() -> InterviewPlan.decide("session-1", proposal(1), settings))
+          .isInstanceOf(BusinessException.class)
+          .hasMessageContaining("范围外主题");
+    }
+
+    @Test
     @DisplayName("重复维度被确定性规则拒绝")
     void shouldRejectDuplicateDimension() {
       PlanProposal proposal = new PlanProposal(List.of(
@@ -70,7 +110,7 @@ class InterviewPlanTest {
           dimension(" 专业基础 ")
       ));
 
-      assertThatThrownBy(() -> InterviewPlan.decide("session-1", proposal))
+      assertThatThrownBy(() -> testPlan("session-1", proposal))
           .isInstanceOf(BusinessException.class)
           .hasMessageContaining("重复维度");
     }
@@ -83,7 +123,7 @@ class InterviewPlanTest {
           dimension("项目实践", "java-backend", "REDIS")
       ));
 
-      assertThatThrownBy(() -> InterviewPlan.decide("session-1", proposal))
+      assertThatThrownBy(() -> testPlan("session-1", proposal))
           .isInstanceOf(BusinessException.class)
           .hasMessageContaining("重复主题");
     }
@@ -96,7 +136,7 @@ class InterviewPlanTest {
           dimension("系统缓存", "system-design", "REDIS")
       ));
 
-      assertThat(InterviewPlan.decide("session-1", proposal).dimensions()).hasSize(2);
+      assertThat(testPlan("session-1", proposal).dimensions()).hasSize(2);
     }
 
     @Test
@@ -106,7 +146,7 @@ class InterviewPlanTest {
           dimension("维".repeat(101))
       ));
 
-      assertThatThrownBy(() -> InterviewPlan.decide("session-1", proposal))
+      assertThatThrownBy(() -> testPlan("session-1", proposal))
           .isInstanceOf(BusinessException.class)
           .hasMessageContaining("长度限制");
     }
@@ -115,7 +155,7 @@ class InterviewPlanTest {
   @Test
   @DisplayName("维度预算完成后由代码切换到下一维度")
   void shouldAdvanceDimensionAfterAllocatedTurns() {
-    InterviewPlan plan = InterviewPlan.decide("session-1", proposal(2));
+    InterviewPlan plan = testPlan("session-1", proposal(2));
 
     plan = plan.answer(1);
     assertThat(plan.dimensions()).extracting(PlannedDimension::status)
@@ -137,7 +177,7 @@ class InterviewPlanTest {
     @Test
     @DisplayName("评估建议提前完成时回收未用轮次并补给后续维度")
     void shouldRedistributeRecoveredTurnsToLaterDimensions() {
-      InterviewPlan plan = InterviewPlan.decide("session-1", proposal(3));
+      InterviewPlan plan = testPlan("session-1", proposal(3));
 
       InterviewPlan earlyCompleted = plan.completeDimensionEarly(1);
 
@@ -152,7 +192,7 @@ class InterviewPlanTest {
     @Test
     @DisplayName("提前完成后回答正常完成当前维度并开启下一维度")
     void shouldCompleteDimensionAndStartNextAfterEarlyCompletion() {
-      InterviewPlan plan = InterviewPlan.decide("session-1", proposal(3))
+      InterviewPlan plan = testPlan("session-1", proposal(3))
           .completeDimensionEarly(1);
 
       plan = plan.answer(1);
@@ -168,7 +208,7 @@ class InterviewPlanTest {
     @Test
     @DisplayName("无可回收轮次或没有后续维度时提前完成是空操作")
     void shouldNoopWhenNothingToRecover() {
-      InterviewPlan plan = InterviewPlan.decide("session-1", proposal(2)).answer(1);
+      InterviewPlan plan = testPlan("session-1", proposal(2)).answer(1);
 
       assertThat(plan.completeDimensionEarly(2)).isSameAs(plan);
 

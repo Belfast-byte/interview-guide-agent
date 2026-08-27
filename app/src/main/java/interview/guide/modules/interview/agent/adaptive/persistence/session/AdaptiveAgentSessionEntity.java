@@ -2,7 +2,12 @@ package interview.guide.modules.interview.agent.adaptive.persistence.session;
 
 import interview.guide.modules.interview.agent.adaptive.core.session.AdaptiveInterviewSession;
 import interview.guide.modules.interview.agent.adaptive.core.session.AdaptiveSessionStatus;
+import interview.guide.modules.interview.agent.adaptive.core.session.CandidateLevel;
+import interview.guide.modules.interview.agent.adaptive.core.session.InterviewSessionSettings;
+import interview.guide.modules.interview.agent.adaptive.core.session.PracticeScope;
+import interview.guide.modules.interview.agent.adaptive.core.session.SessionMode;
 import jakarta.persistence.Column;
+import jakarta.persistence.Convert;
 import jakarta.persistence.Entity;
 import jakarta.persistence.EnumType;
 import jakarta.persistence.Enumerated;
@@ -50,6 +55,18 @@ public class AdaptiveAgentSessionEntity {
 
   @Enumerated(EnumType.STRING)
   @Column(nullable = false, length = 20)
+  private SessionMode mode;
+
+  @Enumerated(EnumType.STRING)
+  @Column(name = "candidate_level", nullable = false, length = 20)
+  private CandidateLevel candidateLevel;
+
+  @Convert(converter = PracticeScopeJsonConverter.class)
+  @Column(name = "practice_scope_json", nullable = false, columnDefinition = "TEXT")
+  private PracticeScope practiceScope;
+
+  @Enumerated(EnumType.STRING)
+  @Column(nullable = false, length = 20)
   private AdaptiveSessionStatus status;
 
   @Column(name = "current_turn", nullable = false)
@@ -89,13 +106,23 @@ public class AdaptiveAgentSessionEntity {
     this.llmProvider = creation.llmProviderId();
     this.llmProviderNameSnapshot = creation.llmProviderNameSnapshot();
     this.llmModelSnapshot = creation.llmModelSnapshot();
+    this.mode = session.settings().mode();
+    this.candidateLevel = session.settings().candidateLevel();
+    this.practiceScope = session.settings().practiceScope();
     this.status = session.status();
     this.currentTurn = session.currentTurn();
     this.maxTurns = session.maxTurns();
   }
 
   public AdaptiveInterviewSession toDomain() {
-    return new AdaptiveInterviewSession(id, runtimeVersion, status, currentTurn, maxTurns);
+    return new AdaptiveInterviewSession(
+        id,
+        runtimeVersion,
+        status,
+        currentTurn,
+        maxTurns,
+        new InterviewSessionSettings(mode, candidateLevel, practiceScope)
+    );
   }
 
   public String id() {

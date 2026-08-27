@@ -312,7 +312,8 @@ public class AdaptiveInterviewPersistenceService
         new AdaptiveAgentSessionEntity(
             AdaptiveInterviewSession.create(
                 creation.sessionId(),
-                AdaptiveInterviewSession.MAX_TURNS
+                AdaptiveInterviewSession.MAX_TURNS,
+                creation.settings()
             ),
             creation
         )
@@ -344,7 +345,8 @@ public class AdaptiveInterviewPersistenceService
         started.runtimeVersion(),
         started.status(),
         started.currentTurn(),
-        plan.maxTurns()
+        plan.maxTurns(),
+        started.settings()
     ));
     planRepository.saveAll(plan.dimensions().stream()
         .map(dimension -> new AdaptiveAgentPlanEntity(sessionId, dimension))

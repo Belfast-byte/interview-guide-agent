@@ -1,11 +1,13 @@
 package interview.guide.modules.interview.agent.adaptive.memory.brief;
 
+import static interview.guide.modules.interview.agent.adaptive.support.AdaptiveTestFixtures.testDimension;
+
 import interview.guide.common.exception.BusinessException;
 import interview.guide.modules.interview.agent.adaptive.core.session.AdaptiveInterviewTurn;
+import interview.guide.modules.interview.agent.adaptive.planning.DimensionProposal;
 import interview.guide.modules.interview.agent.adaptive.core.action.AgentResponseType;
 import interview.guide.modules.interview.agent.adaptive.core.event.CandidateAnswer;
 import interview.guide.modules.interview.agent.adaptive.core.context.DimensionBrief;
-import interview.guide.modules.interview.agent.adaptive.planning.PlanDimensionStatus;
 import interview.guide.modules.interview.agent.adaptive.planning.PlannedDimension;
 import java.util.List;
 import java.util.concurrent.atomic.AtomicReference;
@@ -75,18 +77,14 @@ class DimensionBriefServiceTest {
   }
 
   private PlannedDimension dimension() {
-    return new PlannedDimension(
-        0,
+    return testDimension(new DimensionProposal(
         "专业基础",
         "缓存一致性",
         "REDIS",
         2,
         List.of(),
-        "java-backend",
-        2,
-        1,
-        PlanDimensionStatus.IN_PROGRESS
-    );
+        "java-backend"
+    ), 0, 1);
   }
 
   private AdaptiveInterviewTurn turn(

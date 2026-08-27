@@ -3,6 +3,9 @@ CREATE TABLE agent_sessions (
   runtime_version VARCHAR(32) NOT NULL,
   jd TEXT NOT NULL,
   resume TEXT NOT NULL,
+  mode VARCHAR(20) NOT NULL,
+  candidate_level VARCHAR(20) NOT NULL,
+  practice_scope_json TEXT NOT NULL,
   status VARCHAR(20) NOT NULL,
   current_turn INTEGER NOT NULL,
   max_turns INTEGER NOT NULL,
@@ -12,10 +15,19 @@ CREATE TABLE agent_sessions (
   completed_at TIMESTAMP(6),
   CONSTRAINT agent_sessions_status_check
     CHECK (status IN ('CREATED', 'IN_PROGRESS', 'COMPLETED')),
+  CONSTRAINT agent_sessions_mode_check
+    CHECK (mode IN ('EVALUATION', 'PRACTICE')),
+  CONSTRAINT agent_sessions_candidate_level_check
+    CHECK (candidate_level IN ('INTERN', 'CAMPUS', 'EXPERIENCED')),
   CONSTRAINT agent_sessions_turn_bounds_check
     CHECK (current_turn >= 0 AND current_turn <= max_turns),
   CONSTRAINT agent_sessions_max_turns_check
-    CHECK (max_turns BETWEEN 1 AND 12)
+    CHECK (max_turns BETWEEN 1 AND 12),
+  CONSTRAINT agent_sessions_practice_scope_check
+    CHECK (
+      (mode = 'EVALUATION' AND practice_scope_json = '[]')
+      OR (mode = 'PRACTICE' AND practice_scope_json <> '[]')
+    )
 );
 
 CREATE INDEX idx_agent_sessions_status_created

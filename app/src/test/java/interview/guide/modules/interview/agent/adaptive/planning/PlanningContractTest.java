@@ -21,7 +21,7 @@ class PlanningContractTest {
     assertThat(Arrays.stream(PlannerContext.class.getRecordComponents())
         .map(component -> component.getName()))
         .containsExactly(
-            "jd", "resume", "coveredTopics", "unverifiedClaims", "skillCatalog"
+            "jd", "resume", "mode", "candidateLevel", "practiceScope", "skillCatalog"
         );
   }
 

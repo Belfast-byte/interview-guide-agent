@@ -1,5 +1,7 @@
 package interview.guide.modules.interview.agent.adaptive.application;
 
+import static interview.guide.modules.interview.agent.adaptive.support.AdaptiveTestFixtures.testCreation;
+
 import interview.guide.common.exception.BusinessException;
 import interview.guide.common.exception.ErrorCode;
 import interview.guide.modules.interview.agent.adaptive.codeanalysis.CodeAnalysisInterviewContextService;
@@ -109,7 +111,6 @@ class AdaptiveInterviewFlowIntegrationTest {
         new ContextAssembler(),
         workingMemoryFactSource,
         briefService(),
-        candidateMemoryService,
         episodePromptMemoryService(),
         mock(PlanningTaxonomy.class),
         claimService(),
@@ -125,7 +126,7 @@ class AdaptiveInterviewFlowIntegrationTest {
         syncAnswerExecutor()
     );
 
-    PlannedInterview created = service.create("candidate-1", "JD", "Resume", null);
+    PlannedInterview created = service.createForTenant(testCreation("candidate-1"));
     PlannedInterview secondTurn = service.submitAnswer(
         created.history().session().id(),
         new CandidateAnswer(1, "第一轮完整回答")
@@ -188,7 +189,6 @@ class AdaptiveInterviewFlowIntegrationTest {
         new ContextAssembler(),
         workingMemoryFactSource,
         briefService(),
-        candidateMemoryService,
         episodePromptMemoryService(),
         mock(PlanningTaxonomy.class),
         claimService(),
@@ -204,7 +204,7 @@ class AdaptiveInterviewFlowIntegrationTest {
         syncAnswerExecutor()
     );
 
-    PlannedInterview interview = service.create("candidate-1", "JD", "Resume", null);
+    PlannedInterview interview = service.createForTenant(testCreation("candidate-1"));
     for (int turn = 1; turn <= 6; turn++) {
       interview = service.submitAnswer(
           interview.history().session().id(),
@@ -247,7 +247,7 @@ class AdaptiveInterviewFlowIntegrationTest {
         }
     );
 
-    PlannedInterview skeleton = lazyService.create("candidate-async", "JD", "Resume", null);
+    PlannedInterview skeleton = lazyService.createForTenant(testCreation("candidate-async"));
 
     assertThat(skeleton.history().session().status()).isEqualTo(AdaptiveSessionStatus.CREATED);
     assertThat(skeleton.history().turns()).isEmpty();
@@ -257,7 +257,7 @@ class AdaptiveInterviewFlowIntegrationTest {
         (request, provider) -> proposal(1),
         task -> task.run()
     );
-    PlannedInterview returned = syncService.create("candidate-sync", "JD", "Resume", null);
+    PlannedInterview returned = syncService.createForTenant(testCreation("candidate-sync"));
     assertThat(returned.history().session().status()).isEqualTo(AdaptiveSessionStatus.CREATED);
 
     PlannedInterview created = persistenceService.get(returned.history().session().id());
@@ -277,7 +277,7 @@ class AdaptiveInterviewFlowIntegrationTest {
         task -> task.run()
     );
 
-    PlannedInterview skeleton = failingService.create("candidate-fail", "JD", "Resume", null);
+    PlannedInterview skeleton = failingService.createForTenant(testCreation("candidate-fail"));
 
     assertThat(skeleton.history().session().status()).isEqualTo(AdaptiveSessionStatus.CREATED);
     PlannedInterview failed = persistenceService.get(skeleton.history().session().id());
@@ -306,7 +306,6 @@ class AdaptiveInterviewFlowIntegrationTest {
         new ContextAssembler(),
         workingMemoryFactSource,
         briefService(),
-        candidateMemoryService,
         episodePromptMemoryService(),
         mock(PlanningTaxonomy.class),
         claimService(),

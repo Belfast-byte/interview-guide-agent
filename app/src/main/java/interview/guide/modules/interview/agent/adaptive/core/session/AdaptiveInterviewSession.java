@@ -14,7 +14,8 @@ public record AdaptiveInterviewSession(
     String runtimeVersion,
     AdaptiveSessionStatus status,
     int currentTurn,
-    int maxTurns
+    int maxTurns,
+    InterviewSessionSettings settings
 ) {
 
   public static final String RUNTIME_VERSION = "adaptive-agent-v1";
@@ -26,7 +27,11 @@ public record AdaptiveInterviewSession(
 
   public static final int FINISH_MIN_TURN_DIVISOR = 2;
 
-  public static AdaptiveInterviewSession create(String id, int maxTurns) {
+  public static AdaptiveInterviewSession create(
+      String id,
+      int maxTurns,
+      InterviewSessionSettings settings
+  ) {
     if (maxTurns < 1 || maxTurns > MAX_TURNS) {
       throw new BusinessException(ErrorCode.BAD_REQUEST, "面试轮次上限必须在 1 到 12 之间");
     }
@@ -35,7 +40,8 @@ public record AdaptiveInterviewSession(
         RUNTIME_VERSION,
         AdaptiveSessionStatus.CREATED,
         0,
-        maxTurns
+        maxTurns,
+        settings
     );
   }
 
@@ -48,7 +54,8 @@ public record AdaptiveInterviewSession(
         runtimeVersion,
         AdaptiveSessionStatus.IN_PROGRESS,
         1,
-        maxTurns
+        maxTurns,
+        settings
     );
   }
 
@@ -72,7 +79,14 @@ public record AdaptiveInterviewSession(
         : currentTurn;
 
     return new SessionTransition(
-        new AdaptiveInterviewSession(id, runtimeVersion, nextStatus, nextTurn, maxTurns),
+        new AdaptiveInterviewSession(
+            id,
+            runtimeVersion,
+            nextStatus,
+            nextTurn,
+            maxTurns,
+            settings
+        ),
         appliedAction
     );
   }

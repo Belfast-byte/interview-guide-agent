@@ -2,12 +2,9 @@ package interview.guide.modules.interview.agent.adaptive.memory;
 
 import interview.guide.modules.interview.agent.adaptive.core.session.AdaptiveInterviewTurn;
 import interview.guide.modules.interview.agent.adaptive.core.event.CandidateAnswer;
-import interview.guide.modules.interview.agent.adaptive.core.context.CoveredTopic;
 import interview.guide.modules.interview.agent.adaptive.core.context.InterviewerContext;
 import interview.guide.modules.interview.agent.adaptive.core.context.PlannerContext;
-import interview.guide.modules.interview.agent.adaptive.core.context.PlanningSkill;
 import interview.guide.modules.interview.agent.adaptive.core.context.ProbeGap;
-import interview.guide.modules.interview.agent.adaptive.core.context.UnverifiedClaim;
 import interview.guide.modules.interview.agent.adaptive.core.context.WorkingMemorySnapshot;
 import interview.guide.modules.interview.agent.adaptive.core.session.NextTurnProvenanceDraft;
 import interview.guide.modules.interview.agent.adaptive.core.session.TurnTriggerType;
@@ -173,29 +170,15 @@ public class ContextAssembler {
     return depth;
   }
 
-  /**
-   * 组装规划 Agent 所需的上下文。
-   *
-   * @param jd 职位描述
-   * @param resume 候选人简历
-   * @param coveredTopics 已覆盖主题（避免重复出题）
-   * @param unverifiedClaims 待验证声明
-   * @param skillCatalog 可用技能目录
-   * @return 规划上下文
-   */
-  public PlannerContext planner(
-      String jd,
-      String resume,
-      List<CoveredTopic> coveredTopics,
-      List<UnverifiedClaim> unverifiedClaims,
-      List<PlanningSkill> skillCatalog
-  ) {
+  /** 组装规划 Agent 所需的上下文，并裁剪过长的本次文档。 */
+  public PlannerContext planner(PlannerContext input) {
     return new PlannerContext(
-        truncate(jd),
-        truncate(resume),
-        coveredTopics,
-        unverifiedClaims,
-        skillCatalog
+        truncate(input.jd()),
+        truncate(input.resume()),
+        input.mode(),
+        input.candidateLevel(),
+        input.practiceScope(),
+        input.skillCatalog()
     );
   }
 

@@ -40,10 +40,10 @@ class CandidateMemoryFairnessContractTest {
   }
 
   @Test
-  @DisplayName("长期记忆只进入规划上下文且不进入当前维度面试官上下文")
+  @DisplayName("长期记忆不进入正式规划上下文和当前维度面试官上下文")
   void shouldKeepLongTermMemoryOutOfInterviewerContext() {
     assertThat(componentNames(PlannerContext.class))
-        .contains("coveredTopics", "unverifiedClaims");
+        .doesNotContain("coveredTopics", "unverifiedClaims");
     assertThat(componentNames(InterviewerContext.class))
         .doesNotContain("coveredTopics", "unverifiedClaims");
   }

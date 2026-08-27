@@ -1,0 +1,9 @@
+id,task,status,acceptance_criteria,validation_command,completed_at,retry_count,notes
+1,审计创建会话计划持久化和前端链路,DONE,"相关文件和依赖变化清单写入 PROGRESS","rg -n 'CreateAdaptiveInterviewRequest|CandidateInterviewCreationCommand|PlannerContext|PlannedDimension' app/src/main/java frontend/src",2026-08-28 00:05,0,
+2,实现 mode level scope 领域与 API,DONE,"创建请求和 session response 正确往返","timeout 60s ./gradlew :app:test --no-daemon --console=plain --tests '*SessionMode*'",2026-08-28 00:31,0,
+3,实现 Target 深度证据目标与预算,DONE,"三个 level 和计划边界由代码裁决","timeout 60s ./gradlew :app:test --no-daemon --console=plain --tests '*CapabilityTarget*' --tests '*Planning*'",2026-08-28 00:31,0,
+4,更新 schema entity mapper repository,DONE,"session/plan 新字段持久化且无兼容回填","timeout 60s ./gradlew :app:test --no-daemon --console=plain --tests '*SessionEntity*' --tests '*PlanEntity*'",2026-08-28 00:31,0,
+5,删除正式 Planner 历史输入链,DONE,"Planner context/prompt 无 coveredTopics/unverifiedClaims","! rg -n 'coveredTopics|unverifiedClaims' app/src/main/java/interview/guide/modules/interview/agent/adaptive/core/context/PlannerContext.java app/src/main/resources/prompts/adaptive-agent-planner-*",2026-08-28 00:31,0,
+6,更新前端创建表单与类型,DONE,"模式级别scope可操作且 build 通过","cd frontend && pnpm run build",2026-08-28 00:19,0,
+7,运行模块验证并清理,DONE,"定向测试和前端 build 通过且无死代码","git diff --check",2026-08-28 00:32,0,
+8,按主题提交 T01,IN_PROGRESS,"提交只含 T01 和任务追踪文件","git diff --cached --check",,0,

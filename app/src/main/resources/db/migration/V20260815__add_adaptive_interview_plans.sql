@@ -6,6 +6,11 @@ CREATE TABLE agent_plans (
   focus VARCHAR(500) NOT NULL,
   suggested_turns INTEGER NOT NULL,
   allocated_turns INTEGER NOT NULL,
+  expected_depth VARCHAR(8) NOT NULL,
+  depth_ceiling VARCHAR(8) NOT NULL,
+  follow_up_budget INTEGER NOT NULL,
+  tool_budget INTEGER NOT NULL,
+  evidence_objectives_json TEXT NOT NULL,
   completed_turns INTEGER NOT NULL DEFAULT 0,
   status VARCHAR(20) NOT NULL,
   created_at TIMESTAMP(6) NOT NULL,
@@ -16,11 +21,18 @@ CREATE TABLE agent_plans (
     UNIQUE (session_id, dimension_order),
   CONSTRAINT agent_plan_status_check
     CHECK (status IN ('PENDING', 'IN_PROGRESS', 'COMPLETED')),
+  CONSTRAINT agent_plan_depth_check
+    CHECK (
+      expected_depth IN ('L0', 'L1', 'L2', 'L3', 'L4')
+      AND depth_ceiling IN ('L0', 'L1', 'L2', 'L3', 'L4')
+    ),
   CONSTRAINT agent_plan_turns_check
     CHECK (
       suggested_turns BETWEEN 1 AND 12
       AND allocated_turns BETWEEN 1 AND 12
       AND completed_turns BETWEEN 0 AND allocated_turns
+      AND follow_up_budget BETWEEN 0 AND 3
+      AND tool_budget >= 0
     )
 );
 

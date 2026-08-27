@@ -2,8 +2,11 @@ package interview.guide.modules.interview.agent.adaptive.planning;
 
 import interview.guide.common.exception.BusinessException;
 import interview.guide.common.exception.ErrorCode;
+import interview.guide.modules.interview.agent.adaptive.core.context.CapabilityTarget;
 import interview.guide.modules.interview.agent.adaptive.core.session.AdaptiveInterviewSession;
 import interview.guide.modules.interview.agent.adaptive.core.context.TopicKey;
+import interview.guide.modules.interview.agent.adaptive.core.session.InterviewSessionSettings;
+import interview.guide.modules.interview.agent.adaptive.core.session.SessionMode;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashSet;
@@ -29,8 +32,14 @@ public record InterviewPlan(
     dimensions = List.copyOf(dimensions);
   }
 
-  public static InterviewPlan decide(String sessionId, PlanProposal proposal) {
+  public static InterviewPlan decide(
+      String sessionId,
+      PlanProposal proposal,
+      InterviewSessionSettings settings
+  ) {
     validate(proposal);
+    validatePracticeScope(proposal, settings);
+    InterviewLevelProfile profile = InterviewLevelProfile.forLevel(settings.candidateLevel());
     int maxTurns = Math.min(proposal.dimensions().size() * 2, MAX_TURNS);
     int[] allocatedTurns = new int[proposal.dimensions().size()];
     Arrays.fill(allocatedTurns, 1);
@@ -54,20 +63,51 @@ public record InterviewPlan(
     for (int index = 0; index < proposal.dimensions().size(); index++) {
       DimensionProposal proposed = proposal.dimensions().get(index);
       dimensions.add(new PlannedDimension(
-          index,
-          proposed.dimension().trim(),
-          proposed.focus().trim(),
-          proposed.focusId().trim(),
-          proposed.suggestedTurns(),
-          proposed.suggestedTools().stream().map(String::trim).toList(),
-          proposed.suggestedSkill().trim(),
-          allocatedTurns[index],
+          target(new TargetInput(index, proposed, allocatedTurns[index], profile)),
           0,
           index == 0 ? PlanDimensionStatus.IN_PROGRESS : PlanDimensionStatus.PENDING
       ));
     }
     return new InterviewPlan(sessionId, maxTurns, dimensions);
   }
+
+  private static CapabilityTarget target(TargetInput input) {
+    DimensionProposal proposed = input.proposed();
+    List<String> tools = proposed.suggestedTools().stream().map(String::trim).toList();
+    List<CapabilityTarget.EvidenceObjective> objectives = new ArrayList<>();
+    objectives.add(new CapabilityTarget.EvidenceObjective(
+        proposed.focus().trim(),
+        CapabilityTarget.EvidenceMethod.CANDIDATE_ANSWER
+    ));
+    tools.forEach(tool -> objectives.add(new CapabilityTarget.EvidenceObjective(
+        "通过 " + tool + " 获取事实",
+        CapabilityTarget.EvidenceMethod.TOOL_FACT
+    )));
+    return new CapabilityTarget(
+        new CapabilityTarget.Identity(
+            input.order(),
+            proposed.dimension().trim(),
+            proposed.focus().trim(),
+            new TopicKey(proposed.suggestedSkill().trim(), proposed.focusId().trim())
+        ),
+        new CapabilityTarget.Budget(
+            proposed.suggestedTurns(),
+            input.allocatedTurns(),
+            input.profile().followUpBudget(),
+            tools.size()
+        ),
+        input.profile().depth(),
+        objectives,
+        tools
+    );
+  }
+
+  private record TargetInput(
+      int order,
+      DimensionProposal proposed,
+      int allocatedTurns,
+      InterviewLevelProfile profile
+  ) {}
 
   public PlannedDimension dimensionForTurn(int turnIndex) {
     int remaining = turnIndex;
@@ -186,6 +226,21 @@ public record InterviewPlan(
       if (!topicKeys.add(topicKey)) {
         throw new BusinessException(ErrorCode.AI_SERVICE_ERROR, "规划结果包含重复主题");
       }
+    }
+  }
+
+  private static void validatePracticeScope(
+      PlanProposal proposal,
+      InterviewSessionSettings settings
+  ) {
+    if (settings.mode() != SessionMode.PRACTICE) {
+      return;
+    }
+    boolean outsideScope = proposal.dimensions().stream()
+        .map(dimension -> new TopicKey(dimension.suggestedSkill(), dimension.focusId()))
+        .anyMatch(topic -> !settings.practiceScope().topics().contains(topic));
+    if (outsideScope) {
+      throw new BusinessException(ErrorCode.AI_SERVICE_ERROR, "练习计划包含范围外主题");
     }
   }
 

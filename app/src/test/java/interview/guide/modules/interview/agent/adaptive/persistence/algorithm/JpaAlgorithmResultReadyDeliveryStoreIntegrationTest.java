@@ -1,5 +1,8 @@
 package interview.guide.modules.interview.agent.adaptive.persistence.algorithm;
 
+import static interview.guide.modules.interview.agent.adaptive.support.AdaptiveTestFixtures.EVALUATION_SETTINGS;
+import static interview.guide.modules.interview.agent.adaptive.support.AdaptiveTestFixtures.testSession;
+
 import static org.assertj.core.api.Assertions.assertThat;
 
 import interview.guide.modules.interview.agent.adaptive.algorithm.judge.AlgorithmResultReadyHandler;
@@ -115,13 +118,14 @@ class JpaAlgorithmResultReadyDeliveryStoreIntegrationTest {
 
   private void persistSession(String sessionId, AdaptiveSessionStatus status) {
     AdaptiveInterviewSession session = status == AdaptiveSessionStatus.IN_PROGRESS
-        ? AdaptiveInterviewSession.create(sessionId, 4).start()
+        ? testSession(sessionId, 4).start()
         : new AdaptiveInterviewSession(
             sessionId,
             AdaptiveInterviewSession.RUNTIME_VERSION,
             status,
             1,
-            4
+            4,
+            EVALUATION_SETTINGS
         );
     entityManager.persist(new AdaptiveAgentSessionEntity(
         session,
@@ -133,7 +137,8 @@ class JpaAlgorithmResultReadyDeliveryStoreIntegrationTest {
             "Resume",
             null,
             null,
-            null
+            null,
+            EVALUATION_SETTINGS
         )
     ));
   }

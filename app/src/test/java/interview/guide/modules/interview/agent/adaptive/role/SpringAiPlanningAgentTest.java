@@ -7,6 +7,8 @@ import interview.guide.common.exception.BusinessException;
 import interview.guide.common.exception.ErrorCode;
 import interview.guide.modules.interview.agent.adaptive.application.AdaptiveAgentProperties;
 import interview.guide.modules.interview.agent.adaptive.core.context.PlannerContext;
+import interview.guide.modules.interview.agent.adaptive.core.session.CandidateLevel;
+import interview.guide.modules.interview.agent.adaptive.core.session.SessionMode;
 import interview.guide.modules.interview.agent.adaptive.observability.AdaptiveAgentTelemetry;
 import interview.guide.modules.interview.agent.adaptive.observability.AdaptiveInputTokenBudget;
 import interview.guide.modules.interview.agent.adaptive.planning.DimensionProposal;
@@ -119,8 +121,8 @@ class SpringAiPlanningAgentTest {
             "<data-boundary>",
             "后端工程师",
             "候选人项目经历",
-            "coveredTopics",
-            "unverifiedClaims",
+            "EVALUATION",
+            "CAMPUS",
             "skillCatalog"
         );
     verify(telemetry).modelCallSucceeded(eq("planner"), eq("PLAN"), anyLong());
@@ -191,7 +193,8 @@ class SpringAiPlanningAgentTest {
         new PlannerContext(
             "后端工程师，要求 Java 和 Redis",
             "候选人项目经历",
-            List.of(),
+            SessionMode.EVALUATION,
+            CandidateLevel.CAMPUS,
             List.of(),
             List.of()
         )

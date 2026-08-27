@@ -1,8 +1,10 @@
 package interview.guide.modules.interview.agent.adaptive.assessment.practice;
 
+import static interview.guide.modules.interview.agent.adaptive.support.AdaptiveTestFixtures.testDimension;
+
 import interview.guide.modules.interview.agent.adaptive.assessment.depth.AssessmentDecision;
 import interview.guide.modules.interview.agent.adaptive.core.context.DepthLevel;
-import interview.guide.modules.interview.agent.adaptive.planning.PlanDimensionStatus;
+import interview.guide.modules.interview.agent.adaptive.planning.DimensionProposal;
 import interview.guide.modules.interview.agent.adaptive.planning.PlannedDimension;
 import interview.guide.modules.interview.agent.adaptive.tool.QuestionBankQuestion;
 import java.util.List;
@@ -95,18 +97,14 @@ class PracticeRecommendationServiceTest {
 
     assertThat(service.recommend(
         "session-1",
-        new PlannedDimension(
-            0,
+        testDimension(new DimensionProposal(
             "架构设计",
             "缓存权衡",
             "ARCHITECTURE",
             1,
             List.of(),
-            null,
-            1,
-            0,
-            PlanDimensionStatus.IN_PROGRESS
-        ),
+            null
+        ), 0, 0),
         new AssessmentDecision(
             "session-1",
             1,
@@ -121,18 +119,14 @@ class PracticeRecommendationServiceTest {
   }
 
   private PlannedDimension currentDimension() {
-    return new PlannedDimension(
-        1,
+    return testDimension(new DimensionProposal(
         "问题解决",
         "定位过程",
         "PROBLEM_SOLVING",
         1,
         List.of(),
-        null,
-        1,
-        0,
-        PlanDimensionStatus.IN_PROGRESS
-    );
+        null
+    ), 1, 0);
   }
 
   private QuestionBankQuestion question(

@@ -1,5 +1,7 @@
 package interview.guide.modules.interview.agent.adaptive.planning;
 
+import static interview.guide.modules.interview.agent.adaptive.support.AdaptiveTestFixtures.testPlan;
+
 import interview.guide.common.exception.BusinessException;
 import interview.guide.modules.interview.agent.adaptive.core.context.PlanningSkill;
 import interview.guide.modules.interview.skill.InterviewSkillService;
@@ -66,7 +68,7 @@ class PlanningTaxonomyTest {
   }
 
   private InterviewPlan plan(String skillId, String focusId) {
-    return InterviewPlan.decide("session-1", new PlanProposal(List.of(
+    return testPlan("session-1", new PlanProposal(List.of(
         new DimensionProposal(
             "专业基础",
             "缓存一致性",

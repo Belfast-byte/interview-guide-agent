@@ -1,5 +1,8 @@
 package interview.guide.modules.interview.agent.adaptive.persistence.session;
 
+import static interview.guide.modules.interview.agent.adaptive.support.AdaptiveTestFixtures.EVALUATION_SETTINGS;
+import static interview.guide.modules.interview.agent.adaptive.support.AdaptiveTestFixtures.testPlan;
+
 import interview.guide.modules.interview.agent.adaptive.assessment.depth.AssessmentDecision;
 import interview.guide.modules.interview.agent.adaptive.core.context.DepthLevel;
 import interview.guide.modules.interview.agent.adaptive.assessment.evidence.EvidenceType;
@@ -71,12 +74,13 @@ class AdaptiveInterviewConcurrencyIntegrationTest {
             "Resume",
             null,
             null,
-            null
+            null,
+            EVALUATION_SETTINGS
         )
     );
     persistenceService.completeCreation(
         "concurrent-session",
-        InterviewPlan.decide(
+        testPlan(
             "concurrent-session",
             new PlanProposal(List.of(
                 new DimensionProposal(
@@ -161,12 +165,13 @@ class AdaptiveInterviewConcurrencyIntegrationTest {
             "Resume",
             null,
             null,
-            null
+            null,
+            EVALUATION_SETTINGS
         )
     );
     persistenceService.completeCreation(
         "concurrent-reserve",
-        InterviewPlan.decide(
+        testPlan(
             "concurrent-reserve",
             new PlanProposal(List.of(
                 new DimensionProposal(

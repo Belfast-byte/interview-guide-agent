@@ -1,5 +1,9 @@
 package interview.guide.modules.interview.agent.adaptive.application;
 
+import static interview.guide.modules.interview.agent.adaptive.support.AdaptiveTestFixtures.EVALUATION_SETTINGS;
+import static interview.guide.modules.interview.agent.adaptive.support.AdaptiveTestFixtures.testCreation;
+import static interview.guide.modules.interview.agent.adaptive.support.AdaptiveTestFixtures.testPlan;
+
 import interview.guide.common.exception.BusinessException;
 import interview.guide.common.exception.ErrorCode;
 import interview.guide.modules.interview.agent.adaptive.assessment.evidence.AssessmentEvidenceValidator;
@@ -31,7 +35,6 @@ import interview.guide.modules.interview.agent.adaptive.core.action.RespondActio
 import interview.guide.modules.interview.agent.adaptive.core.context.DimensionBrief;
 import interview.guide.modules.interview.agent.adaptive.core.event.ToolResultEvent;
 import interview.guide.modules.interview.agent.adaptive.memory.ContextAssembler;
-import interview.guide.modules.interview.agent.adaptive.memory.profile.CandidateMemoryService;
 import interview.guide.modules.interview.agent.adaptive.memory.episode.EpisodePromptMemoryService;
 import interview.guide.modules.interview.agent.adaptive.memory.claim.CandidateClaim;
 import interview.guide.modules.interview.agent.adaptive.memory.claim.CandidateClaimExtractionService;
@@ -115,9 +118,6 @@ class AdaptiveInterviewApplicationServiceTest {
   private DimensionBriefService dimensionBriefService;
 
   @Mock
-  private CandidateMemoryService candidateMemoryService;
-
-  @Mock
   private WorkingMemoryFactSource workingMemoryFactSource;
 
   @Mock
@@ -181,12 +181,13 @@ class AdaptiveInterviewApplicationServiceTest {
         }
     );
 
-    PlannedInterview actual = lazyService.createForCandidate(
+    PlannedInterview actual = lazyService.createForCandidate(new CandidateInterviewCreationCommand(
         candidateId,
         "JD",
         "Resume",
-        "provider-2"
-    );
+        "provider-2",
+        EVALUATION_SETTINGS
+    ));
 
     assertThat(actual).isSameAs(expected);
     ArgumentCaptor<AdaptiveSessionCreation> captor = ArgumentCaptor.forClass(
@@ -214,7 +215,6 @@ class AdaptiveInterviewApplicationServiceTest {
         new ContextAssembler(),
         workingMemoryFactSource,
         dimensionBriefService,
-        candidateMemoryService,
         episodePromptMemoryService,
         planningTaxonomy,
         candidateClaimExtractionService,
@@ -245,7 +245,6 @@ class AdaptiveInterviewApplicationServiceTest {
         new ContextAssembler(),
         workingMemoryFactSource,
         dimensionBriefService,
-        candidateMemoryService,
         episodePromptMemoryService,
         planningTaxonomy,
         candidateClaimExtractionService,
@@ -270,7 +269,7 @@ class AdaptiveInterviewApplicationServiceTest {
     PlannedInterview expected = interviewAtTurn(1);
     stubFirstTurn(memory, historicalFact, expected);
 
-    PlannedInterview actual = service.create("candidate-1", "JD", "Resume", null);
+    PlannedInterview actual = service.createForTenant(testCreation("candidate-1"));
 
     assertThat(actual).isSameAs(expected);
     assertFirstTurnContexts(memory, historicalFact);
@@ -305,10 +304,6 @@ class AdaptiveInterviewApplicationServiceTest {
       EpisodePromptFact historicalFact,
       PlannedInterview expected
   ) {
-    when(candidateMemoryService.coveredTopics("candidate-1"))
-        .thenReturn(List.of(memory.coveredTopic()));
-    when(candidateMemoryService.unverifiedClaims("candidate-1"))
-        .thenReturn(List.of(memory.unverifiedClaim()));
     when(planningTaxonomy.catalog()).thenReturn(List.of(memory.planningSkill()));
     when(planningAgent.propose(any(), any())).thenReturn(proposal());
     when(episodePromptMemoryService.select(
@@ -331,12 +326,13 @@ class AdaptiveInterviewApplicationServiceTest {
         PlanningRequest.class
     );
     verify(planningAgent).propose(planningRequest.capture(), any());
-    assertThat(planningRequest.getValue().context().coveredTopics())
-        .containsExactly(memory.coveredTopic());
+    assertThat(planningRequest.getValue().context().mode())
+        .isEqualTo(EVALUATION_SETTINGS.mode());
+    assertThat(planningRequest.getValue().context().candidateLevel())
+        .isEqualTo(EVALUATION_SETTINGS.candidateLevel());
+    assertThat(planningRequest.getValue().context().practiceScope()).isEmpty();
     assertThat(planningRequest.getValue().context().skillCatalog())
         .containsExactly(memory.planningSkill());
-    assertThat(planningRequest.getValue().context().unverifiedClaims())
-        .containsExactly(memory.unverifiedClaim());
     ArgumentCaptor<ReActRequest> interviewerRequest = ArgumentCaptor.forClass(
         ReActRequest.class
     );
@@ -388,7 +384,13 @@ class AdaptiveInterviewApplicationServiceTest {
     )).thenReturn(completed);
 
     service.createForCandidateStreaming(
-        new CandidateInterviewCreationCommand(candidateId, "JD", "Resume", "provider-2"),
+        new CandidateInterviewCreationCommand(
+            candidateId,
+            "JD",
+            "Resume",
+            "provider-2",
+            EVALUATION_SETTINGS
+        ),
         sink
     );
 
@@ -415,7 +417,7 @@ class AdaptiveInterviewApplicationServiceTest {
         }
     );
 
-    PlannedInterview actual = lazyService.create("candidate-1", "JD", "Resume", null);
+    PlannedInterview actual = lazyService.createForTenant(testCreation("candidate-1"));
 
     assertThat(actual).isSameAs(skeleton);
     verifyNoInteractions(planningAgent);
@@ -436,7 +438,7 @@ class AdaptiveInterviewApplicationServiceTest {
         }
     );
 
-    assertThatThrownBy(() -> rejectingService.create("candidate-1", "JD", "Resume", null))
+    assertThatThrownBy(() -> rejectingService.createForTenant(testCreation("candidate-1")))
         .isInstanceOf(BusinessException.class)
         .hasMessageContaining("创建任务提交失败");
 
@@ -454,7 +456,7 @@ class AdaptiveInterviewApplicationServiceTest {
         "规划失败"
     ));
 
-    PlannedInterview created = service.create("candidate-1", "JD", "Resume", null);
+    PlannedInterview created = service.createForTenant(testCreation("candidate-1"));
 
     assertThat(created).isNotNull();
     verify(persistenceService).failCreation(anyString(), eq("规划失败"));
@@ -471,7 +473,7 @@ class AdaptiveInterviewApplicationServiceTest {
         .thenReturn(interviewAtTurn(1));
     when(planningAgent.propose(any(), any())).thenReturn(new PlanProposal(List.of()));
 
-    PlannedInterview created = service.create("candidate-1", "JD", "Resume", null);
+    PlannedInterview created = service.createForTenant(testCreation("candidate-1"));
 
     assertThat(created).isNotNull();
     verify(telemetry).planRejected(anyString(), anyInt());
@@ -939,7 +941,6 @@ class AdaptiveInterviewApplicationServiceTest {
 
     service.submitAnswer("session-1", answer);
 
-    verifyNoInteractions(candidateMemoryService);
     verify(telemetry).assessmentRecorded("专业基础", DepthLevel.L2, 1);
   }
 
@@ -1134,7 +1135,8 @@ class AdaptiveInterviewApplicationServiceTest {
         AdaptiveInterviewSession.RUNTIME_VERSION,
         AdaptiveSessionStatus.IN_PROGRESS,
         currentTurn,
-        6
+        6,
+        EVALUATION_SETTINGS
     );
     List<AdaptiveInterviewTurn> turns = currentTurn == 1
         ? List.of(new AdaptiveInterviewTurn(
@@ -1169,7 +1171,7 @@ class AdaptiveInterviewApplicationServiceTest {
                 null
             )
         );
-    InterviewPlan plan = InterviewPlan.decide("session-1", proposal());
+    InterviewPlan plan = testPlan("session-1", proposal());
     for (int turn = 1; turn < currentTurn; turn++) {
       plan = plan.answer(turn);
     }
@@ -1181,7 +1183,7 @@ class AdaptiveInterviewApplicationServiceTest {
   }
 
   private PlannedInterview interviewAtLastDimensionFirstTurn() {
-    InterviewPlan plan = InterviewPlan.decide("session-1", proposal());
+    InterviewPlan plan = testPlan("session-1", proposal());
     for (int turn = 1; turn <= 4; turn++) {
       plan = plan.answer(turn);
     }
@@ -1201,7 +1203,8 @@ class AdaptiveInterviewApplicationServiceTest {
                 AdaptiveInterviewSession.RUNTIME_VERSION,
                 AdaptiveSessionStatus.IN_PROGRESS,
                 5,
-                6
+                6,
+                EVALUATION_SETTINGS
             ),
             "candidate-1",
             "JD",

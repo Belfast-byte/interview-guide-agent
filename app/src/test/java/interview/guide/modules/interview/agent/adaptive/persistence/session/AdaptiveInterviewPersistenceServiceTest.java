@@ -1,5 +1,8 @@
 package interview.guide.modules.interview.agent.adaptive.persistence.session;
 
+import static interview.guide.modules.interview.agent.adaptive.support.AdaptiveTestFixtures.EVALUATION_SETTINGS;
+import static interview.guide.modules.interview.agent.adaptive.support.AdaptiveTestFixtures.testPlan;
+
 import interview.guide.common.exception.BusinessException;
 import interview.guide.modules.interview.agent.adaptive.assessment.depth.AssessmentDecision;
 import interview.guide.modules.interview.agent.adaptive.assessment.report.AssessmentReportService;
@@ -442,7 +445,7 @@ class AdaptiveInterviewPersistenceServiceTest {
   @Test
   @DisplayName("规划建议的工具与 Skill 经重读后保持不变")
   void shouldPersistPlannedToolsAndSkill() {
-    InterviewPlan plan = InterviewPlan.decide(
+    InterviewPlan plan = testPlan(
         "session-plan-tools",
         new PlanProposal(List.of(new DimensionProposal(
             "专业基础",
@@ -466,11 +469,18 @@ class AdaptiveInterviewPersistenceServiceTest {
         List.of()
     );
 
-    assertThat(service.get("session-plan-tools").plan().dimensions().getFirst())
+    PlannedInterview restored = service.get("session-plan-tools");
+    assertThat(restored.history().session().settings()).isEqualTo(EVALUATION_SETTINGS);
+    assertThat(restored.plan().dimensions().getFirst())
         .satisfies(dimension -> {
           assertThat(dimension.suggestedTools())
               .containsExactly("question_bank_search", "rubric_lookup");
           assertThat(dimension.suggestedSkill()).isEqualTo("java-backend");
+          assertThat(dimension.expectedDepth()).isEqualTo(DepthLevel.L2);
+          assertThat(dimension.depthCeiling()).isEqualTo(DepthLevel.L3);
+          assertThat(dimension.followUpBudget()).isEqualTo(2);
+          assertThat(dimension.toolBudget()).isEqualTo(2);
+          assertThat(dimension.evidenceObjectives()).hasSize(3);
         });
   }
 
@@ -777,7 +787,8 @@ class AdaptiveInterviewPersistenceServiceTest {
         resume,
         llmProvider,
         null,
-        null
+        null,
+        EVALUATION_SETTINGS
     ));
     return service.completeCreation(sessionId, plan, firstAction, toolExecutions);
   }
@@ -803,7 +814,7 @@ class AdaptiveInterviewPersistenceServiceTest {
   }
 
   private InterviewPlan plan(String sessionId, int dimensionCount) {
-    return InterviewPlan.decide(
+    return testPlan(
         sessionId,
         new PlanProposal(java.util.stream.IntStream.range(0, dimensionCount)
             .mapToObj(index -> new DimensionProposal(

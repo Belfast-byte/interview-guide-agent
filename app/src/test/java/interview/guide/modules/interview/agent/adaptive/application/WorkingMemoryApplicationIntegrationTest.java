@@ -1,5 +1,7 @@
 package interview.guide.modules.interview.agent.adaptive.application;
 
+import static interview.guide.modules.interview.agent.adaptive.support.AdaptiveTestFixtures.testCreation;
+
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.doAnswer;
@@ -24,7 +26,6 @@ import interview.guide.modules.interview.agent.adaptive.memory.ContextAssembler;
 import interview.guide.modules.interview.agent.adaptive.memory.brief.DimensionBriefService;
 import interview.guide.modules.interview.agent.adaptive.memory.claim.CandidateClaimExtractionService;
 import interview.guide.modules.interview.agent.adaptive.memory.episode.EpisodePromptMemoryService;
-import interview.guide.modules.interview.agent.adaptive.memory.profile.CandidateMemoryService;
 import interview.guide.modules.interview.agent.adaptive.memory.working.WorkingMemoryFactSource;
 import interview.guide.modules.interview.agent.adaptive.observability.AdaptiveAgentTelemetry;
 import interview.guide.modules.interview.agent.adaptive.observability.AlgorithmInterviewTelemetry;
@@ -69,16 +70,12 @@ import org.springframework.context.annotation.Import;
     EpisodeAssessmentCorrectionPersistence.class,
     AssessmentReconciliationDependencies.class,
     AssessmentReconciliationService.class,
-    CandidateMemoryService.class,
     JpaWorkingMemoryFactSource.class
 })
 class WorkingMemoryApplicationIntegrationTest {
 
   @Autowired
   private AdaptiveInterviewPersistenceService persistenceService;
-
-  @Autowired
-  private CandidateMemoryService candidateMemoryService;
 
   @Autowired
   private WorkingMemoryFactSource workingMemoryFactSource;
@@ -182,7 +179,7 @@ class WorkingMemoryApplicationIntegrationTest {
       AdaptiveInterviewApplicationService service,
       String candidateId
   ) {
-    PlannedInterview skeleton = service.create(candidateId, "JD", "Resume", null);
+    PlannedInterview skeleton = service.createForTenant(testCreation(candidateId));
     return persistenceService.get(skeleton.history().session().id());
   }
 
@@ -211,7 +208,6 @@ class WorkingMemoryApplicationIntegrationTest {
         new ContextAssembler(),
         workingMemoryFactSource,
         mock(DimensionBriefService.class),
-        candidateMemoryService,
         episodeMemory,
         mock(PlanningTaxonomy.class),
         mock(CandidateClaimExtractionService.class),

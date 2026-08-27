@@ -3,6 +3,7 @@ package interview.guide.modules.interview.agent.adaptive.mcp;
 import interview.guide.common.exception.BusinessException;
 import interview.guide.common.exception.ErrorCode;
 import interview.guide.modules.interview.agent.adaptive.application.AdaptiveInterviewApplicationService;
+import interview.guide.modules.interview.agent.adaptive.application.TenantInterviewCreationCommand;
 import interview.guide.modules.interview.agent.adaptive.assessment.report.AssessmentReportService;
 import interview.guide.modules.interview.agent.adaptive.assessment.report.EnterpriseAssessmentReport;
 import interview.guide.modules.interview.agent.adaptive.core.event.CandidateAnswer;
@@ -44,24 +45,24 @@ public class AdaptiveInterviewMcpTools {
   )
   public McpInterviewStatusResponse create(
       McpSyncRequestContext context,
-      @McpToolParam(description = "Stable candidate identifier") String candidateId,
-      @McpToolParam(description = "Job description") String jd,
-      @McpToolParam(description = "Candidate resume") String resume,
-      @McpToolParam(required = false, description = "Configured LLM provider")
-      String llmProvider
+      @McpToolParam(description = "Interview creation parameters")
+      McpCreateInterviewRequest request
   ) {
-    validateCreateInput(candidateId, jd, resume, llmProvider);
+    validateCreateInput(request);
     McpTenantPrincipal principal = requireScope(
         context,
         CREATE_TOOL,
         McpInterviewScope.INTERVIEW_CREATE
     );
     PlannedInterview interview = applicationService.createForTenant(
-        principal.tenantId(),
-        candidateId,
-        jd,
-        resume,
-        llmProvider
+        new TenantInterviewCreationCommand(
+            principal.tenantId(),
+            request.candidateId(),
+            request.jd(),
+            request.resume(),
+            request.llmProvider(),
+            request.settings()
+        )
     );
     auditService.record(
         principal,
@@ -221,21 +222,28 @@ public class AdaptiveInterviewMcpTools {
     return McpScopeGuard.requireScope(context, toolName, scope, auditService);
   }
 
-  private void validateCreateInput(
-      String candidateId,
-      String jd,
-      String resume,
-      String llmProvider
-  ) {
-    if (candidateId == null || candidateId.isBlank() || candidateId.length() > 64) {
+  private void validateCreateInput(McpCreateInterviewRequest request) {
+    if (request == null
+        || request.candidateId() == null
+        || request.candidateId().isBlank()
+        || request.candidateId().length() > 64) {
       throw new BusinessException(ErrorCode.BAD_REQUEST, "候选人标识无效");
     }
-    if (jd == null || jd.isBlank() || resume == null || resume.isBlank()) {
+    if (request.jd() == null
+        || request.jd().isBlank()
+        || request.resume() == null
+        || request.resume().isBlank()) {
       throw new BusinessException(ErrorCode.BAD_REQUEST, "JD 和简历不能为空");
     }
-    if (llmProvider != null && llmProvider.length() > 64) {
+    if (request.llmProvider() != null && request.llmProvider().length() > 64) {
       throw new BusinessException(ErrorCode.BAD_REQUEST, "LLM Provider 标识无效");
     }
+    if (request.mode() == null
+        || request.candidateLevel() == null
+        || request.practiceScope() == null) {
+      throw new BusinessException(ErrorCode.BAD_REQUEST, "面试模式参数不能为空");
+    }
+    request.settings();
   }
 
   private void validateAnswerInput(McpSubmitAnswerRequest request) {
