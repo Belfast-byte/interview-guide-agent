@@ -1,0 +1,8 @@
+id,task,status,acceptance_criteria,validation_command,completed_at,retry_count,notes
+1,审计 ASK 和 CALL_TOOL 副作用边界,IN_PROGRESS,"执行点、落库点和可删除路径写入 PROGRESS","rg -n 'runDecision|ToolGateway|recordDecision|completeToolResultEvent' app/src/main/java/interview/guide/modules/interview/agent/adaptive",,0,
+2,实现 ActionIntent 领域状态机与 payload,TODO,"状态迁移和 payload 不可变测试通过","timeout 60s ./gradlew :app:test --no-daemon --console=plain --tests '*ActionIntent*'",,0,
+3,实现 Intent PostgreSQL 存储和三段事务,TODO,"Intent/Pending、Succeeded、Applied 可分别提交和重读","timeout 60s ./gradlew :app:test --no-daemon --console=plain --tests '*ActionIntentPersistence*'",,0,
+4,接入 ASK Intent 执行与恢复,TODO,"问题只展示一次且崩溃点可恢复","timeout 60s ./gradlew :app:test --no-daemon --console=plain --tests '*AskActionIntent*'",,0,
+5,接入 CALL_TOOL Intent 执行与恢复,TODO,"同一幂等键执行且结果等效一次","timeout 60s ./gradlew :app:test --no-daemon --console=plain --tests '*ToolActionIntent*'",,0,
+6,删除旧自由工具循环和动作前副作用路径,TODO,"无 fallback、自动重试和新 invocation 恢复分支","git diff --check",,0,
+7,运行模块验证并提交 T03,TODO,"ActionIntent 定向测试和架构测试通过","git diff --cached --check",,0,
