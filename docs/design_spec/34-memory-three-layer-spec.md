@@ -16,8 +16,8 @@ v4 直接取代旧三层记忆规格。实现时不保留旧行为、双写、�
 
 | 当前事实 | v4 结论 |
 |---|---|
-| `agent_sessions` 有 JD/简历快照、状态、轮次和 `@Version`，没有会话模式、候选人级别或岗位模型快照 | 补齐会话初始化输入 |
-| `agent_plans` 有维度、focus、skill 和轮次预算，没有 criterion、期望深度与追问上限 | 扩展为不可变初始计划 |
+| `agent_sessions` 有 JD/简历快照、状态、轮次和 `@Version`，没有会话模式或候选人级别 | 补齐会话初始化输入 |
+| `agent_plans` 有维度、focus、skill 和轮次预算，没有期望深度与追问上限 | 扩展为不可变初始计划 |
 | `WorkingMemorySnapshot` 每轮从 PostgreSQL 临时组装 | 替换为持久化 WorkState |
 | `BoundedReActRuntime` 可直接执行模型返回的工具动作 | 改为代码先裁决并保存 Intent，再执行 |
 | turn、assessment、evidence、probe gap 和 tool result 已形成事实链 | 继续作为 Episode 的来源 |
@@ -37,10 +37,10 @@ SessionMode    = EVALUATION | PRACTICE
 CandidateLevel = INTERN | CAMPUS | EXPERIENCED
 ```
 
-`SessionMode` 创建后不可变。`agent_sessions` 增加 `mode`、`candidate_level`、`role_model_json` 和 `practice_scope_json`；JD、简历和岗位模型均保存本次创建时的快照。
+`SessionMode` 创建后不可变。`agent_sessions` 增加 `mode`、`candidate_level` 和 `practice_scope_json`；JD、简历和 level 均保存本次创建时的快照。
 
-- `EVALUATION` Planner 只读取本场 JD、简历、岗位模型、候选人级别和总预算，禁止读取任何候选人历史。
-- `PRACTICE` Planner 只读取 `practice_scope_json` 覆盖范围内的 Semantic planning view。scope 来自用户明确选择的主题，或本次 JD/简历解析出的岗位范围；历史画像不能扩大 scope。
+- `EVALUATION` Planner 只读取本场 JD、简历、候选人级别和总预算，禁止读取任何候选人历史。
+- `PRACTICE` 必须由用户明确选择 `practice_scope_json` 中的 TopicKey；Planner 只读取 scope 内 Semantic planning view，历史画像不能扩大 scope。
 - 简历更新只影响之后创建的 session。旧 Episode 不改写，scope 外的 Semantic 不注入本次 Planner。
 - Planner 只生成结构化计划提案；代码校验总预算、岗位深度和 TopicKey 后一次保存计划与 WorkState v1。
 
@@ -49,11 +49,10 @@ CapabilityTarget
   targetId / TopicKey / dimensionOrder
   expectedDepth / depthCeiling
   turnBudget / followUpBudget / toolBudget
-  criteria[]: criterionKey / evidenceMethod / evidenceRequirement
-evidenceMethod = CANDIDATE_ANSWER | TOOL_FACT
+  evidenceObjectives[]: description / method(CANDIDATE_ANSWER | TOOL_FACT)
 ```
 
-`expectedDepth` 与 `depthCeiling` 由岗位模型和候选人级别决定。实习、校招、社招使用不同量规；历史薄弱点不能改变正式面试的模块、预算或深度。
+默认档位 `(expectedDepth, depthCeiling, maxFollowUps)` 为 `INTERN(L1,L2,1)`、`CAMPUS(L2,L3,2)`、`EXPERIENCED(L3,L4,3)`；JD 只决定 Topic 和本场证据目标，不能突破级别上限。工具预算等于 `TOOL_FACT` 目标数；历史薄弱点不能改变正式面试的模块、预算或深度。
 
 ## 2. Working Memory：本场怎么做
 
@@ -63,12 +62,11 @@ evidenceMethod = CANDIDATE_ANSWER | TOOL_FACT
 InterviewWorkState
   sessionId / revision
   phase: READY_TO_DECIDE | ACTION_PENDING | AWAITING_ANSWER | FINISHED
-  targets[]: initial budget + remaining budget + criterion status
+  targets[]: initial budget + remaining budget + currentDepth + target status
   activeTargetId / attentionFocus
   activeEvidenceRefs[]
-  openIssues[]: issueId / targetId / criterionKey / evidenceMethod / anchor / status / closeReason
+  openIssues[]: issueId / targetId / evidenceMethod / anchor / missingPoint / status / closeReason
   awaitingAnswerTurnId? / activeActionIntentId?
-criterion status = UNVERIFIED | INVESTIGATING | SATISFIED | UNRESOLVED_AT_LIMIT
 issue status = OPEN | INVESTIGATING | RESOLVED | ABANDONED; target status = PENDING | ACTIVE | COMPLETED | EXHAUSTED
 ```
 
@@ -79,7 +77,7 @@ WorkState 是当前运行状态的唯一写源。Plan 只保存初始化结果�
 | 表 | 职责 |
 |---|---|
 | `agent_sessions` | 模式和本场输入快照 |
-| `agent_plans` / `agent_plan_criteria` | 不可变初始 Target、criterion 和预算 |
+| `agent_plans` | 不可变初始 Target、证据目标和预算 |
 | `agent_work_states` | session 1:1；revision、phase、`state_json`、active intent、乐观锁 |
 | `agent_work_state_patches` | source、base/result revision 和 typed operations JSON |
 | `agent_action_intents` | ASK/CALL_TOOL 的执行与恢复状态 |
@@ -97,7 +95,7 @@ WorkStatePatch
 operations:
   ADD_EVIDENCE_REF
   OPEN_ISSUE / CLOSE_ISSUE
-  MARK_CRITERION
+  UPDATE_TARGET_DEPTH
   SET_FOCUS
   CONSUME_BUDGET
   SWITCH_TARGET
@@ -110,18 +108,18 @@ operations:
 - Reducer 是纯 Java 代码：验证 `baseRevision`、状态迁移和预算，返回新的不可变 WorkState。
 - application 在一个短事务中保存 Patch 和新 WorkState；`resultRevision = baseRevision + 1`。
 - 同一 `(sessionId, sourceType, sourceId)` 只应用一次；revision 冲突直接失败并重新读取，不覆盖新状态。
-- Assessor 提议 criterion、evidence 和 issue 变化；工具结果只能关闭客观事实 issue，不能单独证明候选人能力。
+- Assessor 提议 currentDepth、evidence 和 issue 变化；工具结果只能关闭客观事实 issue，不能单独证明候选人能力。
 
 ### 2.4 确定性下一动作
 
 `NextActionPolicy` 只读取完整 WorkState，按固定顺序返回动作：
 
 1. `AWAITING_ANSWER`：不产生新动作；`ACTION_PENDING`：恢复原 Intent。
-2. 当前 criterion 满足：检查同 Target 下一个 criterion；全部满足则 `SWITCH_TARGET`。
-3. 达到 `depthCeiling` 或追问预算用完：将 criterion 置为 `UNRESOLVED_AT_LIMIT`，关闭对应 issue。
+2. 当前深度达到 `expectedDepth` 且没有必需的 open issue：完成 Target 并 `SWITCH_TARGET`。
+3. 达到 `depthCeiling` 或追问预算用完：放弃未闭环 issue，将 Target 置为 `EXHAUSTED` 并切换。
 4. 候选人回答类 issue 未闭环且有预算：`ASK`。
-5. criterion 要求工具事实且有工具预算：`CALL_TOOL`。
-6. 仍有未验证 criterion：`ASK`；全部 Target 终态：`FINISH`。
+5. 工具事实类 issue 未闭环且有工具预算：`CALL_TOOL`。
+6. Target 仍有轮次预算：`ASK`；全部 Target 终态：`FINISH`。
 
 `SWITCH_TARGET` 和 `FINISH` 是本地 Patch，直接应用。只有会生成问题或调用工具的外部动作使用 ActionIntent。
 
@@ -131,7 +129,7 @@ operations:
 ActionIntent
   intentId / sessionId / basedOnRevision
   type: ASK | CALL_TOOL
-  targetId / criterionKey / issueId?
+  targetId / issueId?
   payloadJson / idempotencyKey
   status: PLANNED | EXECUTING | SUCCEEDED | APPLIED | FAILED
   resultType? / resultRef? / error? / executionStartedAt? / timestamps / version
@@ -149,7 +147,7 @@ ActionIntent
 | 角色 | 只允许看到 |
 |---|---|
 | Planner | 本次初始化输入；练习模式额外含 scope 内 Semantic planning view |
-| Interviewer/Coach | 当前 Target、criterion、issue、本场相关题答和允许工具 |
+| Interviewer/Coach | 当前 Target、issue、本场相关题答和允许工具 |
 | Assessor | 当前问题、当前回答、量规和本轮工具事实 |
 | Tool Router | 已裁决 CALL_TOOL、参数约束、issue 和剩余工具预算 |
 
@@ -164,7 +162,7 @@ ActionIntent
 ```text
 EpisodeFact
   episodeId / MemoryOwner / sessionId / sessionMode / turnIndex
-  TopicKey / targetId / criterionKey
+  TopicKey / targetId
   turnId / assessmentId / workRevisionBefore / workRevisionAfter
   assistanceLevel: NONE | FOLLOW_UP | HINT | TOOL_ASSISTED
   closureStatus: RESOLVED | UNRESOLVED | ABANDONED
@@ -182,17 +180,17 @@ question、answer、评级、evidence、gap 和 tool result 通过稳定 ID 回�
 ```text
 QuestionExposure
   exposureId / MemoryOwner / sessionId / turnId / episodeId?
-  TopicKey / criterionKey / evidenceObjective / probeDepth / difficulty
+  TopicKey / evidenceObjective / probeDepth / difficulty
   questionText / scenarioFingerprint / wordingFingerprint
   sourceExposureId? / sourceEpisodeId? / embeddingDocumentId? / askedAt
 ```
 
 同一知识点允许复测，题目文本不允许简单复用。召回提供两个明确视图：
 
-- `EvaluationRecallView`：question、场景 fingerprint、criterion、证据目标、难度和相似度；若历史正式 Episode 未闭环，只输出“需要重新验证什么”，不输出旧答案、评级或标签。
+- `EvaluationRecallView`：question、场景 fingerprint、TopicKey、证据目标、难度和相似度；若历史正式 Episode 未闭环，只输出“需要重新验证什么”，不输出旧答案、评级或标签。
 - `PracticeDiagnosticView`：完整题答、评级、证据、gap、工具、辅助级别和闭环状态。
 
-正式 Interviewer 必须先生成 draft，再按同 MemoryOwner + TopicKey + criterion 召回。Practice Episode 可以参与题目去重，但不能成为正式弱项重验依据。
+正式 Interviewer 必须先生成 draft，再按同 MemoryOwner + TopicKey 召回。Practice Episode 可以参与题目去重，但不能成为正式弱项重验依据。
 
 ### 3.3 换场景流程
 
@@ -217,10 +215,10 @@ QuestionExposure
 ```text
 SemanticTrack = EVALUATED_CAPABILITY | PRACTICE_MASTERY
 SemanticContribution
-  contributionId / episodeId / MemoryOwner / TopicKey / criterionKey / track
+  contributionId / episodeId / MemoryOwner / TopicKey / track
   evaluationLevel? / practiceOutcome? / assistanceLevel? / createdAt
 SemanticState
-  MemoryOwner / TopicKey / criterionKey / track / revision
+  MemoryOwner / TopicKey / track / revision
   statistics / abilityOrMastery / stablePatterns
   transferStatus? / confirmedByEpisodeId? / updatedAt / version
 ```
@@ -242,9 +240,9 @@ weighted >= 2 * total   → COMPETENT
 otherwise               → WEAK
 ```
 
-练习掌握度取同 criterion 最新一次有效练习：无辅助完成为 `INDEPENDENT`，追问/提示/工具后完成为 `ASSISTED`，未完成为 `UNRESOLVED`；同时保留各 assistance level 的累计次数。
+练习掌握度取同 TopicKey 最新一次有效练习：无辅助完成为 `INDEPENDENT`，追问/提示/工具后完成为 `ASSISTED`，未完成为 `UNRESOLVED`；同时保留各 assistance level 的累计次数。
 
-练习状态更新后 `transferStatus=NOT_REEVALUATED`。之后同 criterion 的正式 Episode 达到该练习目标深度且 criterion 满足，更新为 `CONFIRMED`，否则为 `REGRESSED`；正式能力本身只由正式 contribution 计算。
+练习状态更新后 `transferStatus=NOT_REEVALUATED`。之后同 TopicKey 的正式 Episode 达到练习目标深度，更新为 `CONFIRMED`，否则为 `REGRESSED`；正式能力本身只由正式 contribution 计算。
 
 稳定错误模式和回答习惯来自至少 `MIN_PATTERN_EPISODES=2` 个不同 Episode 的同类 enrichment；LLM 只提标签，代码按标签和来源计数。没有足够来源时只保留 Episode 标签，不写 Semantic stable pattern。
 
@@ -264,7 +262,7 @@ otherwise               → WEAK
 
 ## 5. 写入与恢复
 
-1. 初始化：事务外生成 Plan proposal；短事务保存 session、plan、criteria 和 WorkState v1。
+1. 初始化：事务外生成 Plan proposal；短事务保存 session、plan 和 WorkState v1。
 2. 回答：事务外评估；短事务保存 answer、assessment/evidence/gap、Assessment Patch、Episode 和 Semantic contribution。
 3. 决策：读取 WorkState 并运行 policy；本地动作直接 Patch，ASK/CALL_TOOL 先保存 Intent 和 Pending Patch。
 4. 外部结果：事务外生成问题或调用工具；短事务保存 final question/tool result 并置 Intent `SUCCEEDED`。
@@ -283,7 +281,7 @@ otherwise               → WEAK
 
 ## 6. Redis 持久化机制场景
 
-正式评估根据本次 JD 和校招量规规划出 `Redis / persistence`，当前 criterion 是 RDB fork/COW。Interviewer 先草拟“解释 BGSAVE 的 fork 过程”，再召回历史曝光，发现相同问题考过且当时未闭环。系统不改模块、预算和深度，只返回中性重验证目标，并把题目改为：“实例持续写入时执行 BGSAVE，内存为何突增，哪些条件会放大该现象？”Assessor 只看本场回答；本轮新增 Evaluation Episode 和正式能力 contribution。
+正式评估根据本次 JD 和校招量规规划出 `Redis / persistence`，当前未闭环 issue 是 RDB fork/COW。Interviewer 先草拟“解释 BGSAVE 的 fork 过程”，再召回历史曝光，发现相同问题考过且当时未闭环。系统不改模块、预算和深度，只返回中性重验证目标，并把题目改为：“实例持续写入时执行 BGSAVE，内存为何突增，哪些条件会放大该现象？”Assessor 只看本场回答；本轮新增 Evaluation Episode 和正式能力 contribution。
 
 练习模式由 scope 内 Semantic planning view 选择 fork/COW。Target 固定后，Coach 才读取历史 Episode 的旧回答、评级和 gap，进行连续追问、提示演示和无提示复测。每轮 assistance level 写入 Episode，更新练习掌握度；正式能力不变，直到之后的独立正式评估确认能力迁移。
 

@@ -1,0 +1,5 @@
+id,task,status,acceptance_criteria,validation_command,completed_at,retry_count,notes
+1,建立模块依赖和 ticket 映射,DONE,"每个 ticket 归属一个 Epic 子模块且依赖无环","rg -n '^## T[0-9]+' docs/design_spec/35-memory-three-layer-tickets.md",2026-08-28 00:02,0,
+2,直接覆盖 35 号 v3 tickets,DONE,"文档只包含 v4 tickets","! rg -n 'v3|Superseded|历史基线' docs/design_spec/35-memory-three-layer-tickets.md",2026-08-28 00:02,0,
+3,核对规格完成标准覆盖,DONE,"34 号 10 条完成标准均有票据验收","git diff --check",2026-08-28 00:02,0,
+4,按主题提交 tickets,DONE,"提交仅含 ticket 和必要规格澄清","git diff --cached --check",2026-08-28 00:02,0,

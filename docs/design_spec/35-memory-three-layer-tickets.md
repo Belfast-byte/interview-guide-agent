@@ -1,188 +1,135 @@
-# 三层记忆实现 Tickets
+# 三层记忆 v4 实施 Tickets
 
-> 维护：Agent；上游设计决策以 `docs/design/` 为准。
+> 维护：Agent
 >
-> 状态：**Superseded（2026-08-27）**
+> 基线：[34-memory-three-layer-spec.md](./34-memory-three-layer-spec.md) v4
 >
-> 历史基线：34 号规格 v3。34 号现已由 v4 目标架构直接取代，以下票据仅保留审计记录，不得继续执行。
+> 状态：**Ready for implementation**
 
-## T01 TopicKey 与计划唯一性
+## 0. 执行规则
 
-**Goal**：用 `(skillId, focusId)` 作为稳定主题身份，并拒绝同一计划内重复主题。
-**怎么实现**：新增纯领域 `TopicKey`；在 plan 创建边界完成 `suggestedSkill → skillId` 映射和唯一性校验。
-**测试验证**：`TopicKeyTest` 覆盖值语义；`InterviewPlanTest` 覆盖跨 skill 同 focus 合法、同 pair 重复失败。
-**依赖**：无。
+- 按 ticket 顺序实施；每个 ticket 都必须形成可运行、可测试、无闲置新代码的完整模块，并单独提交。
+- 数据库只写目标 schema DDL；不写历史回填、双写、legacy 枚举或 runtime 兼容分支，开发库直接重建。
+- 同一 ticket 中删除被替换的旧类、旧字段、旧 Prompt 和死测试，不把清理债务留给后续模块。
+- 优先修改现有 domain、application、persistence 和测试，不建立通用记忆框架或无实际消费者的扩展点。
+- LLM 和工具调用保持在事务外；失败直接暴露，不增加兜底题目、mock 结果或吞错逻辑。
 
-## T02 TurnTrigger 领域约束
+## 1. 交付顺序
 
-**Goal**：由代码表达 `PLANNED / ASSESSMENT_GAP / TOOL_RESULT` 及合法 source 组合，并让评估追问精确指向具体 gap。
-**怎么实现**：新增 trigger 枚举和值对象，`ASSESSMENT_GAP` 把 assessment ID 与 probe gap ID 作为不可拆分来源，构造时校验 source 互斥与必填规则。
-**测试验证**：`TurnTriggerTest` 覆盖三种合法组合、Assessment/gap 任一非法及 source 混用。
-**依赖**：无。
+| Ticket | 模块 | 交付结果 |
+|---|---|---|
+| T01 | Session / Plan | 模式、级别、练习 scope 和有深度边界的 Target |
+| T02 | Working | WorkState、Typed Patch、确定性下一动作和角色视图 |
+| T03 | ActionIntent | ASK/CALL_TOOL 先落 Intent 并可恢复 |
+| T04 | Episodic Fact | 不可变 Episode 与纠正关系 |
+| T05 | Episodic Recall | 题目曝光、中性/完整召回、换场景去重 |
+| T06 | Semantic / Practice | 正式能力与练习掌握度双轨闭环 |
+| T07 | Cleanup / E2E | 删除旧链路并通过完整验收 |
 
-## T03 Turn provenance 持久化
+## T01 会话模式、Target 与初始化隔离
 
-**Goal**：turn 可追溯父 turn、来源 assessment + probe gap 或 tool event。
-**怎么实现**：扩展 turn entity/domain/mapper/repository，增加 `source_probe_gap_id`；保存前验证 gap 属于 source assessment、未被其他 turn 使用，且父索引属于同 session 并更小。
-**测试验证**：`AdaptiveInterviewTurnEntityTest` 验证 assessment/gap 字段往返；`AdaptiveInterviewPersistenceServiceTest` 验证非法父链失败；数据库迁移测试验证来源组合、归属和 gap 唯一消费约束。
-**依赖**：T02。
+**Goal**：创建 session 时固定正式/练习模式、候选人级别和计划边界，正式 Planner 不再读取历史。
 
-## T04 ProbeGap 领域模型与表
+- API/domain：新增 `SessionMode(EVALUATION,PRACTICE)`、`CandidateLevel(INTERN,CAMPUS,EXPERIENCED)`、`PracticeScope(TopicKey[])`；扩展 request、command、session 和 response。
+- 计划：`PlannedDimension` 改为不可变 CapabilityTarget，增加 evidence objectives、expected/depth ceiling、turn/follow-up/tool budget。
+- 深度：`InterviewLevelProfile` 固化 `INTERN(L1,L2,1)`、`CAMPUS(L2,L3,2)`、`EXPERIENCED(L3,L4,3)`；tool budget 等于 `TOOL_FACT` objective 数。
+- 存储：`agent_sessions` 增加 mode/level/scope；`agent_plans` 增加初始 Target 的 depth、evidence objectives 和预算字段。
+- 复用：`PlanningTaxonomy` 继续校验 TopicKey；EVALUATION Planner 只收本场 JD/resume/level，PRACTICE 先按明确 request scope 规划，T06 再接入 scope 内 Semantic planning view。
+- 删除：Planner 的 `coveredTopics/unverifiedClaims` 输入与相关正式读取；所有 session 都按正式面试处理的隐式假设。
+- 前端：创建表单增加模式和 level；练习模式复用现有 skill catalog 选择 TopicKey scope，正式模式不展示 scope。
+- 测试：API round-trip、模式不可变、scope 组合、三个 level 边界、总预算、未知 Topic、正式 PlanningRequest 不含历史；前端 build 通过。
+- 依赖：无。提交：`feat: initialize memory aware interview sessions`。
 
-**Goal**：Assessment gaps 成为可查询的 PG 事实。
-**怎么实现**：新增 gap entity/repository/mapper，唯一键 `(assessment_id, gap_order)`，由评估落库事务批量保存。
-**测试验证**：`AssessmentProbeGapRepositoryTest` 验证顺序、唯一约束和 assessment 隔离。
-**依赖**：无。
+## T02 持久化 WorkState、Typed Patch 与确定性策略
 
-## T05 ProbeGap 确定性选择
+**Goal**：用一个 PostgreSQL WorkState 聚合维护本场状态，所有变化经 Patch，代码确定下一动作。
 
-**Goal**：编排器稳定选择第一条可用 gap。
-**怎么实现**：纯领域 selector 按 `gapOrder,id` 排序，以 turn provenance 的 `sourceProbeGapId` 过滤已使用 gap，再过滤非当前 TopicKey；不得按 assessment 整体过滤。
-**测试验证**：`ProbeGapSelectorTest` 覆盖乱序、同一 Assessment 仅排除已用 gap、跨主题和无可选 gap。
-**依赖**：T01、T04。
+- domain：新增不可变 `InterviewWorkState`、TargetState、WorkIssue、EvidenceRef、Budget、phase/status 和 sealed `WorkStateOperation`。
+- reducer：实现初始化、depth/evidence/issue、预算、切换、pending action、action result、answer complete 和 finish 操作；整份 Patch 失败则状态不变。
+- 存储：新增 `agent_work_states`、`agent_work_state_patches`；`state_json` 使用明确 record codec，唯一来源事件，revision 每次 +1。
+- 策略：`NextActionPolicy` 固定“等待/恢复 → 达标切换 → 上限耗尽 → 回答 issue → 工具 issue → 主问题 → 结束”的顺序。
+- 集成：Plan 同事务创建 WorkState v1；Assessor proposal 映射为 Patch；SWITCH/FINISH 由 POLICY Patch 执行。
+- 角色视图：新增 PlanningView、InterviewerView、AssessmentView、ToolRouterView；只传当前角色需要的字段。
+- 删除：`WorkingMemorySnapshot` 全链、plan `completed_turns/status` 运行写入与字段、临时下一状态组装、Interviewer 出题前 `EpisodePromptFact` 注入和角色通用 MemoryReader。
+- 测试：reducer 全操作、策略全分支、不可变性、来源幂等、revision 冲突、级别上限、历史变化不改变 AssessmentView、PostgreSQL 唯一约束。
+- 依赖：T01。提交：`feat: drive interviews from persistent work state`。
 
-## T06 WorkingMemorySnapshot
+## T03 ActionIntent 执行与恢复
 
-**Goal**：下一题决策只接收不可变工作记忆快照，不引入 Redis。
-**怎么实现**：新增 snapshot record 与 assembler；从 PG 聚合和裁决结果计算 trigger、selectedGap、parent 链深度。
-**测试验证**：`WorkingMemoryAssemblerTest` 覆盖根问题、gap 追问、多级父链和 tool trigger。
-**依赖**：T03、T05。
+**Goal**：ASK/CALL_TOOL 在外部执行前有持久意图，结果落库和 WorkState 应用可分别恢复。
 
-## T07 EpisodeFact 表与仓储
+- domain/storage：新增 ActionIntent、payload/status 状态机和 `agent_action_intents`；同 session 一个未完成 Intent，idempotency key 唯一，实体使用 `@Version`。
+- 事务：Intent + `SET_PENDING_ACTION` Patch、result + `SUCCEEDED`、ActionResult Patch + `APPLIED` 分为三个短事务。
+- ASK：Intent 固化 TargetEnvelope；问题草稿不展示，final question/turn 落库后才进入 `SUCCEEDED` 和 `AWAITING_ANSWER`。
+- CALL_TOOL：先取得无副作用参数提案，再重读 revision、保存 Intent、经 ToolGateway 用同一 idempotency key 执行。
+- 恢复：处理 PLANNED、超时 EXECUTING、SUCCEEDED；FAILED 保留现场，只接受显式 retry 创建新 Intent。
+- 重构：`BoundedReActRuntime` 不再执行模型自由 ToolCall；保留的有界调用只生成问题或工具参数。
+- 删除：Intent 前创建 turn/执行工具、结果缺失时新建 invocation、fallback question 和工具自动循环。
+- 测试：Intent 先于调用、合法状态迁移、三段崩溃恢复、ASK 不重复展示、工具等效一次、失败显式。
+- 依赖：T02。提交：`feat: persist and recover interview actions`。
 
-**Goal**：持久化每个 answered turn 的最小权威索引。
-**怎么实现**：新增 EpisodeFact entity/domain/repository，唯一键 `(session_id, turn_index)`；不复制题答、等级和 provenance。
-**测试验证**：`EpisodeFactRepositoryTest` 验证保存查询、owner 隔离和重复键失败。
-**依赖**：T01。
+## T04 不可变 Episode 事实
 
-## T08 EpisodeFact 同事务写入
+**Goal**：每个 answered turn 形成一条长期可审计 Episode，之后的事件不覆盖过去事实。
 
-**Goal**：完成 turn 时同步创建唯一 EpisodeFact(PENDING)。
-**怎么实现**：接入 `AdaptiveInterviewPersistenceService` 的短事务；使用业务幂等键，不异步创建事实。
-**测试验证**：`AdaptiveInterviewPersistenceServiceTest` 验证 turn/assessment/episode 原子性及请求重放不重复。
-**依赖**：T07。
+- 模型：扩展 EpisodeFact 的 mode、target、work revision、assistance、closure、correctsEpisodeId。
+- 写入：answer、assessment/evidence/gap、Assessment Patch 和 Episode 在同一短事务；相同 turn 只创建一次，T06 在同一入口追加 Semantic contribution。
+- 事实链：Episode 继续引用 turn/assessment/evidence/gap/tool result，不复制评级文本。
+- 纠正：候选人纠正创建新 turn/Episode 并回连；晚到 ToolResult 形成新事实与 Patch，只影响后续动作。
+- 删除：`replaceAssessment`、已发布 turn 的 `replaceQuestion`、ability reconciliation 补偿路径及其测试。
+- 测试：一答一 Episode、纠正回连、assistance/closure、owner 隔离、晚到工具不改旧事实、事务回滚。
+- 依赖：T03。提交：`feat: keep interview episodes immutable`。
 
-## T09 AbilityCounter 表与定级算法
+## T05 题目曝光、双视图召回与换场景
 
-**Goal**：建立 owner + TopicKey 的 L0~L4 累计计数与确定性三级能力。
-**怎么实现**：新增 counter entity/repository 和纯领域 calculator；使用乐观锁，禁止负数。
-**测试验证**：`AbilityCounterTest` 覆盖阈值边界、total=0、增减和负数失败；repository 测唯一键。
-**依赖**：T01。
+**Goal**：Interviewer 出题后召回历史，重复时换场景；正式和练习读取严格不同的 Episode 字段。
 
-## T10 新 Assessment 增量计数
+- 模型/storage：新增 QuestionExposure、QuestionIdentity 和 `agent_question_exposures`；发布 question、exposure、turn 同事务，未回答题也可召回。
+- 视图：`EvaluationRecallView` 只含中性题目/场景/目标/相似度和未闭环验证点；`PracticeDiagnosticView` 包含完整题答、评级、evidence、gap、tool 和 assistance。
+- 向量：复用 `vector_store`，metadata 写 document type + exposure id；按 MemoryOwner + TopicKey 回表过滤，不复用 `agent_question_index`。
+- 去重：`QuestionNoveltyPolicy` 在 draft 后运行；重复时保持 TopicKey、深度、难度和 evidence objective，必须改变场景、约束或验证方式后再次召回。
+- 集成：final question + exposure + turn 完成 ASK Intent；正式未闭环提示只在本场已选 TopicKey 内生效，不改变计划与预算。
+- 删除：正式 prompt 的 depthLevel/errorTags/answerHabitTags 历史链和所有已发布 question 原地替换入口。
+- 测试：未回答曝光、双视图字段、ACCEPT/REWRITE、只换措辞拒绝、TargetEnvelope 不变、owner/topic 隔离、deadline 失败显式。
+- 依赖：T04。提交：`feat: recall and rewrite repeated questions`。
 
-**Goal**：EpisodeFact 创建时恰好增加一次对应等级计数。
-**怎么实现**：在同一 persistence 事务内 upsert counter，以 Episode 唯一创建结果控制是否增量。
-**测试验证**：`AdaptiveInterviewPersistenceServiceTest` 验证五级增量、跨主题隔离和重放不重复计数。
-**依赖**：T08、T09。
+## T06 Semantic 双轨与练习消费
 
-## T11 异步判题计数补偿
+**Goal**：正式评估和练习分别生产长期状态，只有练习实时消费长期画像和完整 Episode。
 
-**Goal**：Assessment 等级替换后旧等级 -1、新等级 +1。
-**怎么实现**：在判题结果短事务中锁定 counter 并补偿；旧计数不足直接失败。
-**测试验证**：`AssessmentReconciliationServiceTest` 覆盖同级 no-op、跨级补偿、下溢失败和并发版本冲突。
-**依赖**：T10。
+- 模型/storage：新增 SemanticTrack、Contribution、State、Ability/Mastery/Transfer 和两张表；Episode + track 唯一，state 按 MemoryOwner + TopicKey + track 唯一。
+- 聚合：Evaluation 只写正式轨，Practice 只写练习轨；正式沿用 L0～L4 公式，练习按最新 assistance 结果得到 INDEPENDENT/ASSISTED/UNRESOLVED。
+- 模式：同标签至少 `MIN_PATTERN_EPISODES` 个来源才进入 stable pattern；LLM 只提 enrichment 标签，不决定 ability/mastery。
+- 练习读取：Planner 只看 request scope 内 Semantic planning view；Target 固定后 Coach/Interviewer 才读 PracticeDiagnosticView；Practice Assessor 仍只看本轮。
+- transfer：新练习贡献置 NOT_REEVALUATED；后续同 TopicKey 正式 Episode 按练习目标深度更新 CONFIRMED/REGRESSED，正式能力不被练习覆盖。
+- API/前端：候选人画像查询和页面直接投影双轨 SemanticState，不保留旧 response 双格式。
+- 删除：ability counter/profile/snapshot/reconciliation、CandidateMemoryService 正式选题入口和旧单轨表访问。
+- 测试：双轨隔离、能力公式、辅助分级、贡献幂等、pattern 门槛、scope 不扩张、正式无 Semantic、transfer 只由正式 Episode 更新。
+- 依赖：T05。提交：`feat: aggregate and consume dual track memory`。
 
-## T12 Episode enrichment 状态机
+## T07 删除旧路径与端到端验收
 
-**Goal**：明确管理 PENDING/PROCESSING/COMPLETED/FAILED/LEGACY_UNENRICHED。
-**怎么实现**：纯领域状态迁移；记录 error；超时 PROCESSING 可回 PENDING，FAILED 仅显式重试。
-**测试验证**：`EpisodeEnrichmentStateTest` 穷举合法与非法迁移、错误保留和重试语义。
-**依赖**：T07。
+**Goal**：代码库只剩 v4 记忆路径，并用 Redis persistence 场景证明完整闭环。
 
-## T13 标签枚举与来源校验
+- 删除：无消费者的旧 topic/claim/profile/counter repository/service/table、失效 Prompt 字段、旧 response、死测试和空包。
+- Schema：确认目标表是 sessions/plans/work states/patches/intents/episodes/exposures/semantic contributions/states；无 backfill、legacy、双写或 runtime 分支。
+- 正式场景：本次计划选中 Redis persistence → draft 命中旧曝光 → 中性换场景 → 本轮独立评估 → 正式 contribution。
+- 练习场景：scope 内 Semantic 选 fork/COW → 完整 Episode 定向追问/提示/复测 → assistance 入库 → 练习轨更新。
+- 恢复场景：在 Intent 执行前、结果落库后、Patch 应用前分别中断，重启后没有重复问题或工具副作用。
+- 验证：60 秒内运行后端全量测试；`rg` 证明旧类型、旧表和正式历史注入引用为零；工作树不含本任务未提交文件。
+- 依赖：T06。提交：`refactor: remove obsolete memory implementation`。
 
-**Goal**：只保存 spec 白名单标签及属于 Episode 的权威 source。
-**怎么实现**：新增 tag entity/repository、两个枚举和 source validator；非法单标签记录并丢弃。
-**测试验证**：`EpisodeTagValidatorTest` 覆盖三类 source、跨 Episode 拒绝、混合合法/非法标签。
-**依赖**：T04、T07。
+## 2. 规格完成标准映射
 
-## T14 Enrichment worker
-
-**Goal**：事务外调用 LLM，短事务幂等替换摘要和标签，失败显式落库。
-**怎么实现**：提交后生产任务；worker claim 状态、调用结构化输出、验证标签并 replace；不制造空成功。
-**测试验证**：`EpisodeEnrichmentServiceTest` 覆盖成功、LLM 异常、重复消费、非法标签和事务外调用。
-**依赖**：T12、T13。
-
-## T15 Assessment 修正触发再 enrichment
-
-**Goal**：异步判题修正后清除旧标签并重新进入 PENDING。
-**怎么实现**：计数补偿事务内删除旧 tag contribution、清空摘要状态并登记 after-commit 任务。
-**测试验证**：`AssessmentReconciliationServiceTest` 验证 Episode 引用不变、旧标签消失及单次重排队。
-**依赖**：T11、T14。
-
-## T16 Profile 快照模型
-
-**Goal**：按 owner + TopicKey 保存不可变能力快照与 supersede 链。
-**怎么实现**：迁移旧 profile 身份和来源字段，加入 count snapshot、revision reason、current 唯一语义。
-**测试验证**：`CandidateAbilityProfileRepositoryTest` 验证 current 唯一、历史保留、owner 隔离和完整计数快照。
-**依赖**：T09。
-
-## T17 会话完成生成 Profile
-
-**Goal**：完成 session 时为涉及主题生成 SESSION_COMPLETED 快照。
-**怎么实现**：在完成事务中批量读取 counters，跳过 total=0，生成新 current 并 supersede 旧快照。
-**测试验证**：`AdaptiveInterviewPersistenceServiceTest` 覆盖多主题、重复完成幂等、阈值结果和 supersede。
-**依赖**：T10、T16。
-
-## T18 Assessment 修正生成 Profile
-
-**Goal**：已完成 session 的等级修正产生 ASSESSMENT_CORRECTED 快照。
-**怎么实现**：补偿计数后仅对已完成 session 生成修订快照；进行中 session 不生成。
-**测试验证**：`AssessmentReconciliationServiceTest` 覆盖完成/进行中分支、revision reason 和 supersede。
-**依赖**：T11、T16、T17。
-
-## T19 EpisodePromptFact 选择器
-
-**Goal**：按同 TopicKey、同 skill、时间顺序选择白名单历史事实，最多 2000 tokens。
-**怎么实现**：仓储只查 completed 且排除当前 session；纯选择器稳定排序、逐项计量、超长单项跳过。
-**测试验证**：`EpisodePromptSelectorTest` 覆盖优先级、稳定排序、当前场排除、边界 token 和 skip-continue。
-**依赖**：T13、T14。
-
-## T20 Interviewer Prompt 接入与 Assessment 隔离
-
-**Goal**：Interviewer 只收到 EpisodePromptFact，Assessment 完全不接历史记忆。
-**怎么实现**：新增专用 prompt DTO/template section；保留全局 12000 token 硬校验；不复用持久化 DTO。
-**测试验证**：prompt contract 测试断言白名单字段存在，question/answer/summary/rationale/evidence/brief 不存在；Assessment request 无历史字段。
-**依赖**：T19。
-
-## T21 候选人记忆查询 API
-
-**Goal**：返回 Topic profile、等级分布、标签计数和 Episode 链，且严格 owner 隔离。
-**怎么实现**：application query service 组合 profile/tag/episode；Controller 返回 `Result<Response>`，不暴露 entity。
-**测试验证**：`CandidateMemoryControllerTest` 覆盖正常、空结果、跨 tenant/candidate 隔离与稳定排序。
-**依赖**：T14、T17、T18。
-
-## T22 候选人记忆 UI
-
-**Goal**：展示能力主题、计数、标签及由 parentTurnIndex 组合的追问链。
-**怎么实现**：API/types 集中定义；页面组件复用现有设计语言，明确显示 enrichment FAILED/未补全。
-**测试验证**：组件测试覆盖链组合和状态展示；`cd frontend && pnpm run build` 通过。
-**依赖**：T21。
-
-## T23 历史数据迁移
-
-**Goal**：确定性回填 TopicKey、LEGACY_UNENRICHED Episode、Counter 和 counter-v1 Profile。
-**怎么实现**：只通过 session + dimensionOrder 回连 plan；缺映射失败；以唯一约束保证可重跑，不调用 LLM。
-**测试验证**：migration 集成测试覆盖完整回填、重复执行、缺 plan 失败、同名展示文本不被误映射。
-**依赖**：T07、T09、T16。
-
-## T24 三层记忆不变量与发布门禁
-
-**Goal**：以端到端证据证明 spec §9 八条不变量。
-**怎么实现**：增加 persistence/application 集成测试与 prompt 快照检查，清除被替代的旧兼容路径。
-**测试验证**：`timeout 60s ./gradlew :app:test --no-daemon --console=plain` 与 `cd frontend && pnpm run build`；逐条记录 §9 证据。
-**依赖**：T01-T23。
-
-## 交付顺序
-
-```text
-T01,T02,T04
-  -> T03,T05,T07,T09
-  -> T06,T08,T10,T12,T13,T16,T23
-  -> T11,T14,T17
-  -> T15,T18,T19
-  -> T20,T21
-  -> T22
-  -> T24
-```
+| 34 号完成标准 | Tickets |
+|---|---|
+| WorkState + Patch + revision | T02 |
+| Intent 先执行与恢复 | T03 |
+| answered Episode + unanswered exposure | T04～T05 |
+| 正式 Planner/Assessor 历史隔离 | T01～T02、T06 |
+| draft 后中性召回与 TargetEnvelope | T05 |
+| 练习完整诊断但本轮独立评级 | T05～T06 |
+| Semantic 双轨不互相覆盖 | T06 |
+| MemoryOwner/scope 与工具证据边界 | T02、T05～T06 |
+| reducer/policy/聚合/召回与 PG 约束测试 | T02～T07 |
+| 无迁移兼容和旧实现 | T07 |

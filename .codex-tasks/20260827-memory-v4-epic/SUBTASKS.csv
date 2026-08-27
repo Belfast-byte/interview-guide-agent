@@ -1,6 +1,6 @@
 id,task,task_type,status,depends_on,task_dir,acceptance_criteria,validation_command,completed_at,retry_count,notes
 1,定稿三层记忆 v4 技术规格,single-full,DONE,,tasks/01-spec,"34 号规格与上游设计一致且不含迁移兼容方案","git diff --check && test $(wc -l < docs/design_spec/34-memory-three-layer-spec.md) -le 300",2026-08-27 23:52,0,
-2,拆分 v4 实施 tickets,single-full,TODO,1,tasks/02-tickets,"tickets 覆盖规格全部完成标准且可独立验收","git diff --check && test $(wc -l < docs/design_spec/35-memory-three-layer-tickets.md) -le 300",,0,
+2,拆分 v4 实施 tickets,single-full,DONE,1,tasks/02-tickets,"tickets 覆盖规格全部完成标准且可独立验收","git diff --check && test $(wc -l < docs/design_spec/35-memory-three-layer-tickets.md) -le 300",2026-08-28 00:02,0,
 3,实现会话模式与计划输入,single-full,TODO,2,tasks/03-session-plan,"Evaluation/Practice 初始化边界和 Target 计划通过测试","timeout 60s ./gradlew :app:test --no-daemon --console=plain --tests '*SessionMode*' --tests '*CapabilityTarget*'",,0,
 4,实现 WorkState Typed Patch 与确定性策略,single-full,TODO,3,tasks/04-working,"WorkState 持久化、Reducer 和 NextActionPolicy 通过测试","timeout 60s ./gradlew :app:test --no-daemon --console=plain --tests '*WorkState*' --tests '*NextActionPolicy*'",,0,
 5,实现 ActionIntent 与恢复,single-full,TODO,4,tasks/05-action-intent,"ASK/CALL_TOOL intent 先落库且恢复幂等测试通过","timeout 60s ./gradlew :app:test --no-daemon --console=plain --tests '*ActionIntent*'",,0,
