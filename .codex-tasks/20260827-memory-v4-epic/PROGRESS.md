@@ -10,13 +10,13 @@
 
 ## Context Recovery Block
 
-- **Current milestone**: #3 — 实现会话模式与计划输入
+- **Current milestone**: #4 — 实现 WorkState Typed Patch 与确定性策略
 - **Current status**: IN_PROGRESS
-- **Last completed**: #2 — 拆分 v4 实施 tickets
-- **Current artifact**: `docs/design_spec/35-memory-three-layer-tickets.md`
-- **Key context**: 35 号已拆成 7 个模块 tickets；当前进入 T01/Child 3。
-- **Known issues**: 代码仍是 v3 单轨与临时 Working 实现，后续按 ticket 直接替换。
-- **Next action**: 读取 adaptive agent 规则与 T01 相关代码，建立 Child 3 执行文件。
+- **Last completed**: #3 — T01 commit `82a4759`
+- **Current artifact**: `docs/design_spec/35-memory-three-layer-tickets.md` T02
+- **Key context**: 会话模式与 CapabilityTarget 已落库；正式 Planner 已断开长期记忆。
+- **Known issues**: 现有 WorkingMemorySnapshot 是 Prompt 临时视图，尚无持久 WorkState、Typed Patch 和统一确定性下一动作策略。
+- **Next action**: 建立 Child 4 执行文件，审计 working memory、assessment、tool result 与动作裁决链。
 
 ## Child 1: 定稿三层记忆 v4 技术规格
 
@@ -33,6 +33,15 @@
 - **What was done**: 用 7 个完整模块 tickets 覆盖旧票据，补充前端交付和完成标准映射。
 - **Validation**: 文档静态检查、行数、结构计数和 v3 内容检索 → exit 0
 - **Next step**: Child 3 — 实现会话模式与计划输入
+
+## Child 3: 实现会话模式与计划输入
+
+- **Status**: DONE
+- **Completed**: 2026-08-28 00:34
+- **What was done**: 打通 Evaluation/Practice、候选人阶段、显式练习范围和代码裁决后的 CapabilityTarget，删除正式 Planner 历史输入。
+- **Validation**: T01 定向后端测试、测试源码编译、前端构建、staged diff 检查均通过。
+- **Commit**: `82a4759`
+- **Next step**: Child 4 — WorkState Typed Patch 与确定性策略
 
 ## Shape Promotion
 

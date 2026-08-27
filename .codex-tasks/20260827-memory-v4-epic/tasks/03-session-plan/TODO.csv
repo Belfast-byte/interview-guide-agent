@@ -6,4 +6,4 @@ id,task,status,acceptance_criteria,validation_command,completed_at,retry_count,n
 5,删除正式 Planner 历史输入链,DONE,"Planner context/prompt 无 coveredTopics/unverifiedClaims","! rg -n 'coveredTopics|unverifiedClaims' app/src/main/java/interview/guide/modules/interview/agent/adaptive/core/context/PlannerContext.java app/src/main/resources/prompts/adaptive-agent-planner-*",2026-08-28 00:31,0,
 6,更新前端创建表单与类型,DONE,"模式级别scope可操作且 build 通过","cd frontend && pnpm run build",2026-08-28 00:19,0,
 7,运行模块验证并清理,DONE,"定向测试和前端 build 通过且无死代码","git diff --check",2026-08-28 00:32,0,
-8,按主题提交 T01,IN_PROGRESS,"提交只含 T01 和任务追踪文件","git diff --cached --check",,0,
+8,按主题提交 T01,DONE,"提交只含 T01 和任务追踪文件","git diff --cached --check",2026-08-28 00:34,0,commit 82a4759

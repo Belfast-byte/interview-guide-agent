@@ -12,12 +12,12 @@
 ## Context Recovery Block
 
 - **Current milestone**: #8 — 按主题提交 T01
-- **Current status**: IN_PROGRESS
-- **Last completed**: #7 — 定向验证与清理
+- **Current status**: DONE
+- **Last completed**: #8 — commit `82a4759`
 - **Current artifact**: T01 后端、DDL、Prompt、前端和测试改动
 - **Key context**: EVALUATION Planner 不再读取长期记忆；PRACTICE 只允许显式 TopicKey 范围；深度与预算由 candidate level 确定性裁决。
 - **Known issues**: 全量后端测试超过仓库规定的 60 秒硬上限；终止前无失败，T01 定向集合 21 秒全部通过。
-- **Next action**: 仅暂存 T01 与任务追踪文件，检查 staged diff 后提交。
+- **Next action**: 返回 Epic，进入 Child 4 / T02 Working Memory。
 
 ## Implementation Summary
 

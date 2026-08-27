@@ -1,0 +1,8 @@
+id,task,status,acceptance_criteria,validation_command,completed_at,retry_count,notes
+1,审计现有 Working 与动作裁决链,IN_PROGRESS,"依赖和替换清单写入 PROGRESS","rg -n 'WorkingMemory|ProbeGap|completeDimensionEarly|AgentResponseType' app/src/main/java/interview/guide/modules/interview/agent/adaptive",,0,
+2,实现 WorkState 与 Typed Patch Reducer,TODO,"Patch 不可变且 reducer 确定性测试通过","timeout 60s ./gradlew :app:test --no-daemon --console=plain --tests '*WorkState*'",,0,
+3,实现 NextActionPolicy,TODO,"ASK/CALL_TOOL/SWITCH_TARGET/FINISH 分支测试通过","timeout 60s ./gradlew :app:test --no-daemon --console=plain --tests '*NextActionPolicy*'",,0,
+4,实现 WorkState 持久化与初始化,TODO,"state/version 可重读且更新受乐观锁保护","timeout 60s ./gradlew :app:test --no-daemon --console=plain --tests '*WorkStatePersistence*'",,0,
+5,接入回答评估工具结果和动作完成 Patch,TODO,"三个事件边界均通过 application 短事务写 Patch","timeout 60s ./gradlew :app:test --no-daemon --console=plain --tests '*WorkingMemoryApplication*'",,0,
+6,删除旧临时 Working 路径,TODO,"无双轨和兼容适配器","git diff --check",,0,
+7,运行模块验证并提交 T02,TODO,"定向测试通过且提交纯净","git diff --cached --check",,0,
