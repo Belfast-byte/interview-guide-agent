@@ -1,5 +1,7 @@
 # 自适应面试 Agent 代码治理与体验改进 Spec(2026-08-22 分析落地)
 
+> 维护：Agent；上游设计决策以 `docs/design/` 为准。
+>
 > 状态：已完成（2026-08-22，执行记录与偏差见 [33-remediation-execution-plan.md](./33-remediation-execution-plan.md) §4）
 >
 > 权威输入：2026-08-22 全包代码分析（core/runtime/role/planning/assessment/tool/mcp/memory/persistence/algorithm/codeanalysis/observability/api 十四个子包逐一排查）、[30-improvement-spec-2026-08-16.md](./30-improvement-spec-2026-08-16.md)、[20-implementation-modules.md](./20-implementation-modules.md)
@@ -279,4 +281,4 @@ cd frontend && pnpm run build
 
 ### 4.4 接手 Agent 提示词模板
 
-> 仓库 /home/noshiro/interview-guide-agent，分支 dsh/implements-probeGaps。实施 docs/design/32-adaptive-agent-remediation-spec.md 的票 T-x：先通读该票整节与 §2、§4，再读 AGENTS.md 与 .claude/rules/ 下相关细则。行号可能漂移，先定位确认。最小改动，不越界其他票的文件域，完成后按 §4.3 验证并提交一个 commit。汇报改动文件清单、方案偏差、测试结果与验收标准自检。
+> 仓库 /home/noshiro/interview-guide-agent，分支 dsh/implements-probeGaps。实施 docs/design_spec/32-adaptive-agent-remediation-spec.md 的票 T-x：先通读该票整节与 §2、§4，再读 AGENTS.md 与 .claude/rules/ 下相关细则。行号可能漂移，先定位确认。最小改动，不越界其他票的文件域，完成后按 §4.3 验证并提交一个 commit。汇报改动文件清单、方案偏差、测试结果与验收标准自检。

@@ -1,6 +1,8 @@
 # 32 号 Spec 修复执行计划（2026-08-22 可行性核验 + 逐票执行拆解）
 
-> 状态：执行中
+> 维护：Agent；上游设计决策以 `docs/design/` 为准。
+>
+> 状态：已完成（2026-08-22）
 >
 > 权威输入：[32-adaptive-agent-remediation-spec.md](./32-adaptive-agent-remediation-spec.md)（票定义唯一事实源）、2026-08-22 三路全包核验（对 32 号 spec 全部证据逐条比对当前代码）
 >

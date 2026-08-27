@@ -40,10 +40,10 @@ docker compose -f docker-compose.dev.yml up -d
 - `app/src/main/java/interview/guide/common/`: 通用能力，包括限流、AI 调用、异步模板、配置、异常、统一响应。
 - `app/src/main/java/interview/guide/infrastructure/`: 技术基础设施，包括文件、导出、Redis、MapStruct 映射。
 - `app/src/main/java/interview/guide/modules/`: 业务模块，每个模块自包含 MVC 分层。
-- `app/src/main/java/interview/guide/modules/interview/agent/adaptive/`: 自适应面试 Agent，顶层按职责分包（`api`/`application`/`core`/`runtime`/`role`/`tool`/`planning`/`memory`/`assessment`/`persistence`/`algorithm`/`codeanalysis`/`mcp`/`observability`）；大模块内部再按职责划二级子包（如 `persistence.session`、`assessment.depth`），子包划分与依赖方向见 `docs/design/20-implementation-modules.md` §3.2，细则见 `.claude/rules/interview-agent.md`。
+- `app/src/main/java/interview/guide/modules/interview/agent/adaptive/`: 自适应面试 Agent，顶层按职责分包（`api`/`application`/`core`/`runtime`/`role`/`tool`/`planning`/`memory`/`assessment`/`persistence`/`algorithm`/`codeanalysis`/`mcp`/`observability`）；大模块内部再按职责划二级子包（如 `persistence.session`、`assessment.depth`），子包划分与依赖方向见 `docs/design_spec/20-implementation-modules.md` §3.2，细则见 `.claude/rules/interview-agent.md`。
 - `app/src/main/resources/prompts/`: StringTemplate Prompt 模板。
 - `frontend/src/`: React 前端页面、组件、API 客户端和类型定义。
-- `docs/`: 设计文档中心，入口 `docs/README.md`。`docs/design/` 是面试 Agent 重实现蓝图（唯一事实源），`docs/archive/` 是历史文档。
+- `docs/`: 文档中心，入口 `docs/README.md`。`docs/design/` 由用户主导，存放自然语言的框架性设计；`docs/design_spec/` 由 Agent 维护，存放技术规格、计划和 tickets；`docs/archive/` 存放历史文档。
 
 ## Architecture
 
@@ -75,7 +75,7 @@ docker compose -f docker-compose.dev.yml up -d
 
 ## Interview Agent Rules（自适应面试 Agent）
 
-- 设计唯一事实源是 `docs/design/`；实现细则在 `.claude/rules/interview-agent.md`，改 adaptive 包前必读。
+- 产品与架构意图以 `docs/design/` 为准，Agent 技术规格在 `docs/design_spec/`，代码与测试是当前运行事实。改 adaptive 包前先读相关设计和规格；冲突必须显式暴露，不得静默改写 `docs/design/`。
 - 依赖方向：`api → application → {core, runtime}`，`role`/`tool`/`planning`/`memory`/`assessment`/`persistence` 只依赖 `core`；`core` 是纯领域内核，禁止 import Spring AI/JPA/Redis/Web。
 - 模型建议、代码裁决：状态迁移、轮次上限、计划轮次分配由代码确定性裁决（`AdaptiveInterviewSession`、`InterviewPlan.decide`），模型输出只是提案；证据与锚点必须逐字命中回答原文或真实分析产物。
 - ReAct 循环统一走 `BoundedReActRuntime`（步数/工具数/deadline 三重预算）；工具必须经 `ToolGateway` 白名单执行，禁止模型网关自动注册工具。

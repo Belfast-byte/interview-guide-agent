@@ -1,5 +1,7 @@
 # 三层记忆实现 Tickets
 
+> 维护：Agent；上游设计决策以 `docs/design/` 为准。
+>
 > 基线：[34-memory-three-layer-spec.md](./34-memory-three-layer-spec.md) v3
 > 原则：每个 ticket 只交付一个可独立验证的行为；依赖满足后才能开始。
 

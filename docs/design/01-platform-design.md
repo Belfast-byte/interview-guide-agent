@@ -1,8 +1,10 @@
 # Agent 面试平台演进设计：工具、MCP 与多 Agent
 
+> 维护边界：用户维护目标、约束与关键架构裁决；文中类名、接口、表结构和阶段路径是解释裁决的历史上下文，当前实现以 `docs/design_spec/` 与代码、测试为准，不由用户负责同步。
+>
 > 状态：演进基线；当前执行进度以自适应文本面试演进设计为准
 >
-> 前置文档：[Agent 文本面试 MVP 技术设计](../archive/mvp-design.md)、[自适应文本面试演进设计](./10-text-interview.md)
+> 前置文档：[Agent 文本面试 MVP 技术设计](../archive/mvp-design.md)、[自适应文本面试演进设计](../design_spec/10-text-interview.md)
 >
 > 领域术语：[AI Interview Platform](./00-terminology.md)
 >
@@ -311,7 +313,7 @@ MCP 集成放在多 Agent 拆分**之后**。理由：MCP 对接的是稳定的�
 | L1 短期记忆 | 单场面试会话 | 轮次记录、评估结果、证据、维度小结、会话状态机 | `interview_turns` / `assessments` / `evidences` 等表（第 8 节） |
 | L2 长期记忆 | 跨会话 | 候选人能力画像、练习记录、企业侧量规校准数据 | 结构化画像表 + pgvector 语义索引 |
 
-> 注（2026-08-23）：自适应面试 Agent 侧已演进为 **Working / Episodic / Semantic** 三层分类——L0 对应 Working Memory 的装配来源，L1/L2 候选人侧对应 Episodic Memory（事件卡片）与 Semantic Memory（能力画像 + 标签）。详见 [34-memory-three-layer-spec.md](./34-memory-three-layer-spec.md)，该 spec 是记忆设计的最新事实源。
+> 注（2026-08-23）：自适应面试 Agent 侧已演进为 **Working / Episodic / Semantic** 三层分类——L0 对应 Working Memory 的装配来源，L1/L2 候选人侧对应 Episodic Memory（事件卡片）与 Semantic Memory（能力画像 + 标签）。当前实现规格见 [34-memory-three-layer-spec.md](../design_spec/34-memory-three-layer-spec.md)。
 
 ### 7.3 L0：工作上下文装配
 
@@ -474,7 +476,7 @@ agent_decisions            编排器决策记录（建议 vs 裁决，含覆盖�
 
 **优先级调整（2026-08-11）**：算法面试（代码沙箱）实现推迟；自适应文本面试优先级提前，作为当前唯一演进主线。
 
-**实现路径重置（2026-08-12）**：抛弃 `agent-loop-mvp-v1` 代码约束（2026-08-22 已删除），以本文档（平台设计）为蓝本重新实现；落地路径为 M0~M5（ReAct 内核 → 规划多维度 → 工具 function calling → 记忆系统 → MCP → 评估体系后置），详见 [自适应文本面试实现设计](./10-text-interview.md)。关键不变量：评估可后置，证据不可后置——`agent_turns` 从 M0 起结构化完整落库，保证 M5 可回填评估。
+**实现路径重置（2026-08-12）**：抛弃 `agent-loop-mvp-v1` 代码约束（2026-08-22 已删除），以本文档（平台设计）为蓝本重新实现；落地路径为 M0~M5（ReAct 内核 → 规划多维度 → 工具 function calling → 记忆系统 → MCP → 评估体系后置），详见 [自适应文本面试实现设计](../design_spec/10-text-interview.md)。关键不变量：评估可后置，证据不可后置——`agent_turns` 从 M0 起结构化完整落库，保证 M5 可回填评估。
 
 每个阶段的退出标准沿用 MVP 的做法：可度量的验收条件 + 黄金场景回归，而不是"功能做完了"。
 

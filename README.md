@@ -18,7 +18,7 @@
 
 InterviewGuide 是一个集成了简历分析、模拟面试（文字 + 语音）、自适应面试 Agent、面试安排、知识库管理、知识库题库面试和多模型配置的智能面试辅助平台。系统利用大语言模型（LLM）、向量数据库、Redis Stream 异步任务和实时语音技术，为求职者、HR 和培训机构提供智能化的简历评估、多维度自适应考核、面试练习、知识库问答和日程管理能力。
 
-> 📘 **自适应面试 Agent（Adaptive Agent）完整实现**：本仓库已落地新一代自适应面试 Agent 架构（星型多 Agent 协同、ReAct 有界内核、客观验证工具链与沙箱、分层记忆、100% 证据可追溯评估与确定性报告）。详细设计与实施切片请查阅 [文档中心 docs/README.md](./docs/README.md)。
+> 📘 **自适应面试 Agent（Adaptive Agent）完整实现**：本仓库已落地新一代自适应面试 Agent 架构（星型多 Agent 协同、ReAct 有界内核、客观验证工具链与沙箱、分层记忆、100% 证据可追溯评估与确定性报告）。自然语言设计与 Agent 技术规格请查阅 [文档中心 docs/README.md](./docs/README.md)。
 
 ## 系统架构
 
@@ -311,25 +311,23 @@ interview-guide/
 │
 ├── docker-compose.yml                # 完整部署：前端 + 后端 + PostgreSQL + Redis + MinIO
 ├── docker-compose.dev.yml            # 本地开发依赖：PostgreSQL + Redis + RustFS
-├── docs/                             # 设计文档中心（权威架构与实施规范）
-│   ├── README.md                     # 文档导航中心
-│   └── design/                       # 自适应 Agent 重实现设计蓝图（01~30 号文）
+├── docs/                             # 设计与技术规格中心
+│   ├── README.md                     # 文档分层与导航
+│   ├── design/                       # 用户主导的自然语言框架设计
+│   ├── design_spec/                  # Agent 维护的技术规格与执行资料
+│   └── archive/                      # 已被取代的历史文档
 ├── .env.example                      # 环境变量示例
 └── README.md
 ```
 
 ## 架构设计与文档索引
 
-关于自适应面试 Agent（Adaptive Agent）的完整架构与技术设计，请查阅 [docs/ 目录](./docs/README.md)：
+关于自适应面试 Agent（Adaptive Agent）的完整架构与技术设计，请查阅 [docs/ 目录](./docs/README.md)。文档分为两个活跃层级：
 
-| 文档 | 说明 |
+| 入口 | 说明 |
 |---|---|
-| [docs/design/01-platform-design.md](./docs/design/01-platform-design.md) | **平台演进设计**：星型多 Agent 架构、工具客观验证与 MCP 边界 |
-| [docs/design/10-text-interview.md](./docs/design/10-text-interview.md) | **自适应文本面试**：ReAct 循环内核、分层记忆与上下文装配 |
-| [docs/design/11-algorithm-interview.md](./docs/design/11-algorithm-interview.md) | **算法面试设计**：代码沙箱执行协议、Redis Stream 异步判题与证据链 |
-| [docs/design/12-code-analysis-service.md](./docs/design/12-code-analysis-service.md) | **代码分析服务**：代码仓库分析、主张核验与场景卡机制 |
-| [docs/design/20-implementation-modules.md](./docs/design/20-implementation-modules.md) | **实施模块与交付切片**：包边界规范、M0～M5 切片定义与持久化所有权 |
-| [docs/design/30-improvement-spec-2026-08-16.md](./docs/design/30-improvement-spec-2026-08-16.md) | **改进方案 Spec**：综合审查问题修复与长期增强项（IM-1～IM-12） |
+| [docs/design/README.md](./docs/design/README.md) | 用户主导的 what / why：自然语言框架设计 |
+| [docs/design_spec/README.md](./docs/design_spec/README.md) | Agent 主导的 how：实现规格、测试验收与执行资料 |
 
 ## 快速开始
 

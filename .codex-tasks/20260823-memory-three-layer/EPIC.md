@@ -2,7 +2,7 @@
 
 ## Goal
 
-- 将 `docs/design/34-memory-three-layer-spec.md` 补全为无未决实现语义的 v3 事实源。
+- 将 `docs/design_spec/34-memory-three-layer-spec.md` 补全为无未决实现语义的 v3 事实源。
 - 将 v3 拆成具备 Goal、实现边界、验收命令和依赖关系的 tickets。
 - 实现 Working / Episodic / Semantic Memory，完成历史迁移、候选人展示和公平性回归。
 

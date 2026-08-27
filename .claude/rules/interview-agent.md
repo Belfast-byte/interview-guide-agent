@@ -7,7 +7,7 @@ paths:
 
 # Adaptive Interview Agent Rules
 
-适用于 `modules/interview/agent/adaptive/`。设计唯一事实源是 `docs/design/`，包划分与依赖方向见 `docs/design/20-implementation-modules.md` §3.2/§3.3。
+适用于 `modules/interview/agent/adaptive/`。产品与架构意图以 `docs/design/` 为准，Agent 技术规格在 `docs/design_spec/`，代码与测试是当前运行事实。包划分与依赖方向见 `docs/design_spec/20-implementation-modules.md` §3.2/§3.3；规格与设计冲突时必须显式暴露。
 
 ## 包职责与依赖方向
 

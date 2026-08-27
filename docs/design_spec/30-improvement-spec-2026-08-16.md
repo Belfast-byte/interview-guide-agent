@@ -1,8 +1,10 @@
 # 自适应面试 Agent 改进方案 Spec(2026-08-16 评审落地)
 
+> 维护：Agent；上游设计决策以 `docs/design/` 为准。
+>
 > 状态：实施基线
 >
-> 权威输入：[2026-08-16 综合审查报告](../adaptive-agent-review-2026-08-16.md)(下称"评审")、[13-adaptive-optimization.md](./13-adaptive-optimization.md)、[20-implementation-modules.md](./20-implementation-modules.md)
+> 权威输入：2026-08-16 综合审查结论（原报告已移除，下称“评审”）、[13-adaptive-optimization.md](./13-adaptive-optimization.md)、[20-implementation-modules.md](./20-implementation-modules.md)
 >
 > 最后更新：2026-08-16
 

@@ -20,8 +20,8 @@
 
 ## Deliverables
 
-- `docs/design/34-memory-three-layer-spec.md` v3。
-- `docs/design/35-memory-three-layer-tickets.md`。
+- `docs/design_spec/34-memory-three-layer-spec.md` v3。
+- `docs/design_spec/35-memory-three-layer-tickets.md`。
 
 ## Done-When
 
@@ -31,5 +31,5 @@
 ## Final Validation Command
 
 ```bash
-rg -n '状态：.*v3|T01|T09|EpisodeFact|WorkingMemorySnapshot' docs/design/34-memory-three-layer-spec.md docs/design/35-memory-three-layer-tickets.md
+rg -n '状态：.*v3|T01|T09|EpisodeFact|WorkingMemorySnapshot' docs/design_spec/34-memory-three-layer-spec.md docs/design_spec/35-memory-three-layer-tickets.md
 ```

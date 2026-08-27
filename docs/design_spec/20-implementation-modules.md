@@ -1,8 +1,10 @@
 # Agent 重实现实施模块与交付切片
 
+> 维护：Agent；上游设计决策以 `docs/design/` 为准。
+>
 > 状态：实施基线
 >
-> 权威输入：[平台演进设计](./01-platform-design.md)、[自适应文本面试实现设计](./10-text-interview.md)、[算法题面试设计](./11-algorithm-interview.md)、[代码分析服务设计](./12-code-analysis-service.md)
+> 权威输入：[平台演进设计](../design/01-platform-design.md)、[自适应文本面试实现设计](./10-text-interview.md)、[算法题面试设计](./11-algorithm-interview.md)、[代码分析服务设计](./12-code-analysis-service.md)
 >
 > 最后更新：2026-08-12
 

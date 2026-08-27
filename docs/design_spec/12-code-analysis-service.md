@@ -1,8 +1,10 @@
 # 项目代码分析服务演进设计（Pi SDK 独立服务 + MCP）
 
+> 维护：Agent；上游设计决策以 `docs/design/` 为准。
+>
 > 状态：设计提案，待评审
 >
-> 前置文档：[Agent 面试平台演进设计](./01-platform-design.md)（第 5 节工具、第 6 节 MCP）
+> 前置文档：[Agent 面试平台演进设计](../design/01-platform-design.md)（第 5 节工具、第 6 节 MCP）
 >
 > 最后更新：2026-08-10
 

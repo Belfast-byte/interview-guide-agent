@@ -1,8 +1,10 @@
 # 自适应文本面试实现设计：ReAct 内核、记忆、多 Agent 与工具/MCP
 
+> 维护：Agent；上游设计决策以 `docs/design/` 为准。
+>
 > 状态：设计提案，待评审
 >
-> 2026-08-12 重写：抛弃 `agent-loop-mvp-v1` 代码约束，以 [Agent 面试平台演进设计](./01-platform-design.md) 为准重新设计实现路径；评估体系（深度量规、证据、报告）按决策后置到最后阶段。本文取代此前"基于现有代码演进"的版本。（2026-08-22：`agent-loop-mvp-v1` 代码已删除。）
+> 2026-08-12 重写：抛弃 `agent-loop-mvp-v1` 代码约束，以 [Agent 面试平台演进设计](../design/01-platform-design.md) 为准重新设计实现路径；评估体系（深度量规、证据、报告）按决策后置到最后阶段。本文取代此前"基于现有代码演进"的版本。（2026-08-22：`agent-loop-mvp-v1` 代码已删除。）
 >
 > 最后更新：2026-08-12
 
@@ -126,7 +128,7 @@ loop:
 
 ## 5. 记忆系统
 
-> 2026-08-23 起记忆系统演进为 **Working / Episodic / Semantic** 三层结构，最新事实源为 [34-memory-three-layer-spec.md](./34-memory-three-layer-spec.md)。本节保留实现侧描述，并按新分类重新标注。
+> 2026-08-23 起记忆系统演进为 **Working / Episodic / Semantic** 三层结构，当前技术规格为 [34-memory-three-layer-spec.md](./34-memory-three-layer-spec.md)。本节保留实现侧描述，并按新分类重新标注。
 
 ### 5.1 短期记忆（会话内，M0 起步、M3 完整）
 

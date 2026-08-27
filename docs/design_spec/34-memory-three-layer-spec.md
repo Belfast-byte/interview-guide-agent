@@ -1,8 +1,10 @@
 # 记忆系统三层改造 Spec（Working / Episodic / Semantic）
 
-> 状态：**Approved v3**（2026-08-23，阻断项已关闭，作为实现事实源）
+> 维护：Agent；上游设计决策以 `docs/design/` 为准。
 >
-> 权威输入：[01-platform-design.md](./01-platform-design.md) §7、[10-text-interview.md](./10-text-interview.md) §5、2026-08-23 事实校对与关闭裁决
+> 状态：**Approved v3**（2026-08-23，阻断项已关闭，当前实施规格）
+>
+> 权威输入：[01-platform-design.md](../design/01-platform-design.md) §7、[10-text-interview.md](./10-text-interview.md) §5、2026-08-23 事实校对与关闭裁决
 >
 > 最后更新：2026-08-23
 

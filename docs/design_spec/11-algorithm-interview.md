@@ -1,8 +1,10 @@
 # 算法题面试设计：代码沙箱工具与延迟执行
 
+> 维护：Agent；上游设计决策以 `docs/design/` 为准。
+>
 > 状态：设计提案，待评审
 >
-> 前置文档：[Agent 面试平台演进设计](./01-platform-design.md)（§5.3 沙箱 P0 设计）、[自适应文本面试实现设计](./10-text-interview.md)（M0~M5 主线）
+> 前置文档：[Agent 面试平台演进设计](../design/01-platform-design.md)（§5.3 沙箱 P0 设计）、[自适应文本面试实现设计](./10-text-interview.md)（M0~M5 主线）
 >
 > 最后更新：2026-08-12
 
