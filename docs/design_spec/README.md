@@ -19,5 +19,5 @@
 | [31-candidate-provider-and-interview-history-spec.md](./31-candidate-provider-and-interview-history-spec.md) | Provider 与面试历史规格 | 待实施 |
 | [32-adaptive-agent-remediation-spec.md](./32-adaptive-agent-remediation-spec.md) | 代码治理与体验改进规格 | 已完成 |
 | [33-remediation-execution-plan.md](./33-remediation-execution-plan.md) | 32 号规格执行计划 | 已完成 |
-| [34-memory-three-layer-spec.md](./34-memory-three-layer-spec.md) | 三层记忆规格 | Approved v3 |
-| [35-memory-three-layer-tickets.md](./35-memory-three-layer-tickets.md) | 三层记忆票据 | 待执行 |
+| [34-memory-three-layer-spec.md](./34-memory-three-layer-spec.md) | 三层记忆目标规格 | Approved v4，待实施 |
+| [35-memory-three-layer-tickets.md](./35-memory-three-layer-tickets.md) | v3 三层记忆历史票据 | 已废弃 |

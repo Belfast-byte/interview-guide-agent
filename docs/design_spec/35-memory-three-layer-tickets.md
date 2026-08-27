@@ -2,8 +2,9 @@
 
 > 维护：Agent；上游设计决策以 `docs/design/` 为准。
 >
-> 基线：[34-memory-three-layer-spec.md](./34-memory-three-layer-spec.md) v3
-> 原则：每个 ticket 只交付一个可独立验证的行为；依赖满足后才能开始。
+> 状态：**Superseded（2026-08-27）**
+>
+> 历史基线：34 号规格 v3。34 号现已由 v4 目标架构直接取代，以下票据仅保留审计记录，不得继续执行。
 
 ## T01 TopicKey 与计划唯一性
 

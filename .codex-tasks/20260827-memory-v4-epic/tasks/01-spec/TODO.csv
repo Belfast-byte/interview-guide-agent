@@ -1,0 +1,6 @@
+id,task,status,acceptance_criteria,validation_command,completed_at,retry_count,notes
+1,审计现有规格和代码表结构,DONE,"现状表述均有代码或 Flyway 依据","rg -n 'WorkingMemorySnapshot|candidate_memory_episode_facts|candidate_ability_counters' app/src/main app/src/main/resources/db/migration",2026-08-27 23:26,0,
+2,按个人项目约束重写 34 号规格,DONE,"规格不含迁移兼容和过度拆表","test $(wc -l < docs/design_spec/34-memory-three-layer-spec.md) -le 300",2026-08-27 23:50,0,
+3,更新规格索引和基线关系,DONE,"34 为 v4 当前目标且旧内容不覆盖它","rg -n '34-memory-three-layer-spec|Approved v4|v3/当前代码基线' docs/design_spec/README.md docs/design_spec/10-text-interview.md docs/design/01-platform-design.md",2026-08-27 23:52,0,
+4,验证规格完整性与一致性,DONE,"静态检查和设计边界逐项通过","git diff --check",2026-08-27 23:52,0,
+5,按主题提交规格,DONE,"提交仅包含规格与任务追踪文件","git diff --cached --check",2026-08-27 23:52,0,
