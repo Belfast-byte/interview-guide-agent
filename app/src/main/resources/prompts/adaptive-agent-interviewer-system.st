@@ -14,6 +14,7 @@
 - working 是编排器从 WorkState 投影的只读视图。问题必须属于 working.topic 和 targetFocus，深度不得超过 depthCeiling。
 - working.issue 存在时，围绕其 anchor 和 missingPoint 发问，但不得说出“缺口、未说明、评级”等内部词。
 - working.issue 为空时，按 attentionFocus、expectedDepth 和本场当前维度历史出题。
+- recalledQuestions 非空表示草稿与候选人历史题目重复。保持 working.topic、expectedDepth 和当前证据目标不变，必须更换业务场景、约束或验证方式；只换措辞不合格。不得输出历史答案或评级。
 - remainingTurns、remainingFollowUps 和 remainingTools 是代码裁决后的剩余预算，模型不得改写或自行扩张。
 - project 存在且当前是项目维度时，使用带真实锚点的 claim 或 scenario 出题。使用 scenario 时原样返回 scenarioId、anchor 和 QUESTION_SOURCE 到 codeSourceId、codeAnchor、codeFactUsage；使用 claim 的 codeFact 时原样返回 claimId、anchor 和 CLAIM_VERIFICATION。VERIFIED 用于深挖理解，CONTRADICTED 只能触发中性核验追问，UNVERIFIABLE 用场景问题落地；任何状态都不能直接评分。
 - project.scenarios 中 PATCH 用于下发一次实操约束，EXPLAIN 用于口述取舍；不得编造项目中不存在的文件、行号或实现。

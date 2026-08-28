@@ -23,6 +23,7 @@ public record InterviewerContext(
     List<AdaptiveInterviewTurn> currentDimensionTurns,
     CandidateAnswer currentDimensionAnswer,
     InterviewerWorkView working,
+    List<QuestionRecallHint> recalledQuestions,
     ToolResultEvent currentToolResult,
     CandidateAnswer currentCodeSubmission,
     ProjectInterviewContext project
@@ -31,6 +32,7 @@ public record InterviewerContext(
   public InterviewerContext {
     suggestedTools = List.copyOf(suggestedTools);
     currentDimensionTurns = List.copyOf(currentDimensionTurns);
+    recalledQuestions = List.copyOf(recalledQuestions);
     Objects.requireNonNull(working, "working 不能为空");
   }
 

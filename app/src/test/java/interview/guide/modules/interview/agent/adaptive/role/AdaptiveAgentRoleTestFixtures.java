@@ -70,6 +70,7 @@ final class AdaptiveAgentRoleTestFixtures {
             List.of(),
             null,
             plannedMemory(currentTurn + 1),
+            List.of(),
             null,
             null,
             null
@@ -113,6 +114,7 @@ final class AdaptiveAgentRoleTestFixtures {
         List.of(),
         answer,
         plannedMemory(answer == null ? 1 : 2),
+        List.of(),
         null,
         null,
         null
@@ -135,6 +137,7 @@ final class AdaptiveAgentRoleTestFixtures {
         List.of(),
         null,
         plannedMemory(2),
+        List.of(),
         null,
         null,
         project

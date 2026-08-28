@@ -24,13 +24,20 @@ public class BoundedActionRuntime {
       Duration deadline,
       Consumer<String> deltaSink
   ) {
-    long deadlineNanos = System.nanoTime() + deadline.toNanos();
+    return proposeBefore(request, RuntimeDeadline.start(deadline), deltaSink);
+  }
+
+  public AgentAction proposeBefore(
+      ReActRequest request,
+      RuntimeDeadline deadline,
+      Consumer<String> deltaSink
+  ) {
     ReActModelContext context = new ReActModelContext(request, List.of());
     return deadlineExecutor.invoke(
         () -> deltaSink == null
             ? modelGateway.nextAction(context)
             : modelGateway.nextActionStreaming(context, deltaSink),
-        deadlineNanos,
+        deadline.deadlineNanos(),
         "Agent 动作提案"
     );
   }

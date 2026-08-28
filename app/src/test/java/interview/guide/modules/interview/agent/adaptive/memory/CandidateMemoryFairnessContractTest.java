@@ -55,7 +55,7 @@ class CandidateMemoryFairnessContractTest {
     assertThat(componentNames(AssessmentRequest.class))
         .containsExactly("sessionId", "turnIndex", "context", "skillReferenceSection");
     assertThat(componentNames(AssessmentContext.class))
-        .containsExactly("dimension", "focus", "question", "answer", "toolResult", "rubric");
+        .containsExactly("dimension", "focus", "question", "answer", "rubric");
     assertThat(Stream.concat(
         Arrays.stream(componentNames(AssessmentRequest.class)),
         Arrays.stream(componentNames(AssessmentContext.class))

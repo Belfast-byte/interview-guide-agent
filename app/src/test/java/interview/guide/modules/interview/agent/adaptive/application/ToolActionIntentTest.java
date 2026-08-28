@@ -49,6 +49,7 @@ class ToolActionIntentTest {
       mock(WorkStatePersistenceService.class);
   private final AdaptiveInterviewPersistenceService interviews =
       mock(AdaptiveInterviewPersistenceService.class);
+  private final QuestionNoveltyService novelty = mock(QuestionNoveltyService.class);
   private final ReActRequest request = mock(ReActRequest.class);
   private final InterviewWorkState state = mock(InterviewWorkState.class);
   private ActionIntentExecutor executor;
@@ -56,7 +57,7 @@ class ToolActionIntentTest {
   @BeforeEach
   void setUp() {
     executor = new ActionIntentExecutor(
-        runtime, roles, tools, intents, transactions, workStates, interviews);
+        runtime, roles, tools, intents, transactions, workStates, interviews, novelty);
     when(state.sessionId()).thenReturn("session-1");
     when(state.revision()).thenReturn(2L);
     when(state.activeTargetId()).thenReturn("target-0");

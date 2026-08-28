@@ -59,6 +59,7 @@ public class ContextAssembler {
         currentDimensionTurns,
         currentDimensionAnswer,
         input.working(),
+        List.of(),
         null,
         input.candidateAnswer() != null && input.candidateAnswer().codeSubmission() != null
             ? input.candidateAnswer()
@@ -88,6 +89,7 @@ public class ContextAssembler {
             .toList(),
         null,
         input.working(),
+        List.of(),
         input.event(),
         null,
         input.project()

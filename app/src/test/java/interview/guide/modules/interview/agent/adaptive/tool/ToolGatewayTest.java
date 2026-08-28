@@ -126,6 +126,7 @@ class ToolGatewayTest {
             List.of(),
             null,
             plannedMemory(),
+            List.of(),
             null,
             null,
             null

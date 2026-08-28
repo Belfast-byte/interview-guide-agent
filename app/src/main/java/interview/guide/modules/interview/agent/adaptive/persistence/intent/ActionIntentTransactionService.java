@@ -18,6 +18,7 @@ import interview.guide.modules.interview.agent.adaptive.persistence.assessment.A
 import interview.guide.modules.interview.agent.adaptive.persistence.assessment.AssessmentProbeGapRepository;
 import interview.guide.modules.interview.agent.adaptive.persistence.plan.AdaptiveAgentPlanEntity;
 import interview.guide.modules.interview.agent.adaptive.persistence.plan.AdaptiveAgentPlanRepository;
+import interview.guide.modules.interview.agent.adaptive.persistence.memory.QuestionExposurePersistence;
 import interview.guide.modules.interview.agent.adaptive.persistence.session.AdaptiveAgentSessionEntity;
 import interview.guide.modules.interview.agent.adaptive.persistence.session.AdaptiveAgentSessionRepository;
 import interview.guide.modules.interview.agent.adaptive.persistence.session.AdaptiveAgentToolCallEntity;
@@ -52,6 +53,7 @@ public class ActionIntentTransactionService {
   private final AssessmentProbeGapRepository probeGapRepository;
   private final WorkStatePersistenceService workStateService;
   private final ActionIntentPersistenceService intentService;
+  private final QuestionExposurePersistence exposurePersistence;
 
   @Transactional
   public void initializePlan(String sessionId, InterviewPlan plan) {
@@ -87,13 +89,15 @@ public class ActionIntentTransactionService {
     AdaptiveAgentSessionEntity session = session(completion.sessionId());
     TurnProvenance provenance = resolveProvenance(completion.sessionId(), payload);
     advanceSession(session, completion);
-    turnRepository.save(new AdaptiveAgentTurnEntity(new AdaptiveTurnCreation(
+    AdaptiveAgentTurnEntity turn = turnRepository.saveAndFlush(
+        new AdaptiveAgentTurnEntity(new AdaptiveTurnCreation(
         completion.sessionId(),
         payload.target().turnIndex(),
         targetOrder(completion.sessionId(), payload.target().targetId()),
         completion.action(),
         provenance
     )));
+    exposurePersistence.save(session, turn, completion.publication());
     intentService.succeed(
         completion.intentId(),
         ActionIntentOutcome.succeeded(

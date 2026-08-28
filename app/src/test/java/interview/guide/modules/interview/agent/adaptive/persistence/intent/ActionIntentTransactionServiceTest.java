@@ -5,6 +5,8 @@ import static interview.guide.modules.interview.agent.adaptive.support.AdaptiveT
 import static org.assertj.core.api.Assertions.assertThat;
 
 import interview.guide.modules.interview.agent.adaptive.core.action.RespondAction;
+import interview.guide.modules.interview.agent.adaptive.core.context.DepthLevel;
+import interview.guide.modules.interview.agent.adaptive.core.context.TopicKey;
 import interview.guide.modules.interview.agent.adaptive.core.intent.ActionIntent;
 import interview.guide.modules.interview.agent.adaptive.core.intent.ActionIntentKey;
 import interview.guide.modules.interview.agent.adaptive.core.intent.ActionIntentStatus;
@@ -19,6 +21,10 @@ import interview.guide.modules.interview.agent.adaptive.core.memory.WorkStatePat
 import interview.guide.modules.interview.agent.adaptive.core.session.AdaptiveInterviewSession;
 import interview.guide.modules.interview.agent.adaptive.core.session.AdaptiveSessionStatus;
 import interview.guide.modules.interview.agent.adaptive.core.session.NextTurnProvenanceDraft;
+import interview.guide.modules.interview.agent.adaptive.memory.episode.QuestionIdentity;
+import interview.guide.modules.interview.agent.adaptive.memory.episode.QuestionPublication;
+import interview.guide.modules.interview.agent.adaptive.persistence.memory.QuestionExposurePersistence;
+import interview.guide.modules.interview.agent.adaptive.persistence.memory.QuestionExposureRepository;
 import interview.guide.modules.interview.agent.adaptive.persistence.session.AdaptiveAgentSessionEntity;
 import interview.guide.modules.interview.agent.adaptive.persistence.session.AdaptiveAgentSessionRepository;
 import interview.guide.modules.interview.agent.adaptive.persistence.session.AdaptiveAgentTurnRepository;
@@ -51,6 +57,7 @@ import tools.jackson.databind.ObjectMapper;
     ActionIntentJsonCodec.class,
     WorkStatePersistenceService.class,
     WorkStateJsonCodec.class,
+    QuestionExposurePersistence.class,
     ActionIntentTransactionServiceTest.JacksonTestConfig.class
 })
 class ActionIntentTransactionServiceTest {
@@ -62,6 +69,7 @@ class ActionIntentTransactionServiceTest {
   @Autowired private WorkStatePersistenceService workStates;
   @Autowired private AdaptiveAgentSessionRepository sessions;
   @Autowired private AdaptiveAgentTurnRepository turns;
+  @Autowired private QuestionExposureRepository exposures;
 
   @Test
   @DisplayName("首题必须先落 ASK Intent，再落轮次并应用结果")
@@ -79,10 +87,13 @@ class ActionIntentTransactionServiceTest {
     assertThat(turns.findBySessionIdOrderByTurnIndex(SESSION_ID)).isEmpty();
 
     intents.start("intent-1");
+    RespondAction question = RespondAction.ask(
+        "RDB 和 AOF 如何取舍？", "验证持久化");
     transactions.completeAsk(new AdaptiveAskIntentCompletion(
-        SESSION_ID, "intent-1", RespondAction.ask("RDB 和 AOF 如何取舍？", "验证持久化")));
+        SESSION_ID, "intent-1", publication(question)));
 
     assertThat(turns.findBySessionIdOrderByTurnIndex(SESSION_ID)).hasSize(1);
+    assertThat(exposures.findAll()).hasSize(1);
     assertThat(intents.get("intent-1").progress().status())
         .isEqualTo(ActionIntentStatus.SUCCEEDED);
     assertThat(sessions.findById(SESSION_ID).orElseThrow().status())
@@ -103,6 +114,17 @@ class ActionIntentTransactionServiceTest {
             null, SESSION_ID, "candidate-1", "JD", "Resume", "provider",
             "Provider", "model", EVALUATION_SETTINGS)
     ));
+  }
+
+  private QuestionPublication publication(RespondAction action) {
+    return new QuestionPublication(action, new QuestionIdentity(
+        new TopicKey("java-backend", "REDIS"),
+        "验证持久化机制",
+        DepthLevel.L2,
+        "L2",
+        "scenario",
+        "wording"
+    ), null, null);
   }
 
   private InterviewPlan plan() {

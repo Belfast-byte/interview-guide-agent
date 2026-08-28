@@ -29,5 +29,16 @@ public interface AdaptiveAgentEvidenceRepository
 
   List<AdaptiveAgentEvidenceEntity> findByAssessmentIdOrderById(Long assessmentId);
 
+  @Query("""
+      SELECT evidence
+      FROM AdaptiveAgentEvidenceEntity evidence
+      JOIN FETCH evidence.assessment assessment
+      WHERE assessment.id IN :assessmentIds
+      ORDER BY assessment.id, evidence.id
+      """)
+  List<AdaptiveAgentEvidenceEntity> findByAssessmentIds(
+      @Param("assessmentIds") List<Long> assessmentIds
+  );
+
   void deleteByAssessmentId(Long assessmentId);
 }

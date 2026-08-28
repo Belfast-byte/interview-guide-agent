@@ -17,6 +17,9 @@ import interview.guide.modules.interview.agent.adaptive.core.memory.WorkIssueSta
 import interview.guide.modules.interview.agent.adaptive.core.memory.WorkStateOperation;
 import interview.guide.modules.interview.agent.adaptive.core.memory.WorkStatePatch;
 import interview.guide.modules.interview.agent.adaptive.core.memory.WorkStatePatchSource;
+import interview.guide.modules.interview.agent.adaptive.memory.episode.QuestionNoveltyDecision;
+import interview.guide.modules.interview.agent.adaptive.memory.episode.QuestionPublication;
+import interview.guide.modules.interview.agent.adaptive.memory.episode.QuestionReview;
 import interview.guide.modules.interview.agent.adaptive.persistence.intent.ActionIntentPersistenceService;
 import interview.guide.modules.interview.agent.adaptive.persistence.intent.ActionIntentTransactionService;
 import interview.guide.modules.interview.agent.adaptive.persistence.session.AdaptiveAskIntentCompletion;
@@ -26,6 +29,7 @@ import interview.guide.modules.interview.agent.adaptive.planning.PlannedIntervie
 import interview.guide.modules.interview.agent.adaptive.role.AgentRoleRegistry;
 import interview.guide.modules.interview.agent.adaptive.runtime.BoundedActionRuntime;
 import interview.guide.modules.interview.agent.adaptive.runtime.ReActRequest;
+import interview.guide.modules.interview.agent.adaptive.runtime.RuntimeDeadline;
 import interview.guide.modules.interview.agent.adaptive.runtime.ToolExecution;
 import interview.guide.modules.interview.agent.adaptive.runtime.ToolExecutionOutcome;
 import interview.guide.modules.interview.agent.adaptive.tool.ToolGateway;
@@ -47,6 +51,7 @@ public class ActionIntentExecutor {
   private final ActionIntentTransactionService intentTransactions;
   private final WorkStatePersistenceService workStateService;
   private final AdaptiveInterviewPersistenceService interviewPersistence;
+  private final QuestionNoveltyService noveltyService;
 
   public PlannedInterview executeAsk(AskIntentExecution execution) {
     ActionIntent running = begin(execution.intent());
@@ -56,7 +61,7 @@ public class ActionIntentExecutor {
     if (running.progress().status() == ActionIntentStatus.SUCCEEDED) {
       return applyQuestion(running);
     }
-    RespondAction question = proposeQuestion(execution, running);
+    QuestionPublication question = prepareQuestion(execution, running);
     intentTransactions.completeAsk(new AdaptiveAskIntentCompletion(
         running.key().sessionId(), running.key().intentId(), question));
     publishQuestion(execution, question);
@@ -113,7 +118,7 @@ public class ActionIntentExecutor {
   }
 
   private PlannedInterview executeRunningAsk(AskIntentExecution execution) {
-    RespondAction question = proposeQuestion(execution, execution.intent());
+    QuestionPublication question = prepareQuestion(execution, execution.intent());
     intentTransactions.completeAsk(new AdaptiveAskIntentCompletion(
         execution.intent().key().sessionId(),
         execution.intent().key().intentId(),
@@ -133,32 +138,44 @@ public class ActionIntentExecutor {
     return applyTool(intentService.get(execution.intent().key().intentId()));
   }
 
-  private RespondAction proposeQuestion(
+  private QuestionPublication prepareQuestion(
       AskIntentExecution execution,
       ActionIntent running
   ) {
-    AgentAction proposal;
     try {
-      proposal = runtime.propose(
-          execution.request(),
-          roleRegistry.get(execution.request().role()).deadline(),
-          null
-      );
+      RuntimeDeadline deadline = RuntimeDeadline.start(
+          roleRegistry.get(execution.request().role()).deadline());
+      RespondAction draft = proposeQuestion(execution.request(), deadline);
+      QuestionReview first = noveltyService.review(execution.request(), draft);
+      if (first.type() == QuestionNoveltyDecision.Type.ACCEPT) {
+        return first.publication();
+      }
+      ReActRequest rewriteRequest = noveltyService.rewriteRequest(execution.request(), first);
+      QuestionReview rewritten = noveltyService.review(
+          rewriteRequest, proposeQuestion(rewriteRequest, deadline));
+      noveltyService.requireValidRewrite(first, rewritten);
+      return rewritten.publication();
     } catch (RuntimeException e) {
       intentService.fail(running.key().intentId(), failureMessage(e));
       throw e;
     }
+  }
+
+  private RespondAction proposeQuestion(
+      ReActRequest request,
+      RuntimeDeadline deadline
+  ) {
+    AgentAction proposal = runtime.proposeBefore(request, deadline, null);
     if (proposal instanceof RespondAction response
         && response.type() == AgentResponseType.ASK) {
       return response;
     }
-    intentService.fail(running.key().intentId(), "ASK Intent 未生成单一问题");
     throw new BusinessException(ErrorCode.AI_SERVICE_ERROR, "ASK Intent 未生成单一问题");
   }
 
-  private void publishQuestion(AskIntentExecution execution, RespondAction question) {
+  private void publishQuestion(AskIntentExecution execution, QuestionPublication question) {
     if (execution.deltaSink() != null) {
-      execution.deltaSink().accept(question.content());
+      execution.deltaSink().accept(question.action().content());
     }
   }
 

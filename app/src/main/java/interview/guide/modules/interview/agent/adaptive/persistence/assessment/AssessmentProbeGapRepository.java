@@ -25,4 +25,15 @@ public interface AssessmentProbeGapRepository
   List<AssessmentProbeGapEntity> findSessionGaps(
       @Param("sessionId") String sessionId
   );
+
+  @Query("""
+      SELECT gap
+      FROM AssessmentProbeGapEntity gap
+      JOIN FETCH gap.assessment assessment
+      WHERE assessment.id IN :assessmentIds
+      ORDER BY assessment.id, gap.gapOrder, gap.id
+      """)
+  List<AssessmentProbeGapEntity> findByAssessmentIds(
+      @Param("assessmentIds") List<Long> assessmentIds
+  );
 }

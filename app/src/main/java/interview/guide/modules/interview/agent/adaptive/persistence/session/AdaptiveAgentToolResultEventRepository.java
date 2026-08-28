@@ -66,4 +66,16 @@ public interface AdaptiveAgentToolResultEventRepository
       @Param("eventId") long eventId,
       @Param("sessionId") String sessionId
   );
+
+  @Query("""
+      select new interview.guide.modules.interview.agent.adaptive.memory.episode.EpisodeToolResultFact(
+        event.id, event.resultSummary, event.resultOutput
+      )
+      from AdaptiveAgentToolResultEventEntity event
+      where event.id in :eventIds
+      order by event.id
+      """)
+  List<EpisodeToolResultFact> findEpisodeFactsByIds(
+      @Param("eventIds") List<Long> eventIds
+  );
 }
