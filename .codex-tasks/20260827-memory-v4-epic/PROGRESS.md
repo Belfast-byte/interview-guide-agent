@@ -10,13 +10,13 @@
 
 ## Context Recovery Block
 
-- **Current milestone**: #5 — 实现 ActionIntent 与恢复
+- **Current milestone**: #6 — 实现 Episode 召回与题目去重
 - **Current status**: IN_PROGRESS
-- **Last completed**: #4 — T02 commit `29100db`
-- **Current artifact**: `docs/design_spec/35-memory-three-layer-tickets.md` T03
-- **Key context**: WorkState、Typed Patch 和确定性策略已成为当前运行状态唯一写链，旧临时 Working 路径已删除。
-- **Known issues**: ASK/CALL_TOOL 尚未以 ActionIntent 先落库，进程故障后仍缺少确定性恢复入口。
-- **Next action**: 建立 Child 5 执行文件，核对现有 turn/tool result 持久化边界并接入 ActionIntent。
+- **Last completed**: #5 — T03 commit `42ea980`
+- **Current artifact**: `docs/design_spec/35-memory-three-layer-tickets.md` T04/T05
+- **Key context**: ASK/CALL_TOOL 已持久为 ActionIntent，外部执行、结果落库和 Patch 应用可分段恢复。
+- **Known issues**: 现有 Episode 仍是旧口径，晚到工具和 reassessment 仍可替换过去评估，且没有未回答问题曝光去重。
+- **Next action**: 建立 Child 6 执行文件，先盘点 Episode/assessment/tool-result 现有表与替换路径。
 
 ## Child 1: 定稿三层记忆 v4 技术规格
 
@@ -51,6 +51,15 @@
 - **Validation**: 架构隔离、WorkState、NextActionPolicy 定向测试和测试编译通过；全量套件触及 60 秒硬超时，留作最终门禁处理。
 - **Commit**: `29100db`
 - **Next step**: Child 5 — ActionIntent 与恢复
+
+## Child 5: 实现 ActionIntent 与恢复
+
+- **Status**: DONE
+- **Completed**: 2026-08-28 08:30
+- **What was done**: ASK/CALL_TOOL 统一改为先落 Intent 的三段事务，工具执行复用持久幂等键，恢复任务按状态确定继续动作。
+- **Validation**: T03 定向、模块回归、架构隔离、Controller 与 Spring AI gateway 测试均通过。
+- **Commit**: `42ea980`
+- **Next step**: Child 6 — Episode 召回与题目去重
 
 ## Shape Promotion
 

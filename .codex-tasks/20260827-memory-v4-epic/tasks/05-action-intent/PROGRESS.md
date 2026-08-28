@@ -2,10 +2,25 @@
 
 ## Context Recovery Block
 
-- **Current milestone**: #1 — 审计 ASK 和 CALL_TOOL 副作用边界
-- **Current status**: IN_PROGRESS
-- **Last completed**: T02 / commit `29100db`
+- **Current milestone**: #7 — T03 验收与提交
+- **Current status**: DONE
+- **Last completed**: T03 / commit `42ea980`
 - **Current artifact**: `docs/design_spec/35-memory-three-layer-tickets.md` T03
-- **Key context**: WorkState 已支持 `ACTION_PENDING`、active intent 和 ActionResult Patch，但尚无 ActionIntent 聚合与恢复入口。
-- **Known issues**: 当前问题生成、turn 落库和工具执行仍由单次 application 调用串联，进程中断后不能确定应继续执行还是只补状态。
-- **Next action**: 核对 `runDecision`、`recordDecision`、ToolGateway 和异步 ToolResult 的真实副作用边界。
+- **Key context**: ASK/CALL_TOOL 已统一为 `PLANNED → EXECUTING → SUCCEEDED → APPLIED`，FAILED 只能通过显式 API 产生新 Intent 重试。
+- **Known issues**: 无 T03 未闭环问题；后端全量测试依然留到 T08 在 60 秒门禁下统一处理。
+- **Next action**: 进入 T04/T05，将 answered turn 固化为不可变 Episode，再实现题目曝光和召回去重。
+
+## Delivery
+
+- 外部动作前：`ActionIntentTransactionService` 原子保存 Intent 和 Pending Patch。
+- 外部动作后：问题/ToolExecution 与 `SUCCEEDED` 同事务落库，再单独应用 ActionResult Patch。
+- ASK 在 final turn 落库后才向 SSE 发布；CALL_TOOL 在 Intent 之前只做无副作用参数提案与校验。
+- 恢复扫描 PLANNED、超时 EXECUTING 和 SUCCEEDED；工具重用 Intent idempotency key。
+- 删除 `BoundedReActRuntime`、`ReActBudget`、`AgentToolExecutor`、首题直写和 PATCH 随机 invocation 路径。
+
+## Validation
+
+- ActionIntent/ASK/CALL_TOOL/幂等工具定向测试：通过。
+- application/core/runtime/tool/intent/working 模块回归：60 秒内通过。
+- `AdaptivePackageIsolationTest`、Controller 和 Spring AI gateway 回归：通过。
+- `git diff --cached --check`：通过。
