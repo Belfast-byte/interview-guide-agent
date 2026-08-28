@@ -38,7 +38,6 @@ import interview.guide.modules.interview.agent.adaptive.persistence.assessment.A
 import interview.guide.modules.interview.agent.adaptive.persistence.assessment.AssessmentProbeGapRepository;
 import interview.guide.modules.interview.agent.adaptive.persistence.memory.AdaptiveDimensionBriefEntity;
 import interview.guide.modules.interview.agent.adaptive.persistence.memory.AdaptiveDimensionBriefRepository;
-import interview.guide.modules.interview.agent.adaptive.persistence.memory.AbilityProfileSnapshotService;
 import interview.guide.modules.interview.agent.adaptive.persistence.memory.CandidateMemoryClaimEntity;
 import interview.guide.modules.interview.agent.adaptive.persistence.memory.CandidateMemoryClaimRepository;
 import interview.guide.modules.interview.agent.adaptive.persistence.memory.CandidateMemoryTopicEntity;
@@ -79,7 +78,6 @@ public class AdaptiveInterviewPersistenceService {
   private final AssessmentProbeGapRepository probeGapRepository;
   private final PracticeRecordRepository practiceRecordRepository;
   private final AdaptiveAgentToolResultEventRepository toolResultEventRepository;
-  private final AbilityProfileSnapshotService abilityProfileSnapshotService;
   private final EpisodeFactPersistence episodeFactPersistence;
   private final WorkStatePersistenceService workStatePersistenceService;
   private final ActionIntentPersistenceService actionIntentPersistenceService;
@@ -249,7 +247,6 @@ public class AdaptiveInterviewPersistenceService {
     List<AdaptiveAgentPlanEntity> plans = planRepository
         .findBySessionIdOrderByDimensionOrder(sessionId);
     if (transition.session().status() == AdaptiveSessionStatus.COMPLETED) {
-      refreshProfiles(session, plans);
     }
     return plannedInterview(session, toPlan(sessionId, current.maxTurns(), plans));
   }
@@ -407,7 +404,6 @@ public class AdaptiveInterviewPersistenceService {
         ))
         .toList());
     if (transition.session().status() == AdaptiveSessionStatus.COMPLETED) {
-      refreshProfiles(sessionEntity, planEntities);
     }
     return plannedInterview(sessionEntity, plan);
   }
@@ -561,13 +557,6 @@ public class AdaptiveInterviewPersistenceService {
         AssessmentProbeGapEntity::gapOrder,
         AssessmentProbeGapEntity::id
     ));
-  }
-
-  private void refreshProfiles(
-      AdaptiveAgentSessionEntity session,
-      List<AdaptiveAgentPlanEntity> dimensions
-  ) {
-    abilityProfileSnapshotService.snapshotCompletedSession(session, dimensions);
   }
 
   private void saveCodeFactEvidence(

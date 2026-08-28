@@ -64,7 +64,8 @@ public class ContextAssembler {
         input.candidateAnswer() != null && input.candidateAnswer().codeSubmission() != null
             ? input.candidateAnswer()
             : null,
-        input.project()
+        input.project(),
+        input.practiceMemory()
     );
   }
 
@@ -92,7 +93,8 @@ public class ContextAssembler {
         List.of(),
         input.event(),
         null,
-        input.project()
+        input.project(),
+        input.practiceMemory()
     );
   }
 

@@ -9,6 +9,11 @@ import interview.guide.modules.interview.agent.adaptive.application.AdaptiveAgen
 import interview.guide.modules.interview.agent.adaptive.core.context.PlannerContext;
 import interview.guide.modules.interview.agent.adaptive.core.session.CandidateLevel;
 import interview.guide.modules.interview.agent.adaptive.core.session.SessionMode;
+import interview.guide.modules.interview.agent.adaptive.core.context.TopicKey;
+import interview.guide.modules.interview.agent.adaptive.core.session.PracticeScope;
+import interview.guide.modules.interview.agent.adaptive.memory.semantic.PracticePlanningMemory;
+import interview.guide.modules.interview.agent.adaptive.memory.semantic.PracticePlanningStatus;
+import interview.guide.modules.interview.agent.adaptive.memory.semantic.PracticePlanningTopic;
 import interview.guide.modules.interview.agent.adaptive.observability.AdaptiveAgentTelemetry;
 import interview.guide.modules.interview.agent.adaptive.observability.AdaptiveInputTokenBudget;
 import interview.guide.modules.interview.agent.adaptive.planning.DimensionProposal;
@@ -124,8 +129,33 @@ class SpringAiPlanningAgentTest {
             "EVALUATION",
             "CAMPUS",
             "skillCatalog"
-        );
+        )
+        .doesNotContain("semanticMemory");
     verify(telemetry).modelCallSucceeded(eq("planner"), eq("PLAN"), anyLong());
+  }
+
+  @Test
+  @DisplayName("只有练习规划请求注入 scope 内 Semantic planning view")
+  void shouldSerializeSemanticMemoryOnlyForPractice() {
+    when(invoke()).thenReturn(new PlanProposal(List.of(
+        dimension("专项练习", "持久化"))));
+    TopicKey topic = new TopicKey("java-backend", "JAVA");
+    PracticePlanningMemory memory = new PracticePlanningMemory(List.of(
+        new PracticePlanningTopic(
+            topic,
+            new PracticePlanningStatus(null, null, null),
+            List.of()
+        )
+    ));
+
+    planningAgent.propose(practiceRequest(topic, memory), "provider-1");
+
+    ArgumentCaptor<String> userPrompt = ArgumentCaptor.forClass(String.class);
+    verify(structuredOutputInvoker).invoke(
+        eq(chatClient), anyString(), userPrompt.capture(), any(),
+        eq(ErrorCode.AI_SERVICE_ERROR), anyString(),
+        eq("adaptive_agent_planning"), any(Logger.class));
+    assertThat(userPrompt.getValue()).contains("semanticMemory", "java-backend", "JAVA");
   }
 
   @Test
@@ -197,7 +227,26 @@ class SpringAiPlanningAgentTest {
             CandidateLevel.CAMPUS,
             List.of(),
             List.of()
-        )
+        ),
+        null
+    );
+  }
+
+  private PlanningRequest practiceRequest(
+      TopicKey topic,
+      PracticePlanningMemory memory
+  ) {
+    return new PlanningRequest(
+        "session-1",
+        new PlannerContext(
+            "后端工程师",
+            "候选人项目经历",
+            SessionMode.PRACTICE,
+            CandidateLevel.CAMPUS,
+            new PracticeScope(List.of(topic)).topics(),
+            List.of()
+        ),
+        memory
     );
   }
 

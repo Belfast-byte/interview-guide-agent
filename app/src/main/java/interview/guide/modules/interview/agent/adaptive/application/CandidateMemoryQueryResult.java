@@ -4,9 +4,8 @@ import interview.guide.modules.interview.agent.adaptive.core.context.DepthLevel;
 import interview.guide.modules.interview.agent.adaptive.core.context.TopicKey;
 import interview.guide.modules.interview.agent.adaptive.core.session.TurnTriggerType;
 import interview.guide.modules.interview.agent.adaptive.memory.episode.EpisodeEnrichmentStatus;
-import interview.guide.modules.interview.agent.adaptive.memory.episode.EpisodeTagCategory;
-import interview.guide.modules.interview.agent.adaptive.memory.semantic.AbilityCounter;
-import interview.guide.modules.interview.agent.adaptive.memory.semantic.SemanticAbility;
+import interview.guide.modules.interview.agent.adaptive.memory.semantic.EvaluationSemanticState;
+import interview.guide.modules.interview.agent.adaptive.memory.semantic.PracticeSemanticState;
 import java.time.LocalDateTime;
 import java.util.List;
 import org.springframework.data.domain.Page;
@@ -21,15 +20,8 @@ public record CandidateMemoryQueryResult(
 
   public record TopicProfile(
       TopicKey topic,
-      SemanticAbility ability,
-      AbilityCounter counter,
-      List<TagCount> tagCounts
-  ) {}
-
-  public record TagCount(
-      EpisodeTagCategory category,
-      String tag,
-      long count
+      EvaluationSemanticState evaluation,
+      PracticeSemanticState practice
   ) {}
 
   public record Episode(

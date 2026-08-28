@@ -24,6 +24,7 @@ import interview.guide.modules.interview.agent.adaptive.persistence.memory.Episo
 import interview.guide.modules.interview.agent.adaptive.persistence.memory.EpisodeFactEntity;
 import interview.guide.modules.interview.agent.adaptive.persistence.memory.EpisodeFactRepository;
 import interview.guide.modules.interview.agent.adaptive.persistence.memory.EpisodeTagRepository;
+import interview.guide.modules.interview.agent.adaptive.persistence.memory.SemanticMemoryPersistenceService;
 import java.util.List;
 import java.util.UUID;
 import org.junit.jupiter.api.BeforeEach;
@@ -67,6 +68,9 @@ class EpisodeEnrichmentServiceTest {
 
   @MockitoBean
   private EpisodeEnrichmentGenerator generator;
+
+  @MockitoBean
+  private SemanticMemoryPersistenceService semanticMemory;
 
   private EpisodeFactEntity episode;
   private EpisodeEnrichmentRequest request;

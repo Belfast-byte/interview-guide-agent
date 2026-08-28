@@ -66,7 +66,8 @@ public class QuestionNoveltyService {
         review.hints(),
         context.currentToolResult(),
         context.currentCodeSubmission(),
-        context.project()
+        context.project(),
+        context.practiceMemory()
     );
     return new ReActRequest(
         request.sessionId(), request.role(), request.llmProvider(), rewritten);

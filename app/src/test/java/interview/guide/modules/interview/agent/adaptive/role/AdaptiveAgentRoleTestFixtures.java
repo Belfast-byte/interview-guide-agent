@@ -73,6 +73,7 @@ final class AdaptiveAgentRoleTestFixtures {
             List.of(),
             null,
             null,
+            null,
             null
         )),
         List.of()
@@ -117,6 +118,7 @@ final class AdaptiveAgentRoleTestFixtures {
         List.of(),
         null,
         null,
+        null,
         null
     );
   }
@@ -140,7 +142,8 @@ final class AdaptiveAgentRoleTestFixtures {
         List.of(),
         null,
         null,
-        project
+        project,
+        null
     );
   }
 

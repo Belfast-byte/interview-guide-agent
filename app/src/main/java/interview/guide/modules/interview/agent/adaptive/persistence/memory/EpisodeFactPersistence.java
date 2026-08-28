@@ -7,7 +7,7 @@ import interview.guide.modules.interview.agent.adaptive.memory.episode.EpisodeAs
 import interview.guide.modules.interview.agent.adaptive.memory.episode.EpisodeClosureStatus;
 import interview.guide.modules.interview.agent.adaptive.memory.episode.EpisodeEnrichmentRequested;
 import interview.guide.modules.interview.agent.adaptive.memory.episode.EpisodeFactCreation;
-import interview.guide.modules.interview.agent.adaptive.memory.profile.AbilityCounterIncrementStore;
+import interview.guide.modules.interview.agent.adaptive.memory.semantic.SemanticContributionInput;
 import lombok.RequiredArgsConstructor;
 import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Component;
@@ -20,7 +20,7 @@ import org.springframework.stereotype.Component;
 public class EpisodeFactPersistence {
 
   private final EpisodeFactRepository repository;
-  private final AbilityCounterIncrementStore counterIncrementStore;
+  private final SemanticMemoryPersistenceService semanticMemory;
   private final ApplicationEventPublisher eventPublisher;
 
   public EpisodeFactEntity create(EpisodePersistenceInput input) {
@@ -40,9 +40,11 @@ public class EpisodeFactPersistence {
     );
     EpisodeFactEntity episode = repository.save(
         new EpisodeFactEntity(creation, input.assessment()));
-    counterIncrementStore.increment(
-        creation.owner(), creation.topic(), input.assessment().depthLevel()
-    );
+    semanticMemory.record(new SemanticContributionInput(
+        episode.toDomain(),
+        input.assessment().depthLevel(),
+        input.dimension().expectedDepth()
+    ));
     eventPublisher.publishEvent(new EpisodeEnrichmentRequested(
         episode.id(),
         input.session().llmProvider()

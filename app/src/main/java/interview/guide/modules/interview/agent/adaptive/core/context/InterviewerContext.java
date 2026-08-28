@@ -5,6 +5,8 @@ import interview.guide.modules.interview.agent.adaptive.core.event.ToolResultEve
 import interview.guide.modules.interview.agent.adaptive.core.session.AdaptiveInterviewTurn;
 
 import java.util.List;
+import java.util.LinkedHashMap;
+import java.util.Map;
 import java.util.Objects;
 
 /**
@@ -26,7 +28,8 @@ public record InterviewerContext(
     List<QuestionRecallHint> recalledQuestions,
     ToolResultEvent currentToolResult,
     CandidateAnswer currentCodeSubmission,
-    ProjectInterviewContext project
+    ProjectInterviewContext project,
+    PracticeCoachingContext practiceMemory
 ) {
 
   public InterviewerContext {
@@ -34,6 +37,34 @@ public record InterviewerContext(
     currentDimensionTurns = List.copyOf(currentDimensionTurns);
     recalledQuestions = List.copyOf(recalledQuestions);
     Objects.requireNonNull(working, "working 不能为空");
+  }
+
+  public Map<String, Object> modelView() {
+    Map<String, Object> values = new LinkedHashMap<>();
+    values.put("jd", jd);
+    values.put("resume", resume);
+    values.put("currentTurn", currentTurn);
+    values.put("maxTurns", maxTurns);
+    values.put("targetDimensionOrder", targetDimensionOrder);
+    values.put("targetDimension", targetDimension);
+    values.put("targetFocus", targetFocus);
+    values.put("suggestedTools", suggestedTools);
+    put(values, "suggestedSkill", suggestedSkill);
+    values.put("currentDimensionTurns", currentDimensionTurns);
+    put(values, "currentDimensionAnswer", currentDimensionAnswer);
+    values.put("working", working);
+    values.put("recalledQuestions", recalledQuestions);
+    put(values, "currentToolResult", currentToolResult);
+    put(values, "currentCodeSubmission", currentCodeSubmission);
+    put(values, "project", project);
+    put(values, "practiceMemory", practiceMemory);
+    return Map.copyOf(values);
+  }
+
+  private void put(Map<String, Object> values, String key, Object value) {
+    if (value != null) {
+      values.put(key, value);
+    }
   }
 
 }

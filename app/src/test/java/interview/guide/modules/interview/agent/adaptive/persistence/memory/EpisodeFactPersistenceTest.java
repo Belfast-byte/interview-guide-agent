@@ -29,12 +29,20 @@ import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.data.jpa.test.autoconfigure.DataJpaTest;
 import org.springframework.context.annotation.Import;
+import interview.guide.modules.interview.agent.adaptive.memory.semantic.SemanticAggregator;
+import interview.guide.modules.interview.agent.adaptive.memory.semantic.SemanticContributionFactory;
 
 @DataJpaTest(properties = {
     "spring.flyway.enabled=false",
     "spring.jpa.hibernate.ddl-auto=create-drop"
 })
-@Import({EpisodeFactPersistence.class, JdbcAbilityCounterIncrementStore.class})
+@Import({
+    EpisodeFactPersistence.class,
+    SemanticMemoryPersistenceService.class,
+    SemanticMemoryRepositories.class,
+    SemanticContributionFactory.class,
+    SemanticAggregator.class
+})
 class EpisodeFactPersistenceTest {
 
   private static final String SESSION_ID = "episode-write-session";
@@ -44,6 +52,8 @@ class EpisodeFactPersistenceTest {
   @Autowired private AdaptiveAgentSessionRepository sessions;
   @Autowired private AdaptiveAgentTurnRepository turns;
   @Autowired private AdaptiveAgentAssessmentRepository assessments;
+  @Autowired private SemanticContributionRepository contributions;
+  @Autowired private SemanticStateRepository states;
 
   @Test
   @DisplayName("已回答轮次按真实 turn 和 WorkState revision 生成一条 Episode")
@@ -60,6 +70,8 @@ class EpisodeFactPersistenceTest {
         session, turn, assessment, plan.dimension(0), before, after, null));
 
     assertThat(episodes.countBySessionId(SESSION_ID)).isEqualTo(1);
+    assertThat(contributions.count()).isEqualTo(1);
+    assertThat(states.count()).isEqualTo(1);
     assertThat(saved.toDomain()).satisfies(episode -> {
       assertThat(episode.turnId()).isEqualTo(turn.id());
       assertThat(episode.workRevisionBefore()).isEqualTo(before.revision());

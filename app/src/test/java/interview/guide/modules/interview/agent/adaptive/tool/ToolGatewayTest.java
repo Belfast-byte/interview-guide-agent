@@ -129,6 +129,7 @@ class ToolGatewayTest {
             List.of(),
             null,
             null,
+            null,
             null
         )
     );

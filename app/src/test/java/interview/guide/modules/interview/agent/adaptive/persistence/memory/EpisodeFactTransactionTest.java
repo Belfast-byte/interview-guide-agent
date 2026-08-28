@@ -28,6 +28,8 @@ import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.data.jpa.test.autoconfigure.DataJpaTest;
 import org.springframework.context.annotation.Import;
+import interview.guide.modules.interview.agent.adaptive.memory.semantic.SemanticAggregator;
+import interview.guide.modules.interview.agent.adaptive.memory.semantic.SemanticContributionFactory;
 import org.springframework.transaction.PlatformTransactionManager;
 import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
@@ -37,7 +39,13 @@ import org.springframework.transaction.support.TransactionTemplate;
     "spring.flyway.enabled=false",
     "spring.jpa.hibernate.ddl-auto=create-drop"
 })
-@Import({EpisodeFactPersistence.class, JdbcAbilityCounterIncrementStore.class})
+@Import({
+    EpisodeFactPersistence.class,
+    SemanticMemoryPersistenceService.class,
+    SemanticMemoryRepositories.class,
+    SemanticContributionFactory.class,
+    SemanticAggregator.class
+})
 @Transactional(propagation = Propagation.NOT_SUPPORTED)
 class EpisodeFactTransactionTest {
 
@@ -48,6 +56,8 @@ class EpisodeFactTransactionTest {
   @Autowired private AdaptiveAgentSessionRepository sessions;
   @Autowired private AdaptiveAgentTurnRepository turns;
   @Autowired private AdaptiveAgentAssessmentRepository assessments;
+  @Autowired private SemanticContributionRepository contributions;
+  @Autowired private SemanticStateRepository states;
   @Autowired private PlatformTransactionManager transactionManager;
 
   @Test
@@ -62,6 +72,8 @@ class EpisodeFactTransactionTest {
     })).isInstanceOf(IllegalStateException.class);
 
     assertThat(episodes.countBySessionId(SESSION_ID)).isZero();
+    assertThat(contributions.count()).isZero();
+    assertThat(states.count()).isZero();
   }
 
   private EpisodePersistenceInput saveSourceFacts() {

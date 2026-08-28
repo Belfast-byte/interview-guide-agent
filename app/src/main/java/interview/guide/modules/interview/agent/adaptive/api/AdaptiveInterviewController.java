@@ -15,7 +15,6 @@ import interview.guide.modules.interview.agent.adaptive.assessment.report.Candid
 import interview.guide.modules.interview.agent.adaptive.core.event.CandidateAnswer;
 import interview.guide.modules.interview.agent.adaptive.core.event.CandidateCodeSubmission;
 import interview.guide.modules.interview.agent.adaptive.core.event.ToolResultFollowUp;
-import interview.guide.modules.interview.agent.adaptive.memory.profile.CandidateAbilityProfileService;
 import interview.guide.modules.interview.agent.adaptive.planning.PlannedInterview;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.Min;
@@ -56,7 +55,6 @@ public class AdaptiveInterviewController {
   private final AdaptiveInterviewApplicationService applicationService;
   private final AdaptiveInterviewHistoryService historyService;
   private final AssessmentReportService reportService;
-  private final CandidateAbilityProfileService abilityProfileService;
   private final AdaptiveInterviewAnswerExecutor answerExecutor;
 
   @PostMapping
@@ -229,17 +227,6 @@ public class AdaptiveInterviewController {
   ) {
     return Result.success(AdaptiveInterviewHistoryPageResponse.from(
         historyService.list(principal.candidateId(), page)
-    ));
-  }
-
-  @GetMapping("/me/ability-profile")
-  public Result<CandidateAbilityProfileResponse> getAbilityProfile(
-      @AuthenticationPrincipal AuthenticatedUser principal
-  ) {
-    String candidateId = candidateId(principal);
-    return Result.success(CandidateAbilityProfileResponse.from(
-        candidateId,
-        abilityProfileService.trajectory(candidateId)
     ));
   }
 

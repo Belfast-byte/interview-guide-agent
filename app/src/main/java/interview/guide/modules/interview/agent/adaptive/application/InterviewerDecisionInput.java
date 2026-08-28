@@ -4,6 +4,7 @@ import interview.guide.modules.interview.agent.adaptive.core.event.CandidateAnsw
 import interview.guide.modules.interview.agent.adaptive.core.session.AdaptiveInterviewTurn;
 import interview.guide.modules.interview.agent.adaptive.core.context.InterviewerWorkView;
 import interview.guide.modules.interview.agent.adaptive.planning.PlannedDimension;
+import interview.guide.modules.interview.agent.adaptive.memory.semantic.PracticeMemorySession;
 import java.util.List;
 
 /** 下一题 Interviewer 决策的应用层输入。 */
@@ -16,7 +17,8 @@ record InterviewerDecisionInput(
     PlannedDimension dimension,
     List<AdaptiveInterviewTurn> turns,
     CandidateAnswer candidateAnswer,
-    InterviewerWorkView working
+    InterviewerWorkView working,
+    PracticeMemorySession memorySession
 ) {
 
   InterviewerDecisionInput {

@@ -15,6 +15,7 @@ import interview.guide.modules.interview.agent.adaptive.assessment.evidence.Vali
 import interview.guide.modules.interview.agent.adaptive.core.session.AdaptiveInterviewHistory;
 import interview.guide.modules.interview.agent.adaptive.core.session.AdaptiveInterviewTurn;
 import interview.guide.modules.interview.agent.adaptive.core.session.InterviewSessionSettings;
+import interview.guide.modules.interview.agent.adaptive.core.session.SessionMode;
 import interview.guide.modules.interview.agent.adaptive.core.event.CandidateAnswer;
 import interview.guide.modules.interview.agent.adaptive.core.action.AgentResponseType;
 import interview.guide.modules.interview.agent.adaptive.core.action.ToolCallAction;
@@ -42,6 +43,9 @@ import interview.guide.modules.interview.agent.adaptive.memory.ContextAssembler;
 import interview.guide.modules.interview.agent.adaptive.memory.claim.CandidateClaim;
 import interview.guide.modules.interview.agent.adaptive.memory.claim.CandidateClaimExtractionService;
 import interview.guide.modules.interview.agent.adaptive.memory.brief.DimensionBriefService;
+import interview.guide.modules.interview.agent.adaptive.memory.semantic.PracticeMemoryService;
+import interview.guide.modules.interview.agent.adaptive.memory.semantic.PracticePlanningMemory;
+import interview.guide.modules.interview.agent.adaptive.memory.semantic.PracticeMemorySession;
 import interview.guide.modules.interview.agent.adaptive.observability.AdaptiveAgentTelemetry;
 import interview.guide.modules.interview.agent.adaptive.observability.AlgorithmInterviewTelemetry;
 import interview.guide.modules.interview.agent.adaptive.persistence.session.AdaptiveInterviewPersistenceService;
@@ -98,6 +102,7 @@ public class AdaptiveInterviewApplicationService {
   private final DimensionBriefService dimensionBriefService;
   private final PlanningTaxonomy planningTaxonomy;
   private final CandidateClaimExtractionService candidateClaimExtractionService;
+  private final PracticeMemoryService practiceMemoryService;
   private final DepthAssessmentAgent assessmentAgent;
   private final AssessmentEvidenceValidator assessmentEvidenceValidator;
   private final PracticeRecommendationService practiceRecommendationService;
@@ -240,7 +245,11 @@ public class AdaptiveInterviewApplicationService {
         firstDimension,
         List.of(),
         null,
-        InterviewerWorkView.from(policy.state(), null)
+        InterviewerWorkView.from(policy.state(), null),
+        new PracticeMemorySession(
+            sessionId,
+            input.settings().mode()
+        )
     ));
     return actionCoordinator.executeInitialAsk(action, request, deltaSink);
   }
@@ -254,7 +263,7 @@ public class AdaptiveInterviewApplicationService {
             input.settings().candidateLevel(),
             input.settings().practiceScope().topics(),
             planningTaxonomy.catalog()
-        ))),
+        )), practiceMemory(input)),
         input.llmProviderId()
     );
     InterviewPlan plan;
@@ -266,6 +275,16 @@ public class AdaptiveInterviewApplicationService {
       throw e;
     }
     return plan;
+  }
+
+  private PracticePlanningMemory practiceMemory(InterviewCreationInput input) {
+    if (input.settings().mode() != SessionMode.PRACTICE) {
+      return null;
+    }
+    return practiceMemoryService.planning(
+        new MemoryOwner(input.tenantId(), input.candidateId()),
+        input.settings().practiceScope()
+    );
   }
 
   private record InterviewCreationInput(

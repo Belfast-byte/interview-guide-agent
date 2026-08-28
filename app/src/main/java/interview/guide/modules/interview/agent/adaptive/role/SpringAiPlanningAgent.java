@@ -12,6 +12,8 @@ import interview.guide.modules.interview.agent.adaptive.planning.PlanProposal;
 import interview.guide.modules.interview.agent.adaptive.planning.PlanningAgent;
 import interview.guide.modules.interview.agent.adaptive.planning.PlanningRequest;
 import interview.guide.modules.interview.agent.adaptive.core.context.PlannerContext;
+import interview.guide.modules.interview.agent.adaptive.core.session.SessionMode;
+import interview.guide.modules.interview.agent.adaptive.memory.semantic.PracticePlanningMemory;
 import interview.guide.modules.interview.agent.adaptive.runtime.DeadlineExecutor;
 import java.util.Map;
 import lombok.extern.slf4j.Slf4j;
@@ -117,12 +119,20 @@ public class SpringAiPlanningAgent implements PlanningAgent {
 
   private String serializeInput(PlanningRequest request) {
     try {
-      return objectMapper.writeValueAsString(new PlanningModelInput(request.context()));
+      Object input = request.context().mode() == SessionMode.PRACTICE
+          ? new PracticePlanningModelInput(request.context(), request.practiceMemory())
+          : new EvaluationPlanningModelInput(request.context());
+      return objectMapper.writeValueAsString(input);
     } catch (JacksonException e) {
       throw new BusinessException(ErrorCode.AI_SERVICE_ERROR, "规划上下文序列化失败", e);
     }
   }
 
-  private record PlanningModelInput(PlannerContext interview) {}
+  private record EvaluationPlanningModelInput(PlannerContext interview) {}
+
+  private record PracticePlanningModelInput(
+      PlannerContext interview,
+      PracticePlanningMemory semanticMemory
+  ) {}
 
 }

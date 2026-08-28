@@ -1,6 +1,10 @@
 import type { AdaptiveDepthLevel } from './adaptiveInterview';
 
-export type SemanticAbility = 'WEAK' | 'COMPETENT' | 'PROFICIENT';
+export type EvaluatedAbility = 'WEAK' | 'COMPETENT' | 'PROFICIENT';
+export type PracticeMastery = 'UNRESOLVED' | 'ASSISTED' | 'INDEPENDENT';
+export type TransferStatus = 'NOT_REEVALUATED' | 'CONFIRMED' | 'REGRESSED';
+export type PracticeOutcome = 'COMPLETED' | 'UNRESOLVED';
+export type EpisodeAssistanceLevel = 'NONE' | 'FOLLOW_UP' | 'HINT' | 'TOOL_ASSISTED';
 export type MemoryTagCategory = 'ERROR_PATTERN' | 'ANSWER_HABIT';
 export type CandidateMemoryTurnTriggerType =
   | 'PLANNED'
@@ -13,22 +17,51 @@ export type EpisodeEnrichmentStatus =
   | 'FAILED'
   | 'LEGACY_UNENRICHED';
 
-export interface CandidateMemoryTagCount {
+export interface CandidateMemoryStablePattern {
   category: MemoryTagCategory;
   tag: string;
-  count: number;
+  episodeCount: number;
+}
+
+export interface SemanticTrackMetadata {
+  revision: number;
+  stablePatterns: CandidateMemoryStablePattern[];
+}
+
+export interface EvaluationMemoryTrack {
+  metadata: SemanticTrackMetadata;
+  ability: EvaluatedAbility;
+  statistics: { levelCounts: number[] };
+}
+
+export interface PracticeMemoryTrack {
+  metadata: SemanticTrackMetadata;
+  mastery: PracticeMastery;
+  details: {
+    statistics: {
+      completedByAssistance: Partial<Record<EpisodeAssistanceLevel, number>>;
+      unresolvedCount: number;
+    };
+    latest: {
+      episodeId: number;
+      result: {
+        outcome: PracticeOutcome;
+        assistance: EpisodeAssistanceLevel;
+        targetDepth: AdaptiveDepthLevel;
+      };
+    };
+    transfer: {
+      status: TransferStatus;
+      confirmedByEpisodeId: number | null;
+    };
+  };
 }
 
 export interface CandidateMemoryTopic {
   skillId: string;
   focusId: string;
-  ability: SemanticAbility;
-  l0Count: number;
-  l1Count: number;
-  l2Count: number;
-  l3Count: number;
-  l4Count: number;
-  tagCounts: CandidateMemoryTagCount[];
+  evaluation: EvaluationMemoryTrack | null;
+  practice: PracticeMemoryTrack | null;
 }
 
 export interface CandidateMemoryEpisode {

@@ -1,8 +1,8 @@
 id,task,status,acceptance_criteria,validation_command,completed_at,retry_count,notes
-1,盘点旧单轨画像与练习规划消费链,ACTIVE,"旧表、写入点、读取点和删除边界写入 PROGRESS","rg -n 'AbilityCounter|AbilityProfile|CandidateMemoryService' app/src/main app/src/test frontend/src",,0,
-2,实现 Semantic 双轨领域模型与确定性聚合,TODO,"能力、掌握度、稳定模式和 transfer 单元测试通过","timeout 60s ./gradlew :app:test --no-daemon --console=plain --tests '*Semantic*'",,0,
-3,持久化 Contribution 与 State,TODO,"Episode+track 幂等且 state 可重算","timeout 60s ./gradlew :app:test --no-daemon --console=plain --tests '*Semantic*Persistence*'",,0,
-4,接入练习规划与诊断消费边界,TODO,"scope 不扩张且正式请求无 Semantic","timeout 60s ./gradlew :app:test --no-daemon --console=plain --tests '*PracticeMemory*'",,0,
-5,切换候选人画像 API 与前端,TODO,"双轨响应测试和前端构建通过","timeout 60s ./gradlew :app:test --no-daemon --console=plain --tests '*CandidateMemory*' && cd frontend && pnpm run build",,0,
-6,删除旧单轨运行路径并完成模块验证,TODO,"无旧 counter/profile/snapshot 消费且目标测试通过","rg -n 'AbilityCounter|AbilityProfileSnapshot|CandidateMemoryService' app/src/main frontend/src",,0,
-7,提交 T06,TODO,"提交只包含 Semantic 双轨模块改动","git diff --cached --check",,0,
+1,盘点旧单轨画像与练习规划消费链,DONE,"旧表、写入点、读取点和删除边界写入 PROGRESS","rg -n 'AbilityCounter|AbilityProfile|CandidateMemoryService' app/src/main app/src/test frontend/src",2026-08-28T10:06:15+08:00,0,
+2,实现 Semantic 双轨领域模型与确定性聚合,DONE,"能力、掌握度、稳定模式和 transfer 单元测试通过","timeout 60s ./gradlew :app:test --no-daemon --console=plain --tests '*Semantic*'",2026-08-28T11:15:57+08:00,0,
+3,持久化 Contribution 与 State,DONE,"Episode+track 幂等且 state 可重算","timeout 60s ./gradlew :app:test --no-daemon --console=plain --tests '*Semantic*Persistence*'",2026-08-28T11:15:57+08:00,0,
+4,接入练习规划与诊断消费边界,DONE,"scope 不扩张且正式请求无 Semantic","timeout 60s ./gradlew :app:test --no-daemon --console=plain --tests '*PracticeMemory*'",2026-08-28T11:15:57+08:00,0,
+5,切换候选人画像 API 与前端,DONE,"双轨响应测试和前端构建通过","timeout 60s ./gradlew :app:test --no-daemon --console=plain --tests '*CandidateMemory*' && cd frontend && pnpm run build",2026-08-28T11:15:57+08:00,0,
+6,删除旧单轨运行路径并完成模块验证,DONE,"无旧 counter/profile/snapshot 消费且目标测试通过","rg -n 'AbilityCounter|AbilityProfileSnapshot|CandidateMemoryService' app/src/main frontend/src",2026-08-28T11:27:29+08:00,0,"自适应模块 110 份测试报告无 failure/error"
+7,提交 T06,IN_PROGRESS,"提交只包含 Semantic 双轨模块改动","git diff --cached --check",,0,

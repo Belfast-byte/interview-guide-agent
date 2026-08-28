@@ -34,6 +34,7 @@ import interview.guide.modules.interview.agent.adaptive.persistence.memory.Episo
 import interview.guide.modules.interview.agent.adaptive.persistence.memory.EpisodeFactEntity;
 import interview.guide.modules.interview.agent.adaptive.persistence.memory.EpisodeFactRepository;
 import interview.guide.modules.interview.agent.adaptive.persistence.memory.EpisodeTagRepository;
+import interview.guide.modules.interview.agent.adaptive.persistence.memory.SemanticMemoryPersistenceService;
 import interview.guide.modules.interview.agent.adaptive.persistence.session.AdaptiveAgentSessionEntity;
 import interview.guide.modules.interview.agent.adaptive.persistence.session.AdaptiveAgentSessionRepository;
 import interview.guide.modules.interview.agent.adaptive.persistence.session.AdaptiveSessionCreation;
@@ -80,6 +81,7 @@ class EpisodeEnrichmentRecoveryIntegrationTest {
   @Autowired private AdaptiveAgentAssessmentRepository assessmentRepository;
   @MockitoBean private AdaptiveInterviewAnswerExecutor executor;
   @MockitoBean private EpisodeEnrichmentService enrichmentService;
+  @MockitoBean private SemanticMemoryPersistenceService semanticMemory;
   private CandidateMemoryEnrichmentController controller;
   private EpisodeFactEntity episode;
 

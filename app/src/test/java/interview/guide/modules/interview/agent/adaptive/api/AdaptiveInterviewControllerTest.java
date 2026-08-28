@@ -23,7 +23,6 @@ import interview.guide.modules.interview.agent.adaptive.application.CandidateInt
 import interview.guide.modules.interview.agent.adaptive.application.InterviewCreationEventSink;
 import interview.guide.modules.interview.agent.adaptive.assessment.report.AssessmentReportService;
 import interview.guide.modules.interview.agent.adaptive.core.session.AdaptiveSessionStatus;
-import interview.guide.modules.interview.agent.adaptive.memory.profile.CandidateAbilityProfileService;
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.UUID;
@@ -43,7 +42,6 @@ class AdaptiveInterviewControllerTest {
   @Mock private AdaptiveInterviewApplicationService applicationService;
   @Mock private AdaptiveInterviewHistoryService historyService;
   @Mock private AssessmentReportService reportService;
-  @Mock private CandidateAbilityProfileService abilityProfileService;
   @Mock private AdaptiveInterviewAnswerExecutor answerExecutor;
   @InjectMocks private AdaptiveInterviewController controller;
 

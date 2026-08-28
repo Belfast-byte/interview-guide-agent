@@ -10,6 +10,8 @@ public interface EpisodeTagRepository extends JpaRepository<EpisodeTagEntity, Lo
 
   List<EpisodeTagEntity> findByEpisodeIdOrderById(Long episodeId);
 
+  List<EpisodeTagEntity> findByEpisodeIdIn(List<Long> episodeIds);
+
   @Modifying(flushAutomatically = true)
   @Query("DELETE FROM EpisodeTagEntity tag WHERE tag.episode.id = :episodeId")
   int deleteByEpisodeId(@Param("episodeId") Long episodeId);

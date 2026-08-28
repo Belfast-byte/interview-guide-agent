@@ -5,9 +5,17 @@ import interview.guide.modules.interview.agent.adaptive.core.context.DepthLevel;
 import interview.guide.modules.interview.agent.adaptive.core.session.TurnTriggerType;
 import interview.guide.modules.interview.agent.adaptive.memory.episode.EpisodeEnrichmentStatus;
 import interview.guide.modules.interview.agent.adaptive.memory.episode.EpisodeTagCategory;
-import interview.guide.modules.interview.agent.adaptive.memory.semantic.SemanticAbility;
+import interview.guide.modules.interview.agent.adaptive.memory.semantic.EvaluatedAbility;
+import interview.guide.modules.interview.agent.adaptive.memory.semantic.EvaluationSemanticState;
+import interview.guide.modules.interview.agent.adaptive.memory.semantic.PracticeMastery;
+import interview.guide.modules.interview.agent.adaptive.memory.semantic.PracticeOutcome;
+import interview.guide.modules.interview.agent.adaptive.memory.semantic.PracticeSemanticState;
+import interview.guide.modules.interview.agent.adaptive.memory.semantic.StablePattern;
+import interview.guide.modules.interview.agent.adaptive.memory.semantic.TransferStatus;
+import interview.guide.modules.interview.agent.adaptive.memory.episode.EpisodeAssistanceLevel;
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.Map;
 
 /** 候选人长期记忆响应，仅公开报告与追问链所需字段。 */
 public record CandidateMemoryResponse(
@@ -27,39 +35,124 @@ public record CandidateMemoryResponse(
   public record TopicProfileResponse(
       String skillId,
       String focusId,
-      SemanticAbility ability,
-      long l0Count,
-      long l1Count,
-      long l2Count,
-      long l3Count,
-      long l4Count,
-      List<TagCountResponse> tagCounts
+      EvaluationTrackResponse evaluation,
+      PracticeTrackResponse practice
   ) {
 
     private static TopicProfileResponse from(CandidateMemoryQueryResult.TopicProfile source) {
       return new TopicProfileResponse(
           source.topic().skillId(),
           source.topic().focusId(),
-          source.ability(),
-          source.counter().l0Count(),
-          source.counter().l1Count(),
-          source.counter().l2Count(),
-          source.counter().l3Count(),
-          source.counter().l4Count(),
-          source.tagCounts().stream().map(TagCountResponse::from).toList()
+          EvaluationTrackResponse.from(source.evaluation()),
+          PracticeTrackResponse.from(source.practice())
       );
     }
   }
 
-  public record TagCountResponse(
+  public record StablePatternResponse(
       EpisodeTagCategory category,
       String tag,
-      long count
+      long episodeCount
   ) {
 
-    private static TagCountResponse from(CandidateMemoryQueryResult.TagCount source) {
-      return new TagCountResponse(source.category(), source.tag(), source.count());
+    private static StablePatternResponse from(StablePattern source) {
+      return new StablePatternResponse(
+          source.value().category(), source.value().tag(), source.episodeCount());
     }
+  }
+
+  public record TrackMetadataResponse(
+      long revision,
+      List<StablePatternResponse> stablePatterns
+  ) {}
+
+  public record EvaluationTrackResponse(
+      TrackMetadataResponse metadata,
+      EvaluatedAbility ability,
+      EvaluationStatisticsResponse statistics
+  ) {
+
+    private static EvaluationTrackResponse from(EvaluationSemanticState source) {
+      if (source == null) {
+        return null;
+      }
+      return new EvaluationTrackResponse(
+          CandidateMemoryResponse.metadata(source.revision(), source.stablePatterns()),
+          source.ability(),
+          new EvaluationStatisticsResponse(source.statistics().levelCounts())
+      );
+    }
+  }
+
+  public record EvaluationStatisticsResponse(List<Long> levelCounts) {}
+
+  public record PracticeTrackResponse(
+      TrackMetadataResponse metadata,
+      PracticeMastery mastery,
+      PracticeDetailsResponse details
+  ) {
+
+    private static PracticeTrackResponse from(PracticeSemanticState source) {
+      if (source == null) {
+        return null;
+      }
+      var statistics = source.statistics();
+      var latest = statistics.latest();
+      return new PracticeTrackResponse(
+          CandidateMemoryResponse.metadata(source.revision(), source.stablePatterns()),
+          source.mastery(),
+          new PracticeDetailsResponse(
+              new PracticeStatisticsResponse(
+                  statistics.completedByAssistance(), statistics.unresolvedCount()),
+              new LatestPracticeResponse(
+                  latest.episodeId(),
+                  new PracticeResultResponse(
+                      latest.result().outcome(),
+                      latest.result().assistance(),
+                      latest.result().targetDepth()
+                  )),
+              new TransferResponse(
+                  source.transfer().status(), source.transfer().confirmedByEpisodeId())
+          )
+      );
+    }
+  }
+
+  public record PracticeDetailsResponse(
+      PracticeStatisticsResponse statistics,
+      LatestPracticeResponse latest,
+      TransferResponse transfer
+  ) {}
+
+  public record PracticeStatisticsResponse(
+      Map<EpisodeAssistanceLevel, Long> completedByAssistance,
+      long unresolvedCount
+  ) {}
+
+  public record LatestPracticeResponse(
+      long episodeId,
+      PracticeResultResponse result
+  ) {}
+
+  public record PracticeResultResponse(
+      PracticeOutcome outcome,
+      EpisodeAssistanceLevel assistance,
+      DepthLevel targetDepth
+  ) {}
+
+  public record TransferResponse(
+      TransferStatus status,
+      Long confirmedByEpisodeId
+  ) {}
+
+  private static TrackMetadataResponse metadata(
+      long revision,
+      List<StablePattern> patterns
+  ) {
+    return new TrackMetadataResponse(
+        revision,
+        patterns.stream().map(StablePatternResponse::from).toList()
+    );
   }
 
   public record EpisodePageResponse(

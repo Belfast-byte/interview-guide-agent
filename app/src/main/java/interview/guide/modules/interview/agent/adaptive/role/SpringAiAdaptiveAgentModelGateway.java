@@ -268,7 +268,7 @@ public class SpringAiAdaptiveAgentModelGateway implements AgentModelGateway {
   private String serializeContext(ReActModelContext context) {
     try {
       return objectMapper.writeValueAsString(Map.of(
-          "interviewContext", context.request().interviewerContext(),
+          "interviewContext", context.request().interviewerContext().modelView(),
           "observations", context.observations()
       ));
     } catch (JacksonException e) {

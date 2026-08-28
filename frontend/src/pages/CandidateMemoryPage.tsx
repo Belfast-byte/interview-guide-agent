@@ -36,7 +36,7 @@ export default function CandidateMemoryPage() {
           <span className="text-xs font-bold uppercase tracking-wider">Candidate Memory</span>
         </div>
         <h1 className="text-3xl font-bold text-slate-950 dark:text-white">候选人记忆</h1>
-        <p className="mt-2 text-sm text-slate-500">查看跨场面试累计的能力等级、行为标签与追问链。</p>
+        <p className="mt-2 text-sm text-slate-500">分别查看正式能力、练习掌握与可追溯的问答经历。</p>
       </header>
 
       {error && <ErrorState message={error} retry={() => void load()} />}
@@ -59,7 +59,7 @@ function MemoryContent(props: {
   return (
     <div className="space-y-9">
       <section aria-labelledby="ability-topics-heading">
-        <SectionHeading id="ability-topics-heading" title="能力主题" detail={`${memory.topics.length} 个主题`} />
+        <SectionHeading id="ability-topics-heading" title="双轨能力主题" detail={`${memory.topics.length} 个主题`} />
         {memory.topics.length === 0 ? (
           <EmptyState message="完成一场自适应面试后，这里会展示能力主题。" />
         ) : (

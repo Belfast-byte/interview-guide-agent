@@ -2,11 +2,15 @@ package interview.guide.modules.interview.agent.adaptive.application;
 
 import interview.guide.modules.interview.agent.adaptive.codeanalysis.CodeAnalysisInterviewContextService;
 import interview.guide.modules.interview.agent.adaptive.core.context.InterviewerWorkView;
+import interview.guide.modules.interview.agent.adaptive.core.context.PracticeCoachingContext;
 import interview.guide.modules.interview.agent.adaptive.core.event.CandidateAnswer;
 import interview.guide.modules.interview.agent.adaptive.core.event.ToolResultEvent;
 import interview.guide.modules.interview.agent.adaptive.memory.ContextAssembler;
 import interview.guide.modules.interview.agent.adaptive.memory.InterviewerContextInput;
 import interview.guide.modules.interview.agent.adaptive.memory.ToolResultContextInput;
+import interview.guide.modules.interview.agent.adaptive.memory.semantic.PracticeCoachingMemoryAssembler;
+import interview.guide.modules.interview.agent.adaptive.memory.semantic.PracticeCoachingRequest;
+import interview.guide.modules.interview.agent.adaptive.memory.semantic.PracticeMemorySession;
 import interview.guide.modules.interview.agent.adaptive.planning.PlannedDimension;
 import interview.guide.modules.interview.agent.adaptive.planning.PlannedInterview;
 import interview.guide.modules.interview.agent.adaptive.role.AgentRole;
@@ -25,9 +29,13 @@ class AdaptiveInterviewRequestFactory {
   private final ContextAssembler contextAssembler;
   private final CodeAnalysisInterviewContextService codeAnalysisContextService;
   private final AgentRoleRegistry roleRegistry;
+  private final PracticeCoachingMemoryAssembler practiceMemoryAssembler;
 
   ReActRequest create(InterviewerDecisionInput input) {
     PlannedDimension dimension = input.dimension();
+    PracticeCoachingContext practiceMemory = practiceMemoryAssembler.assemble(
+        new PracticeCoachingRequest(
+            input.memorySession(), dimension.topic(), dimension.focus()));
     return new ReActRequest(
         input.sessionId(),
         AgentRole.INTERVIEWER,
@@ -44,7 +52,8 @@ class AdaptiveInterviewRequestFactory {
             input.turns(),
             input.candidateAnswer(),
             input.working(),
-            codeAnalysisContextService.findForSession(input.sessionId()).orElse(null)
+            codeAnalysisContextService.findForSession(input.sessionId()).orElse(null),
+            practiceMemory
         ))
     );
   }
@@ -64,7 +73,8 @@ class AdaptiveInterviewRequestFactory {
         dimension,
         interview.history().turns(),
         answer,
-        working
+        working,
+        memorySession(interview)
     ));
   }
 
@@ -76,6 +86,10 @@ class AdaptiveInterviewRequestFactory {
     PlannedDimension dimension = interview.plan().dimension(
         interview.workState().activeTarget().target().identity().order());
     String sessionId = interview.history().session().id();
+    PracticeMemorySession memorySession = memorySession(interview);
+    PracticeCoachingContext practiceMemory = practiceMemoryAssembler.assemble(
+        new PracticeCoachingRequest(
+            memorySession, dimension.topic(), dimension.focus()));
     return new ReActRequest(
         sessionId,
         AgentRole.INTERVIEWER,
@@ -92,7 +106,8 @@ class AdaptiveInterviewRequestFactory {
             interview.history().turns(),
             event,
             InterviewerWorkView.from(interview.workState(), issueId),
-            codeAnalysisContextService.findForSession(sessionId).orElse(null)
+            codeAnalysisContextService.findForSession(sessionId).orElse(null),
+            practiceMemory
         ))
     );
   }
@@ -105,5 +120,13 @@ class AdaptiveInterviewRequestFactory {
 
   private int targetOrder(String targetId) {
     return Integer.parseInt(targetId.substring(TARGET_PREFIX.length()));
+  }
+
+  private PracticeMemorySession memorySession(PlannedInterview interview) {
+    var history = interview.history();
+    return new PracticeMemorySession(
+        history.session().id(),
+        history.session().settings().mode()
+    );
   }
 }

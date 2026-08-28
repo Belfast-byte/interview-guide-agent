@@ -2,7 +2,7 @@ import type {
   CandidateMemoryEpisode,
   CandidateMemoryTurnTriggerType,
   EpisodeEnrichmentStatus,
-  SemanticAbility,
+  EvaluatedAbility,
 } from '../../types/candidateMemory';
 
 export interface CandidateMemoryEpisodeNode {
@@ -19,7 +19,7 @@ const ENRICHMENT_STATUS_LABELS: Record<EpisodeEnrichmentStatus, string> = {
   LEGACY_UNENRICHED: '历史数据未补全',
 };
 
-const ABILITY_LABELS: Record<SemanticAbility, string> = {
+const ABILITY_LABELS: Record<EvaluatedAbility, string> = {
   WEAK: '待加强',
   COMPETENT: '已掌握',
   PROFICIENT: '熟练',
@@ -35,7 +35,7 @@ export function getEnrichmentStatusLabel(status: EpisodeEnrichmentStatus): strin
   return ENRICHMENT_STATUS_LABELS[status];
 }
 
-export function getAbilityLabel(ability: SemanticAbility): string {
+export function getAbilityLabel(ability: EvaluatedAbility): string {
   return ABILITY_LABELS[ability];
 }
 

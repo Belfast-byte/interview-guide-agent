@@ -56,6 +56,7 @@ class ContextAssemblerTest {
         List.of(previousDimension, currentDimension),
         answer,
         plannedMemory(3, "java-backend", "PROJECT"),
+        null,
         null
     ));
 
@@ -81,6 +82,7 @@ class ContextAssemblerTest {
         List.of(answeredTurn),
         new CandidateAnswer(1, "包含敏感锚定内容的上一维度回答"),
         plannedMemory(2, "java-backend", "PROJECT"),
+        null,
         null
     ));
 
@@ -105,7 +107,7 @@ class ContextAssemblerTest {
     InterviewerContext interviewerContext = assembler.interviewer(new InterviewerContextInput(
         longJd, shortResume, 6, 0, "专业基础", "缓存与并发",
         List.of(), "java-backend", List.of(), null,
-        plannedMemory(1, "java-backend", "CACHE"), null
+        plannedMemory(1, "java-backend", "CACHE"), null, null
     ));
 
     assertThat(plannerContext.jd())

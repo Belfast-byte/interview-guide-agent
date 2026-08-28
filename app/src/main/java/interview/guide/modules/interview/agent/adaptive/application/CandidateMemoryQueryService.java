@@ -2,13 +2,13 @@ package interview.guide.modules.interview.agent.adaptive.application;
 
 import interview.guide.modules.interview.agent.adaptive.core.context.MemoryOwner;
 import interview.guide.modules.interview.agent.adaptive.core.context.TopicKey;
-import interview.guide.modules.interview.agent.adaptive.persistence.memory.CandidateAbilityProfileEntity;
+import interview.guide.modules.interview.agent.adaptive.memory.semantic.EvaluationSemanticState;
+import interview.guide.modules.interview.agent.adaptive.memory.semantic.PracticeSemanticState;
+import interview.guide.modules.interview.agent.adaptive.memory.semantic.SemanticState;
+import interview.guide.modules.interview.agent.adaptive.memory.semantic.SemanticStateSource;
 import interview.guide.modules.interview.agent.adaptive.persistence.memory.CandidateMemoryEpisodeProjection;
 import interview.guide.modules.interview.agent.adaptive.persistence.memory.CandidateMemoryEpisodeQueryRepository;
-import interview.guide.modules.interview.agent.adaptive.persistence.memory.CandidateMemoryProfileQueryRepository;
-import interview.guide.modules.interview.agent.adaptive.persistence.memory.CandidateMemoryTagCountProjection;
-import interview.guide.modules.interview.agent.adaptive.persistence.memory.CandidateMemoryTagQueryRepository;
-import java.util.LinkedHashMap;
+import java.util.Comparator;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
@@ -27,20 +27,12 @@ public class CandidateMemoryQueryService {
 
   public static final int PAGE_SIZE = 20;
 
-  private final CandidateMemoryProfileQueryRepository profileRepository;
-  private final CandidateMemoryTagQueryRepository tagRepository;
+  private final SemanticStateSource stateSource;
   private final CandidateMemoryEpisodeQueryRepository episodeRepository;
 
   @Transactional(readOnly = true)
   public CandidateMemoryQueryResult read(MemoryOwner owner, int page) {
-    Map<TopicKey, List<CandidateMemoryQueryResult.TagCount>> tags = groupTags(
-        tagRepository.countByOwner(owner)
-    );
-    List<CandidateMemoryQueryResult.TopicProfile> topics = profileRepository
-        .findCurrentByOwner(owner)
-        .stream()
-        .map(profile -> toTopic(profile, tags))
-        .toList();
+    List<CandidateMemoryQueryResult.TopicProfile> topics = topics(owner);
     Page<CandidateMemoryQueryResult.Episode> episodes = episodeRepository
         .findByOwner(owner, PageRequest.of(page, PAGE_SIZE))
         .map(this::toEpisode);
@@ -49,6 +41,25 @@ public class CandidateMemoryQueryService {
         episodes.getContent()
     );
     return new CandidateMemoryQueryResult(owner.candidateId(), topics, episodes, ancestors);
+  }
+
+  private List<CandidateMemoryQueryResult.TopicProfile> topics(MemoryOwner owner) {
+    List<SemanticState> states = stateSource.findByOwner(owner);
+    Map<TopicKey, EvaluationSemanticState> evaluations = states.stream()
+        .filter(EvaluationSemanticState.class::isInstance)
+        .map(EvaluationSemanticState.class::cast)
+        .collect(Collectors.toMap(state -> state.key().topic(), state -> state));
+    Map<TopicKey, PracticeSemanticState> practices = states.stream()
+        .filter(PracticeSemanticState.class::isInstance)
+        .map(PracticeSemanticState.class::cast)
+        .collect(Collectors.toMap(state -> state.key().topic(), state -> state));
+    Set<TopicKey> topics = new LinkedHashSet<>(evaluations.keySet());
+    topics.addAll(practices.keySet());
+    return topics.stream()
+        .sorted(Comparator.comparing(TopicKey::skillId).thenComparing(TopicKey::focusId))
+        .map(topic -> new CandidateMemoryQueryResult.TopicProfile(
+            topic, evaluations.get(topic), practices.get(topic)))
+        .toList();
   }
 
   private List<CandidateMemoryQueryResult.Episode> findAncestors(
@@ -111,39 +122,6 @@ public class CandidateMemoryQueryService {
 
   private EpisodeKey keyOf(CandidateMemoryQueryResult.Episode episode) {
     return new EpisodeKey(episode.sessionId(), episode.turnIndex());
-  }
-
-  private Map<TopicKey, List<CandidateMemoryQueryResult.TagCount>> groupTags(
-      List<CandidateMemoryTagCountProjection> source
-  ) {
-    return source.stream().collect(Collectors.groupingBy(
-        tag -> new TopicKey(tag.getSkillId(), tag.getFocusId()),
-        LinkedHashMap::new,
-        Collectors.mapping(this::toTagCount, Collectors.toList())
-    ));
-  }
-
-  private CandidateMemoryQueryResult.TagCount toTagCount(
-      CandidateMemoryTagCountProjection source
-  ) {
-    return new CandidateMemoryQueryResult.TagCount(
-        source.getCategory(),
-        source.getTag(),
-        source.getTagCount()
-    );
-  }
-
-  private CandidateMemoryQueryResult.TopicProfile toTopic(
-      CandidateAbilityProfileEntity source,
-      Map<TopicKey, List<CandidateMemoryQueryResult.TagCount>> tags
-  ) {
-    var profile = source.toDomain();
-    return new CandidateMemoryQueryResult.TopicProfile(
-        profile.topic(),
-        profile.ability(),
-        profile.counter(),
-        tags.getOrDefault(profile.topic(), List.of())
-    );
   }
 
   private CandidateMemoryQueryResult.Episode toEpisode(
