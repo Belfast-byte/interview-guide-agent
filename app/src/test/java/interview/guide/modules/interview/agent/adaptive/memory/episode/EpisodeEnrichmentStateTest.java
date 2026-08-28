@@ -65,16 +65,4 @@ class EpisodeEnrichmentStateTest {
         "unexpected"
     )).isInstanceOf(IllegalArgumentException.class);
   }
-
-  @Test
-  @DisplayName("LEGACY_UNENRICHED 不参与在线状态迁移")
-  void shouldKeepLegacyStateTerminal() {
-    EpisodeEnrichmentState legacy = new EpisodeEnrichmentState(
-        EpisodeEnrichmentStatus.LEGACY_UNENRICHED,
-        null
-    );
-
-    assertThatThrownBy(legacy::claim).isInstanceOf(IllegalStateException.class);
-    assertThatThrownBy(legacy::retry).isInstanceOf(IllegalStateException.class);
-  }
 }

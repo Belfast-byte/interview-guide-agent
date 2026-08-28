@@ -37,7 +37,6 @@ paths:
 - 「外部调用 → 裁决 → 落库」的串联只在 `application` 层（`AdaptiveInterviewApplicationService`、`AdaptiveAlgorithmResultReadyHandler`）。
 - 写库统一走 `AdaptiveInterviewPersistenceService`，短事务 + `@Version` 乐观锁；并发冲突抛业务异常，不自动重试。
 - 全部会话状态/记忆存 PostgreSQL；Redis 只用于异步 Stream（判题、代码分析），生产/消费继承 `AbstractStreamProducer`/`AbstractStreamConsumer`。
-- `persistence.memory.CandidateMemoryClaimStatus`（恒 `UNVERIFIED`）与 `codeanalysis.claim.ClaimVerificationStatus` 是两个概念，不可混用。
 - 公平性：历史能力画像可影响选题，不得影响同一回答的评级（`CandidateMemoryFairnessContractTest` 锁定）。
 
 ## 算法判题与代码分析

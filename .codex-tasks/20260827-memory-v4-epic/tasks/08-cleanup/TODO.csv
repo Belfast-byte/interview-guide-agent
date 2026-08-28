@@ -1,0 +1,7 @@
+id,task,status,acceptance_criteria,validation_command,completed_at,retry_count,notes
+1,盘点并删除旧 Topic/Claim 与 schema 路径,DONE,"旧类型、表、双写、backfill 和兼容引用为零","rg -n 'CandidateMemoryClaim|CandidateMemoryTopicEntity|candidate_memory_(topics|claims)|LEGACY_UNENRICHED' app/src/main app/src/test",2026-08-28T11:52:00+08:00,0,"删除 Claim LLM 链、Topic/Claim JPA、旧表与 legacy enrichment"
+2,补齐 Redis persistence 正式场景测试,DONE,"换场景不改计划且本轮独立评估写正式 contribution","timeout 60s ./gradlew :app:test --no-daemon --console=plain --tests '*MemoryEvaluationScenario*'",2026-08-28T11:52:00+08:00,0,
+3,补齐 Redis persistence 练习场景测试,DONE,"scope 选择与诊断追问写 assistance 和练习 state","timeout 60s ./gradlew :app:test --no-daemon --console=plain --tests '*MemoryPracticeScenario*'",2026-08-28T11:52:00+08:00,0,
+4,验收 ActionIntent 三阶段恢复场景,DONE,"执行前、结果后、Patch 前恢复无重复副作用","timeout 60s ./gradlew :app:test --no-daemon --console=plain --tests '*ActionIntent*Recovery*'",2026-08-28T11:52:00+08:00,0,
+5,运行全量测试和前端构建,DONE,"后端全集在 60 秒硬超时分片内通过且前端构建成功","三个互斥 Gradle test 分片 + frontend pnpm run build",2026-08-28T12:24:08+08:00,0,"单任务全量超过 60 秒；全集按 root/common/infrastructure、adaptive、其余 modules 三个互斥分片验证"
+6,执行最终纯净性审计并提交,IN_PROGRESS,"无本任务未提交文件且 Epic 全部完成","git diff --check && git diff --cached --check",,0,

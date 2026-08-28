@@ -43,7 +43,7 @@ import org.springframework.context.annotation.Import;
 import org.springframework.boot.test.context.TestConfiguration;
 import tools.jackson.databind.ObjectMapper;
 
-@DataJpaTest(properties = {
+@DataJpaTest(showSql = false, properties = {
     "spring.flyway.enabled=false",
     "spring.jpa.hibernate.ddl-auto=create-drop"
 })

@@ -7,6 +7,5 @@ public enum EpisodeEnrichmentStatus {
   PENDING,
   PROCESSING,
   COMPLETED,
-  FAILED,
-  LEGACY_UNENRICHED
+  FAILED
 }

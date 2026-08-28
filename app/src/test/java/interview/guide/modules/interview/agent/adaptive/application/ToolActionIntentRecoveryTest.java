@@ -36,7 +36,7 @@ import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.mockito.InOrder;
 
-class ToolActionIntentTest {
+class ToolActionIntentRecoveryTest {
 
   private final BoundedActionRuntime runtime = mock(BoundedActionRuntime.class);
   private final AgentRoleRegistry roles = mock(AgentRoleRegistry.class);

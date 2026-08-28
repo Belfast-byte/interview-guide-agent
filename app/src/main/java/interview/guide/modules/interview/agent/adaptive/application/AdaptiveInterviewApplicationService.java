@@ -40,8 +40,6 @@ import interview.guide.modules.interview.agent.adaptive.core.intent.AskActionCon
 import interview.guide.modules.interview.agent.adaptive.core.memory.WorkPhase;
 import interview.guide.modules.interview.agent.adaptive.core.context.CapabilityTarget;
 import interview.guide.modules.interview.agent.adaptive.memory.ContextAssembler;
-import interview.guide.modules.interview.agent.adaptive.memory.claim.CandidateClaim;
-import interview.guide.modules.interview.agent.adaptive.memory.claim.CandidateClaimExtractionService;
 import interview.guide.modules.interview.agent.adaptive.memory.brief.DimensionBriefService;
 import interview.guide.modules.interview.agent.adaptive.memory.semantic.PracticeMemoryService;
 import interview.guide.modules.interview.agent.adaptive.memory.semantic.PracticePlanningMemory;
@@ -75,7 +73,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
-import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.RejectedExecutionException;
 import java.util.function.Consumer;
 import lombok.RequiredArgsConstructor;
@@ -101,7 +98,6 @@ public class AdaptiveInterviewApplicationService {
   private final ContextAssembler contextAssembler;
   private final DimensionBriefService dimensionBriefService;
   private final PlanningTaxonomy planningTaxonomy;
-  private final CandidateClaimExtractionService candidateClaimExtractionService;
   private final PracticeMemoryService practiceMemoryService;
   private final DepthAssessmentAgent assessmentAgent;
   private final AssessmentEvidenceValidator assessmentEvidenceValidator;
@@ -442,7 +438,6 @@ public class AdaptiveInterviewApplicationService {
     CandidateAnswer answer = input.answer();
     AdaptiveInterviewHistory history = interview.history();
     DimensionBrief dimensionBrief = null;
-    List<CandidateClaim> candidateClaims = List.of();
     if (input.targetEnded() && input.sessionEnded()) {
       dimensionBrief = dimensionBriefService.summarize(
           history.session().id(),
@@ -451,16 +446,8 @@ public class AdaptiveInterviewApplicationService {
           answer,
           history.llmProvider()
       );
-      candidateClaims = candidateClaimExtractionService.extract(
-          history.session().id(),
-          dimension,
-          history.turns(),
-          answer,
-          planningTaxonomy.catalog(),
-          history.llmProvider()
-      );
     } else if (input.targetEnded()) {
-      answerExecutor.execute(() -> generateDimensionMemorySafely(
+      answerExecutor.execute(() -> generateDimensionBriefSafely(
           history.session().id(),
           dimension,
           history.turns(),
@@ -475,7 +462,7 @@ public class AdaptiveInterviewApplicationService {
             input.assessment()
         )
         : List.of();
-    return new MemoryArtifacts(dimensionBrief, candidateClaims, recommendations);
+    return new MemoryArtifacts(dimensionBrief, recommendations);
   }
 
   private PlannedInterview persistDecision(DecisionPersistence input) {
@@ -506,7 +493,6 @@ public class AdaptiveInterviewApplicationService {
         decision.response(),
         decision.toolExecutions(),
         artifacts.dimensionBrief(),
-        artifacts.candidateClaims(),
         input.assessed().decision(),
         input.assessed().evidences(),
         artifacts.practiceRecommendations(),
@@ -556,8 +542,7 @@ public class AdaptiveInterviewApplicationService {
             artifacts.practiceRecommendations()
         ),
         new AdaptiveActionPreparation(
-            new AdaptiveMemoryFacts(
-                artifacts.dimensionBrief(), artifacts.candidateClaims()),
+            new AdaptiveMemoryFacts(artifacts.dimensionBrief()),
             input.prepared().patches(),
             action
         )
@@ -624,8 +609,7 @@ public class AdaptiveInterviewApplicationService {
         new AdaptiveAssessmentFacts(
             assessed.decision(), assessed.evidences(), artifacts.practiceRecommendations()),
         new AdaptiveActionPreparation(
-            new AdaptiveMemoryFacts(
-                artifacts.dimensionBrief(), artifacts.candidateClaims()),
+            new AdaptiveMemoryFacts(artifacts.dimensionBrief()),
             projection.patches(),
             action
         )
@@ -876,10 +860,10 @@ public class AdaptiveInterviewApplicationService {
   }
 
   /**
-   * 维度记忆（小结 + 声明）异步生成：两个 LLM 调用并行，失败只记日志，
+   * 维度小结异步生成，失败只记日志，
    * 不影响面试主流程；落库晚于当轮决策，从下一轮决策起可见。
    */
-  private void generateDimensionMemorySafely(
+  private void generateDimensionBriefSafely(
       String sessionId,
       PlannedDimension dimension,
       List<AdaptiveInterviewTurn> turns,
@@ -887,22 +871,9 @@ public class AdaptiveInterviewApplicationService {
       String llmProvider
   ) {
     try {
-      CompletableFuture<DimensionBrief> briefFuture = CompletableFuture.supplyAsync(
-          () -> dimensionBriefService.summarize(sessionId, dimension, turns, answer, llmProvider),
-          answerExecutor
-      );
-      CompletableFuture<List<CandidateClaim>> claimsFuture = CompletableFuture.supplyAsync(
-          () -> candidateClaimExtractionService.extract(
-              sessionId,
-              dimension,
-              turns,
-              answer,
-              planningTaxonomy.catalog(),
-              llmProvider
-          ),
-          answerExecutor
-      );
-      persistenceService.saveDimensionMemory(sessionId, briefFuture.join(), claimsFuture.join());
+      DimensionBrief brief = dimensionBriefService.summarize(
+          sessionId, dimension, turns, answer, llmProvider);
+      persistenceService.saveDimensionBrief(brief);
     } catch (Exception e) {
       log.warn(
           "维度记忆异步生成失败，不影响面试主流程: sessionId={}, dimension={}, error={}",
@@ -925,7 +896,6 @@ public class AdaptiveInterviewApplicationService {
 
   private record MemoryArtifacts(
       DimensionBrief dimensionBrief,
-      List<CandidateClaim> candidateClaims,
       List<PracticeRecommendation> practiceRecommendations
   ) {}
 

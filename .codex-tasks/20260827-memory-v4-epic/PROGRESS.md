@@ -10,13 +10,13 @@
 
 ## Context Recovery Block
 
-- **Current milestone**: #6 — 实现 Episode 召回与题目去重
+- **Current milestone**: #8 — 删除旧实现并完成全量验证
 - **Current status**: IN_PROGRESS
-- **Last completed**: #5 — T03 commit `42ea980`
-- **Current artifact**: `docs/design_spec/35-memory-three-layer-tickets.md` T04/T05
-- **Key context**: ASK/CALL_TOOL 已持久为 ActionIntent，外部执行、结果落库和 Patch 应用可分段恢复。
-- **Known issues**: 现有 Episode 仍是旧口径，晚到工具和 reassessment 仍可替换过去评估，且没有未回答问题曝光去重。
-- **Next action**: 建立 Child 6 执行文件，先盘点 Episode/assessment/tool-result 现有表与替换路径。
+- **Last completed**: #7 — Semantic commit `a5554ea`
+- **Current artifact**: `docs/design_spec/35-memory-three-layer-tickets.md` T07
+- **Key context**: Working、Intent、Episode、曝光去重和 Semantic 双轨均已落地；正式 Planner 不读历史，练习只消费 scope 内长期状态。
+- **Known issues**: 旧 Topic/Claim 仍在写库，旧迁移文件仍创建失效表，最终三个场景和全量测试尚未验收。
+- **Next action**: 删除 Topic/Claim 运行路径和旧 schema，补齐 Redis persistence 正式/练习/恢复场景测试。
 
 ## Child 1: 定稿三层记忆 v4 技术规格
 
@@ -60,6 +60,20 @@
 - **Validation**: T03 定向、模块回归、架构隔离、Controller 与 Spring AI gateway 测试均通过。
 - **Commit**: `42ea980`
 - **Next step**: Child 6 — Episode 召回与题目去重
+
+## Child 6: Episode 召回与题目去重
+
+- **Status**: DONE
+- **What was done**: Episode 改为不可变事实，新增曝光召回、正式中性视图、练习诊断视图与保持 TargetEnvelope 的场景改写。
+- **Validation**: Episode/QuestionExposure/QuestionNovelty 定向和模块回归测试通过。
+- **Commits**: `bdad221`, `83effc0`
+
+## Child 7: Semantic 双轨与练习消费
+
+- **Status**: DONE
+- **What was done**: Evaluation/Practice contribution 与 state 分轨聚合，练习 scope 消费、完整诊断和双轨画像 API/前端落地，旧单轨画像删除。
+- **Validation**: 目标测试、前端构建和完整 adaptive 测试通过。
+- **Commit**: `a5554ea`
 
 ## Shape Promotion
 

@@ -51,7 +51,7 @@ import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
 import org.mockito.InOrder;
 
-class AskActionIntentTest {
+class AskActionIntentRecoveryTest {
 
   private final BoundedActionRuntime runtime = mock(BoundedActionRuntime.class);
   private final AgentRoleRegistry roles = mock(AgentRoleRegistry.class);

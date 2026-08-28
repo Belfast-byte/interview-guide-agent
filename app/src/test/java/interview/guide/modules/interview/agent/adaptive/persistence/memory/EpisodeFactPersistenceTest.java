@@ -32,7 +32,7 @@ import org.springframework.context.annotation.Import;
 import interview.guide.modules.interview.agent.adaptive.memory.semantic.SemanticAggregator;
 import interview.guide.modules.interview.agent.adaptive.memory.semantic.SemanticContributionFactory;
 
-@DataJpaTest(properties = {
+@DataJpaTest(showSql = false, properties = {
     "spring.flyway.enabled=false",
     "spring.jpa.hibernate.ddl-auto=create-drop"
 })

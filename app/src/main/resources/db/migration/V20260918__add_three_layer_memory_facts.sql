@@ -83,7 +83,7 @@ CREATE TABLE candidate_memory_episode_facts (
     CHECK (work_revision_before > 0 AND work_revision_after > work_revision_before),
   CONSTRAINT memory_episode_enrichment_status_check CHECK (
     enrichment_status IN (
-      'PENDING', 'PROCESSING', 'COMPLETED', 'FAILED', 'LEGACY_UNENRICHED'
+      'PENDING', 'PROCESSING', 'COMPLETED', 'FAILED'
     )
   )
 );

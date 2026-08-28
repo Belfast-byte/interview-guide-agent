@@ -2,7 +2,7 @@
 
 > 维护：Agent；上游架构裁决以 [02-memory-design.md](../design/02-memory-design.md) 为准。
 >
-> 状态：**Approved v4 / 目标架构，尚未实施**
+> 状态：**Implemented v4**
 >
 > 代码核对基线：`b309952`（2026-08-27）
 

@@ -3,12 +3,12 @@
 ## Context Recovery Block
 
 - **Current milestone**: #7 — 提交 T06
-- **Current status**: IN_PROGRESS
+- **Current status**: DONE
 - **Last completed**: T05 / commits `bdad221` and `83effc0`
 - **Current artifact**: `docs/design_spec/35-memory-three-layer-tickets.md` T06
 - **Key context**: Episode 已不可变，正式召回与练习诊断已有分离视图；Semantic 可直接从 Episode 事实生成 contribution。
 - **Known issues**: 旧 Topic/Claim 读写链与历史测试资源仍待 T07 物理删除；它们不再参与双轨画像 API。
-- **Next action**: 提交 T06，仅纳入 Semantic 双轨实现、旧单轨删除和本任务台账。
+- **Next action**: T07 删除旧 Topic/Claim 与历史 schema 残留，完成场景和全量验收。
 
 ## Audit
 
@@ -28,3 +28,4 @@
 - 候选人画像 API 与前端已直接切为双轨 State，没有保留旧 response 格式。
 - 已删除旧 counter/profile/snapshot 运行代码、端点、测试以及历史 backfill 实现。
 - **Validation**: Semantic/Practice/CandidateMemory 目标测试通过，前端生产构建通过；完整 adaptive 测试生成 110 份 XML 报告，failure/error 均为 0。
+- **Commit**: `a5554ea`

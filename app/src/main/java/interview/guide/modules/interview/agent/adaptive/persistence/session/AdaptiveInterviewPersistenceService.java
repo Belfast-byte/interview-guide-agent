@@ -18,10 +18,8 @@ import interview.guide.modules.interview.agent.adaptive.core.session.SessionTran
 import interview.guide.modules.interview.agent.adaptive.core.session.TurnProvenance;
 import interview.guide.modules.interview.agent.adaptive.core.event.ToolResultEvent;
 import interview.guide.modules.interview.agent.adaptive.core.event.ToolResultFollowUp;
-import interview.guide.modules.interview.agent.adaptive.memory.claim.CandidateClaim;
 import interview.guide.modules.interview.agent.adaptive.planning.InterviewPlan;
 import interview.guide.modules.interview.agent.adaptive.core.memory.InterviewWorkState;
-import interview.guide.modules.interview.agent.adaptive.core.memory.TargetWorkStatus;
 import interview.guide.modules.interview.agent.adaptive.core.memory.WorkStatePatch;
 import interview.guide.modules.interview.agent.adaptive.core.intent.ActionIntent;
 import interview.guide.modules.interview.agent.adaptive.core.intent.ActionIntentOutcome;
@@ -38,10 +36,6 @@ import interview.guide.modules.interview.agent.adaptive.persistence.assessment.A
 import interview.guide.modules.interview.agent.adaptive.persistence.assessment.AssessmentProbeGapRepository;
 import interview.guide.modules.interview.agent.adaptive.persistence.memory.AdaptiveDimensionBriefEntity;
 import interview.guide.modules.interview.agent.adaptive.persistence.memory.AdaptiveDimensionBriefRepository;
-import interview.guide.modules.interview.agent.adaptive.persistence.memory.CandidateMemoryClaimEntity;
-import interview.guide.modules.interview.agent.adaptive.persistence.memory.CandidateMemoryClaimRepository;
-import interview.guide.modules.interview.agent.adaptive.persistence.memory.CandidateMemoryTopicEntity;
-import interview.guide.modules.interview.agent.adaptive.persistence.memory.CandidateMemoryTopicRepository;
 import interview.guide.modules.interview.agent.adaptive.persistence.memory.EpisodeFactPersistence;
 import interview.guide.modules.interview.agent.adaptive.persistence.memory.EpisodePersistenceInput;
 import interview.guide.modules.interview.agent.adaptive.persistence.plan.AdaptiveAgentPlanEntity;
@@ -71,8 +65,6 @@ public class AdaptiveInterviewPersistenceService {
   private final AdaptiveAgentPlanRepository planRepository;
   private final AdaptiveAgentToolCallRepository toolCallRepository;
   private final AdaptiveDimensionBriefRepository dimensionBriefRepository;
-  private final CandidateMemoryTopicRepository candidateMemoryTopicRepository;
-  private final CandidateMemoryClaimRepository candidateMemoryClaimRepository;
   private final AdaptiveAgentAssessmentRepository assessmentRepository;
   private final AdaptiveAgentEvidenceRepository evidenceRepository;
   private final AssessmentProbeGapRepository probeGapRepository;
@@ -174,34 +166,10 @@ public class AdaptiveInterviewPersistenceService {
         .depthLevel();
   }
 
-  /**
-   * 非末轮维度完成的记忆落库：由异步任务调用，仅存维度小结与候选人声明，
-   * 与答题主路径解耦；调用方已保证该维度确已完成。
-   */
+  /** 非末轮维度完成后异步保存维度小结。 */
   @Transactional
-  public void saveDimensionMemory(
-      String sessionId,
-      DimensionBrief brief,
-      List<CandidateClaim> claims
-  ) {
+  public void saveDimensionBrief(DimensionBrief brief) {
     dimensionBriefRepository.save(new AdaptiveDimensionBriefEntity(brief));
-    AdaptiveAgentSessionEntity sessionEntity = sessionRepository
-        .findByIdAndTenantIdIsNull(sessionId)
-        .orElseThrow(() -> new BusinessException(
-            ErrorCode.INTERVIEW_SESSION_NOT_FOUND,
-            "Agent 面试会话不存在"
-        ));
-    candidateMemoryClaimRepository.saveAll(claims.stream()
-        .filter(claim -> claim.skillId() != null && !claim.skillId().isBlank()
-            && claim.focusId() != null && !claim.focusId().isBlank())
-        .distinct()
-        .map(claim -> new CandidateMemoryClaimEntity(
-            sessionEntity.tenantId(),
-            sessionEntity.candidateId(),
-            sessionId,
-            claim
-        ))
-        .toList());
   }
 
   /**
@@ -246,8 +214,6 @@ public class AdaptiveInterviewPersistenceService {
     applyPatches(policyPatches, workStatePersistenceService.get(sessionId));
     List<AdaptiveAgentPlanEntity> plans = planRepository
         .findBySessionIdOrderByDimensionOrder(sessionId);
-    if (transition.session().status() == AdaptiveSessionStatus.COMPLETED) {
-    }
     return plannedInterview(session, toPlan(sessionId, current.maxTurns(), plans));
   }
 
@@ -277,8 +243,7 @@ public class AdaptiveInterviewPersistenceService {
         session, turn, assessment, dimension, before, updated, null));
     savePreparedFacts(
         input,
-        new SavedAnswerContext(session, dimension, new AnswerAssessment(turn, assessment)),
-        new WorkStateChange(before, updated)
+        new SavedAnswerContext(session, new AnswerAssessment(turn, assessment))
     );
     actionIntentPersistenceService.plan(
         input.preparation().action().intent(),
@@ -304,7 +269,6 @@ public class AdaptiveInterviewPersistenceService {
     RespondAction proposedAction = input.proposedAction();
     List<ToolExecution> toolExecutions = input.toolExecutions();
     DimensionBrief dimensionBrief = input.dimensionBrief();
-    List<CandidateClaim> candidateClaims = input.candidateClaims();
     AssessmentDecision assessmentDecision = input.assessmentDecision();
     List<ValidatedAssessmentEvidence> assessmentEvidences = input.assessmentEvidences();
     List<PracticeRecommendation> practiceRecommendations = input.practiceRecommendations();
@@ -369,25 +333,6 @@ public class AdaptiveInterviewPersistenceService {
     if (dimensionBrief != null) {
       dimensionBriefRepository.save(new AdaptiveDimensionBriefEntity(dimensionBrief));
     }
-    if (targetEnded(updatedState, before.activeTargetId())) {
-      candidateMemoryTopicRepository.save(new CandidateMemoryTopicEntity(
-          sessionEntity.tenantId(),
-          sessionEntity.candidateId(),
-          sessionId,
-          answeredDimension
-      ));
-    }
-    candidateMemoryClaimRepository.saveAll(candidateClaims.stream()
-        .filter(claim -> claim.skillId() != null && !claim.skillId().isBlank()
-            && claim.focusId() != null && !claim.focusId().isBlank())
-        .distinct()
-        .map(claim -> new CandidateMemoryClaimEntity(
-            sessionEntity.tenantId(),
-            sessionEntity.candidateId(),
-            sessionId,
-            claim
-        ))
-        .toList());
     evidenceRepository.saveAll(assessmentEvidences.stream()
         .map(evidence -> new AdaptiveAgentEvidenceEntity(
             assessment,
@@ -403,18 +348,7 @@ public class AdaptiveInterviewPersistenceService {
             recommendation
         ))
         .toList());
-    if (transition.session().status() == AdaptiveSessionStatus.COMPLETED) {
-    }
     return plannedInterview(sessionEntity, plan);
-  }
-
-  private boolean targetEnded(InterviewWorkState state, String targetId) {
-    TargetWorkStatus status = state.targets().stream()
-        .filter(target -> target.targetId().equals(targetId))
-        .findFirst()
-        .orElseThrow(() -> new IllegalStateException("WorkState 目标不存在"))
-        .status();
-    return status == TargetWorkStatus.COMPLETED || status == TargetWorkStatus.EXHAUSTED;
   }
 
   private AdaptiveAgentTurnEntity answeredTurn(AdaptiveAnswerFacts facts) {
@@ -449,22 +383,12 @@ public class AdaptiveInterviewPersistenceService {
 
   private void savePreparedFacts(
       AdaptiveActionPreparationInput input,
-      SavedAnswerContext context,
-      WorkStateChange state
+      SavedAnswerContext context
   ) {
     AdaptiveMemoryFacts memory = input.preparation().memory();
     if (memory.dimensionBrief() != null) {
       dimensionBriefRepository.save(new AdaptiveDimensionBriefEntity(memory.dimensionBrief()));
     }
-    if (targetEnded(state.updated(), state.before().activeTargetId())) {
-      candidateMemoryTopicRepository.save(new CandidateMemoryTopicEntity(
-          context.session().tenantId(),
-          context.session().candidateId(),
-          input.answer().sessionId(),
-          context.dimension()
-      ));
-    }
-    saveCandidateClaims(context.session(), input.answer().sessionId(), memory.candidateClaims());
     saveAssessmentEvidence(
         input.assessment(), input.answer().answer(), context.saved().assessment());
     saveCodeFactEvidence(
@@ -473,20 +397,6 @@ public class AdaptiveInterviewPersistenceService {
     );
     practiceRecordRepository.saveAll(input.assessment().recommendations().stream()
         .map(recommendation -> new PracticeRecordEntity(context.session(), recommendation))
-        .toList());
-  }
-
-  private void saveCandidateClaims(
-      AdaptiveAgentSessionEntity session,
-      String sessionId,
-      List<CandidateClaim> claims
-  ) {
-    candidateMemoryClaimRepository.saveAll(claims.stream()
-        .filter(claim -> claim.skillId() != null && !claim.skillId().isBlank()
-            && claim.focusId() != null && !claim.focusId().isBlank())
-        .distinct()
-        .map(claim -> new CandidateMemoryClaimEntity(
-            session.tenantId(), session.candidateId(), sessionId, claim))
         .toList());
   }
 
@@ -507,7 +417,6 @@ public class AdaptiveInterviewPersistenceService {
 
   private record SavedAnswerContext(
       AdaptiveAgentSessionEntity session,
-      PlannedDimension dimension,
       AnswerAssessment saved
   ) {}
 
@@ -516,10 +425,6 @@ public class AdaptiveInterviewPersistenceService {
       AdaptiveAgentAssessmentEntity assessment
   ) {}
 
-  private record WorkStateChange(
-      InterviewWorkState before,
-      InterviewWorkState updated
-  ) {}
 
   private Optional<AdaptiveAgentSessionEntity> findOwnedSession(
       MemoryOwner owner,
