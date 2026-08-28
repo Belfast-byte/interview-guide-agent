@@ -3,12 +3,12 @@
 ## Context Recovery Block
 
 - **Current milestone**: #6 — 执行最终纯净性审计并提交
-- **Current status**: IN_PROGRESS
+- **Current status**: DONE
 - **Last completed**: T06 / commit `a5554ea`
 - **Current artifact**: `docs/design_spec/35-memory-three-layer-tickets.md` T07
 - **Key context**: 旧 Topic/Claim、CandidateClaim LLM 链、旧表和 LEGACY enrichment 已删除；三个场景测试通过。
-- **Known issues**: 当前环境没有 Docker/psql，无法执行真实 PostgreSQL 空库 Flyway；迁移链已通过依赖和旧表引用静态审计。
-- **Next action**: 完成 diff、旧引用、测试覆盖与工作树归属审计，提交 T07。
+- **Known issues**: 当前环境没有 Docker/psql，未执行真实 PostgreSQL 空库 Flyway；迁移链已通过版本唯一性、依赖和旧表引用静态审计。
+- **Next action**: Epic 完成，无剩余实施步骤。
 
 ## Audit
 
@@ -25,3 +25,5 @@
 - 后端全集按三个互斥分片通过，分片耗时分别 26 秒、29 秒、16 秒；单个命令均受 60 秒硬超时约束。
 - 前端 `pnpm run build` 通过；保留既有 CSS minifier `:where()` 警告，不影响构建结果。
 - 单任务全量命令在 60 秒时进入收尾但未汇总，因此未把超时运行记为通过。
+- 旧实现静态检索、迁移版本唯一性、`git diff --check` 和暂存清单审计通过。
+- **Commit**: `18ac158`

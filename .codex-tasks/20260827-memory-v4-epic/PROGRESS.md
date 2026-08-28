@@ -11,12 +11,12 @@
 ## Context Recovery Block
 
 - **Current milestone**: #8 — 删除旧实现并完成全量验证
-- **Current status**: IN_PROGRESS
-- **Last completed**: #7 — Semantic commit `a5554ea`
+- **Current status**: DONE
+- **Last completed**: #8 — Cleanup commit `18ac158`
 - **Current artifact**: `docs/design_spec/35-memory-three-layer-tickets.md` T07
 - **Key context**: Working、Intent、Episode、曝光去重和 Semantic 双轨均已落地；正式 Planner 不读历史，练习只消费 scope 内长期状态。
-- **Known issues**: 旧 Topic/Claim 仍在写库，旧迁移文件仍创建失效表，最终三个场景和全量测试尚未验收。
-- **Next action**: 删除 Topic/Claim 运行路径和旧 schema，补齐 Redis persistence 正式/练习/恢复场景测试。
+- **Known issues**: 当前环境无 Docker/psql，PostgreSQL 空库 Flyway 未实跑；DDL 已完成静态依赖审计。
+- **Next action**: Epic 完成，无剩余实施步骤。
 
 ## Child 1: 定稿三层记忆 v4 技术规格
 
@@ -74,6 +74,13 @@
 - **What was done**: Evaluation/Practice contribution 与 state 分轨聚合，练习 scope 消费、完整诊断和双轨画像 API/前端落地，旧单轨画像删除。
 - **Validation**: 目标测试、前端构建和完整 adaptive 测试通过。
 - **Commit**: `a5554ea`
+
+## Child 8: 删除旧实现并完成全量验证
+
+- **Status**: DONE
+- **What was done**: 删除 Topic/Claim、单轨画像、backfill、legacy 枚举和失效 Prompt；补齐正式、练习和 Intent 恢复场景。
+- **Validation**: 后端全集三个互斥分片、前端构建、旧引用检索、迁移版本唯一性和 diff 检查通过。
+- **Commit**: `18ac158`
 
 ## Shape Promotion
 
