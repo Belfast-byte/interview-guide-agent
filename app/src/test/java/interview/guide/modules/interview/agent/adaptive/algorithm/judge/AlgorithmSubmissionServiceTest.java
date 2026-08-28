@@ -52,7 +52,7 @@ class AlgorithmSubmissionServiceTest {
     SandboxExecution execution = execution();
     when(sourceStorage.store("session-1", SandboxLanguage.JAVA, "class Main {}"))
         .thenReturn(source);
-    when(persistenceService.createPending(new CreateSandboxExecution(
+    when(persistenceService.createPending("intent-1", new CreateSandboxExecution(
         "session-1",
         1,
         "two-sum",
@@ -63,7 +63,7 @@ class AlgorithmSubmissionServiceTest {
     ))).thenReturn(execution);
     when(producer.sendExecution("execution-1")).thenReturn(true);
 
-    assertThat(service.submit(submission)).isEqualTo(execution);
+    assertThat(service.submit(submission, "intent-1")).isEqualTo(execution);
     verify(producer).sendExecution("execution-1");
   }
 
@@ -72,11 +72,14 @@ class AlgorithmSubmissionServiceTest {
   void shouldFailWhenEnqueueFails() {
     when(sourceStorage.store("session-1", SandboxLanguage.JAVA, "class Main {}"))
         .thenReturn(new StoredAlgorithmSource("source-ref", "a".repeat(64)));
-    when(persistenceService.createPending(org.mockito.ArgumentMatchers.any()))
+    when(persistenceService.createPending(
+        org.mockito.ArgumentMatchers.eq("intent-1"),
+        org.mockito.ArgumentMatchers.any()
+    ))
         .thenReturn(execution());
     when(producer.sendExecution("execution-1")).thenReturn(false);
 
-    assertThatThrownBy(() -> service.submit(submission()))
+    assertThatThrownBy(() -> service.submit(submission(), "intent-1"))
         .isInstanceOf(BusinessException.class)
         .hasMessageContaining("入队失败");
   }

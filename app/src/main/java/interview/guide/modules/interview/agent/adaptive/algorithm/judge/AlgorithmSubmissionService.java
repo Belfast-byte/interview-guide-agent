@@ -6,6 +6,7 @@ import interview.guide.modules.interview.agent.adaptive.algorithm.problem.Algori
 import interview.guide.modules.interview.agent.adaptive.algorithm.problem.StoredAlgorithmSource;
 import interview.guide.modules.interview.agent.adaptive.algorithm.sandbox.CreateSandboxExecution;
 import interview.guide.modules.interview.agent.adaptive.algorithm.sandbox.SandboxExecution;
+import java.util.UUID;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 
@@ -21,7 +22,7 @@ public class AlgorithmSubmissionService {
   private final AlgorithmJudgeStreamProducer producer;
 
   public SandboxExecution submit(SubmitAlgorithmCode submission) {
-    return submit(submission, java.util.UUID.randomUUID().toString());
+    return submit(submission, UUID.randomUUID().toString());
   }
 
   public SandboxExecution submit(

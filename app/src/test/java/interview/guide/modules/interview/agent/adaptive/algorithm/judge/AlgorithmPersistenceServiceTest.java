@@ -96,7 +96,7 @@ class AlgorithmPersistenceServiceTest {
       when(executionRepository.save(org.mockito.ArgumentMatchers.any()))
           .thenAnswer(invocation -> invocation.getArgument(0));
 
-      SandboxExecution execution = service.createPending(command);
+      SandboxExecution execution = service.createPending("execution-1", command);
 
       assertThat(execution.submissionSeq()).isEqualTo(3);
       assertThat(execution.status()).isEqualTo(SandboxExecutionStatus.PENDING);
@@ -116,7 +116,7 @@ class AlgorithmPersistenceServiceTest {
               eq(SandboxVerdict.IE)
           )).thenReturn(20L);
 
-      assertThatThrownBy(() -> service.createPending(command))
+      assertThatThrownBy(() -> service.createPending("execution-1", command))
           .isInstanceOfSatisfying(BusinessException.class, exception ->
               assertThat(exception.getCode()).isEqualTo(ErrorCode.RATE_LIMIT_EXCEEDED.getCode()));
       verify(executionRepository, never()).save(org.mockito.ArgumentMatchers.any());

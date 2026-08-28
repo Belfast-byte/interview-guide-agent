@@ -20,7 +20,6 @@ import interview.guide.modules.interview.agent.adaptive.algorithm.sandbox.Sandbo
 import interview.guide.modules.interview.agent.adaptive.algorithm.sandbox.SandboxWorkloadType;
 import interview.guide.modules.interview.agent.adaptive.observability.AlgorithmInterviewTelemetry;
 import jakarta.annotation.PostConstruct;
-import java.util.UUID;
 import java.time.LocalDateTime;
 import java.util.List;
 import lombok.RequiredArgsConstructor;
@@ -77,11 +76,6 @@ public class AlgorithmPersistenceService {
         sessionId,
         SandboxWorkloadType.ALGORITHM
     );
-  }
-
-  @Transactional
-  public SandboxExecution createPending(CreateSandboxExecution command) {
-    return createPending(UUID.randomUUID().toString(), command);
   }
 
   @Transactional
