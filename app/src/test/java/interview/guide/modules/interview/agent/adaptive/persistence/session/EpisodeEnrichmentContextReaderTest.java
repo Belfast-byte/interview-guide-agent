@@ -12,6 +12,7 @@ import interview.guide.modules.interview.agent.adaptive.core.context.ProbeGap;
 import interview.guide.modules.interview.agent.adaptive.core.context.TopicKey;
 import interview.guide.modules.interview.agent.adaptive.core.event.CandidateAnswer;
 import interview.guide.modules.interview.agent.adaptive.core.event.ToolResultEvent;
+import interview.guide.modules.interview.agent.adaptive.core.session.TurnProvenance;
 import interview.guide.modules.interview.agent.adaptive.memory.episode.EpisodeEnrichmentRequest;
 import interview.guide.modules.interview.agent.adaptive.memory.episode.EpisodeFactCreation;
 import interview.guide.modules.interview.agent.adaptive.memory.episode.EpisodeTagSource;
@@ -132,10 +133,12 @@ class EpisodeEnrichmentContextReaderTest {
 
   private AdaptiveAgentTurnEntity createAnsweredTurn() {
     AdaptiveAgentTurnEntity turn = new AdaptiveAgentTurnEntity(
-        AdaptiveTurnCreation.initial(
+        new AdaptiveTurnCreation(
             SESSION_ID,
+            1,
             0,
-            RespondAction.ask("如何保证缓存一致性？", "首题")
+            RespondAction.ask("如何保证缓存一致性？", "首题"),
+            TurnProvenance.initial()
         )
     );
     turn.complete(

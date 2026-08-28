@@ -6,25 +6,11 @@ import interview.guide.modules.interview.agent.adaptive.core.session.TurnProvena
 /**
  * 新轮次持久化参数，避免来源字段在调用点散落。
  */
-record AdaptiveTurnCreation(
+public record AdaptiveTurnCreation(
     String sessionId,
     int turnIndex,
     int dimensionOrder,
     RespondAction questionAction,
     TurnProvenance provenance
 ) {
-
-  static AdaptiveTurnCreation initial(
-      String sessionId,
-      int dimensionOrder,
-      RespondAction questionAction
-  ) {
-    return new AdaptiveTurnCreation(
-        sessionId,
-        1,
-        dimensionOrder,
-        questionAction,
-        TurnProvenance.initial()
-    );
-  }
 }

@@ -168,6 +168,9 @@ class ToolGatewayTest {
     }
 
     @Override
+    public void validate(ReActRequest request, Map<String, Object> arguments) {}
+
+    @Override
     public ToolResult execute(Map<String, Object> arguments) {
       executions.incrementAndGet();
       return new CompletedToolResult("result-1", output, "stub result");
@@ -185,6 +188,9 @@ class ToolGatewayTest {
     public ToolCallback callback() {
       return mock(ToolCallback.class);
     }
+
+    @Override
+    public void validate(ReActRequest request, Map<String, Object> arguments) {}
 
     @Override
     public ToolResult execute(Map<String, Object> arguments) {

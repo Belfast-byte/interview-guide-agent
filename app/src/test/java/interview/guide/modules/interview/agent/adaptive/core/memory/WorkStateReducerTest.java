@@ -6,6 +6,7 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 import interview.guide.modules.interview.agent.adaptive.core.context.CapabilityTarget;
 import interview.guide.modules.interview.agent.adaptive.core.context.DepthLevel;
+import interview.guide.modules.interview.agent.adaptive.core.intent.ActionResultType;
 import interview.guide.modules.interview.agent.adaptive.planning.DimensionProposal;
 import interview.guide.modules.interview.agent.adaptive.planning.PlanProposal;
 import java.util.ArrayList;
@@ -83,7 +84,8 @@ class WorkStateReducerTest {
         ready, "pending", List.of(new WorkStateOperation.SetPendingAction("intent-1"))
     ));
     InterviewWorkState awaiting = WorkStateReducer.apply(pending, patch(
-        pending, "action", List.of(new WorkStateOperation.ApplyActionResult(2, null))
+        pending, "action", List.of(new WorkStateOperation.ApplyActionResult(
+            ActionResultType.QUESTION, 2, null))
     ));
 
     assertThat(pending.phase()).isEqualTo(WorkPhase.ACTION_PENDING);

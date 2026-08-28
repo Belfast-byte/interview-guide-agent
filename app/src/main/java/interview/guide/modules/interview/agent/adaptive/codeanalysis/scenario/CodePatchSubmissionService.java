@@ -27,35 +27,34 @@ public class CodePatchSubmissionService {
   private final AlgorithmPersistenceService sandboxPersistenceService;
   private final AlgorithmJudgeStreamProducer producer;
 
-  public SandboxExecution submit(
-      String sessionId,
-      int turnIndex,
-      String scenarioId,
-      SandboxLanguage language,
-      String patch
-  ) {
+  public SandboxExecution submit(PatchCodeSubmission submission) {
+    if (sandboxPersistenceService.executionExists(submission.idempotencyKey())) {
+      return sandboxPersistenceService.getExecution(submission.idempotencyKey());
+    }
     PatchScenarioTarget target = codeAnalysisPersistenceService.getPatchTarget(
-        sessionId,
-        scenarioId
+        submission.sessionId(),
+        submission.scenarioId()
     );
     if (target.testsRef() == null || target.testsRef().isBlank()) {
       throw new BusinessException(ErrorCode.BAD_REQUEST, "PATCH 场景缺少预置测试");
     }
     CreateSandboxExecution command = new CreateSandboxExecution(
-        sessionId,
-        turnIndex,
+        submission.sessionId(),
+        submission.turnIndex(),
         SandboxWorkloadType.PATCH,
         null,
         target.scenarioId(),
         target.workspaceRef(),
         target.testsRef(),
-        language,
+        submission.language(),
         null,
         null,
         SandboxRunMode.FULL
     );
-    StoredAlgorithmSource source = sourceStorage.store(sessionId, language, patch);
+    StoredAlgorithmSource source = sourceStorage.store(
+        submission.sessionId(), submission.language(), submission.patch());
     SandboxExecution execution = sandboxPersistenceService.createPending(
+        submission.idempotencyKey(),
         command.withSource(source.codeRef(), source.codeHash())
     );
     if (!producer.sendExecution(execution.id())) {

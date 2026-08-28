@@ -21,12 +21,23 @@ public class AlgorithmSubmissionService {
   private final AlgorithmJudgeStreamProducer producer;
 
   public SandboxExecution submit(SubmitAlgorithmCode submission) {
+    return submit(submission, java.util.UUID.randomUUID().toString());
+  }
+
+  public SandboxExecution submit(
+      SubmitAlgorithmCode submission,
+      String idempotencyKey
+  ) {
+    if (persistenceService.executionExists(idempotencyKey)) {
+      return persistenceService.getExecution(idempotencyKey);
+    }
     StoredAlgorithmSource source = sourceStorage.store(
         submission.sessionId(),
         submission.language(),
         submission.source()
     );
     SandboxExecution execution = persistenceService.createPending(
+        idempotencyKey,
         new CreateSandboxExecution(
             submission.sessionId(),
             submission.turnIndex(),

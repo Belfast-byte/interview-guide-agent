@@ -8,6 +8,7 @@ import interview.guide.modules.interview.agent.adaptive.algorithm.sandbox.Sandbo
 import interview.guide.modules.interview.agent.adaptive.algorithm.sandbox.SandboxRunMode;
 import interview.guide.modules.interview.agent.adaptive.algorithm.judge.SubmitAlgorithmCode;
 import interview.guide.modules.interview.agent.adaptive.codeanalysis.scenario.CodePatchSubmissionService;
+import interview.guide.modules.interview.agent.adaptive.codeanalysis.scenario.PatchCodeSubmission;
 import interview.guide.modules.interview.agent.adaptive.core.event.CandidateAnswer;
 import interview.guide.modules.interview.agent.adaptive.core.event.CandidateCodeSubmission;
 import interview.guide.modules.interview.agent.adaptive.runtime.ReActRequest;
@@ -51,15 +52,8 @@ public class SandboxSubmitTool implements AdaptiveAgentTool {
   }
 
   @Override
-  public ToolResult execute(ReActRequest request, Map<String, Object> arguments) {
-    CandidateAnswer answer = request.interviewerContext().currentCodeSubmission();
-    if (answer == null) {
-      throw new BusinessException(
-          ErrorCode.AI_SERVICE_ERROR,
-          "sandbox_submit requires a candidate code submission"
-      );
-    }
-    CandidateCodeSubmission submission = answer.codeSubmission();
+  public void validate(ReActRequest request, Map<String, Object> arguments) {
+    CandidateCodeSubmission submission = submission(request);
     String runMode = ToolArguments.requiredString(arguments, "runMode", 16);
     String targetArgument = submission.patch() ? "scenarioId" : "problemId";
     String targetId = ToolArguments.requiredString(arguments, targetArgument, 64);
@@ -72,14 +66,26 @@ public class SandboxSubmitTool implements AdaptiveAgentTool {
           "sandbox_submit arguments do not match the candidate submission"
       );
     }
+  }
+
+  @Override
+  public ToolResult execute(
+      ReActRequest request,
+      Map<String, Object> arguments,
+      String idempotencyKey
+  ) {
+    validate(request, arguments);
+    CandidateAnswer answer = request.interviewerContext().currentCodeSubmission();
+    CandidateCodeSubmission submission = answer.codeSubmission();
     SandboxExecution execution = submission.patch()
-        ? patchSubmissionService.submit(
+        ? patchSubmissionService.submit(new PatchCodeSubmission(
             request.sessionId(),
             answer.turnIndex(),
             submission.scenarioId(),
             SandboxLanguage.valueOf(submission.language()),
-            answer.content()
-        )
+            answer.content(),
+            idempotencyKey
+        ))
         : submissionService.submit(new SubmitAlgorithmCode(
             request.sessionId(),
             answer.turnIndex(),
@@ -87,7 +93,7 @@ public class SandboxSubmitTool implements AdaptiveAgentTool {
             SandboxLanguage.valueOf(submission.language()),
             answer.content(),
             SandboxRunMode.valueOf(submission.runMode())
-        ));
+        ), idempotencyKey);
     return new PendingToolResult(
         execution.id(),
         new SandboxPendingResult(execution.id(), execution.status().name()),
@@ -102,6 +108,17 @@ public class SandboxSubmitTool implements AdaptiveAgentTool {
         ErrorCode.AI_SERVICE_ERROR,
         "sandbox_submit requires interview context"
     );
+  }
+
+  private CandidateCodeSubmission submission(ReActRequest request) {
+    CandidateAnswer answer = request.interviewerContext().currentCodeSubmission();
+    if (answer == null) {
+      throw new BusinessException(
+          ErrorCode.AI_SERVICE_ERROR,
+          "sandbox_submit requires a candidate code submission"
+      );
+    }
+    return answer.codeSubmission();
   }
 
   record SandboxSubmitInput(String problemId, String scenarioId, String runMode) {}

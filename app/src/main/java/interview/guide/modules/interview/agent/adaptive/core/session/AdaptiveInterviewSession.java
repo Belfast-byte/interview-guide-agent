@@ -80,6 +80,20 @@ public record AdaptiveInterviewSession(
     );
   }
 
+  public AdaptiveInterviewSession advanceAfterAnswer() {
+    if (status != AdaptiveSessionStatus.IN_PROGRESS) {
+      throw new BusinessException(ErrorCode.BAD_REQUEST, "当前会话不能进入下一轮");
+    }
+    return new AdaptiveInterviewSession(
+        id,
+        runtimeVersion,
+        status,
+        currentTurn + 1,
+        maxTurns,
+        settings
+    );
+  }
+
   public void assertCanAnswer(CandidateAnswer answer) {
     if (status == AdaptiveSessionStatus.COMPLETED) {
       throw new BusinessException(ErrorCode.INTERVIEW_ALREADY_COMPLETED, "Agent 面试已经结束");

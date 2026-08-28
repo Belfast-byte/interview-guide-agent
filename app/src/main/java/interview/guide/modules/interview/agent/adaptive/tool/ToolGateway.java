@@ -7,7 +7,6 @@ import interview.guide.modules.interview.agent.adaptive.core.action.ToolCallActi
 import interview.guide.modules.interview.agent.adaptive.observability.AdaptiveAgentTelemetry;
 import interview.guide.modules.interview.agent.adaptive.role.AgentRoleDefinition;
 import interview.guide.modules.interview.agent.adaptive.role.AgentRoleRegistry;
-import interview.guide.modules.interview.agent.adaptive.runtime.AgentToolExecutor;
 import interview.guide.modules.interview.agent.adaptive.runtime.ReActRequest;
 import interview.guide.modules.interview.agent.adaptive.runtime.ToolExecution;
 import interview.guide.modules.interview.agent.adaptive.runtime.ToolExecutionOutcome;
@@ -24,7 +23,7 @@ import tools.jackson.databind.ObjectMapper;
  * 工具网关，负责执行 Agent 请求的工具调用并管理同步/异步结果。
  */
 @Component
-public class ToolGateway implements AgentToolExecutor {
+public class ToolGateway {
 
   private static final String TRUNCATED_MARKER = "[truncated]";
 
@@ -58,11 +57,19 @@ public class ToolGateway implements AgentToolExecutor {
    * @param action 工具调用动作
    * @return 工具执行结果
    */
-  @Override
   public ToolExecution execute(ReActRequest request, ToolCallAction action) {
+    return execute(request, action, invocationId(request, action));
+  }
+
+  public ToolExecution execute(
+      ReActRequest request,
+      ToolCallAction action,
+      String idempotencyKey
+  ) {
     long startedNanos = System.nanoTime();
     try {
-      ToolExecution execution = executeAllowed(request, action, startedNanos);
+      ToolExecution execution = executeAllowed(
+          new ToolExecutionInput(request, action, idempotencyKey), startedNanos);
       telemetry.toolCallSucceeded(request.role().name(), action.toolName(), startedNanos);
       return execution;
     } catch (BusinessException e) {
@@ -92,41 +99,26 @@ public class ToolGateway implements AgentToolExecutor {
     }
   }
 
+  public void validate(ReActRequest request, ToolCallAction action) {
+    tool(request, action).validate(request, action.arguments());
+  }
+
   private ToolExecution executeAllowed(
-      ReActRequest request,
-      ToolCallAction action,
+      ToolExecutionInput input,
       long startedNanos
   ) {
-    AgentRoleDefinition role = roleRegistry.get(request.role());
-    if (!role.allowedTools().contains(action.toolName())) {
-      throw new BusinessException(
-          ErrorCode.AI_SERVICE_ERROR,
-          "Agent role is not allowed to call tool: " + action.toolName()
-      );
-    }
-    AdaptiveAgentTool tool = tools.get(action.toolName());
-    if (tool == null) {
-      throw new BusinessException(
-          ErrorCode.AI_SERVICE_ERROR,
-          "Agent requested an unavailable tool: " + action.toolName()
-      );
-    }
+    ReActRequest request = input.request();
+    ToolCallAction action = input.action();
+    AdaptiveAgentTool tool = tool(request, action);
+    tool.validate(request, action.arguments());
 
-    String argumentsJson = writeJson(action.arguments());
-    String invocationId = Sha256.hex(String.join(
-        "\n",
-        request.sessionId(),
-        Integer.toString(request.targetTurnIndex()),
-        action.toolName(),
-        argumentsJson
-    ));
-    ToolResult result = tool.execute(request, action.arguments());
+    ToolResult result = tool.execute(request, action.arguments(), input.idempotencyKey());
     String output = writeJson(result.value());
     if (output.length() > maxResultChars) {
       output = output.substring(0, maxResultChars) + TRUNCATED_MARKER;
     }
     return new ToolExecution(
-        invocationId,
+        input.idempotencyKey(),
         action.toolName(),
         action.reason(),
         request.role().name(),
@@ -142,6 +134,34 @@ public class ToolGateway implements AgentToolExecutor {
             : ToolExecutionOutcome.COMPLETED,
         (System.nanoTime() - startedNanos) / 1_000_000
     );
+  }
+
+  private AdaptiveAgentTool tool(ReActRequest request, ToolCallAction action) {
+    AgentRoleDefinition role = roleRegistry.get(request.role());
+    if (!role.allowedTools().contains(action.toolName())) {
+      throw new BusinessException(
+          ErrorCode.AI_SERVICE_ERROR,
+          "Agent role is not allowed to call tool: " + action.toolName()
+      );
+    }
+    AdaptiveAgentTool tool = tools.get(action.toolName());
+    if (tool == null) {
+      throw new BusinessException(
+          ErrorCode.AI_SERVICE_ERROR,
+          "Agent requested an unavailable tool: " + action.toolName()
+      );
+    }
+    return tool;
+  }
+
+  private String invocationId(ReActRequest request, ToolCallAction action) {
+    return Sha256.hex(String.join(
+        "\n",
+        request.sessionId(),
+        Integer.toString(request.targetTurnIndex()),
+        action.toolName(),
+        writeJson(action.arguments())
+    ));
   }
 
   /**
@@ -169,4 +189,10 @@ public class ToolGateway implements AgentToolExecutor {
       );
     }
   }
+
+  private record ToolExecutionInput(
+      ReActRequest request,
+      ToolCallAction action,
+      String idempotencyKey
+  ) {}
 }

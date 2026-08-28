@@ -55,6 +55,9 @@ public class AdaptiveAgentToolCallEntity {
   @Column(name = "output_summary", nullable = false, length = 500)
   private String outputSummary;
 
+  @Column(nullable = false, columnDefinition = "TEXT")
+  private String output;
+
   @Column(name = "result_id", nullable = false, length = 500)
   private String resultId;
 
@@ -79,6 +82,7 @@ public class AdaptiveAgentToolCallEntity {
     this.reason = execution.reason();
     this.inputSummary = execution.inputSummary();
     this.outputSummary = execution.outputSummary();
+    this.output = execution.output();
     this.resultId = execution.resultId();
     this.outcome = execution.outcome();
     this.durationMillis = execution.durationMillis();
@@ -98,6 +102,22 @@ public class AdaptiveAgentToolCallEntity {
 
   public String resultId() {
     return resultId;
+  }
+
+  public ToolExecution toDomain() {
+    return new ToolExecution(
+        invocationId,
+        toolName,
+        reason,
+        role,
+        turnIndex,
+        inputSummary,
+        outputSummary,
+        resultId,
+        output,
+        outcome,
+        durationMillis
+    );
   }
 
   @PrePersist

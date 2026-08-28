@@ -1,6 +1,7 @@
 package interview.guide.modules.interview.agent.adaptive.core.memory;
 
 import interview.guide.modules.interview.agent.adaptive.core.context.DepthLevel;
+import interview.guide.modules.interview.agent.adaptive.core.intent.ActionResultType;
 
 /** 允许改变 WorkState 的封闭操作集合。 */
 public sealed interface WorkStateOperation permits
@@ -12,6 +13,7 @@ public sealed interface WorkStateOperation permits
     WorkStateOperation.ConsumeBudget,
     WorkStateOperation.SwitchTarget,
     WorkStateOperation.SetPendingAction,
+    WorkStateOperation.RetryPendingAction,
     WorkStateOperation.ApplyActionResult,
     WorkStateOperation.CompleteAnswer,
     WorkStateOperation.FinishSession {
@@ -40,7 +42,16 @@ public sealed interface WorkStateOperation permits
 
   record SetPendingAction(String intentId) implements WorkStateOperation {}
 
-  record ApplyActionResult(int turnIndex, String issueId) implements WorkStateOperation {}
+  record RetryPendingAction(
+      String failedIntentId,
+      String retryIntentId
+  ) implements WorkStateOperation {}
+
+  record ApplyActionResult(
+      ActionResultType resultType,
+      Integer turnIndex,
+      String issueId
+  ) implements WorkStateOperation {}
 
   record CompleteAnswer(int turnIndex) implements WorkStateOperation {}
 

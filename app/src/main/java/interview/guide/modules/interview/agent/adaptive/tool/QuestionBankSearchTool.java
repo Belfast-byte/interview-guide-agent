@@ -1,6 +1,7 @@
 package interview.guide.modules.interview.agent.adaptive.tool;
 
 import interview.guide.common.util.Sha256;
+import interview.guide.modules.interview.agent.adaptive.runtime.ReActRequest;
 import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
@@ -35,6 +36,12 @@ public class QuestionBankSearchTool implements AdaptiveAgentTool {
   @Override
   public ToolCallback callback() {
     return callback;
+  }
+
+  @Override
+  public void validate(ReActRequest request, Map<String, Object> arguments) {
+    ToolArguments.requiredString(arguments, "query", 200);
+    ToolArguments.optionalString(arguments, "difficulty", 16);
   }
 
   @Override

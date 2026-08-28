@@ -3,6 +3,7 @@ package interview.guide.modules.interview.agent.adaptive.tool;
 import interview.guide.common.exception.BusinessException;
 import interview.guide.common.exception.ErrorCode;
 import interview.guide.common.util.Sha256;
+import interview.guide.modules.interview.agent.adaptive.runtime.ReActRequest;
 import interview.guide.modules.interview.skill.InterviewSkillService;
 import interview.guide.modules.interview.skill.InterviewSkillService.SkillDTO;
 import java.util.Map;
@@ -37,6 +38,11 @@ public class LoadSkillTool implements AdaptiveAgentTool {
   @Override
   public ToolCallback callback() {
     return callback;
+  }
+
+  @Override
+  public void validate(ReActRequest request, Map<String, Object> arguments) {
+    ToolArguments.requiredString(arguments, "skillId", 64);
   }
 
   @Override

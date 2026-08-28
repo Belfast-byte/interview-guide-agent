@@ -13,12 +13,12 @@ import interview.guide.modules.interview.agent.adaptive.assessment.practice.Prac
 import interview.guide.modules.interview.agent.adaptive.assessment.practice.PracticeRecommendationService;
 import interview.guide.modules.interview.agent.adaptive.assessment.evidence.ValidatedAssessmentEvidence;
 import interview.guide.modules.interview.agent.adaptive.algorithm.evidence.AlgorithmAssessmentEvidenceService;
-import interview.guide.modules.interview.agent.adaptive.codeanalysis.CodeAnalysisInterviewContextService;
 import interview.guide.modules.interview.agent.adaptive.core.session.AdaptiveInterviewHistory;
 import interview.guide.modules.interview.agent.adaptive.core.session.AdaptiveInterviewTurn;
 import interview.guide.modules.interview.agent.adaptive.core.session.InterviewSessionSettings;
 import interview.guide.modules.interview.agent.adaptive.core.event.CandidateAnswer;
 import interview.guide.modules.interview.agent.adaptive.core.action.AgentResponseType;
+import interview.guide.modules.interview.agent.adaptive.core.action.ToolCallAction;
 import interview.guide.modules.interview.agent.adaptive.core.context.DimensionBrief;
 import interview.guide.modules.interview.agent.adaptive.core.context.MemoryOwner;
 import interview.guide.modules.interview.agent.adaptive.core.context.PlannerContext;
@@ -35,16 +35,24 @@ import interview.guide.modules.interview.agent.adaptive.core.memory.WorkIssueSta
 import interview.guide.modules.interview.agent.adaptive.core.memory.WorkStateOperation;
 import interview.guide.modules.interview.agent.adaptive.core.memory.WorkStatePatch;
 import interview.guide.modules.interview.agent.adaptive.core.memory.WorkStatePatchSource;
+import interview.guide.modules.interview.agent.adaptive.core.intent.ActionTarget;
+import interview.guide.modules.interview.agent.adaptive.core.intent.AskActionContext;
+import interview.guide.modules.interview.agent.adaptive.core.memory.WorkPhase;
 import interview.guide.modules.interview.agent.adaptive.core.context.CapabilityTarget;
 import interview.guide.modules.interview.agent.adaptive.memory.ContextAssembler;
-import interview.guide.modules.interview.agent.adaptive.memory.InterviewerContextInput;
-import interview.guide.modules.interview.agent.adaptive.memory.ToolResultContextInput;
 import interview.guide.modules.interview.agent.adaptive.memory.claim.CandidateClaim;
 import interview.guide.modules.interview.agent.adaptive.memory.claim.CandidateClaimExtractionService;
 import interview.guide.modules.interview.agent.adaptive.memory.brief.DimensionBriefService;
 import interview.guide.modules.interview.agent.adaptive.observability.AdaptiveAgentTelemetry;
 import interview.guide.modules.interview.agent.adaptive.observability.AlgorithmInterviewTelemetry;
 import interview.guide.modules.interview.agent.adaptive.persistence.session.AdaptiveInterviewPersistenceService;
+import interview.guide.modules.interview.agent.adaptive.persistence.intent.ActionIntentTransactionService;
+import interview.guide.modules.interview.agent.adaptive.persistence.session.AdaptiveActionPreparation;
+import interview.guide.modules.interview.agent.adaptive.persistence.session.AdaptiveActionPreparationInput;
+import interview.guide.modules.interview.agent.adaptive.persistence.session.AdaptiveAnswerFacts;
+import interview.guide.modules.interview.agent.adaptive.persistence.session.AdaptiveAssessmentFacts;
+import interview.guide.modules.interview.agent.adaptive.persistence.session.AdaptiveMemoryFacts;
+import interview.guide.modules.interview.agent.adaptive.persistence.session.AdaptivePlannedAction;
 import interview.guide.modules.interview.agent.adaptive.persistence.session.AdaptiveDecisionPersistenceInput;
 import interview.guide.modules.interview.agent.adaptive.persistence.session.AdaptiveSessionCreation;
 import interview.guide.modules.interview.agent.adaptive.planning.InterviewPlan;
@@ -54,18 +62,14 @@ import interview.guide.modules.interview.agent.adaptive.planning.PlannedIntervie
 import interview.guide.modules.interview.agent.adaptive.planning.PlanningAgent;
 import interview.guide.modules.interview.agent.adaptive.planning.PlanningRequest;
 import interview.guide.modules.interview.agent.adaptive.planning.PlanningTaxonomy;
-import interview.guide.modules.interview.agent.adaptive.role.AgentRole;
-import interview.guide.modules.interview.agent.adaptive.role.AgentRoleRegistry;
-import interview.guide.modules.interview.agent.adaptive.runtime.BoundedReActRuntime;
 import interview.guide.modules.interview.agent.adaptive.runtime.ReActRequest;
 import interview.guide.modules.interview.agent.adaptive.runtime.ReActResult;
-import interview.guide.modules.interview.agent.adaptive.runtime.ToolExecution;
-import interview.guide.modules.interview.agent.adaptive.runtime.ToolExecutionOutcome;
 import interview.guide.modules.interview.agent.adaptive.tool.SandboxSubmitTool;
 import interview.guide.modules.interview.skill.InterviewSkillService;
 import interview.guide.modules.llmprovider.service.CandidateChatProvider;
 import interview.guide.modules.llmprovider.service.CandidateLlmProviderService;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
@@ -86,8 +90,9 @@ import org.springframework.stereotype.Service;
 public class AdaptiveInterviewApplicationService {
 
   private final AdaptiveInterviewPersistenceService persistenceService;
-  private final BoundedReActRuntime runtime;
-  private final AgentRoleRegistry roleRegistry;
+  private final ActionIntentTransactionService intentTransactions;
+  private final PersistentActionCoordinator actionCoordinator;
+  private final AdaptiveInterviewRequestFactory requestFactory;
   private final AdaptiveAgentTelemetry telemetry;
   private final PlanningAgent planningAgent;
   private final ContextAssembler contextAssembler;
@@ -99,7 +104,6 @@ public class AdaptiveInterviewApplicationService {
   private final PracticeRecommendationService practiceRecommendationService;
   private final AlgorithmAssessmentEvidenceService algorithmAssessmentEvidenceService;
   private final AlgorithmInterviewTelemetry algorithmTelemetry;
-  private final CodeAnalysisInterviewContextService codeAnalysisContextService;
   private final InterviewSkillService skillService;
   private final CandidateLlmProviderService candidateProviderService;
   private final AdaptiveInterviewCreationTaskRunner creationExecutor;
@@ -218,27 +222,29 @@ public class AdaptiveInterviewApplicationService {
   ) {
     InterviewPlan plan = decidePlan(sessionId, input);
     PlannedDimension firstDimension = plan.dimension(0);
-    InterviewWorkState initialState = plan.initialWorkState();
-    ReActResult firstDecision = runDecision(
-        request(new InterviewerDecisionInput(
-            sessionId,
-            input.llmProviderId(),
-            input.jd(),
-            input.resume(),
-            plan.maxTurns(),
-            firstDimension,
-            List.of(),
-            null,
-            InterviewerWorkView.from(initialState, null)
-        )),
-        deltaSink
+    intentTransactions.initializePlan(sessionId, plan);
+    PlannedInterview initialized = persistenceService.get(sessionId);
+    WorkStatePolicyPlanner.PolicyDecision policy = WorkStatePolicyPlanner.decide(
+        initialized.workState(), "initial");
+    requireAction(policy.action().type(), NextActionType.ASK);
+    AdaptivePlannedAction action = ActionIntentPlanFactory.ask(
+        policy.state(),
+        new ActionTarget(policy.state().activeTargetId(), null, 1),
+        new AskActionContext(NextTurnProvenanceDraft.planned(), null)
     );
-    return persistenceService.completeCreation(
+    intentTransactions.planAction(sessionId, policy.patches(), action);
+    ReActRequest request = requestFactory.create(new InterviewerDecisionInput(
         sessionId,
-        plan,
-        firstDecision.response(),
-        firstDecision.toolExecutions()
-    );
+        input.llmProviderId(),
+        input.jd(),
+        input.resume(),
+        plan.maxTurns(),
+        firstDimension,
+        List.of(),
+        null,
+        InterviewerWorkView.from(policy.state(), null)
+    ));
+    return actionCoordinator.executeInitialAsk(action, request, deltaSink);
   }
 
   private InterviewPlan decidePlan(String sessionId, InterviewCreationInput input) {
@@ -343,23 +349,42 @@ public class AdaptiveInterviewApplicationService {
     MemoryOwner owner = new MemoryOwner(input.tenantId(), history.candidateId());
     history.session().assertCanAnswer(answer);
     InterviewWorkState workState = interview.workState();
+    if (workState.phase() == WorkPhase.ACTION_PENDING) {
+      return actionCoordinator.resume(interview, answer, input.sink());
+    }
+    if (workState.phase() == WorkPhase.READY_TO_DECIDE) {
+      return continuePreparedAnswer(interview, answer, input.sink(), null);
+    }
     PlannedDimension currentDimension = interview.plan().dimension(
         workState.activeTarget().target().identity().order());
     algorithmTelemetry.interviewTurnSubmitted(sessionId);
     input.sink().onStage(AnswerEventSink.AnswerStage.ASSESSING);
     AssessmentResult assessed = assessAnswer(interview, currentDimension, answer);
-    AssessmentWorkStatePlanner.PreparedWorkDecision prepared =
-        AssessmentWorkStatePlanner.prepare(
-            workState, assessed.decision(), assessed.evidences());
+    if (answer.codeSubmission() != null) {
+      return prepareSandboxAction(
+          input, interview, owner, currentDimension, assessed, workState);
+    }
+    AssessmentWorkStatePlanner.PreparedWorkDecision prepared = AssessmentWorkStatePlanner.prepare(
+        workState, assessed.decision(), assessed.evidences());
     boolean targetEnded = targetEnded(prepared, workState.activeTargetId());
     boolean sessionEnded = prepared.action().type() == NextActionType.FINISH;
     MemoryArtifacts artifacts = memoryArtifacts(new MemoryArtifactInput(
         interview, currentDimension, answer, assessed.decision(), targetEnded, sessionEnded));
-    NextDecision nextDecision = decideNext(
-        interview, answer, prepared, input.sink());
-    validateCodeDecision(answer, nextDecision.decision());
     Optional<DepthLevel> previousDepth = previousDepth(
         sessionId, currentDimension, workState);
+    if (prepared.action().type() != NextActionType.FINISH) {
+      return prepareExternalAction(new ExternalActionInput(
+          input,
+          interview,
+          owner,
+          currentDimension,
+          assessed,
+          prepared,
+          artifacts,
+          previousDepth
+      ));
+    }
+    NextDecision nextDecision = finishDecision();
     return persistDecision(new DecisionPersistence(
         sessionId, owner, answer, currentDimension, assessed, prepared, artifacts,
         nextDecision, previousDepth));
@@ -475,50 +500,162 @@ public class AdaptiveInterviewApplicationService {
     );
   }
 
-  private NextDecision decideNext(
-      PlannedInterview interview,
-      CandidateAnswer answer,
-      AssessmentWorkStatePlanner.PreparedWorkDecision prepared,
-      AnswerEventSink sink
-  ) {
-    if (prepared.action().type() == NextActionType.FINISH) {
-      return new NextDecision(ReActResult.withoutTools(RespondAction.finish(
-          "面试已覆盖全部能力目标。", "工作状态中的能力目标均已终态")),
-          NextTurnProvenanceDraft.planned());
-    }
-    sink.onStage(AnswerEventSink.AnswerStage.GENERATING);
-    PlannedDimension dimension = interview.plan().dimension(
-        prepared.projectedState().activeTarget().target().identity().order());
-    ReActResult result = runDecision(request(new InterviewerDecisionInput(
-        interview.history().session().id(),
-        interview.history().llmProvider(),
-        interview.history().jd(),
-        interview.history().resume(),
-        interview.history().session().maxTurns(),
-        dimension,
-        interview.history().turns(),
-        answer,
-        InterviewerWorkView.from(prepared.projectedState(), prepared.action().issueId())
-    )), sink.deltaSink());
-    if (result.response().type() != AgentResponseType.ASK) {
-      throw new BusinessException(ErrorCode.AI_SERVICE_ERROR, "确定性策略要求生成下一题");
-    }
-    return new NextDecision(result, prepared.provenance());
+  private NextDecision finishDecision() {
+    return new NextDecision(ReActResult.withoutTools(RespondAction.finish(
+        "面试已覆盖全部能力目标。", "工作状态中的能力目标均已终态")),
+        NextTurnProvenanceDraft.planned());
   }
 
-  private void validateCodeDecision(CandidateAnswer answer, ReActResult decision) {
-    if (answer.codeSubmission() != null) {
-      List<ToolExecution> sandboxSubmissions = decision.toolExecutions().stream()
-          .filter(execution -> SandboxSubmitTool.NAME.equals(execution.toolName()))
-          .toList();
-      if (sandboxSubmissions.size() != 1
-          || sandboxSubmissions.getFirst().outcome() != ToolExecutionOutcome.PENDING
-          || sandboxSubmissions.getFirst().turnIndex() != answer.turnIndex()) {
-        throw new BusinessException(
-            ErrorCode.AI_SERVICE_ERROR,
-            "算法代码回答必须产生一个异步判题任务"
-        );
-      }
+  private PlannedInterview prepareExternalAction(ExternalActionInput input) {
+    input.input().sink().onStage(AnswerEventSink.AnswerStage.GENERATING);
+    ReActRequest request = requestFactory.action(
+        input.interview(),
+        input.input().answer(),
+        InterviewerWorkView.from(
+            input.prepared().projectedState(), input.prepared().action().issueId())
+    );
+    AdaptivePlannedAction action = plannedAction(
+        input.prepared(), input.input().answer(), request, null);
+    persistenceService.prepareAction(preparationInput(input, action));
+    recordPreparedAssessment(input);
+    return executePreparedAction(
+        action,
+        request,
+        input.interview(),
+        input.input().answer(),
+        input.input().sink()
+    );
+  }
+
+  private AdaptiveActionPreparationInput preparationInput(
+      ExternalActionInput input,
+      AdaptivePlannedAction action
+  ) {
+    MemoryArtifacts artifacts = input.artifacts();
+    return new AdaptiveActionPreparationInput(
+        new AdaptiveAnswerFacts(
+            input.owner(), input.input().sessionId(), input.input().answer()),
+        new AdaptiveAssessmentFacts(
+            input.assessed().decision(),
+            input.assessed().evidences(),
+            artifacts.practiceRecommendations()
+        ),
+        new AdaptiveActionPreparation(
+            new AdaptiveMemoryFacts(
+                artifacts.dimensionBrief(), artifacts.candidateClaims()),
+            input.prepared().patches(),
+            action
+        )
+    );
+  }
+
+  private AdaptivePlannedAction plannedAction(
+      AssessmentWorkStatePlanner.PreparedWorkDecision prepared,
+      CandidateAnswer answer,
+      ReActRequest request,
+      ToolResultEvent toolResult
+  ) {
+    ActionTarget target = new ActionTarget(
+        prepared.projectedState().activeTargetId(),
+        prepared.action().issueId(),
+        prepared.action().type() == NextActionType.ASK
+            ? answer.turnIndex() + 1
+            : answer.turnIndex()
+    );
+    if (prepared.action().type() == NextActionType.ASK) {
+      return ActionIntentPlanFactory.ask(
+          prepared.projectedState(),
+          target,
+          new AskActionContext(prepared.provenance(), toolResult)
+      );
+    }
+    requireAction(prepared.action().type(), NextActionType.CALL_TOOL);
+    return ActionIntentPlanFactory.tool(
+        prepared.projectedState(), target, actionCoordinator.proposeTool(request));
+  }
+
+  private PlannedInterview executePreparedAction(
+      AdaptivePlannedAction action,
+      ReActRequest request,
+      PlannedInterview interview,
+      CandidateAnswer answer,
+      AnswerEventSink sink
+  ) {
+    return actionCoordinator.execute(new PersistentActionCoordinator.PreparedActionExecution(
+        action, request, interview, answer, sink));
+  }
+
+  private PlannedInterview prepareSandboxAction(
+      AnswerSubmissionInput input,
+      PlannedInterview interview,
+      MemoryOwner owner,
+      PlannedDimension dimension,
+      AssessmentResult assessed,
+      InterviewWorkState state
+  ) {
+    AssessmentWorkStatePlanner.AssessmentProjection projection =
+        AssessmentWorkStatePlanner.assessOnly(
+            state, assessed.decision(), assessed.evidences());
+    ToolCallAction sandbox = sandboxProposal(input.answer());
+    AdaptivePlannedAction action = ActionIntentPlanFactory.tool(
+        projection.state(),
+        new ActionTarget(state.activeTargetId(), null, input.answer().turnIndex()),
+        sandbox
+    );
+    MemoryArtifacts artifacts = memoryArtifacts(new MemoryArtifactInput(
+        interview, dimension, input.answer(), assessed.decision(), false, false));
+    persistenceService.prepareAction(new AdaptiveActionPreparationInput(
+        new AdaptiveAnswerFacts(owner, input.sessionId(), input.answer()),
+        new AdaptiveAssessmentFacts(
+            assessed.decision(), assessed.evidences(), artifacts.practiceRecommendations()),
+        new AdaptiveActionPreparation(
+            new AdaptiveMemoryFacts(
+                artifacts.dimensionBrief(), artifacts.candidateClaims()),
+            projection.patches(),
+            action
+        )
+    ));
+    recordAssessmentTelemetry(
+        dimension, assessed, previousDepth(input.sessionId(), dimension, state));
+    ReActRequest request = requestFactory.action(
+        interview,
+        input.answer(),
+        InterviewerWorkView.from(projection.state(), null)
+    );
+    return executePreparedAction(action, request, interview, input.answer(), input.sink());
+  }
+
+  private ToolCallAction sandboxProposal(CandidateAnswer answer) {
+    var submission = answer.codeSubmission();
+    String targetName = submission.patch() ? "scenarioId" : "problemId";
+    String targetId = submission.patch() ? submission.scenarioId() : submission.problemId();
+    return new ToolCallAction(
+        SandboxSubmitTool.NAME,
+        Map.of(targetName, targetId, "runMode", submission.runMode()),
+        "提交候选人当前代码进行异步判题"
+    );
+  }
+
+  private PlannedInterview continuePreparedAnswer(
+      PlannedInterview interview,
+      CandidateAnswer answer,
+      AnswerEventSink sink,
+      ToolResultEvent toolResult
+  ) {
+    return actionCoordinator.continueAnswer(new PersistentActionCoordinator.ContinuationInput(
+        interview, answer, sink, toolResult));
+  }
+
+  private void recordPreparedAssessment(ExternalActionInput input) {
+    recordAssessmentTelemetry(
+        input.dimension(), input.assessed(), input.previousDepth());
+    algorithmAssessmentEvidenceService.attachAvailable(
+        input.input().sessionId(), input.input().answer().turnIndex());
+  }
+
+  private void requireAction(NextActionType actual, NextActionType expected) {
+    if (actual != expected) {
+      throw new IllegalStateException("WorkState 策略动作与执行分支不一致");
     }
   }
 
@@ -624,6 +761,16 @@ public class AdaptiveInterviewApplicationService {
     return persistenceService.getForTenant(tenantId, sessionId);
   }
 
+  public PlannedInterview retryActionIntentForCandidate(
+      String candidateId,
+      String sessionId,
+      String failedIntentId
+  ) {
+    persistenceService.requireCandidateSession(candidateId, sessionId);
+    actionCoordinator.retry(sessionId, failedIntentId);
+    return persistenceService.get(sessionId);
+  }
+
   /**
    * 预留异步工具结果事件：任何 LLM 重评或追问生成之前先做幂等去重。
    *
@@ -652,39 +799,13 @@ public class AdaptiveInterviewApplicationService {
     ToolResultEvent event
   ) {
     PlannedInterview interview = persistenceService.get(sessionId);
-    PlannedDimension dimension = interview.plan().dimension(
-        interview.workState().activeTarget().target().identity().order());
     try {
-      ReActResult decision = runDecision(new ReActRequest(
-          sessionId,
-          AgentRole.INTERVIEWER,
-          interview.history().llmProvider(),
-          contextAssembler.toolResult(new ToolResultContextInput(
-              interview.history().jd(),
-              interview.history().resume(),
-              interview.history().session().maxTurns(),
-              dimension.order(),
-              dimension.dimension(),
-              dimension.focus(),
-              allowedSuggestedTools(dimension),
-              dimension.suggestedSkill(),
-              interview.history().turns(),
-              event,
-              InterviewerWorkView.from(interview.workState(), null),
-              codeAnalysisContextService.findForSession(sessionId).orElse(null)
-          ))
-      ));
-      if (decision.response().type() != AgentResponseType.ASK) {
-        throw new BusinessException(ErrorCode.AI_SERVICE_ERROR, "工具结果事件只能生成追问");
-      }
       persistenceService.completeToolResultEvent(
           sessionId,
           event,
-          decision.response(),
-          decision.toolExecutions(),
           toolResultPatch(interview.workState(), event)
       );
-      return Optional.of(decision.response());
+      return Optional.empty();
     } catch (Exception e) {
       persistenceService.discardToolResultReservation(event);
       throw e;
@@ -792,64 +913,6 @@ public class AdaptiveInterviewApplicationService {
     return toolResultFollowUps(sessionId);
   }
 
-  private ReActRequest request(InterviewerDecisionInput input) {
-    return new ReActRequest(
-        input.sessionId(),
-        AgentRole.INTERVIEWER,
-        input.llmProvider(),
-        contextAssembler.interviewer(new InterviewerContextInput(
-            input.jd(),
-            input.resume(),
-            input.maxTurns(),
-            input.dimension().order(),
-            input.dimension().dimension(),
-            input.dimension().focus(),
-            allowedSuggestedTools(input.dimension()),
-            input.dimension().suggestedSkill(),
-            input.turns(),
-            input.candidateAnswer(),
-            input.working(),
-            codeAnalysisContextService.findForSession(input.sessionId()).orElse(null)
-        ))
-    );
-  }
-
-  /**
-   * 计划中的建议工具只是模型提案，按角色白名单裁决后再下发给面试官上下文，
-   * 避免模型被引导去调用未注册的工具。
-   */
-  private List<String> allowedSuggestedTools(PlannedDimension dimension) {
-    return dimension.suggestedTools().stream()
-        .filter(roleRegistry.get(AgentRole.INTERVIEWER).allowedTools()::contains)
-        .toList();
-  }
-
-  private ReActResult runDecision(ReActRequest request) {
-    return runDecision(request, null);
-  }
-
-  private ReActResult runDecision(ReActRequest request, Consumer<String> deltaSink) {
-    long startedNanos = System.nanoTime();
-    int inputTurn = request.inputTurnIndex();
-    try {
-      ReActResult result = runtime.runStreaming(
-          request,
-          roleRegistry.get(request.role()).budget(),
-          deltaSink
-      );
-      telemetry.decisionSucceeded(result.response().type(), startedNanos);
-      return result;
-    } catch (BusinessException e) {
-      telemetry.decisionFailed(
-          request.sessionId(),
-          inputTurn,
-          e.getCode(),
-          startedNanos
-      );
-      throw e;
-    }
-  }
-
   /**
    * 维度记忆（小结 + 声明）异步生成：两个 LLM 调用并行，失败只记日志，
    * 不影响面试主流程；落库晚于当轮决策，从下一轮决策起可见。
@@ -922,6 +985,17 @@ public class AdaptiveInterviewApplicationService {
       AssessmentWorkStatePlanner.PreparedWorkDecision prepared,
       MemoryArtifacts artifacts,
       NextDecision nextDecision,
+      Optional<DepthLevel> previousDepth
+  ) {}
+
+  private record ExternalActionInput(
+      AnswerSubmissionInput input,
+      PlannedInterview interview,
+      MemoryOwner owner,
+      PlannedDimension dimension,
+      AssessmentResult assessed,
+      AssessmentWorkStatePlanner.PreparedWorkDecision prepared,
+      MemoryArtifacts artifacts,
       Optional<DepthLevel> previousDepth
   ) {}
 }

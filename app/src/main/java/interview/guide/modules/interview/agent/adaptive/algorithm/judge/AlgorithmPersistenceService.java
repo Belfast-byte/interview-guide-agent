@@ -81,6 +81,14 @@ public class AlgorithmPersistenceService {
 
   @Transactional
   public SandboxExecution createPending(CreateSandboxExecution command) {
+    return createPending(UUID.randomUUID().toString(), command);
+  }
+
+  @Transactional
+  public SandboxExecution createPending(
+      String executionId,
+      CreateSandboxExecution command
+  ) {
     long turnId = sessionFacts.lockCurrentTurn(command.sessionId(), command.turnIndex());
     validateProblemAndQuota(command);
     int submissionSeq = executionRepository
@@ -88,7 +96,7 @@ public class AlgorithmPersistenceService {
         .map(entity -> entity.toDomain().submissionSeq() + 1)
         .orElse(1);
     SandboxExecutionEntity entity = new SandboxExecutionEntity(
-        UUID.randomUUID().toString(),
+        executionId,
         command,
         turnId,
         submissionSeq

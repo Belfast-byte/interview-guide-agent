@@ -25,6 +25,10 @@ import interview.guide.modules.interview.agent.adaptive.planning.InterviewPlan;
 import interview.guide.modules.interview.agent.adaptive.core.memory.InterviewWorkState;
 import interview.guide.modules.interview.agent.adaptive.core.memory.TargetWorkStatus;
 import interview.guide.modules.interview.agent.adaptive.core.memory.WorkStatePatch;
+import interview.guide.modules.interview.agent.adaptive.core.intent.ActionIntent;
+import interview.guide.modules.interview.agent.adaptive.core.intent.ActionIntentOutcome;
+import interview.guide.modules.interview.agent.adaptive.core.intent.ActionResultType;
+import interview.guide.modules.interview.agent.adaptive.core.intent.AskActionPayload;
 import interview.guide.modules.interview.agent.adaptive.planning.PlannedDimension;
 import interview.guide.modules.interview.agent.adaptive.planning.PlannedInterview;
 import interview.guide.modules.interview.agent.adaptive.runtime.ToolExecution;
@@ -49,6 +53,7 @@ import interview.guide.modules.interview.agent.adaptive.persistence.plan.Adaptiv
 import interview.guide.modules.interview.agent.adaptive.persistence.practice.PracticeRecordEntity;
 import interview.guide.modules.interview.agent.adaptive.persistence.practice.PracticeRecordRepository;
 import interview.guide.modules.interview.agent.adaptive.persistence.working.WorkStatePersistenceService;
+import interview.guide.modules.interview.agent.adaptive.persistence.intent.ActionIntentPersistenceService;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
@@ -82,6 +87,7 @@ public class AdaptiveInterviewPersistenceService
   private final EpisodeFactPersistence episodeFactPersistence;
   private final AssessmentReconciliationService assessmentReconciliationService;
   private final WorkStatePersistenceService workStatePersistenceService;
+  private final ActionIntentPersistenceService actionIntentPersistenceService;
 
   @Transactional(readOnly = true)
   public void requireCandidateSession(String candidateId, String sessionId) {
@@ -124,8 +130,6 @@ public class AdaptiveInterviewPersistenceService
   public void completeToolResultEvent(
       String sessionId,
       ToolResultEvent event,
-      RespondAction response,
-      List<ToolExecution> toolExecutions,
       WorkStatePatch workStatePatch
   ) {
     AdaptiveAgentToolResultEventEntity entity = toolResultEventRepository
@@ -138,44 +142,8 @@ public class AdaptiveInterviewPersistenceService
             ErrorCode.NOT_FOUND,
             "工具结果事件不存在"
         ));
-    entity.complete(response);
-    applyFollowUpQuestion(sessionId, event, entity.id(), response);
-    saveToolExecutions(sessionId, toolExecutions);
+    entity.complete();
     workStatePersistenceService.apply(workStatePatch);
-  }
-
-  /**
-   * 把基于工具结果的追问落为面试问题：结果属于更早的已答轮次时（完整判题/补丁），
-   * 当前待答轮次的问题是在判题结果未知时生成的占位问题，用追问替换它，使候选人
-   * 回答追问时评估上下文使用追问本身；结果属于当前待答轮次（公开样例试跑）或会话
-   * 已结束（最后一轮提交后判题才返回）时，只保留追问事件记录。
-   */
-  private void applyFollowUpQuestion(
-      String sessionId,
-      ToolResultEvent event,
-      long toolResultEventId,
-      RespondAction followUp
-  ) {
-    AdaptiveAgentSessionEntity session = sessionRepository
-        .findByIdAndTenantIdIsNull(sessionId)
-        .orElseThrow(() -> new BusinessException(
-            ErrorCode.INTERVIEW_SESSION_NOT_FOUND,
-            "Agent 面试会话不存在"
-        ));
-    if (session.status() != AdaptiveSessionStatus.IN_PROGRESS) {
-      return;
-    }
-    int currentTurn = session.toDomain().currentTurn();
-    if (event.turnIndex() == currentTurn) {
-      return;
-    }
-    turnRepository
-        .findBySessionIdAndTurnIndex(sessionId, currentTurn)
-        .orElseThrow(() -> new BusinessException(ErrorCode.NOT_FOUND, "面试轮次不存在"))
-        .replaceQuestion(
-            followUp,
-            TurnProvenance.toolResult(event.turnIndex(), toolResultEventId)
-        );
   }
 
   @Transactional
@@ -310,7 +278,7 @@ public class AdaptiveInterviewPersistenceService
 
   /**
    * 落 CREATED 骨架会话：异步创建链路的第一步，立即对前端可见；轮次预算为占位值，
-   * 规划完成后由 {@link #completeCreation} 回填。
+   * 规划完成后回填真实轮次预算。
    */
   @Transactional
   public PlannedInterview createSkeleton(AdaptiveSessionCreation creation) {
@@ -330,41 +298,66 @@ public class AdaptiveInterviewPersistenceService
     );
   }
 
-  /**
-   * 创建链路完成：回填真实轮次预算、落计划与首题并推进 IN_PROGRESS。
-   */
   @Transactional
-  public PlannedInterview completeCreation(
+  public PlannedInterview completePreparedAnswer(
       String sessionId,
-      InterviewPlan plan,
-      RespondAction firstAction,
-      List<ToolExecution> toolExecutions
+      RespondAction action,
+      List<WorkStatePatch> policyPatches
   ) {
-    AdaptiveAgentSessionEntity sessionEntity = sessionRepository.findById(sessionId)
+    AdaptiveAgentSessionEntity session = sessionRepository.findById(sessionId)
         .orElseThrow(() -> new BusinessException(
             ErrorCode.INTERVIEW_SESSION_NOT_FOUND,
             "Agent 面试会话不存在"
         ));
-    AdaptiveInterviewSession started = sessionEntity.toDomain().start();
-    sessionEntity.apply(new AdaptiveInterviewSession(
-        started.id(),
-        started.runtimeVersion(),
-        started.status(),
-        started.currentTurn(),
-        plan.maxTurns(),
-        started.settings()
-    ));
-    planRepository.saveAll(plan.dimensions().stream()
-        .map(dimension -> new AdaptiveAgentPlanEntity(sessionId, dimension))
-        .toList());
-    workStatePersistenceService.initialize(plan);
-    turnRepository.save(new AdaptiveAgentTurnEntity(AdaptiveTurnCreation.initial(
-        sessionId,
-        plan.dimension(0).order(),
-        firstAction
-    )));
-    saveToolExecutions(sessionId, toolExecutions);
-    return plannedInterview(sessionEntity, plan);
+    AdaptiveInterviewSession current = session.toDomain();
+    AdaptiveAgentTurnEntity turn = answeredTurn(sessionId, current.currentTurn());
+    CandidateAnswer answer = turn.candidateAnswer();
+    SessionTransition transition = current.apply(answer, action);
+    turn.recordResponse(transition.appliedAction());
+    session.apply(transition.session());
+    applyPatches(policyPatches, workStatePersistenceService.get(sessionId));
+    List<AdaptiveAgentPlanEntity> plans = planRepository
+        .findBySessionIdOrderByDimensionOrder(sessionId);
+    if (transition.session().status() == AdaptiveSessionStatus.COMPLETED) {
+      refreshProfiles(session, plans);
+    }
+    return plannedInterview(session, toPlan(sessionId, current.maxTurns(), plans));
+  }
+
+  @Transactional
+  public PlannedInterview prepareAction(AdaptiveActionPreparationInput input) {
+    AdaptiveAnswerFacts answerFacts = input.answer();
+    AdaptiveAgentSessionEntity session = findOwnedSession(
+        answerFacts.owner(), answerFacts.sessionId())
+        .orElseThrow(() -> new BusinessException(
+            ErrorCode.INTERVIEW_SESSION_NOT_FOUND,
+            "Agent 面试会话不存在"
+        ));
+    session.toDomain().assertCanAnswer(answerFacts.answer());
+    List<AdaptiveAgentPlanEntity> planEntities = planRepository
+        .findBySessionIdOrderByDimensionOrder(answerFacts.sessionId());
+    InterviewPlan plan = toPlan(
+        answerFacts.sessionId(), session.toDomain().maxTurns(), planEntities);
+    InterviewWorkState before = workStatePersistenceService.get(answerFacts.sessionId());
+    PlannedDimension dimension = plan.dimension(
+        before.activeTarget().target().identity().order());
+    AdaptiveAgentTurnEntity turn = answeredTurn(answerFacts);
+    turn.recordAnswer(answerFacts.answer());
+    InterviewWorkState updated = applyPatches(input.preparation().decisionPatches(), before);
+    AdaptiveAgentAssessmentEntity assessment = saveAssessment(
+        dimension, input.assessment());
+    episodeFactPersistence.create(session, assessment, dimension);
+    savePreparedFacts(
+        input,
+        new SavedAnswerContext(session, dimension, new AnswerAssessment(turn, assessment)),
+        new WorkStateChange(before, updated)
+    );
+    actionIntentPersistenceService.plan(
+        input.preparation().action().intent(),
+        input.preparation().action().pendingPatch()
+    );
+    sessionRepository.flush();
+    return plannedInterview(session, plan);
   }
 
   /**
@@ -488,6 +481,110 @@ public class AdaptiveInterviewPersistenceService
         .status();
     return status == TargetWorkStatus.COMPLETED || status == TargetWorkStatus.EXHAUSTED;
   }
+
+  private AdaptiveAgentTurnEntity answeredTurn(AdaptiveAnswerFacts facts) {
+    return answeredTurn(facts.sessionId(), facts.answer().turnIndex());
+  }
+
+  private AdaptiveAgentTurnEntity answeredTurn(String sessionId, int turnIndex) {
+    return turnRepository.findBySessionIdAndTurnIndex(sessionId, turnIndex)
+        .orElseThrow(() -> new BusinessException(ErrorCode.NOT_FOUND, "面试轮次不存在"));
+  }
+
+  private InterviewWorkState applyPatches(
+      List<WorkStatePatch> patches,
+      InterviewWorkState initial
+  ) {
+    InterviewWorkState updated = initial;
+    for (WorkStatePatch patch : patches) {
+      updated = workStatePersistenceService.apply(patch);
+    }
+    return updated;
+  }
+
+  private AdaptiveAgentAssessmentEntity saveAssessment(
+      PlannedDimension dimension,
+      AdaptiveAssessmentFacts facts
+  ) {
+    AdaptiveAgentAssessmentEntity assessment = assessmentRepository.save(
+        new AdaptiveAgentAssessmentEntity(dimension.order(), facts.decision()));
+    saveProbeGaps(assessment, facts.decision());
+    return assessment;
+  }
+
+  private void savePreparedFacts(
+      AdaptiveActionPreparationInput input,
+      SavedAnswerContext context,
+      WorkStateChange state
+  ) {
+    AdaptiveMemoryFacts memory = input.preparation().memory();
+    if (memory.dimensionBrief() != null) {
+      dimensionBriefRepository.save(new AdaptiveDimensionBriefEntity(memory.dimensionBrief()));
+    }
+    if (targetEnded(state.updated(), state.before().activeTargetId())) {
+      candidateMemoryTopicRepository.save(new CandidateMemoryTopicEntity(
+          context.session().tenantId(),
+          context.session().candidateId(),
+          input.answer().sessionId(),
+          context.dimension()
+      ));
+    }
+    saveCandidateClaims(context.session(), input.answer().sessionId(), memory.candidateClaims());
+    saveAssessmentEvidence(
+        input.assessment(), input.answer().answer(), context.saved().assessment());
+    saveCodeFactEvidence(
+        context.saved().assessment(),
+        context.saved().turn()
+    );
+    practiceRecordRepository.saveAll(input.assessment().recommendations().stream()
+        .map(recommendation -> new PracticeRecordEntity(context.session(), recommendation))
+        .toList());
+  }
+
+  private void saveCandidateClaims(
+      AdaptiveAgentSessionEntity session,
+      String sessionId,
+      List<CandidateClaim> claims
+  ) {
+    candidateMemoryClaimRepository.saveAll(claims.stream()
+        .filter(claim -> claim.skillId() != null && !claim.skillId().isBlank()
+            && claim.focusId() != null && !claim.focusId().isBlank())
+        .distinct()
+        .map(claim -> new CandidateMemoryClaimEntity(
+            session.tenantId(), session.candidateId(), sessionId, claim))
+        .toList());
+  }
+
+  private void saveAssessmentEvidence(
+      AdaptiveAssessmentFacts facts,
+      CandidateAnswer answer,
+      AdaptiveAgentAssessmentEntity assessment
+  ) {
+    evidenceRepository.saveAll(facts.evidences().stream()
+        .map(evidence -> new AdaptiveAgentEvidenceEntity(
+            assessment,
+            facts.decision().sessionId(),
+            answer.turnIndex(),
+            evidence
+        ))
+        .toList());
+  }
+
+  private record SavedAnswerContext(
+      AdaptiveAgentSessionEntity session,
+      PlannedDimension dimension,
+      AnswerAssessment saved
+  ) {}
+
+  private record AnswerAssessment(
+      AdaptiveAgentTurnEntity turn,
+      AdaptiveAgentAssessmentEntity assessment
+  ) {}
+
+  private record WorkStateChange(
+      InterviewWorkState before,
+      InterviewWorkState updated
+  ) {}
 
   private Optional<AdaptiveAgentSessionEntity> findOwnedSession(
       MemoryOwner owner,

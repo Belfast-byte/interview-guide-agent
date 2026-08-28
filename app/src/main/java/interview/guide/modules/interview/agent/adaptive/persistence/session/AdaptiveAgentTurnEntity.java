@@ -3,6 +3,7 @@ package interview.guide.modules.interview.agent.adaptive.persistence.session;
 import interview.guide.modules.interview.agent.adaptive.core.session.AdaptiveInterviewTurn;
 import interview.guide.modules.interview.agent.adaptive.core.action.AgentResponseType;
 import interview.guide.modules.interview.agent.adaptive.core.event.CandidateAnswer;
+import interview.guide.modules.interview.agent.adaptive.core.event.CandidateCodeSubmission;
 import interview.guide.modules.interview.agent.adaptive.core.context.CodeFactUsage;
 import interview.guide.modules.interview.agent.adaptive.core.action.RespondAction;
 import interview.guide.modules.interview.agent.adaptive.core.session.TurnProvenance;
@@ -78,6 +79,18 @@ public class AdaptiveAgentTurnEntity {
   @Column(columnDefinition = "TEXT")
   private String answer;
 
+  @Column(name = "code_problem_id", length = 128)
+  private String codeProblemId;
+
+  @Column(name = "code_scenario_id", length = 128)
+  private String codeScenarioId;
+
+  @Column(name = "code_language", length = 32)
+  private String codeLanguage;
+
+  @Column(name = "code_run_mode", length = 32)
+  private String codeRunMode;
+
   @Enumerated(EnumType.STRING)
   @Column(name = "response_type", length = 20)
   private AgentResponseType responseType;
@@ -117,17 +130,6 @@ public class AdaptiveAgentTurnEntity {
     applyProvenance(creation.provenance());
   }
 
-  /**
-   * 用基于工具结果的追问替换尚未作答的占位问题。
-   */
-  public void replaceQuestion(
-      RespondAction questionAction,
-      TurnProvenance provenance
-  ) {
-    applyQuestion(questionAction);
-    applyProvenance(provenance);
-  }
-
   private void applyProvenance(TurnProvenance provenance) {
     provenance.validateForTurn(turnIndex);
     parentTurnIndex = provenance.parentTurnIndex();
@@ -157,10 +159,33 @@ public class AdaptiveAgentTurnEntity {
   }
 
   public void complete(CandidateAnswer candidateAnswer, RespondAction action) {
+    recordAnswer(candidateAnswer);
+    recordResponse(action);
+  }
+
+  public void recordAnswer(CandidateAnswer candidateAnswer) {
     answer = candidateAnswer.content();
+    CandidateCodeSubmission submission = candidateAnswer.codeSubmission();
+    if (submission != null) {
+      codeProblemId = submission.problemId();
+      codeScenarioId = submission.scenarioId();
+      codeLanguage = submission.language();
+      codeRunMode = submission.runMode();
+    }
+  }
+
+  public void recordResponse(RespondAction action) {
     responseType = action.type();
     responseContent = action.content();
     decisionReason = action.reason();
+  }
+
+  public CandidateAnswer candidateAnswer() {
+    CandidateCodeSubmission submission = codeProblemId == null && codeScenarioId == null
+        ? null
+        : new CandidateCodeSubmission(
+            codeProblemId, codeScenarioId, codeLanguage, codeRunMode);
+    return new CandidateAnswer(turnIndex, answer, submission);
   }
 
   public AdaptiveInterviewTurn toDomain() {

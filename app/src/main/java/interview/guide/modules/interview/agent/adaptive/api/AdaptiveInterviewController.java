@@ -209,6 +209,18 @@ public class AdaptiveInterviewController {
     ));
   }
 
+  @PostMapping("/{sessionId}/action-intents/{intentId}/retry")
+  public Result<AdaptiveInterviewResponse> retryActionIntent(
+      @PathVariable String sessionId,
+      @PathVariable String intentId,
+      @AuthenticationPrincipal AuthenticatedUser principal
+  ) {
+    return Result.success(AdaptiveInterviewResponse.from(
+        applicationService.retryActionIntentForCandidate(
+            candidateId(principal), sessionId, intentId)
+    ));
+  }
+
   @GetMapping("/history")
   public Result<AdaptiveInterviewHistoryPageResponse> history(
       @AuthenticationPrincipal AuthenticatedUser principal,

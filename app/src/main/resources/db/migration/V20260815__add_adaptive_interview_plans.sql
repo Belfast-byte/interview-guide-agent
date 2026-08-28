@@ -73,3 +73,32 @@ CREATE TABLE agent_work_state_patches (
   CONSTRAINT work_state_patch_source_check
     CHECK (source_type IN ('INITIALIZATION', 'ASSESSMENT', 'TOOL_RESULT', 'POLICY', 'ACTION_RESULT'))
 );
+
+CREATE TABLE agent_action_intents (
+  intent_id VARCHAR(36) PRIMARY KEY,
+  session_id VARCHAR(36) NOT NULL,
+  active_session_id VARCHAR(36),
+  based_on_revision BIGINT NOT NULL,
+  type VARCHAR(16) NOT NULL,
+  target_id VARCHAR(36) NOT NULL,
+  issue_id VARCHAR(128),
+  payload_json TEXT NOT NULL,
+  idempotency_key VARCHAR(64) NOT NULL,
+  status VARCHAR(16) NOT NULL,
+  result_type VARCHAR(16),
+  result_ref VARCHAR(128),
+  error TEXT,
+  execution_started_at TIMESTAMP(6),
+  created_at TIMESTAMP(6) NOT NULL,
+  updated_at TIMESTAMP(6) NOT NULL,
+  version BIGINT NOT NULL DEFAULT 0,
+  CONSTRAINT fk_action_intent_session
+    FOREIGN KEY (session_id) REFERENCES agent_sessions(id) ON DELETE CASCADE,
+  CONSTRAINT uk_action_intent_active_session UNIQUE (active_session_id),
+  CONSTRAINT uk_action_intent_idempotency UNIQUE (idempotency_key),
+  CONSTRAINT action_intent_type_check CHECK (type IN ('ASK', 'CALL_TOOL')),
+  CONSTRAINT action_intent_status_check
+    CHECK (status IN ('PLANNED', 'EXECUTING', 'SUCCEEDED', 'APPLIED', 'FAILED')),
+  CONSTRAINT action_intent_result_type_check
+    CHECK (result_type IS NULL OR result_type IN ('QUESTION', 'TOOL_RESULT'))
+);

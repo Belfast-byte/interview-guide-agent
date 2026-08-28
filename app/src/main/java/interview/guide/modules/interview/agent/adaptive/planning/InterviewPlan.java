@@ -123,22 +123,42 @@ public record InterviewPlan(
 
   /** Planner 产出的能力目标是初始化运行状态的唯一输入。 */
   public InterviewWorkState initialWorkState() {
-    List<TargetWorkState> states = dimensions.stream()
-        .map(this::initialTargetState)
+    InterviewWorkState ready = readyWorkState();
+    TargetWorkState active = ready.activeTarget().consume(WorkBudgetType.TURN);
+    List<TargetWorkState> targets = ready.targets().stream()
+        .map(target -> target.targetId().equals(active.targetId()) ? active : target)
         .toList();
-    TargetWorkState active = states.getFirst().consume(WorkBudgetType.TURN);
-    List<TargetWorkState> initialized = new ArrayList<>(states);
-    initialized.set(0, active);
     return new InterviewWorkState(
         sessionId,
         1,
         WorkPhase.AWAITING_ANSWER,
-        initialized,
+        targets,
         active.targetId(),
         active.target().identity().focus(),
         List.of(),
         List.of(),
         1,
+        null,
+        null
+    );
+  }
+
+  /** Plan 已落库但首题尚未生成时的状态。 */
+  public InterviewWorkState readyWorkState() {
+    List<TargetWorkState> states = dimensions.stream()
+        .map(this::initialTargetState)
+        .toList();
+    TargetWorkState active = states.getFirst();
+    return new InterviewWorkState(
+        sessionId,
+        1,
+        WorkPhase.READY_TO_DECIDE,
+        states,
+        active.targetId(),
+        active.target().identity().focus(),
+        List.of(),
+        List.of(),
+        null,
         null,
         null
     );

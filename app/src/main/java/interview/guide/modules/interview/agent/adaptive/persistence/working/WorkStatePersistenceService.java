@@ -24,7 +24,18 @@ public class WorkStatePersistenceService {
 
   @Transactional
   public InterviewWorkState initialize(InterviewPlan plan) {
-    InterviewWorkState state = plan.initialWorkState();
+    return initialize(plan, plan.initialWorkState());
+  }
+
+  @Transactional
+  public InterviewWorkState initializeReady(InterviewPlan plan) {
+    return initialize(plan, plan.readyWorkState());
+  }
+
+  private InterviewWorkState initialize(
+      InterviewPlan plan,
+      InterviewWorkState state
+  ) {
     stateRepository.save(new AdaptiveWorkStateEntity(state, codec));
     WorkStatePatch patch = new WorkStatePatch(
         plan.sessionId() + ":initialization",

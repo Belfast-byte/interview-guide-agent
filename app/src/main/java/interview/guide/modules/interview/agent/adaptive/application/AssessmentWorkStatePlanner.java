@@ -4,12 +4,10 @@ import interview.guide.modules.interview.agent.adaptive.assessment.depth.Assessm
 import interview.guide.modules.interview.agent.adaptive.assessment.evidence.ValidatedAssessmentEvidence;
 import interview.guide.modules.interview.agent.adaptive.core.context.CapabilityTarget;
 import interview.guide.modules.interview.agent.adaptive.core.context.DepthLevel;
+import interview.guide.modules.interview.agent.adaptive.core.intent.ActionResultType;
 import interview.guide.modules.interview.agent.adaptive.core.memory.InterviewWorkState;
 import interview.guide.modules.interview.agent.adaptive.core.memory.NextAction;
-import interview.guide.modules.interview.agent.adaptive.core.memory.NextActionPolicy;
-import interview.guide.modules.interview.agent.adaptive.core.memory.NextActionType;
 import interview.guide.modules.interview.agent.adaptive.core.memory.TargetWorkState;
-import interview.guide.modules.interview.agent.adaptive.core.memory.WorkBudgetType;
 import interview.guide.modules.interview.agent.adaptive.core.memory.WorkEvidenceRef;
 import interview.guide.modules.interview.agent.adaptive.core.memory.WorkIssue;
 import interview.guide.modules.interview.agent.adaptive.core.memory.WorkIssueStatus;
@@ -32,16 +30,10 @@ final class AssessmentWorkStatePlanner {
       AssessmentDecision assessment,
       List<ValidatedAssessmentEvidence> evidences
   ) {
-    List<WorkStatePatch> patches = new ArrayList<>();
-    WorkStatePatch assessmentPatch = patch(
-        state,
-        WorkStatePatchSource.ASSESSMENT,
-        "turn:" + assessment.turnIndex(),
-        assessmentOperations(state, assessment, evidences)
-    );
-    patches.add(assessmentPatch);
-    InterviewWorkState assessed = WorkStateReducer.apply(state, assessmentPatch);
-    PolicyProjection policy = applyPolicy(assessed, assessment.turnIndex());
+    AssessmentProjection assessmentProjection = assessOnly(state, assessment, evidences);
+    List<WorkStatePatch> patches = new ArrayList<>(assessmentProjection.patches());
+    WorkStatePolicyPlanner.PolicyDecision policy = WorkStatePolicyPlanner.decide(
+        assessmentProjection.state(), "turn:" + assessment.turnIndex());
     patches.addAll(policy.patches());
     return new PreparedWorkDecision(
         state.sessionId(),
@@ -53,41 +45,19 @@ final class AssessmentWorkStatePlanner {
     );
   }
 
-  private static PolicyProjection applyPolicy(InterviewWorkState assessed, int turnIndex) {
-    List<WorkStatePatch> patches = new ArrayList<>();
-    InterviewWorkState projected = assessed;
-    NextAction action = NextActionPolicy.decide(projected);
-    int policyStep = 1;
-    while (action.type() == NextActionType.SWITCH_TARGET) {
-      WorkStatePatch policyPatch = patch(
-          projected,
-          WorkStatePatchSource.POLICY,
-          policySource(turnIndex, policyStep++),
-          List.of(new WorkStateOperation.SwitchTarget(
-              action.nextTargetId(), action.terminalStatus()))
-      );
-      patches.add(policyPatch);
-      projected = WorkStateReducer.apply(projected, policyPatch);
-      action = NextActionPolicy.decide(projected);
-    }
-    WorkStatePatch finalPolicy = patch(
-        projected,
-        WorkStatePatchSource.POLICY,
-        policySource(turnIndex, policyStep),
-        policyOperations(projected.activeTarget(), action)
-    );
-    patches.add(finalPolicy);
-    return new PolicyProjection(
-        WorkStateReducer.apply(projected, finalPolicy), action, List.copyOf(patches));
-  }
-
-  private static List<WorkStateOperation> policyOperations(
-      TargetWorkState target,
-      NextAction action
+  static AssessmentProjection assessOnly(
+      InterviewWorkState state,
+      AssessmentDecision assessment,
+      List<ValidatedAssessmentEvidence> evidences
   ) {
-    return action.type() == NextActionType.FINISH
-        ? List.of(new WorkStateOperation.FinishSession(action.terminalStatus()))
-        : actionBudget(target, action);
+    WorkStatePatch assessmentPatch = patch(
+        state,
+        WorkStatePatchSource.ASSESSMENT,
+        "turn:" + assessment.turnIndex(),
+        assessmentOperations(state, assessment, evidences)
+    );
+    InterviewWorkState assessed = WorkStateReducer.apply(state, assessmentPatch);
+    return new AssessmentProjection(assessed, List.of(assessmentPatch));
   }
 
   private static List<WorkStateOperation> assessmentOperations(
@@ -141,23 +111,6 @@ final class AssessmentWorkStatePlanner {
     return proposed.ordinal() > ceiling.ordinal() ? ceiling : proposed;
   }
 
-  private static List<WorkStateOperation> actionBudget(
-      TargetWorkState target,
-      NextAction action
-  ) {
-    List<WorkStateOperation> operations = new ArrayList<>();
-    operations.add(new WorkStateOperation.ConsumeBudget(
-        target.targetId(), WorkBudgetType.TURN));
-    if (action.type() == NextActionType.CALL_TOOL) {
-      operations.add(new WorkStateOperation.ConsumeBudget(
-          target.targetId(), WorkBudgetType.TOOL));
-    } else if (action.issueId() != null) {
-      operations.add(new WorkStateOperation.ConsumeBudget(
-          target.targetId(), WorkBudgetType.FOLLOW_UP));
-    }
-    return operations;
-  }
-
   private static NextTurnProvenanceDraft provenance(
       NextAction action,
       AssessmentDecision assessment
@@ -191,16 +144,6 @@ final class AssessmentWorkStatePlanner {
     );
   }
 
-  private static String policySource(int turnIndex, int step) {
-    return "turn:" + turnIndex + ":step:" + step;
-  }
-
-  private record PolicyProjection(
-      InterviewWorkState state,
-      NextAction action,
-      List<WorkStatePatch> patches
-  ) {}
-
   private static String issueId(int turnIndex, int gapOrder) {
     return "assessment:" + turnIndex + ":gap:" + gapOrder;
   }
@@ -223,9 +166,15 @@ final class AssessmentWorkStatePlanner {
           projectedState,
           WorkStatePatchSource.ACTION_RESULT,
           "turn:" + answerTurnIndex,
-          List.of(new WorkStateOperation.ApplyActionResult(nextTurnIndex, action.issueId()))
+          List.of(new WorkStateOperation.ApplyActionResult(
+              ActionResultType.QUESTION, nextTurnIndex, action.issueId()))
       ));
       return List.copyOf(completed);
     }
   }
+
+  record AssessmentProjection(
+      InterviewWorkState state,
+      List<WorkStatePatch> patches
+  ) {}
 }

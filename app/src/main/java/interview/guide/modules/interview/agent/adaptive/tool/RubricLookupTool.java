@@ -1,6 +1,7 @@
 package interview.guide.modules.interview.agent.adaptive.tool;
 
 import interview.guide.common.util.Sha256;
+import interview.guide.modules.interview.agent.adaptive.runtime.ReActRequest;
 import interview.guide.modules.knowledgebase.model.KnowledgeBaseQuestionEntity;
 import interview.guide.modules.knowledgebase.model.KnowledgeBaseQuestionStatus;
 import interview.guide.modules.knowledgebase.repository.KnowledgeBaseQuestionRepository;
@@ -44,6 +45,11 @@ public class RubricLookupTool implements AdaptiveAgentTool {
   @Override
   public ToolCallback callback() {
     return callback;
+  }
+
+  @Override
+  public void validate(ReActRequest request, Map<String, Object> arguments) {
+    ToolArguments.requiredString(arguments, "dimension", 100);
   }
 
   @Override

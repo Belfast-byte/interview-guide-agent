@@ -1,5 +1,6 @@
 package interview.guide.modules.interview.agent.adaptive.core.memory;
 
+import interview.guide.modules.interview.agent.adaptive.core.intent.ActionResultType;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -51,6 +52,7 @@ public final class WorkStateReducer {
     return switch (operation) {
       case WorkStateOperation.SwitchTarget change -> switchTarget(state, change);
       case WorkStateOperation.SetPendingAction pending -> setPending(state, pending);
+      case WorkStateOperation.RetryPendingAction retry -> retryPending(state, retry);
       case WorkStateOperation.ApplyActionResult result -> applyActionResult(state, result);
       case WorkStateOperation.CompleteAnswer answer -> completeAnswer(state, answer);
       case WorkStateOperation.FinishSession finish -> finish(state, finish.currentStatus());
@@ -159,8 +161,26 @@ public final class WorkStateReducer {
         && state.phase() != WorkPhase.ACTION_PENDING) {
       throw new IllegalStateException("当前阶段不能应用动作结果");
     }
+    if (operation.resultType() == ActionResultType.TOOL_RESULT) {
+      return state.withExecution(WorkPhase.READY_TO_DECIDE, null, null, null);
+    }
+    if (operation.turnIndex() == null) {
+      throw new IllegalStateException("问题动作结果缺少轮次");
+    }
+    return state.withExecution(WorkPhase.AWAITING_ANSWER,
+        operation.turnIndex(), operation.issueId(), null);
+  }
+
+  private static InterviewWorkState retryPending(
+      InterviewWorkState state,
+      WorkStateOperation.RetryPendingAction operation
+  ) {
+    requirePhase(state, WorkPhase.ACTION_PENDING);
+    if (!operation.failedIntentId().equals(state.activeActionIntentId())) {
+      throw new IllegalStateException("失败 Intent 与 WorkState 不一致");
+    }
     return state.withExecution(
-        WorkPhase.AWAITING_ANSWER, operation.turnIndex(), operation.issueId(), null);
+        WorkPhase.ACTION_PENDING, null, null, operation.retryIntentId());
   }
 
   private static InterviewWorkState completeAnswer(

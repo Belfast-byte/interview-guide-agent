@@ -1,6 +1,5 @@
 package interview.guide.modules.interview.agent.adaptive.persistence.session;
 
-import interview.guide.modules.interview.agent.adaptive.core.action.RespondAction;
 import interview.guide.modules.interview.agent.adaptive.core.event.ToolResultEvent;
 import interview.guide.modules.interview.agent.adaptive.core.event.ToolResultFollowUp;
 import jakarta.persistence.Column;
@@ -78,9 +77,7 @@ class AdaptiveAgentToolResultEventEntity {
     status = ToolResultEventStatus.RECEIVED;
   }
 
-  public void complete(RespondAction action) {
-    responseContent = action.content();
-    decisionReason = action.reason();
+  public void complete() {
     status = ToolResultEventStatus.COMPLETED;
     completedAt = LocalDateTime.now();
   }

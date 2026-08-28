@@ -231,8 +231,7 @@ public class SpringAiAdaptiveAgentModelGateway implements AgentModelGateway {
         .user(prompt.userPrompt())
         .options(modelOptionsFactory.interviewer(availableToolCallbacks(context)))
         // 关闭 Spring AI 2.0 自动注册的 ToolCallingAdvisor：
-        // 工具必须由 BoundedReActRuntime 经 ToolGateway 手动执行，
-        // 不能让 ChatClient 在内部消化 tool call（占位 callback 会抛异常）。
+        // 工具调用这里只生成参数提案；持久化 ActionIntent 后才由 ToolGateway 执行。
         .advisors(advisor -> advisor.param(
             ChatClientAttributes.TOOL_CALLING_ADVISOR_AUTO_REGISTER.getKey(),
             false

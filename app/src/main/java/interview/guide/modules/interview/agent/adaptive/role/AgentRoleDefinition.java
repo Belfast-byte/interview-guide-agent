@@ -1,14 +1,14 @@
 package interview.guide.modules.interview.agent.adaptive.role;
 
-import interview.guide.modules.interview.agent.adaptive.runtime.ReActBudget;
+import java.time.Duration;
 import java.util.Set;
 
 /**
- * Agent 角色定义，包含角色标识、工具白名单和预算。
+ * Agent 角色定义，包含角色标识、调用截止时间和工具白名单。
  */
 public record AgentRoleDefinition(
     AgentRole role,
-    ReActBudget budget,
+    Duration deadline,
     Set<String> allowedTools
 ) {
 

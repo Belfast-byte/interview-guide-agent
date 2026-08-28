@@ -13,9 +13,19 @@ public interface AdaptiveAgentTool {
 
   ToolCallback callback();
 
+  void validate(ReActRequest request, Map<String, Object> arguments);
+
   ToolResult execute(Map<String, Object> arguments);
 
   default ToolResult execute(ReActRequest request, Map<String, Object> arguments) {
     return execute(arguments);
+  }
+
+  default ToolResult execute(
+      ReActRequest request,
+      Map<String, Object> arguments,
+      String idempotencyKey
+  ) {
+    return execute(request, arguments);
   }
 }

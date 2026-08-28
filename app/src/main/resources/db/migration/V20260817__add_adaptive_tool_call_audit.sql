@@ -8,6 +8,7 @@ CREATE TABLE agent_tool_calls (
   decision_reason VARCHAR(500) NOT NULL,
   input_summary VARCHAR(500) NOT NULL,
   output_summary VARCHAR(500) NOT NULL,
+  output TEXT NOT NULL,
   result_id VARCHAR(500) NOT NULL,
   duration_ms BIGINT NOT NULL,
   created_at TIMESTAMP(6) NOT NULL,

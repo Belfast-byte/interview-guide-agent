@@ -6,6 +6,7 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 import interview.guide.modules.interview.agent.adaptive.core.context.CapabilityTarget;
 import interview.guide.modules.interview.agent.adaptive.core.context.DepthLevel;
+import interview.guide.modules.interview.agent.adaptive.core.intent.ActionResultType;
 import interview.guide.modules.interview.agent.adaptive.core.memory.InterviewWorkState;
 import interview.guide.modules.interview.agent.adaptive.core.memory.TargetWorkStatus;
 import interview.guide.modules.interview.agent.adaptive.core.memory.WorkBudgetType;
@@ -82,7 +83,7 @@ class WorkStatePersistenceServiceTest {
     WorkStatePatch patch = patch(initial, "assessment:1", List.of(
         new WorkStateOperation.CompleteAnswer(1),
         new WorkStateOperation.UpdateTargetDepth(initial.activeTargetId(), DepthLevel.L1),
-        new WorkStateOperation.ApplyActionResult(2, null)
+        new WorkStateOperation.ApplyActionResult(ActionResultType.QUESTION, 2, null)
     ));
 
     InterviewWorkState updated = service.apply(patch);
@@ -126,7 +127,8 @@ class WorkStatePersistenceServiceTest {
         new WorkStateOperation.ConsumeBudget("target-0", WorkBudgetType.TURN),
         new WorkStateOperation.SwitchTarget("target-1", TargetWorkStatus.COMPLETED),
         new WorkStateOperation.SetPendingAction("intent-1"),
-        new WorkStateOperation.ApplyActionResult(2, "issue-1"),
+        new WorkStateOperation.RetryPendingAction("intent-1", "intent-2"),
+        new WorkStateOperation.ApplyActionResult(ActionResultType.QUESTION, 2, "issue-1"),
         new WorkStateOperation.CompleteAnswer(1),
         new WorkStateOperation.FinishSession(TargetWorkStatus.EXHAUSTED)
     );
