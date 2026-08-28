@@ -12,7 +12,6 @@ import interview.guide.modules.interview.agent.adaptive.core.context.DepthLevel;
 import interview.guide.modules.interview.agent.adaptive.assessment.practice.PracticeRecommendation;
 import interview.guide.modules.interview.agent.adaptive.assessment.practice.PracticeRecommendationService;
 import interview.guide.modules.interview.agent.adaptive.assessment.evidence.ValidatedAssessmentEvidence;
-import interview.guide.modules.interview.agent.adaptive.algorithm.evidence.AlgorithmAssessmentEvidenceService;
 import interview.guide.modules.interview.agent.adaptive.core.session.AdaptiveInterviewHistory;
 import interview.guide.modules.interview.agent.adaptive.core.session.AdaptiveInterviewTurn;
 import interview.guide.modules.interview.agent.adaptive.core.session.InterviewSessionSettings;
@@ -102,7 +101,6 @@ public class AdaptiveInterviewApplicationService {
   private final DepthAssessmentAgent assessmentAgent;
   private final AssessmentEvidenceValidator assessmentEvidenceValidator;
   private final PracticeRecommendationService practiceRecommendationService;
-  private final AlgorithmAssessmentEvidenceService algorithmAssessmentEvidenceService;
   private final AlgorithmInterviewTelemetry algorithmTelemetry;
   private final InterviewSkillService skillService;
   private final CandidateLlmProviderService candidateProviderService;
@@ -467,8 +465,6 @@ public class AdaptiveInterviewApplicationService {
       PlannedInterview updated = persistenceService.recordDecision(persistenceInput(input));
       recordAssessmentTelemetry(
           input.dimension(), input.assessed(), input.previousDepth());
-      algorithmAssessmentEvidenceService.attachAvailable(
-          sessionId, input.answer().turnIndex());
       return updated;
     } catch (OptimisticLockingFailureException e) {
       telemetry.stateConflict(sessionId, input.answer().turnIndex());
@@ -649,8 +645,6 @@ public class AdaptiveInterviewApplicationService {
   private void recordPreparedAssessment(ExternalActionInput input) {
     recordAssessmentTelemetry(
         input.dimension(), input.assessed(), input.previousDepth());
-    algorithmAssessmentEvidenceService.attachAvailable(
-        input.input().sessionId(), input.input().answer().turnIndex());
   }
 
   private void requireAction(NextActionType actual, NextActionType expected) {
@@ -841,57 +835,6 @@ public class AdaptiveInterviewApplicationService {
         WorkStatePatchSource.TOOL_RESULT,
         event.toolName() + ":" + event.resultId(),
         operations
-    );
-  }
-
-  /**
-   * 当算法评测结果到达后，基于运行结果重新评估该轮回答并替换原有评估。
-   *
-   * @param sessionId 会话 ID
-   * @param turnIndex 需要重新评估的轮次
-   * @param toolResult 算法沙箱评测结果原文
-   */
-  public void reassessAlgorithmResult(
-      String sessionId,
-      int turnIndex,
-      String toolResult
-  ) {
-    PlannedInterview interview = persistenceService.get(sessionId);
-    AdaptiveInterviewTurn turn = interview.history().turns().stream()
-        .filter(candidate -> candidate.turnIndex() == turnIndex)
-        .findFirst()
-        .orElseThrow(() -> new BusinessException(ErrorCode.NOT_FOUND, "面试轮次不存在"));
-    PlannedDimension dimension = interview.plan().dimension(turn.dimensionOrder());
-    AssessmentDecision assessment = assessmentAgent.assess(
-        new AssessmentRequest(
-            sessionId,
-            turnIndex,
-            AssessmentContext.algorithmResult(
-                dimension.dimension(),
-                dimension.focus(),
-                turn.question(),
-                turn.answer(),
-                toolResult
-            ),
-            skillService.buildEvaluationReferenceSection(
-                dimension.suggestedSkill()
-            )
-        ),
-        interview.history().llmProvider()
-    );
-    List<ValidatedAssessmentEvidence> evidences = assessmentEvidenceValidator.validate(
-        sessionId,
-        turnIndex,
-        turn.answer(),
-        assessment.evidenceQuotes().stream()
-            .map(AssessmentEvidenceCandidate::quote)
-            .toList()
-    );
-    persistenceService.replaceAssessment(sessionId, turnIndex, assessment, evidences);
-    telemetry.assessmentRecorded(
-        dimension.dimension(),
-        assessment.depthLevel(),
-        evidences.size()
     );
   }
 

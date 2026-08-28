@@ -1,8 +1,8 @@
 id,task,status,acceptance_criteria,validation_command,completed_at,retry_count,notes
-1,盘点旧 Episode 与可变评估路径,IN_PROGRESS,"表、实体、写入点、replace/reconcile 路径写入 PROGRESS","rg -n 'Episode|replaceAssessment|reconcile|ToolResult' app/src/main/java/interview/guide/modules/interview/agent/adaptive",,0,
-2,实现不可变 Episode 事实模型,TODO,"mode/target/revision/assistance/closure/correction 模型测试通过","timeout 60s ./gradlew :app:test --no-daemon --console=plain --tests '*EpisodeFact*'",,0,
-3,合并 answer 评估 Patch 与 Episode 事务,TODO,"一答一 Episode 且事务回滚","timeout 60s ./gradlew :app:test --no-daemon --console=plain --tests '*EpisodePersistence*'",,0,
-4,删除旧评估替换与补偿链,TODO,"无 replaceAssessment 和 ability reconciliation 写入","rg -n 'replaceAssessment|AssessmentReconciliation' app/src/main app/src/test",,0,
-5,实现 QuestionExposure 与双召回视图,TODO,"未回答曝光可召回且正式/练习字段隔离","timeout 60s ./gradlew :app:test --no-daemon --console=plain --tests '*QuestionExposure*' --tests '*EpisodeRecall*'",,0,
+1,盘点旧 Episode 与可变评估路径,DONE,"表、实体、写入点、replace/reconcile 路径写入 PROGRESS","rg -n 'Episode|replaceAssessment|reconcile|ToolResult' app/src/main/java/interview/guide/modules/interview/agent/adaptive",2026-08-28T08:40:00+08:00,0,
+2,实现不可变 Episode 事实模型,DONE,"mode/target/revision/assistance/closure/correction 模型测试通过","timeout 60s ./gradlew :app:test --no-daemon --console=plain --tests '*EpisodeFact*'",2026-08-28T08:57:00+08:00,0,
+3,合并 answer 评估 Patch 与 Episode 事务,DONE,"一答一 Episode 且事务回滚","timeout 60s ./gradlew :app:test --no-daemon --console=plain --tests '*EpisodePersistence*'",2026-08-28T08:57:00+08:00,0,
+4,删除旧评估替换与补偿链,DONE,"无 replaceAssessment 和 ability reconciliation 写入","rg -n 'replaceAssessment|AssessmentReconciliation' app/src/main app/src/test",2026-08-28T08:57:00+08:00,0,
+5,实现 QuestionExposure 与双召回视图,IN_PROGRESS,"未回答曝光可召回且正式/练习字段隔离","timeout 60s ./gradlew :app:test --no-daemon --console=plain --tests '*QuestionExposure*' --tests '*EpisodeRecall*'",,0,
 6,接入出题后召回与换场景去重,TODO,"ACCEPT/REWRITE 和 TargetEnvelope 不变测试通过","timeout 60s ./gradlew :app:test --no-daemon --console=plain --tests '*QuestionNovelty*'",,0,
 7,运行模块验证并提交 T04/T05,TODO,"Episode/Exposure/Novelty 与架构测试通过","git diff --cached --check",,0,

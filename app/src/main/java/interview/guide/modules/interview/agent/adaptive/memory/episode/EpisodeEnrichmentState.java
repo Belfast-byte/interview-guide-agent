@@ -50,13 +50,6 @@ public record EpisodeEnrichmentState(
     return pending();
   }
 
-  public EpisodeEnrichmentState resetAfterAssessmentCorrection() {
-    if (status == EpisodeEnrichmentStatus.LEGACY_UNENRICHED) {
-      throw new IllegalStateException("历史 Episode 不参与在线再补全");
-    }
-    return pending();
-  }
-
   private void require(EpisodeEnrichmentStatus expected, String action) {
     if (status != expected) {
       throw new IllegalStateException(

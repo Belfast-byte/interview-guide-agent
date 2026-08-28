@@ -2,7 +2,6 @@ package interview.guide.modules.interview.agent.adaptive.application;
 
 import interview.guide.modules.interview.agent.adaptive.algorithm.judge.AlgorithmResultReadyHandler;
 import interview.guide.modules.interview.agent.adaptive.algorithm.evidence.AlgorithmSessionFacts;
-import interview.guide.modules.interview.agent.adaptive.algorithm.evidence.AlgorithmAssessmentEvidenceService;
 import interview.guide.modules.interview.agent.adaptive.algorithm.sandbox.SandboxExecution;
 import interview.guide.modules.interview.agent.adaptive.algorithm.sandbox.SandboxExecutionStatus;
 import interview.guide.modules.interview.agent.adaptive.algorithm.sandbox.SandboxExecutionSummary;
@@ -26,7 +25,6 @@ class AdaptiveAlgorithmResultReadyHandler implements AlgorithmResultReadyHandler
 
   private final AdaptiveInterviewApplicationService applicationService;
   private final AlgorithmSessionFacts sessionFacts;
-  private final AlgorithmAssessmentEvidenceService assessmentEvidenceService;
   private final AlgorithmInterviewTelemetry telemetry;
 
   @Override
@@ -59,14 +57,6 @@ class AdaptiveAlgorithmResultReadyHandler implements AlgorithmResultReadyHandler
       return;
     }
     try {
-      if (execution.status() == SandboxExecutionStatus.DONE) {
-        applicationService.reassessAlgorithmResult(
-            execution.sessionId(),
-            turnIndex,
-            summary
-        );
-      }
-      assessmentEvidenceService.attachAvailable(execution.sessionId(), turnIndex);
       applicationService.handleToolResult(execution.sessionId(), event);
     } catch (Exception e) {
       // 回滚预留，让补偿调度器把这次唤醒当作未送达重新投递

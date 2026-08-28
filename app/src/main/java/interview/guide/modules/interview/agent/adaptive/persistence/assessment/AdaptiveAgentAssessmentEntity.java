@@ -68,12 +68,6 @@ public class AdaptiveAgentAssessmentEntity {
     this.rationaleSummary = decision.rationaleSummary();
   }
 
-  public void replace(AssessmentDecision decision) {
-    this.depthLevel = decision.depthLevel();
-    this.confidence = BigDecimal.valueOf(decision.confidence());
-    this.rationaleSummary = decision.rationaleSummary();
-  }
-
   @PrePersist
   void prePersist() {
     createdAt = LocalDateTime.now();

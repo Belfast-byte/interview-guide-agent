@@ -2,7 +2,6 @@ package interview.guide.modules.interview.agent.adaptive.persistence.algorithm;
 
 import interview.guide.modules.interview.agent.adaptive.algorithm.evidence.AlgorithmEvidence;
 import interview.guide.modules.interview.agent.adaptive.algorithm.evidence.AlgorithmEvidenceSource;
-import interview.guide.modules.interview.agent.adaptive.algorithm.sandbox.SandboxExecutionStatus;
 import interview.guide.modules.interview.agent.adaptive.algorithm.sandbox.SandboxExecutionSummary;
 import interview.guide.modules.interview.agent.adaptive.algorithm.sandbox.SandboxVerdict;
 import jakarta.persistence.EntityManager;
@@ -22,28 +21,6 @@ public class JpaAlgorithmEvidenceSource implements AlgorithmEvidenceSource {
 
   JpaAlgorithmEvidenceSource(EntityManager entityManager) {
     this.entityManager = entityManager;
-  }
-
-  @Override
-  @Transactional(readOnly = true)
-  public Set<String> findCandidateEvidenceIds(String sessionId, int turnIndex) {
-    return entityManager.createQuery("""
-        select execution.id
-        from SandboxExecutionEntity execution, AdaptiveAgentTurnEntity turn
-        where execution.turnId = turn.id
-          and execution.sessionId = :sessionId
-          and turn.turnIndex = :turnIndex
-          and execution.status = :status
-          and execution.verdict is not null
-          and execution.verdict <> :internalError
-          and execution.supersededBy is null
-        """, String.class)
-        .setParameter("sessionId", sessionId)
-        .setParameter("turnIndex", turnIndex)
-        .setParameter("status", SandboxExecutionStatus.DONE)
-        .setParameter("internalError", SandboxVerdict.IE)
-        .getResultStream()
-        .collect(Collectors.toSet());
   }
 
   @Override

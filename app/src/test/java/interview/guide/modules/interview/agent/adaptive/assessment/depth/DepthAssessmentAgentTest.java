@@ -22,7 +22,7 @@ class DepthAssessmentAgentTest {
   void shouldKeepAssessmentContextIsolated() {
     assertThat(Arrays.stream(AssessmentContext.class.getRecordComponents())
         .map(RecordComponent::getName))
-        .containsExactly("dimension", "focus", "question", "answer", "toolResult", "rubric")
+        .containsExactly("dimension", "focus", "question", "answer", "rubric")
         .doesNotContain(
             "candidateId",
             "jd",

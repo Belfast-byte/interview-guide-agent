@@ -48,21 +48,39 @@ CREATE TABLE candidate_memory_episode_facts (
   tenant_id VARCHAR(64),
   candidate_id VARCHAR(64) NOT NULL,
   session_id VARCHAR(36) NOT NULL,
+  session_mode VARCHAR(16) NOT NULL,
+  turn_id BIGINT NOT NULL,
   turn_index INTEGER NOT NULL,
   assessment_id BIGINT NOT NULL,
   skill_id VARCHAR(64) NOT NULL,
   focus_id VARCHAR(64) NOT NULL,
+  target_id VARCHAR(36) NOT NULL,
+  work_revision_before BIGINT NOT NULL,
+  work_revision_after BIGINT NOT NULL,
+  assistance_level VARCHAR(16) NOT NULL,
+  closure_status VARCHAR(16) NOT NULL,
+  corrects_episode_id BIGINT,
   enrichment_status VARCHAR(24) NOT NULL,
   enrichment_error TEXT,
   version BIGINT NOT NULL DEFAULT 0,
   created_at TIMESTAMP(6) NOT NULL,
   updated_at TIMESTAMP(6) NOT NULL,
   CONSTRAINT fk_memory_episode_turn
-    FOREIGN KEY (session_id, turn_index)
-    REFERENCES agent_turns(session_id, turn_index) ON DELETE CASCADE,
+    FOREIGN KEY (turn_id) REFERENCES agent_turns(id) ON DELETE CASCADE,
   CONSTRAINT fk_memory_episode_assessment
     FOREIGN KEY (assessment_id) REFERENCES agent_assessments(id),
+  CONSTRAINT fk_memory_episode_correction
+    FOREIGN KEY (corrects_episode_id) REFERENCES candidate_memory_episode_facts(id),
   CONSTRAINT uk_memory_episode_session_turn UNIQUE (session_id, turn_index),
+  CONSTRAINT uk_memory_episode_turn_id UNIQUE (turn_id),
+  CONSTRAINT memory_episode_mode_check
+    CHECK (session_mode IN ('EVALUATION', 'PRACTICE')),
+  CONSTRAINT memory_episode_assistance_check
+    CHECK (assistance_level IN ('NONE', 'FOLLOW_UP', 'HINT', 'TOOL_ASSISTED')),
+  CONSTRAINT memory_episode_closure_check
+    CHECK (closure_status IN ('RESOLVED', 'UNRESOLVED', 'ABANDONED')),
+  CONSTRAINT memory_episode_revision_check
+    CHECK (work_revision_before > 0 AND work_revision_after > work_revision_before),
   CONSTRAINT memory_episode_enrichment_status_check CHECK (
     enrichment_status IN (
       'PENDING', 'PROCESSING', 'COMPLETED', 'FAILED', 'LEGACY_UNENRICHED'

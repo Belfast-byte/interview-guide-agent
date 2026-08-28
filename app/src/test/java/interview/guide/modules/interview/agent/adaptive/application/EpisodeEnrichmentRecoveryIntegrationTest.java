@@ -24,6 +24,9 @@ import interview.guide.modules.interview.agent.adaptive.memory.episode.EpisodeEn
 import interview.guide.modules.interview.agent.adaptive.memory.episode.EpisodeEnrichmentService;
 import interview.guide.modules.interview.agent.adaptive.memory.episode.EpisodeEnrichmentStatus;
 import interview.guide.modules.interview.agent.adaptive.memory.episode.EpisodeFactCreation;
+import interview.guide.modules.interview.agent.adaptive.memory.episode.EpisodeAssistanceLevel;
+import interview.guide.modules.interview.agent.adaptive.memory.episode.EpisodeClosureStatus;
+import interview.guide.modules.interview.agent.adaptive.core.session.SessionMode;
 import interview.guide.modules.interview.agent.adaptive.persistence.assessment.AdaptiveAgentAssessmentEntity;
 import interview.guide.modules.interview.agent.adaptive.persistence.assessment.AdaptiveAgentAssessmentRepository;
 import interview.guide.modules.interview.agent.adaptive.persistence.memory.EpisodeEnrichmentPersistenceService;
@@ -197,8 +200,16 @@ class EpisodeEnrichmentRecoveryIntegrationTest {
         new EpisodeFactCreation(
             new MemoryOwner(null, CANDIDATE_ID.toString()),
             SESSION_ID,
+            SessionMode.EVALUATION,
             1,
-            new TopicKey("java-backend", "REDIS")
+            1,
+            new TopicKey("java-backend", "REDIS"),
+            "target-0",
+            1,
+            2,
+            EpisodeAssistanceLevel.NONE,
+            EpisodeClosureStatus.UNRESOLVED,
+            null
         ),
         assessment
     ));

@@ -12,7 +12,6 @@ public record AssessmentContext(
     String focus,
     String question,
     String answer,
-    String toolResult,
     List<String> rubric
 ) {
 
@@ -26,22 +25,11 @@ public record AssessmentContext(
       String question,
       String answer
   ) {
-    return algorithmResult(dimension, focus, question, answer, null);
-  }
-
-  public static AssessmentContext algorithmResult(
-      String dimension,
-      String focus,
-      String question,
-      String answer,
-      String toolResult
-  ) {
     return new AssessmentContext(
         dimension,
         focus,
         question,
         answer,
-        toolResult,
         Arrays.stream(DepthLevel.values()).map(DepthLevel::rubricLine).toList()
     );
   }

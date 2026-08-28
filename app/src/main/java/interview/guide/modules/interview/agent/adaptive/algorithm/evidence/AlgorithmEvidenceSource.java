@@ -8,7 +8,5 @@ import java.util.Set;
  */
 public interface AlgorithmEvidenceSource {
 
-  Set<String> findCandidateEvidenceIds(String sessionId, int turnIndex);
-
   Map<String, AlgorithmEvidence> findEvidence(Set<String> executionIds);
 }

@@ -15,6 +15,9 @@ import interview.guide.modules.interview.agent.adaptive.core.event.ToolResultEve
 import interview.guide.modules.interview.agent.adaptive.core.session.TurnProvenance;
 import interview.guide.modules.interview.agent.adaptive.memory.episode.EpisodeEnrichmentRequest;
 import interview.guide.modules.interview.agent.adaptive.memory.episode.EpisodeFactCreation;
+import interview.guide.modules.interview.agent.adaptive.memory.episode.EpisodeAssistanceLevel;
+import interview.guide.modules.interview.agent.adaptive.memory.episode.EpisodeClosureStatus;
+import interview.guide.modules.interview.agent.adaptive.core.session.SessionMode;
 import interview.guide.modules.interview.agent.adaptive.persistence.assessment.AdaptiveAgentAssessmentEntity;
 import interview.guide.modules.interview.agent.adaptive.persistence.assessment.AdaptiveAgentAssessmentRepository;
 import interview.guide.modules.interview.agent.adaptive.persistence.assessment.AssessmentProbeGapEntity;
@@ -208,8 +211,16 @@ class EpisodeEnrichmentTriggerContextReaderTest {
         new EpisodeFactCreation(
             new MemoryOwner(null, "candidate-trigger-context"),
             SESSION_ID,
+            SessionMode.EVALUATION,
             2,
-            new TopicKey("java-backend", "REDIS")
+            2,
+            new TopicKey("java-backend", "REDIS"),
+            "target-0",
+            1,
+            2,
+            EpisodeAssistanceLevel.NONE,
+            EpisodeClosureStatus.UNRESOLVED,
+            null
         ),
         assessment
     ));

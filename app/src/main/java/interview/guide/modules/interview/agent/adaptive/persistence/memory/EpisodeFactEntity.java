@@ -4,8 +4,11 @@ import interview.guide.modules.interview.agent.adaptive.core.context.MemoryOwner
 import interview.guide.modules.interview.agent.adaptive.core.context.TopicKey;
 import interview.guide.modules.interview.agent.adaptive.memory.episode.EpisodeEnrichmentStatus;
 import interview.guide.modules.interview.agent.adaptive.memory.episode.EpisodeEnrichmentState;
+import interview.guide.modules.interview.agent.adaptive.memory.episode.EpisodeAssistanceLevel;
+import interview.guide.modules.interview.agent.adaptive.memory.episode.EpisodeClosureStatus;
 import interview.guide.modules.interview.agent.adaptive.memory.episode.EpisodeFact;
 import interview.guide.modules.interview.agent.adaptive.memory.episode.EpisodeFactCreation;
+import interview.guide.modules.interview.agent.adaptive.core.session.SessionMode;
 import interview.guide.modules.interview.agent.adaptive.persistence.assessment.AdaptiveAgentAssessmentEntity;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
@@ -50,6 +53,13 @@ public class EpisodeFactEntity {
   @Column(name = "session_id", nullable = false, length = 36)
   private String sessionId;
 
+  @Enumerated(EnumType.STRING)
+  @Column(name = "session_mode", nullable = false, length = 16)
+  private SessionMode sessionMode;
+
+  @Column(name = "turn_id", nullable = false, unique = true)
+  private long turnId;
+
   @Column(name = "turn_index", nullable = false)
   private int turnIndex;
 
@@ -65,6 +75,26 @@ public class EpisodeFactEntity {
 
   @Column(name = "focus_id", nullable = false, length = 64)
   private String focusId;
+
+  @Column(name = "target_id", nullable = false, length = 36)
+  private String targetId;
+
+  @Column(name = "work_revision_before", nullable = false)
+  private long workRevisionBefore;
+
+  @Column(name = "work_revision_after", nullable = false)
+  private long workRevisionAfter;
+
+  @Enumerated(EnumType.STRING)
+  @Column(name = "assistance_level", nullable = false, length = 16)
+  private EpisodeAssistanceLevel assistanceLevel;
+
+  @Enumerated(EnumType.STRING)
+  @Column(name = "closure_status", nullable = false, length = 16)
+  private EpisodeClosureStatus closureStatus;
+
+  @Column(name = "corrects_episode_id")
+  private Long correctsEpisodeId;
 
   @Enumerated(EnumType.STRING)
   @Column(name = "enrichment_status", nullable = false, length = 24)
@@ -96,11 +126,19 @@ public class EpisodeFactEntity {
     this.tenantId = creation.owner().tenantId();
     this.candidateId = creation.owner().candidateId();
     this.sessionId = creation.sessionId();
+    this.sessionMode = creation.sessionMode();
+    this.turnId = creation.turnId();
     this.turnIndex = creation.turnIndex();
     this.assessment = assessment;
     this.assessmentId = assessment.id();
     this.skillId = creation.topic().skillId();
     this.focusId = creation.topic().focusId();
+    this.targetId = creation.targetId();
+    this.workRevisionBefore = creation.workRevisionBefore();
+    this.workRevisionAfter = creation.workRevisionAfter();
+    this.assistanceLevel = creation.assistanceLevel();
+    this.closureStatus = creation.closureStatus();
+    this.correctsEpisodeId = creation.correctsEpisodeId();
     this.enrichmentStatus = EpisodeEnrichmentStatus.PENDING;
   }
 
@@ -131,9 +169,17 @@ public class EpisodeFactEntity {
         id,
         new MemoryOwner(tenantId, candidateId),
         sessionId,
+        sessionMode,
+        turnId,
         turnIndex,
         assessmentId,
         new TopicKey(skillId, focusId),
+        targetId,
+        workRevisionBefore,
+        workRevisionAfter,
+        assistanceLevel,
+        closureStatus,
+        correctsEpisodeId,
         enrichmentStatus,
         answerSummary,
         enrichmentError,
@@ -174,11 +220,6 @@ public class EpisodeFactEntity {
 
   public void recoverStaleEnrichment() {
     apply(state().recoverStaleProcessing());
-    answerSummary = null;
-  }
-
-  public void resetEnrichmentAfterAssessmentCorrection() {
-    apply(state().resetAfterAssessmentCorrection());
     answerSummary = null;
   }
 

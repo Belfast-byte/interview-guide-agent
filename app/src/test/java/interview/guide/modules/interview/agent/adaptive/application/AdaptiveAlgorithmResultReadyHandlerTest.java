@@ -3,7 +3,6 @@ package interview.guide.modules.interview.agent.adaptive.application;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.never;
@@ -11,7 +10,6 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 import interview.guide.modules.interview.agent.adaptive.algorithm.evidence.AlgorithmSessionFacts;
-import interview.guide.modules.interview.agent.adaptive.algorithm.evidence.AlgorithmAssessmentEvidenceService;
 import interview.guide.modules.interview.agent.adaptive.algorithm.sandbox.SandboxExecution;
 import interview.guide.modules.interview.agent.adaptive.algorithm.sandbox.SandboxExecutionStatus;
 import interview.guide.modules.interview.agent.adaptive.algorithm.sandbox.SandboxLanguage;
@@ -36,9 +34,6 @@ class AdaptiveAlgorithmResultReadyHandlerTest {
 
   @Mock
   private AlgorithmSessionFacts sessionFacts;
-
-  @Mock
-  private AlgorithmAssessmentEvidenceService assessmentEvidenceService;
 
   @Mock
   private AlgorithmInterviewTelemetry telemetry;
@@ -73,19 +68,14 @@ class AdaptiveAlgorithmResultReadyHandlerTest {
         org.mockito.ArgumentMatchers.eq("session-1"),
         event.capture()
     );
-    verify(applicationService).reassessAlgorithmResult(
-        "session-1",
-        1,
-        event.getValue().output()
-    );
     assertThat(event.getValue().output())
         .contains("verdict=WA", "passed=4/10", "firstFailedCase=7")
         .doesNotContain("source-ref", "hidden");
   }
 
   @Test
-  @DisplayName("重复投递在预留阶段被幂等拒绝，不触发任何 LLM 重评")
-  void shouldSkipDuplicateDeliveryBeforeReassessment() {
+  @DisplayName("重复投递在预留阶段被幂等拒绝")
+  void shouldSkipDuplicateDelivery() {
     AdaptiveAlgorithmResultReadyHandler handler = handler();
     when(sessionFacts.turnIndex(10L)).thenReturn(1);
     when(applicationService.reserveToolResultEvent(
@@ -95,11 +85,6 @@ class AdaptiveAlgorithmResultReadyHandlerTest {
 
     handler.handle(execution(null, SandboxExecutionStatus.DONE));
 
-    verify(applicationService, never()).reassessAlgorithmResult(
-        org.mockito.ArgumentMatchers.anyString(),
-        org.mockito.ArgumentMatchers.anyInt(),
-        org.mockito.ArgumentMatchers.anyString()
-    );
     verify(applicationService, never()).handleToolResult(
         org.mockito.ArgumentMatchers.anyString(),
         org.mockito.ArgumentMatchers.any()
@@ -124,11 +109,6 @@ class AdaptiveAlgorithmResultReadyHandlerTest {
         org.mockito.ArgumentMatchers.eq("session-1"),
         event.capture()
     );
-    verify(applicationService, never()).reassessAlgorithmResult(
-        org.mockito.ArgumentMatchers.anyString(),
-        org.mockito.ArgumentMatchers.anyInt(),
-        org.mockito.ArgumentMatchers.anyString()
-    );
     assertThat(event.getValue().output())
         .contains("status=TIMEOUT_QUEUED, judging unavailable")
         .doesNotContain("negative evidence");
@@ -142,9 +122,7 @@ class AdaptiveAlgorithmResultReadyHandlerTest {
     when(applicationService.reserveToolResultEvent(eq("session-1"), any()))
         .thenReturn(true);
     RuntimeException failure = new RuntimeException("database unavailable");
-    doThrow(failure)
-        .when(applicationService)
-        .reassessAlgorithmResult(eq("session-1"), eq(1), anyString());
+    doThrow(failure).when(applicationService).handleToolResult(eq("session-1"), any());
 
     assertThatThrownBy(() -> handler.handle(execution(null, SandboxExecutionStatus.DONE)))
         .isSameAs(failure);
@@ -158,7 +136,6 @@ class AdaptiveAlgorithmResultReadyHandlerTest {
     return new AdaptiveAlgorithmResultReadyHandler(
         applicationService,
         sessionFacts,
-        assessmentEvidenceService,
         telemetry
     );
   }

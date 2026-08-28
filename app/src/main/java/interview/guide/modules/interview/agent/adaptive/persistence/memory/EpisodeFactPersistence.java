@@ -1,13 +1,13 @@
 package interview.guide.modules.interview.agent.adaptive.persistence.memory;
 
 import interview.guide.modules.interview.agent.adaptive.core.context.MemoryOwner;
-import interview.guide.modules.interview.agent.adaptive.core.context.TopicKey;
+import interview.guide.modules.interview.agent.adaptive.core.memory.TargetWorkStatus;
+import interview.guide.modules.interview.agent.adaptive.core.session.TurnTriggerType;
+import interview.guide.modules.interview.agent.adaptive.memory.episode.EpisodeAssistanceLevel;
+import interview.guide.modules.interview.agent.adaptive.memory.episode.EpisodeClosureStatus;
 import interview.guide.modules.interview.agent.adaptive.memory.episode.EpisodeEnrichmentRequested;
 import interview.guide.modules.interview.agent.adaptive.memory.episode.EpisodeFactCreation;
 import interview.guide.modules.interview.agent.adaptive.memory.profile.AbilityCounterIncrementStore;
-import interview.guide.modules.interview.agent.adaptive.persistence.assessment.AdaptiveAgentAssessmentEntity;
-import interview.guide.modules.interview.agent.adaptive.persistence.session.AdaptiveAgentSessionEntity;
-import interview.guide.modules.interview.agent.adaptive.planning.PlannedDimension;
 import lombok.RequiredArgsConstructor;
 import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Component;
@@ -23,25 +23,52 @@ public class EpisodeFactPersistence {
   private final AbilityCounterIncrementStore counterIncrementStore;
   private final ApplicationEventPublisher eventPublisher;
 
-  public EpisodeFactEntity create(
-      AdaptiveAgentSessionEntity session,
-      AdaptiveAgentAssessmentEntity assessment,
-      PlannedDimension dimension
-  ) {
+  public EpisodeFactEntity create(EpisodePersistenceInput input) {
     EpisodeFactCreation creation = new EpisodeFactCreation(
-        new MemoryOwner(session.tenantId(), session.candidateId()),
-        session.id(),
-        assessment.turnIndex(),
-        new TopicKey(dimension.suggestedSkill(), dimension.focusId())
+        new MemoryOwner(input.session().tenantId(), input.session().candidateId()),
+        input.session().id(),
+        input.session().toDomain().settings().mode(),
+        input.turn().id(),
+        input.assessment().turnIndex(),
+        input.dimension().topic(),
+        input.before().activeTargetId(),
+        input.before().revision(),
+        input.after().revision(),
+        assistance(input),
+        closure(input),
+        input.correctsEpisodeId()
     );
-    EpisodeFactEntity episode = repository.save(new EpisodeFactEntity(creation, assessment));
+    EpisodeFactEntity episode = repository.save(
+        new EpisodeFactEntity(creation, input.assessment()));
     counterIncrementStore.increment(
-        creation.owner(), creation.topic(), assessment.depthLevel()
+        creation.owner(), creation.topic(), input.assessment().depthLevel()
     );
     eventPublisher.publishEvent(new EpisodeEnrichmentRequested(
         episode.id(),
-        session.llmProvider()
+        input.session().llmProvider()
     ));
     return episode;
+  }
+
+  private EpisodeAssistanceLevel assistance(EpisodePersistenceInput input) {
+    TurnTriggerType trigger = input.turn().toDomain().provenance().trigger().type();
+    return switch (trigger) {
+      case PLANNED -> EpisodeAssistanceLevel.NONE;
+      case ASSESSMENT_GAP -> EpisodeAssistanceLevel.FOLLOW_UP;
+      case TOOL_RESULT -> EpisodeAssistanceLevel.TOOL_ASSISTED;
+    };
+  }
+
+  private EpisodeClosureStatus closure(EpisodePersistenceInput input) {
+    TargetWorkStatus status = input.after().targets().stream()
+        .filter(target -> target.targetId().equals(input.before().activeTargetId()))
+        .findFirst()
+        .orElseThrow(() -> new IllegalStateException("Episode 目标不存在"))
+        .status();
+    return switch (status) {
+      case COMPLETED -> EpisodeClosureStatus.RESOLVED;
+      case EXHAUSTED -> EpisodeClosureStatus.ABANDONED;
+      case PENDING, ACTIVE -> EpisodeClosureStatus.UNRESOLVED;
+    };
   }
 }

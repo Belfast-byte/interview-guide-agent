@@ -9,6 +9,9 @@ import interview.guide.modules.interview.agent.adaptive.core.context.MemoryOwner
 import interview.guide.modules.interview.agent.adaptive.core.context.TopicKey;
 import interview.guide.modules.interview.agent.adaptive.memory.episode.EpisodeEnrichmentStatus;
 import interview.guide.modules.interview.agent.adaptive.memory.episode.EpisodeFactCreation;
+import interview.guide.modules.interview.agent.adaptive.memory.episode.EpisodeAssistanceLevel;
+import interview.guide.modules.interview.agent.adaptive.memory.episode.EpisodeClosureStatus;
+import interview.guide.modules.interview.agent.adaptive.core.session.SessionMode;
 import interview.guide.modules.interview.agent.adaptive.persistence.assessment.AdaptiveAgentAssessmentEntity;
 import interview.guide.modules.interview.agent.adaptive.persistence.assessment.AdaptiveAgentAssessmentRepository;
 import java.util.List;
@@ -33,8 +36,8 @@ class EpisodeFactRepositoryTest {
   private AdaptiveAgentAssessmentRepository assessmentRepository;
 
   @Test
-  @DisplayName("Episode 只保存权威索引并以 PENDING 开始")
-  void shouldPersistMinimalFact() {
+  @DisplayName("Episode 保存不可变会话、目标和 WorkState 事实")
+  void shouldPersistImmutableFact() {
     EpisodeFactEntity saved = saveEpisode(
         new MemoryOwner(null, "candidate-1"),
         "session-1",
@@ -44,6 +47,12 @@ class EpisodeFactRepositoryTest {
     assertThat(saved.toDomain()).satisfies(fact -> {
       assertThat(fact.owner()).isEqualTo(new MemoryOwner(null, "candidate-1"));
       assertThat(fact.topic()).isEqualTo(TOPIC);
+      assertThat(fact.sessionMode()).isEqualTo(SessionMode.EVALUATION);
+      assertThat(fact.targetId()).isEqualTo("target-0");
+      assertThat(fact.workRevisionBefore()).isEqualTo(1);
+      assertThat(fact.workRevisionAfter()).isEqualTo(2);
+      assertThat(fact.assistanceLevel()).isEqualTo(EpisodeAssistanceLevel.NONE);
+      assertThat(fact.closureStatus()).isEqualTo(EpisodeClosureStatus.UNRESOLVED);
       assertThat(fact.enrichmentStatus()).isEqualTo(EpisodeEnrichmentStatus.PENDING);
       assertThat(fact.enrichmentError()).isNull();
     });
@@ -100,11 +109,23 @@ class EpisodeFactRepositoryTest {
         new EpisodeFactCreation(
             owner,
             sessionId,
+            SessionMode.EVALUATION,
+            turnId(sessionId),
             assessment.turnIndex(),
-            TOPIC
+            TOPIC,
+            "target-0",
+            1,
+            2,
+            EpisodeAssistanceLevel.NONE,
+            EpisodeClosureStatus.UNRESOLVED,
+            null
         ),
         assessment
     );
+  }
+
+  private long turnId(String sessionId) {
+    return Math.abs((long) sessionId.hashCode());
   }
 
   private AdaptiveAgentAssessmentEntity saveAssessment(String sessionId, int turnIndex) {

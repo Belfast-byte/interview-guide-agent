@@ -6,8 +6,6 @@ import interview.guide.modules.interview.agent.adaptive.assessment.depth.Assessm
 import interview.guide.modules.interview.agent.adaptive.core.context.DepthLevel;
 import interview.guide.modules.interview.agent.adaptive.assessment.practice.PracticeRecommendation;
 import interview.guide.modules.interview.agent.adaptive.assessment.evidence.ValidatedAssessmentEvidence;
-import interview.guide.modules.interview.agent.adaptive.assessment.evidence.EvidenceType;
-import interview.guide.modules.interview.agent.adaptive.algorithm.evidence.AlgorithmAssessmentEvidenceStore;
 import interview.guide.modules.interview.agent.adaptive.core.session.AdaptiveInterviewHistory;
 import interview.guide.modules.interview.agent.adaptive.core.session.AdaptiveInterviewSession;
 import interview.guide.modules.interview.agent.adaptive.core.session.AdaptiveSessionStatus;
@@ -46,8 +44,7 @@ import interview.guide.modules.interview.agent.adaptive.persistence.memory.Candi
 import interview.guide.modules.interview.agent.adaptive.persistence.memory.CandidateMemoryTopicEntity;
 import interview.guide.modules.interview.agent.adaptive.persistence.memory.CandidateMemoryTopicRepository;
 import interview.guide.modules.interview.agent.adaptive.persistence.memory.EpisodeFactPersistence;
-import interview.guide.modules.interview.agent.adaptive.persistence.memory.AssessmentReconciliationService;
-import interview.guide.modules.interview.agent.adaptive.memory.semantic.AssessmentRevision;
+import interview.guide.modules.interview.agent.adaptive.persistence.memory.EpisodePersistenceInput;
 import interview.guide.modules.interview.agent.adaptive.persistence.plan.AdaptiveAgentPlanEntity;
 import interview.guide.modules.interview.agent.adaptive.persistence.plan.AdaptiveAgentPlanRepository;
 import interview.guide.modules.interview.agent.adaptive.persistence.practice.PracticeRecordEntity;
@@ -68,8 +65,7 @@ import org.springframework.transaction.annotation.Transactional;
  */
 @Service
 @RequiredArgsConstructor
-public class AdaptiveInterviewPersistenceService
-    implements AlgorithmAssessmentEvidenceStore {
+public class AdaptiveInterviewPersistenceService {
 
   private final AdaptiveAgentSessionRepository sessionRepository;
   private final AdaptiveAgentTurnRepository turnRepository;
@@ -85,7 +81,6 @@ public class AdaptiveInterviewPersistenceService
   private final AdaptiveAgentToolResultEventRepository toolResultEventRepository;
   private final AbilityProfileSnapshotService abilityProfileSnapshotService;
   private final EpisodeFactPersistence episodeFactPersistence;
-  private final AssessmentReconciliationService assessmentReconciliationService;
   private final WorkStatePersistenceService workStatePersistenceService;
   private final ActionIntentPersistenceService actionIntentPersistenceService;
 
@@ -167,30 +162,6 @@ public class AdaptiveInterviewPersistenceService
     ).stream().map(AdaptiveAgentToolResultEventEntity::toFollowUp).toList();
   }
 
-  @Override
-  @Transactional
-  public boolean attach(String sessionId, int turnIndex, String executionId) {
-    AdaptiveAgentAssessmentEntity assessment = assessmentRepository
-        .findBySessionIdAndTurnIndex(sessionId, turnIndex)
-        .orElse(null);
-    if (assessment == null || evidenceRepository
-        .existsByAssessmentIdAndSandboxExecutionId(assessment.id(), executionId)) {
-      return false;
-    }
-    evidenceRepository.save(new AdaptiveAgentEvidenceEntity(
-        assessment,
-        sessionId,
-        turnIndex,
-        new ValidatedAssessmentEvidence(
-            EvidenceType.TOOL_RESULT,
-            null,
-            null,
-            executionId
-        )
-    ));
-    return true;
-  }
-
   @Transactional(readOnly = true)
   public DepthLevel latestAssessmentDepth(String sessionId, int dimensionOrder) {
     return assessmentRepository
@@ -203,47 +174,6 @@ public class AdaptiveInterviewPersistenceService
             "追问缺少上一轮评估事实"
         ))
         .depthLevel();
-  }
-
-  @Transactional
-  public void replaceAssessment(
-      String sessionId,
-      int turnIndex,
-      AssessmentDecision decision,
-      List<ValidatedAssessmentEvidence> evidences
-  ) {
-    AdaptiveAgentAssessmentEntity assessment = assessmentRepository
-        .findBySessionIdAndTurnIndex(sessionId, turnIndex)
-        .orElseThrow(() -> new BusinessException(
-            ErrorCode.AI_SERVICE_ERROR,
-            "算法判题结果缺少对应的回答评估"
-        ));
-    AdaptiveAgentSessionEntity session = sessionRepository.findById(sessionId)
-        .orElseThrow(() -> new BusinessException(
-            ErrorCode.INTERVIEW_SESSION_NOT_FOUND,
-            "Agent 面试会话不存在"
-        ));
-    assessmentReconciliationService.reconcile(new AssessmentRevision(
-        sessionId,
-        turnIndex,
-        assessment.depthLevel(),
-        decision.depthLevel(),
-        session.llmProvider()
-    ));
-    assessment.replace(decision);
-    evidenceRepository.deleteByAssessmentId(assessment.id());
-    evidenceRepository.saveAll(evidences.stream()
-        .map(evidence -> new AdaptiveAgentEvidenceEntity(
-            assessment,
-            sessionId,
-            turnIndex,
-            evidence
-        ))
-        .toList());
-    AdaptiveAgentTurnEntity sourceTurn = turnRepository
-        .findBySessionIdAndTurnIndex(sessionId, turnIndex)
-        .orElseThrow(() -> new BusinessException(ErrorCode.NOT_FOUND, "面试轮次不存在"));
-    saveCodeFactEvidence(assessment, sourceTurn);
   }
 
   /**
@@ -346,7 +276,8 @@ public class AdaptiveInterviewPersistenceService
     InterviewWorkState updated = applyPatches(input.preparation().decisionPatches(), before);
     AdaptiveAgentAssessmentEntity assessment = saveAssessment(
         dimension, input.assessment());
-    episodeFactPersistence.create(session, assessment, dimension);
+    episodeFactPersistence.create(new EpisodePersistenceInput(
+        session, turn, assessment, dimension, before, updated, null));
     savePreparedFacts(
         input,
         new SavedAnswerContext(session, dimension, new AnswerAssessment(turn, assessment)),
@@ -413,7 +344,15 @@ public class AdaptiveInterviewPersistenceService
         assessment,
         assessmentDecision
     );
-    episodeFactPersistence.create(sessionEntity, assessment, answeredDimension);
+    episodeFactPersistence.create(new EpisodePersistenceInput(
+        sessionEntity,
+        turnEntity,
+        assessment,
+        answeredDimension,
+        before,
+        updatedState,
+        null
+    ));
 
     if (transition.appliedAction().type() == AgentResponseType.ASK) {
       int nextTurn = transition.session().currentTurn();

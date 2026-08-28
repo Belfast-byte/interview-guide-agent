@@ -15,6 +15,9 @@ import interview.guide.modules.interview.agent.adaptive.core.session.AdaptiveInt
 import interview.guide.modules.interview.agent.adaptive.core.session.AdaptiveSessionStatus;
 import interview.guide.modules.interview.agent.adaptive.memory.episode.AnswerHabit;
 import interview.guide.modules.interview.agent.adaptive.memory.episode.EpisodeFactCreation;
+import interview.guide.modules.interview.agent.adaptive.memory.episode.EpisodeAssistanceLevel;
+import interview.guide.modules.interview.agent.adaptive.memory.episode.EpisodeClosureStatus;
+import interview.guide.modules.interview.agent.adaptive.core.session.SessionMode;
 import interview.guide.modules.interview.agent.adaptive.memory.episode.EpisodeTagSource;
 import interview.guide.modules.interview.agent.adaptive.memory.episode.EpisodeTagSourceType;
 import interview.guide.modules.interview.agent.adaptive.memory.episode.EpisodeTagValue;
@@ -202,7 +205,7 @@ class CandidateMemoryControllerTest {
 
   private EpisodeFactEntity saveEpisode(EpisodeFixture fixture) {
     saveSessionIfMissing(fixture.sessionId(), fixture.owner());
-    insertTurn(fixture);
+    long turnId = insertTurn(fixture);
     AdaptiveAgentAssessmentEntity assessment = assessmentRepository.saveAndFlush(
         new AdaptiveAgentAssessmentEntity(
             0,
@@ -213,8 +216,16 @@ class CandidateMemoryControllerTest {
         new EpisodeFactCreation(
             fixture.owner(),
             fixture.sessionId(),
+            SessionMode.EVALUATION,
+            turnId,
             fixture.turnIndex(),
-            fixture.topic()
+            fixture.topic(),
+            "target-0",
+            1,
+            2,
+            EpisodeAssistanceLevel.NONE,
+            EpisodeClosureStatus.UNRESOLVED,
+            null
         ),
         assessment
     ));
@@ -240,7 +251,7 @@ class CandidateMemoryControllerTest {
     ));
   }
 
-  private void insertTurn(EpisodeFixture fixture) {
+  private long insertTurn(EpisodeFixture fixture) {
     jdbcTemplate.update(
         """
             INSERT INTO agent_turns (
@@ -254,6 +265,12 @@ class CandidateMemoryControllerTest {
         fixture.parentTurnIndex() == null ? "PLANNED" : "ASSESSMENT_GAP",
         fixture.sourceAssessmentId(),
         Timestamp.valueOf(EPISODE_TIME)
+    );
+    return jdbcTemplate.queryForObject(
+        "SELECT id FROM agent_turns WHERE session_id = ? AND turn_index = ?",
+        Long.class,
+        fixture.sessionId(),
+        fixture.turnIndex()
     );
   }
 
