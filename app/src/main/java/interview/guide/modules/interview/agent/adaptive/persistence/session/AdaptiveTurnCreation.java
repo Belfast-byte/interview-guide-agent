@@ -1,6 +1,7 @@
 package interview.guide.modules.interview.agent.adaptive.persistence.session;
 
 import interview.guide.modules.interview.agent.adaptive.core.action.RespondAction;
+import interview.guide.modules.interview.agent.adaptive.core.context.WorkingMemory;
 import interview.guide.modules.interview.agent.adaptive.core.session.TurnProvenance;
 
 /**
@@ -11,6 +12,17 @@ public record AdaptiveTurnCreation(
     int turnIndex,
     int dimensionOrder,
     RespondAction questionAction,
-    TurnProvenance provenance
+    TurnProvenance provenance,
+    WorkingMemory workingMemory
 ) {
+
+  public AdaptiveTurnCreation(
+      String sessionId,
+      int turnIndex,
+      int dimensionOrder,
+      RespondAction questionAction,
+      TurnProvenance provenance
+  ) {
+    this(sessionId, turnIndex, dimensionOrder, questionAction, provenance, null);
+  }
 }

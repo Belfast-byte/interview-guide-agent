@@ -5,12 +5,14 @@ import interview.guide.modules.interview.agent.adaptive.core.action.AgentRespons
 import interview.guide.modules.interview.agent.adaptive.core.event.CandidateAnswer;
 import interview.guide.modules.interview.agent.adaptive.core.event.CandidateCodeSubmission;
 import interview.guide.modules.interview.agent.adaptive.core.context.CodeFactUsage;
+import interview.guide.modules.interview.agent.adaptive.core.context.WorkingMemory;
 import interview.guide.modules.interview.agent.adaptive.core.action.RespondAction;
 import interview.guide.modules.interview.agent.adaptive.core.session.TurnProvenance;
 import interview.guide.modules.interview.agent.adaptive.core.session.TurnTrigger;
 import interview.guide.modules.interview.agent.adaptive.core.session.TurnTrigger.AssessmentGapSource;
 import interview.guide.modules.interview.agent.adaptive.core.session.TurnTriggerType;
 import jakarta.persistence.Column;
+import jakarta.persistence.Convert;
 import jakarta.persistence.Entity;
 import jakarta.persistence.EnumType;
 import jakarta.persistence.Enumerated;
@@ -32,10 +34,6 @@ import java.time.LocalDateTime;
         @UniqueConstraint(
             name = "uk_agent_turn_session_index",
             columnNames = {"session_id", "turn_index"}
-        ),
-        @UniqueConstraint(
-            name = "uk_agent_turn_source_probe_gap",
-            columnNames = "source_probe_gap_id"
         )
     }
 )
@@ -117,6 +115,10 @@ public class AdaptiveAgentTurnEntity {
   @Column(name = "source_tool_result_event_id")
   private Long sourceToolResultEventId;
 
+  @Convert(converter = WorkingMemoryJsonConverter.class)
+  @Column(name = "working_memory_snapshot", columnDefinition = "TEXT")
+  private WorkingMemory workingMemory;
+
   @Column(name = "created_at", nullable = false)
   private LocalDateTime createdAt;
 
@@ -128,6 +130,7 @@ public class AdaptiveAgentTurnEntity {
     this.dimensionOrder = creation.dimensionOrder();
     applyQuestion(creation.questionAction());
     applyProvenance(creation.provenance());
+    this.workingMemory = creation.workingMemory();
   }
 
   private void applyProvenance(TurnProvenance provenance) {
@@ -258,6 +261,10 @@ public class AdaptiveAgentTurnEntity {
 
   public String codeAnchor() {
     return codeAnchor;
+  }
+
+  public WorkingMemory workingMemory() {
+    return workingMemory;
   }
 
   public CodeFactUsage codeFactUsage() {
