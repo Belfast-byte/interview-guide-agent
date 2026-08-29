@@ -83,8 +83,7 @@ public class SandboxSubmitTool implements AdaptiveAgentTool {
             answer.turnIndex(),
             submission.scenarioId(),
             SandboxLanguage.valueOf(submission.language()),
-            answer.content(),
-            idempotencyKey
+            answer.content()
         ))
         : submissionService.submit(new SubmitAlgorithmCode(
             request.sessionId(),
@@ -93,7 +92,7 @@ public class SandboxSubmitTool implements AdaptiveAgentTool {
             SandboxLanguage.valueOf(submission.language()),
             answer.content(),
             SandboxRunMode.valueOf(submission.runMode())
-        ), idempotencyKey);
+        ));
     return new PendingToolResult(
         execution.id(),
         new SandboxPendingResult(execution.id(), execution.status().name()),

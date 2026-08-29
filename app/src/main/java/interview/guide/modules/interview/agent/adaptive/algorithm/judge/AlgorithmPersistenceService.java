@@ -11,6 +11,7 @@ import interview.guide.modules.interview.agent.adaptive.algorithm.problem.Algori
 import interview.guide.modules.interview.agent.adaptive.algorithm.sandbox.CreateSandboxExecution;
 import interview.guide.modules.interview.agent.adaptive.algorithm.sandbox.SandboxExecution;
 import interview.guide.modules.interview.agent.adaptive.algorithm.sandbox.SandboxExecutionEntity;
+import interview.guide.modules.interview.agent.adaptive.algorithm.sandbox.SandboxExecutionId;
 import interview.guide.modules.interview.agent.adaptive.algorithm.sandbox.SandboxExecutionLogEntity;
 import interview.guide.modules.interview.agent.adaptive.algorithm.sandbox.SandboxExecutionLogRepository;
 import interview.guide.modules.interview.agent.adaptive.algorithm.sandbox.SandboxExecutionRepository;
@@ -79,11 +80,13 @@ public class AlgorithmPersistenceService {
   }
 
   @Transactional
-  public SandboxExecution createPending(
-      String executionId,
-      CreateSandboxExecution command
-  ) {
+  public SandboxExecution createOrReuse(CreateSandboxExecution command) {
     long turnId = sessionFacts.lockCurrentTurn(command.sessionId(), command.turnIndex());
+    String executionId = SandboxExecutionId.from(command);
+    var existing = executionRepository.findById(executionId);
+    if (existing.isPresent()) {
+      return existing.get().toDomain();
+    }
     validateProblemAndQuota(command);
     int submissionSeq = executionRepository
         .findTopBySessionIdOrderBySubmissionSeqDesc(command.sessionId())

@@ -7,6 +7,7 @@ import interview.guide.modules.interview.agent.adaptive.algorithm.judge.Algorith
 import interview.guide.modules.interview.agent.adaptive.algorithm.problem.AlgorithmSourceStorage;
 import interview.guide.modules.interview.agent.adaptive.algorithm.sandbox.CreateSandboxExecution;
 import interview.guide.modules.interview.agent.adaptive.algorithm.sandbox.SandboxExecution;
+import interview.guide.modules.interview.agent.adaptive.algorithm.sandbox.SandboxExecutionStatus;
 import interview.guide.modules.interview.agent.adaptive.algorithm.sandbox.SandboxLanguage;
 import interview.guide.modules.interview.agent.adaptive.algorithm.sandbox.SandboxRunMode;
 import interview.guide.modules.interview.agent.adaptive.algorithm.sandbox.SandboxWorkloadType;
@@ -28,9 +29,6 @@ public class CodePatchSubmissionService {
   private final AlgorithmJudgeStreamProducer producer;
 
   public SandboxExecution submit(PatchCodeSubmission submission) {
-    if (sandboxPersistenceService.executionExists(submission.idempotencyKey())) {
-      return sandboxPersistenceService.getExecution(submission.idempotencyKey());
-    }
     PatchScenarioTarget target = codeAnalysisPersistenceService.getPatchTarget(
         submission.sessionId(),
         submission.scenarioId()
@@ -53,12 +51,13 @@ public class CodePatchSubmissionService {
     );
     StoredAlgorithmSource source = sourceStorage.store(
         submission.sessionId(), submission.language(), submission.patch());
-    SandboxExecution execution = sandboxPersistenceService.createPending(
-        submission.idempotencyKey(),
+    SandboxExecution execution = sandboxPersistenceService.createOrReuse(
         command.withSource(source.codeRef(), source.codeHash())
     );
+    if (execution.status() != SandboxExecutionStatus.PENDING) {
+      return execution;
+    }
     if (!producer.sendExecution(execution.id())) {
-      sandboxPersistenceService.markInfrastructureFailure(execution.id());
       throw new BusinessException(ErrorCode.INTERNAL_ERROR, "PATCH 沙箱任务入队失败");
     }
     return execution;

@@ -6,7 +6,7 @@ import interview.guide.modules.interview.agent.adaptive.algorithm.problem.Algori
 import interview.guide.modules.interview.agent.adaptive.algorithm.problem.StoredAlgorithmSource;
 import interview.guide.modules.interview.agent.adaptive.algorithm.sandbox.CreateSandboxExecution;
 import interview.guide.modules.interview.agent.adaptive.algorithm.sandbox.SandboxExecution;
-import java.util.UUID;
+import interview.guide.modules.interview.agent.adaptive.algorithm.sandbox.SandboxExecutionStatus;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 
@@ -22,23 +22,12 @@ public class AlgorithmSubmissionService {
   private final AlgorithmJudgeStreamProducer producer;
 
   public SandboxExecution submit(SubmitAlgorithmCode submission) {
-    return submit(submission, UUID.randomUUID().toString());
-  }
-
-  public SandboxExecution submit(
-      SubmitAlgorithmCode submission,
-      String idempotencyKey
-  ) {
-    if (persistenceService.executionExists(idempotencyKey)) {
-      return persistenceService.getExecution(idempotencyKey);
-    }
     StoredAlgorithmSource source = sourceStorage.store(
         submission.sessionId(),
         submission.language(),
         submission.source()
     );
-    SandboxExecution execution = persistenceService.createPending(
-        idempotencyKey,
+    SandboxExecution execution = persistenceService.createOrReuse(
         new CreateSandboxExecution(
             submission.sessionId(),
             submission.turnIndex(),
@@ -49,8 +38,10 @@ public class AlgorithmSubmissionService {
             submission.runMode()
         )
     );
+    if (execution.status() != SandboxExecutionStatus.PENDING) {
+      return execution;
+    }
     if (!producer.sendExecution(execution.id())) {
-      persistenceService.markInfrastructureFailure(execution.id());
       throw new BusinessException(ErrorCode.INTERNAL_ERROR, "判题任务入队失败");
     }
     return execution;

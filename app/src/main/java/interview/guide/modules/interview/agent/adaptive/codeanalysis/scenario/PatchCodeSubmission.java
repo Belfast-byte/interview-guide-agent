@@ -7,6 +7,5 @@ public record PatchCodeSubmission(
     int turnIndex,
     String scenarioId,
     SandboxLanguage language,
-    String patch,
-    String idempotencyKey
+    String patch
 ) {}

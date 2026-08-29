@@ -19,6 +19,7 @@ import interview.guide.modules.interview.agent.adaptive.algorithm.sandbox.Sandbo
 import interview.guide.modules.interview.agent.adaptive.algorithm.sandbox.SandboxExecutionLogRepository;
 import interview.guide.modules.interview.agent.adaptive.algorithm.sandbox.SandboxExecutionRepository;
 import interview.guide.modules.interview.agent.adaptive.algorithm.sandbox.SandboxExecutionStatus;
+import interview.guide.modules.interview.agent.adaptive.algorithm.sandbox.SandboxExecutionId;
 import interview.guide.modules.interview.agent.adaptive.algorithm.sandbox.SandboxLanguage;
 import interview.guide.modules.interview.agent.adaptive.algorithm.sandbox.SandboxExecutionResult;
 import interview.guide.modules.interview.agent.adaptive.algorithm.sandbox.SandboxRunMode;
@@ -96,11 +97,32 @@ class AlgorithmPersistenceServiceTest {
       when(executionRepository.save(org.mockito.ArgumentMatchers.any()))
           .thenAnswer(invocation -> invocation.getArgument(0));
 
-      SandboxExecution execution = service.createPending("execution-1", command);
+      SandboxExecution execution = service.createOrReuse(command);
 
       assertThat(execution.submissionSeq()).isEqualTo(3);
       assertThat(execution.status()).isEqualTo(SandboxExecutionStatus.PENDING);
       assertThat(execution.turnId()).isEqualTo(9L);
+    }
+
+    @Test
+    @DisplayName("相同业务负载复用已有执行且不重复消耗配额")
+    void shouldReuseExecutionForSameWorkload() {
+      CreateSandboxExecution command = command();
+      String executionId = SandboxExecutionId.from(command);
+      SandboxExecutionEntity existing = new SandboxExecutionEntity(
+          executionId,
+          command,
+          9L,
+          2
+      );
+      when(sessionFacts.lockCurrentTurn("session-1", 1)).thenReturn(9L);
+      when(executionRepository.findById(executionId)).thenReturn(Optional.of(existing));
+
+      SandboxExecution execution = service.createOrReuse(command);
+
+      assertThat(execution.id()).isEqualTo(executionId);
+      verify(executionRepository, never()).save(any());
+      verify(problemRepository, never()).existsById(any());
     }
 
     @Test
@@ -116,7 +138,7 @@ class AlgorithmPersistenceServiceTest {
               eq(SandboxVerdict.IE)
           )).thenReturn(20L);
 
-      assertThatThrownBy(() -> service.createPending("execution-1", command))
+      assertThatThrownBy(() -> service.createOrReuse(command))
           .isInstanceOfSatisfying(BusinessException.class, exception ->
               assertThat(exception.getCode()).isEqualTo(ErrorCode.RATE_LIMIT_EXCEEDED.getCode()));
       verify(executionRepository, never()).save(org.mockito.ArgumentMatchers.any());

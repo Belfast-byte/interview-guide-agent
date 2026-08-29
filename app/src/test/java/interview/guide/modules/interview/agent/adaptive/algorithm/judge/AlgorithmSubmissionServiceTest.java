@@ -2,6 +2,7 @@ package interview.guide.modules.interview.agent.adaptive.algorithm.judge;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
@@ -52,7 +53,7 @@ class AlgorithmSubmissionServiceTest {
     SandboxExecution execution = execution();
     when(sourceStorage.store("session-1", SandboxLanguage.JAVA, "class Main {}"))
         .thenReturn(source);
-    when(persistenceService.createPending("intent-1", new CreateSandboxExecution(
+    when(persistenceService.createOrReuse(new CreateSandboxExecution(
         "session-1",
         1,
         "two-sum",
@@ -63,7 +64,7 @@ class AlgorithmSubmissionServiceTest {
     ))).thenReturn(execution);
     when(producer.sendExecution("execution-1")).thenReturn(true);
 
-    assertThat(service.submit(submission, "intent-1")).isEqualTo(execution);
+    assertThat(service.submit(submission)).isEqualTo(execution);
     verify(producer).sendExecution("execution-1");
   }
 
@@ -72,16 +73,28 @@ class AlgorithmSubmissionServiceTest {
   void shouldFailWhenEnqueueFails() {
     when(sourceStorage.store("session-1", SandboxLanguage.JAVA, "class Main {}"))
         .thenReturn(new StoredAlgorithmSource("source-ref", "a".repeat(64)));
-    when(persistenceService.createPending(
-        org.mockito.ArgumentMatchers.eq("intent-1"),
-        org.mockito.ArgumentMatchers.any()
-    ))
+    when(persistenceService.createOrReuse(org.mockito.ArgumentMatchers.any()))
         .thenReturn(execution());
     when(producer.sendExecution("execution-1")).thenReturn(false);
 
-    assertThatThrownBy(() -> service.submit(submission(), "intent-1"))
+    assertThatThrownBy(() -> service.submit(submission()))
         .isInstanceOf(BusinessException.class)
         .hasMessageContaining("入队失败");
+    verify(persistenceService, never()).markInfrastructureFailure("execution-1");
+  }
+
+  @Test
+  @DisplayName("同一业务负载已有终态时直接复用且不重复入队")
+  void shouldReuseTerminalExecutionWithoutEnqueue() {
+    when(sourceStorage.store("session-1", SandboxLanguage.JAVA, "class Main {}"))
+        .thenReturn(new StoredAlgorithmSource("source-ref", "a".repeat(64)));
+    SandboxExecution completed = execution(SandboxExecutionStatus.DONE);
+    when(persistenceService.createOrReuse(org.mockito.ArgumentMatchers.any()))
+        .thenReturn(completed);
+
+    assertThat(service.submit(submission())).isSameAs(completed);
+
+    verify(producer, never()).sendExecution("execution-1");
   }
 
   private SubmitAlgorithmCode submission() {
@@ -96,6 +109,10 @@ class AlgorithmSubmissionServiceTest {
   }
 
   private SandboxExecution execution() {
+    return execution(SandboxExecutionStatus.PENDING);
+  }
+
+  private SandboxExecution execution(SandboxExecutionStatus status) {
     return new SandboxExecution(
         "execution-1",
         "session-1",
@@ -110,7 +127,7 @@ class AlgorithmSubmissionServiceTest {
         "source-ref",
         "a".repeat(64),
         SandboxRunMode.FULL,
-        SandboxExecutionStatus.PENDING,
+        status,
         null,
         null,
         null,

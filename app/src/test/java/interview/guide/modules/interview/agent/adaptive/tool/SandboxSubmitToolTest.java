@@ -3,7 +3,6 @@ package interview.guide.modules.interview.agent.adaptive.tool;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
@@ -56,7 +55,7 @@ class SandboxSubmitToolTest {
     when(request.sessionId()).thenReturn("session-1");
     when(request.interviewerContext()).thenReturn(context);
     when(context.currentCodeSubmission()).thenReturn(answer);
-    when(submissionService.submit(any(), eq("intent-1"))).thenReturn(pendingExecution());
+    when(submissionService.submit(any())).thenReturn(pendingExecution());
     SandboxSubmitTool tool = new SandboxSubmitTool(submissionService, patchSubmissionService);
 
     PendingToolResult result = (PendingToolResult) tool.execute(
@@ -68,7 +67,7 @@ class SandboxSubmitToolTest {
     ArgumentCaptor<SubmitAlgorithmCode> command = ArgumentCaptor.forClass(
         SubmitAlgorithmCode.class
     );
-    verify(submissionService).submit(command.capture(), eq("intent-1"));
+    verify(submissionService).submit(command.capture());
     assertThat(command.getValue().source()).isEqualTo(answer.content());
     assertThat(command.getValue().sessionId()).isEqualTo("session-1");
     assertThat(command.getValue().turnIndex()).isEqualTo(2);
@@ -111,8 +110,7 @@ class SandboxSubmitToolTest {
         3,
         "scenario-1",
         SandboxLanguage.JAVA,
-        answer.content(),
-        "intent-1"
+        answer.content()
     ))).thenReturn(pendingExecution());
     SandboxSubmitTool tool = new SandboxSubmitTool(submissionService, patchSubmissionService);
 
@@ -128,8 +126,7 @@ class SandboxSubmitToolTest {
         3,
         "scenario-1",
         SandboxLanguage.JAVA,
-        answer.content(),
-        "intent-1"
+        answer.content()
     ));
   }
 

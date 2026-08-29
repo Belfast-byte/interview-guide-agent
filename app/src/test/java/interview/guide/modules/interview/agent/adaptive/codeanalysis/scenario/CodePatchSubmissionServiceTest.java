@@ -3,8 +3,7 @@ package interview.guide.modules.interview.agent.adaptive.codeanalysis.scenario;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.ArgumentMatchers.anyString;
-import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
@@ -70,7 +69,7 @@ class CodePatchSubmissionServiceTest {
         SandboxLanguage.JAVA,
         "candidate patch"
     )).thenReturn(new StoredAlgorithmSource("patches/one.patch", "a".repeat(64)));
-    when(sandboxPersistenceService.createPending(anyString(), any())).thenReturn(pendingPatch());
+    when(sandboxPersistenceService.createOrReuse(any())).thenReturn(pendingPatch());
     when(producer.sendExecution("execution-1")).thenReturn(true);
 
     SandboxExecution execution = service.submit(new PatchCodeSubmission(
@@ -78,14 +77,13 @@ class CodePatchSubmissionServiceTest {
         3,
         "scenario-1",
         SandboxLanguage.JAVA,
-        "candidate patch",
-        "execution-1"
+        "candidate patch"
     ));
 
     ArgumentCaptor<CreateSandboxExecution> command = ArgumentCaptor.forClass(
         CreateSandboxExecution.class
     );
-    verify(sandboxPersistenceService).createPending(eq("execution-1"), command.capture());
+    verify(sandboxPersistenceService).createOrReuse(command.capture());
     assertThat(command.getValue().workloadType()).isEqualTo(SandboxWorkloadType.PATCH);
     assertThat(command.getValue().problemId()).isNull();
     assertThat(command.getValue().scenarioId()).isEqualTo("scenario-1");
@@ -96,8 +94,8 @@ class CodePatchSubmissionServiceTest {
   }
 
   @Test
-  @DisplayName("PATCH 入队失败时立即终结已落库执行")
-  void shouldMarkInfrastructureFailureWhenEnqueueFails() {
+  @DisplayName("PATCH 入队失败时保留待执行事实供同一业务键重试")
+  void shouldKeepPendingExecutionWhenEnqueueFails() {
     when(codeAnalysisPersistenceService.getPatchTarget("session-1", "scenario-1"))
         .thenReturn(new PatchScenarioTarget(
             "scenario-1",
@@ -106,7 +104,7 @@ class CodePatchSubmissionServiceTest {
         ));
     when(sourceStorage.store("session-1", SandboxLanguage.JAVA, "candidate patch"))
         .thenReturn(new StoredAlgorithmSource("patches/one.patch", "a".repeat(64)));
-    when(sandboxPersistenceService.createPending(anyString(), any())).thenReturn(pendingPatch());
+    when(sandboxPersistenceService.createOrReuse(any())).thenReturn(pendingPatch());
     when(producer.sendExecution("execution-1")).thenReturn(false);
 
     assertThatThrownBy(() -> service.submit(new PatchCodeSubmission(
@@ -114,12 +112,10 @@ class CodePatchSubmissionServiceTest {
         3,
         "scenario-1",
         SandboxLanguage.JAVA,
-        "candidate patch",
-        "execution-1"
+        "candidate patch"
     ))).isInstanceOf(BusinessException.class)
         .hasMessageContaining("入队失败");
-
-    verify(sandboxPersistenceService).markInfrastructureFailure("execution-1");
+    verify(sandboxPersistenceService, never()).markInfrastructureFailure("execution-1");
   }
 
   private SandboxExecution pendingPatch() {
