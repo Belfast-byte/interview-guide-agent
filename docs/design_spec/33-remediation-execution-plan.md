@@ -1,5 +1,7 @@
 # 32 号 Spec 修复执行计划（2026-08-22 可行性核验 + 逐票执行拆解）
 
+> **历史记录声明（2026-08-29）**：本文只证明 32 号规格当时如何执行，不是后续架构规范。固定维度回收、FINISH 阈值、ToolGateway 持久幂等、ToolResultEvent reserve/recovery 和 Prompt 策略硬编码已被 [36-agent-loop-working-memory-spec.md](./36-agent-loop-working-memory-spec.md) 取代；不得为兼容本文保留旧路径。
+
 > 维护：Agent；上游设计决策以 `docs/design/` 为准。
 >
 > 状态：已完成（2026-08-22）

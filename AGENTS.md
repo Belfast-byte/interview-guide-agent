@@ -40,7 +40,7 @@ docker compose -f docker-compose.dev.yml up -d
 - `app/src/main/java/interview/guide/common/`: 通用能力，包括限流、AI 调用、异步模板、配置、异常、统一响应。
 - `app/src/main/java/interview/guide/infrastructure/`: 技术基础设施，包括文件、导出、Redis、MapStruct 映射。
 - `app/src/main/java/interview/guide/modules/`: 业务模块，每个模块自包含 MVC 分层。
-- `app/src/main/java/interview/guide/modules/interview/agent/adaptive/`: 自适应面试 Agent，顶层按职责分包（`api`/`application`/`core`/`runtime`/`role`/`tool`/`planning`/`memory`/`assessment`/`persistence`/`algorithm`/`codeanalysis`/`mcp`/`observability`）；大模块内部再按职责划二级子包（如 `persistence.session`、`assessment.depth`），子包划分与依赖方向见 `docs/design_spec/20-implementation-modules.md` §3.2，细则见 `.claude/rules/interview-agent.md`。
+- `app/src/main/java/interview/guide/modules/interview/agent/adaptive/`: 自适应面试 Agent。当前目录结构是运行事实，不是必须保留的长期抽象；目标职责与依赖方向见 `docs/design_spec/20-implementation-modules.md`，演进边界见 `docs/design_spec/36-agent-loop-working-memory-spec.md`。
 - `app/src/main/resources/prompts/`: StringTemplate Prompt 模板。
 - `frontend/src/`: React 前端页面、组件、API 客户端和类型定义。
 - `docs/`: 文档中心，入口 `docs/README.md`。`docs/design/` 由用户主导，存放自然语言的框架性设计；`docs/design_spec/` 由 Agent 维护，存放技术规格、计划和 tickets；`docs/archive/` 存放历史文档。
@@ -75,12 +75,14 @@ docker compose -f docker-compose.dev.yml up -d
 
 ## Interview Agent Rules（自适应面试 Agent）
 
-- 产品与架构意图以 `docs/design/` 为准，Agent 技术规格在 `docs/design_spec/`，代码与测试是当前运行事实。改 adaptive 包前先读相关设计和规格；冲突必须显式暴露，不得静默改写 `docs/design/`。
-- 依赖方向：`api → application → {core, runtime}`，`role`/`tool`/`planning`/`memory`/`assessment`/`persistence` 只依赖 `core`；`core` 是纯领域内核，禁止 import Spring AI/JPA/Redis/Web。
-- 模型建议、代码裁决：状态迁移、轮次上限、计划轮次分配由代码确定性裁决（`AdaptiveInterviewSession`、`InterviewPlan.decide`），模型输出只是提案；证据与锚点必须逐字命中回答原文或真实分析产物。
-- ReAct 循环统一走 `BoundedReActRuntime`（步数/工具数/deadline 三重预算）；工具必须经 `ToolGateway` 白名单执行，禁止模型网关自动注册工具。
-- 「外部调用 → 裁决 → 落库」的串联只发生在 `application` 层；写库统一走 `AdaptiveInterviewPersistenceService`（短事务 + `@Version` 乐观锁），LLM/沙箱/外部 HTTP 调用在事务外。
-- 会话状态全部存 PostgreSQL；Redis 只用于判题、代码分析等异步 Stream。
+- 产品意图以 `docs/design/` 为准，目标技术规格以 `docs/design_spec/36-agent-loop-working-memory-spec.md` 为准，代码与测试是当前运行事实。冲突必须显式暴露，不能用旧实现反向约束目标设计。
+- 模型负责语义策略：选择当前 Target/Gap、追问或切换、是否调用只读 Tool、Tool 参数与顺序、下一题内容及结束建议。Java 不得预先替模型算出这些选择。
+- Java 只强制业务与安全边界：权限和归属、Session/Turn 合法性、最大轮次、Target 属于 Plan、Tool allowlist/schema/scope、证据和代码锚点真实、沙箱隔离、稳定业务幂等、数据库唯一约束与并发一次推进。
+- 非法模型提案必须以明确拒绝原因返回 Agent 重新决策；禁止静默改写动作、替换 Gap、截断语义结果或生成兜底问题。
+- 真正的只读 Tool 才进入 Agent Loop：是否调用和关键参数必须依赖模型语义判断，Observation 必须回到模型。固定 Skill 自动装配；固定 ID 查询是普通服务；沙箱提交是 Application Service，不是通用 Agent Tool。
+- 领域事实和每轮最终 Working Memory Snapshot 可持久化；不得为可重算的 LLM/只读 Tool 中间步骤新增 `WorkState`、`Patch`、`ActionIntent`、`ToolExecution` 或恢复调度。
+- LLM、MCP、S3、HTTP 和沙箱调用在事务外；最终 Turn/Assessment/Evidence/Working Memory 以短事务提交。沙箱由 `SandboxExecution` 作为唯一执行事实源并使用稳定业务键。
+- 历史画像可以帮助避免重复问题，但不得影响本场同一回答的正式评级；日志不得记录回答、简历或代码原文。
 
 ## Config And Data
 

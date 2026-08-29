@@ -7,54 +7,46 @@ paths:
 
 # Adaptive Interview Agent Rules
 
-适用于 `modules/interview/agent/adaptive/`。产品与架构意图以 `docs/design/` 为准，Agent 技术规格在 `docs/design_spec/`，代码与测试是当前运行事实。包划分与依赖方向见 `docs/design_spec/20-implementation-modules.md` §3.2/§3.3；规格与设计冲突时必须显式暴露。
+适用于自适应面试 Agent。产品与架构意图以 `docs/design/` 为准；Agent Loop、Tool、Working Memory 和迁移目标以 `docs/design_spec/36-agent-loop-working-memory-spec.md` 为准；包边界以 `docs/design_spec/20-implementation-modules.md` 为准。代码与测试描述当前运行事实，不能反向覆盖目标规格。
 
-## 包职责与依赖方向
+## 控制权边界
 
-- 依赖方向：`api → application → {core, runtime}`；`role`/`tool`/`planning`/`memory`/`assessment`/`persistence → core`；`algorithm → {tool, core}`；`codeanalysis → {mcp, tool}`。
-- `core` 是纯领域内核（session 状态机、action、event、值对象），禁止 import Spring AI/JPA/Redis/Web，必须纯单测可验证。
-- `runtime`（`BoundedReActRuntime`）不调 Repository，只返回建议动作；`persistence` 不决定下一动作。
-- 存储端口由业务模块拥有，`persistence` 提供 `Jpa*Source/Store` 实现；业务模块不得 import Entity/Repository。
-- 大模块内部按职责划二级子包（`persistence.session`、`assessment.depth` 等）；禁止 `m0/` 式阶段包。
+- Agent 决定需要语义推理的策略：当前 Target/Gap、Gap 优先级、继续追问或切换、是否查询资料、只读 Tool 的参数和顺序、下一题以及结束建议。
+- Java 只裁决硬边界：权限/归属、Session 与 Turn 合法性、最大轮次、Target 属于 Plan、Tool allowlist/schema/scope、Evidence/ProbeGap/代码 provenance 真实、沙箱隔离、稳定业务幂等和数据库完整性。
+- 资源预算只限制 deadline、token 和调用资源，不得预选 Tool、Gap、调用顺序或维度顺序。
+- 非法提案把明确 rejection observation 返回 Agent；不得静默替换动作、Gap、题目或证据，不得用硬编码兜底问题伪造成功。
 
-## 模型建议，代码裁决
+## Agent Loop 与 Tool
 
-- 状态迁移、轮次上限（1-12）、维度完成、计划轮次分配由代码确定性裁决：`AdaptiveInterviewSession`、`InterviewPlan.decide`、`PlanningTaxonomy.validate`。模型输出一律视为提案。
-- 轮次用尽时把模型的 ASK 强制改写为 FINISH；维度顺序固定，不允许模型跳维度。
-- 角色只有 `PLANNER`（创建时规划，1 步无工具）和 `INTERVIEWER`；评估不是角色，由 application 层显式调 `DepthAssessmentAgent`。
-- 证据必须锚定真实材料：评估 quote 经全半角/空白归一化后命中回答原文，单条不命中丢弃该条而非整轮失败（`AssessmentEvidenceValidator`）；`ProbeGap` 锚点按同一归一化匹配、超 2 条截断而非拒绝；代码出题必须携带命中真实分析产物的 `CodeQuestionProvenance`，否则注入 rejection observation 让模型重写一次，重写仍失败才拒绝。
-- 裁决层（`InterviewPlan.decide`、`DepthAssessmentAgent` 裁决、`ToolGateway`）已校验的提案，下游代码不再重复校验。
+- 面试决策统一进入一个 `InterviewAgentLoop`：读取事实和 Working Memory，调用模型，执行 0..N 个只读 Tool，把 Observation 回给模型，直到得到 ASK 或 FINISH 提案。
+- 不建立通用 Role Registry 或第二套 Agent Loop。Planner、Interviewer、Assessor 是具体模型职责，不是可配置角色平台。
+- 一个能力只有在“是否调用”“关键参数”都需要模型依据当前语义决定，且结果会影响本轮后续决策时，才是 Agent Tool。
+- 固定 Skill 由 ContextAssembler 自动加载；固定 ID 的 Rubric/Session/config 查询是普通服务；`rubric_search`、题库语义搜索和按需 Episode 检索可以是只读 Tool。
+- 只读 Tool 经 `ToolGateway` 做 allowlist、schema、ownership/scope、provenance、deadline 和 dispatch；模型网关不得绕过网关自动注册工具。只读调用不持久化执行状态，也不需要 invocation idempotency。
+- 用户提交代码后的沙箱执行是 Application Service。它不进入通用 Tool executor；`SandboxExecution` 是唯一执行事实源，重投必须复用稳定业务键。
 
-## Runtime 与工具
+## Working Memory 与事实
 
-- ReAct 循环统一走 `BoundedReActRuntime`（`maxSteps`/`maxToolCalls`/`deadline` 三重预算，重复工具调用直接拒绝）；不要在别处自写循环。
-- 工具实现 `AdaptiveAgentTool` 并只能经 `ToolGateway` 执行：角色白名单、参数规范化、幂等 invocationId、结果大小上限都在这里；模型网关（`SpringAiAdaptiveAgentModelGateway`）已关闭 ToolCallingAdvisor，禁止改回自动注册。
-- 新增工具要加进 `AgentRoleRegistry` 的角色白名单才生效。
-- 异步工具（`sandbox_submit`）返回 `PendingToolResult`；结果以 `ToolResultEvent` 落库后由 `handleToolResult` 开启新一轮 ReAct。等待不发生在循环内。
+- 领域事实包括 Session、Plan、Turn、Assessment、ProbeGap、Evidence、Episode 和 SandboxExecution。页面、权限、报告和一致性判断只读取这些事实。
+- Working Memory 只保存当前注意力、工作假设、ProbeGap/Evidence 引用、下一步验证意图和最近 Observation；不得复制问题、回答、正式评级、剩余轮次或执行状态。
+- 一次 Loop 内 Working Memory 可在内存持续更新；最终 Snapshot 与采用的下一 Turn 一起提交，并记录 `basedOnTurnIndex`。崩溃后从最近领域事实和 Snapshot 重新运行。
+- 不为可重算中间推理建立 `WorkState`、Typed Patch、ActionIntent、只读 ToolExecution、ToolResultEvent 或恢复调度。
 
-## 编排与持久化
+## 编排、持久化与并发
 
-- 「外部调用 → 裁决 → 落库」的串联只在 `application` 层（`AdaptiveInterviewApplicationService`、`AdaptiveAlgorithmResultReadyHandler`）。
-- 写库统一走 `AdaptiveInterviewPersistenceService`，短事务 + `@Version` 乐观锁；并发冲突抛业务异常，不自动重试。
-- 全部会话状态/记忆存 PostgreSQL；Redis 只用于异步 Stream（判题、代码分析），生产/消费继承 `AbstractStreamProducer`/`AbstractStreamConsumer`。
-- 公平性：历史能力画像可影响选题，不得影响同一回答的评级（`CandidateMemoryFairnessContractTest` 锁定）。
+- application 层组织“读取事实 → 外部调用 → 硬边界裁决 → 短事务提交”；persistence 只保存事实，不决定下一动作。
+- LLM、MCP、S3、外部 HTTP 和沙箱调用不得进入数据库事务。
+- 同一回答只推进一次，以稳定业务键、必要的条件更新/乐观锁和数据库唯一约束承担 correctness；不得再叠加持久 Intent 或 WorkState revision 保护同一事实。
+- Redis 只承载判题、代码分析等异步 Stream，不是会话或 Working Memory 的事实源。
 
-## 算法判题与代码分析
+## 证据、安全与公平性
 
-- 判题异步链路：提交 → 落库 → Redis Stream 入队 → `SandboxWorker`（唯一实现 `SandboxdClient`，调独立部署的沙箱服务）→ 短事务落结果 → `AlgorithmResultReadyHandler` 唤醒重评估 + 生成追问。
-- verdict 使用既有枚举（AC/WA/CE/TLE/MLE/RE/IE）；迟到结果（`supersededBy` 非空）直接忽略；`TIMEOUT_QUEUED` 不得作为负面证据。
-- 代码分析经 `/internal/code-analysis/jobs` worker 回调；锚点必须命中 `CodeAnchorCatalog`，假锚点拒绝。
-- codeanalysis 与 algorithm 不合并，不引入第二个 Agent loop。
-
-## 配置、MCP 与可观测
-
-- 配置前缀：`app.interview.adaptive-agent`（`AdaptiveAgentProperties`）、`app.interview.algorithm`、`app.interview.code-analysis`；新增配置项加进对应 `@ConfigurationProperties`，不散落 `@Value`。
-- Prompt 模板放 `resources/prompts/adaptive-agent-*.st`。
-- MCP server 用 Spring AI `@McpTool` 暴露；租户凭证/scope/审计走 `McpEndpointCredentialFilter` + `McpScopeGuard` + `AdaptiveMcpAuditService`，不要绕过。
-- 指标走 `AdaptiveAgentTelemetry`/`AlgorithmInterviewTelemetry`/`CodeAnalysisTelemetry`（Micrometer）；失败日志统一 `adaptive_agent_failed phase=model|runtime|persistence|planning|tool` 格式，日志不记录回答原文。
+- Assessment quote、ProbeGap anchor 和代码 provenance 必须命中真实回答、工具结果或分析产物。允许明确且统一的空白/全半角归一化；失败必须显式暴露。
+- `TIMEOUT_QUEUED` 和平台内部错误不得成为候选人负面证据；迟到或已被替代的沙箱结果不得污染当前代码版本。
+- 沙箱隔离、MCP tenant credential/scope/audit、隐藏用例保密和日志脱敏规则不可放宽。
+- 历史 Episode 可用于中性去重或练习；正式 Assessor 不读取历史评级或 Semantic 画像。
 
 ## 测试
 
-- 测试目录镜像主包；`core`/`runtime` 纯单测，编排用 `AdaptiveInterviewFlowIntegrationTest` 式纵切测试。
-- 改包结构或新增子包时同步更新 `AdaptivePackageIsolationTest`。
-- 并发语义（同轮重复提交只推进一次）由 `AdaptiveInterviewConcurrencyIntegrationTest` 锁定，改持久化层后必跑。
+- 必须覆盖：非法 Target/Tool 被拒绝、Observation 回流后的二次模型决策、同轮并发只推进一次、沙箱稳定幂等、Evidence/provenance 真实性、正式评估历史隔离。
+- 删除旧机制时同步删除锁定旧 `WorkState`、Patch、Intent、固定维度顺序和伪 Tool 行为的测试；不得让历史契约测试阻止目标架构落地。

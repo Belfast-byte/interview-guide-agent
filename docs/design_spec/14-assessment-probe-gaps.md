@@ -2,46 +2,50 @@
 
 > 维护：Agent；上游设计决策以 `docs/design/` 为准。
 >
-> 状态：已落地。
+> 状态：现状已落地；目标语义已按 2026-08-29 Working Memory 方向校准。
 > 范围：候选人侧自适应面试的「回答评估 → 下一轮出题」链路，不涉及企业 MCP、租户链路、报告评分体系改造。
 
 ## 1. 目标
 
-当前评估 Agent 与出题 Agent 完全分离：评估只产出 `DepthLevel` 等评级结论，出题 Agent 只能看到回答原文，不知道应该追问哪个具体缺口。本方案在**不把评级结论送给出题 Agent** 的前提下，增加一条中性追问信号：
+ProbeGap 是正式评估确认的“尚缺哪类证据”，不是一次 Prompt 的临时字段。它必须能够被后续多轮选择、关闭和追溯：
 
-- 评级结论继续用于画像、报告和动态轮次裁决；
-- 追问缺口单独传递给同一维度的下一轮 interviewer；
+- 评级结论继续用于画像和报告；
+- ProbeGap 与来源 Assessment/Turn 一起持久化；
+- Agent 从当前会话全部 open Gap 中自主选择下一步关注点；
 - 评估判断以 Skill 知识基线为依据，并用少量 few-shot 校准输出形态。
 
 ## 2. 核心数据模型
 
 ### 2.1 ProbeGap
 
-新增共享值对象 `core/ProbeGap`：
+当前共享值对象只有 `anchor/missingPoint`；目标领域事实至少需要：
 
 ```java
-public record ProbeGap(
-    String anchor,
-    String missingPoint
-) {}
+ProbeGap
+  gapId / sessionId / targetId
+  sourceAssessmentId / sourceTurnIndex
+  anchor / missingPoint
+  closedByAssessmentId? / closureReason?
 ```
 
 约束：
 
 - `anchor`：必须逐字来自本轮候选人回答；
 - `missingPoint`：只描述“回答提到 X，但未说明 Y”，不含评级语言。
+- Gap 创建后保持可追溯；后续 Assessment 明确证明缺口已解决或不再适用时，记录关闭事实。
 
 ### 2.2 AssessmentProposal / AssessmentDecision
 
-各增加一个字段：
+评估输出增加 Gap 创建/关闭提案：
 
 ```java
-List<ProbeGap> probeGaps
+List<ProbeGapProposal> openedGaps
+List<GapClosureProposal> closedGaps
 ```
 
-- 最多 2 条；
-- 可为空，空表示当前回答已有足够追问素材；
-- 本轮不持久化 `probeGaps`，只通过同请求内存链路传给下一题生成。
+- 可为空，空只表示本轮没有新确认的缺口；
+- 不设置“最多 2 条”这类面试策略上限；通用模型输出大小边界仍然有效；
+- 校验通过后与 Assessment/Evidence 同一短事务持久化。
 
 ### 2.3 AssessmentRequest
 
@@ -51,17 +55,17 @@ List<ProbeGap> probeGaps
 String skillReferenceSection
 ```
 
-由当前维度 `suggestedSkill` 动态生成，作为评估 Agent 的知识基线，放入 system prompt。
+由当前 Target 的固定 Skill 自动装配，作为评估 Agent 的知识基线；不通过 Agent Tool 加载。
 
 ### 2.4 InterviewerContext
 
 增加：
 
 ```java
-List<ProbeGap> currentAnswerGaps
+List<ProbeGapView> openGaps
 ```
 
-只允许在当前维度未完成时传递；维度切换后清空。
+ContextAssembler 提供当前 Plan 内全部 open Gap 及其 Evidence 引用。维度切换只改变 Working Memory 的 `activeTargetId/activeGapId`，不删除正式 Gap。
 
 ## 3. 数据流
 
@@ -69,27 +73,30 @@ List<ProbeGap> currentAnswerGaps
 submitAnswer
   ↓
 currentDimension.suggestedSkill
-  → InterviewSkillService.buildEvaluationReferenceSectionSafe(skillId)
+  → InterviewSkillService.getEvaluationReferenceSection(skillId)
   → AssessmentRequest.skillReferenceSection
   ↓
 DepthAssessmentAgent.assess
   → AssessmentDecision {
-      depthLevel / confidence / rationaleSummary / recommendSwitchQuestion,
+      depthLevel / confidence / rationaleSummary,
       evidenceQuotes,
-      probeGaps
+      openedGaps / closedGaps
     }
   ↓
-评级字段 → 持久化 → 画像 / 报告 / replan
-probeGaps → 同维度下一轮 interviewer.currentAnswerGaps
+Assessment / Evidence / ProbeGap → 同一短事务持久化
   ↓
-interviewer 结合 currentDimensionAnswer + currentAnswerGaps 生成追问
+CoverageProjector → 全部合法 Target 和 open Gap
+  ↓
+WorkingMemorySnapshot + InterviewAgentLoop
+  ↓
+Agent 自主选择 Gap、切换 Target、调用只读 Tool或结束
 ```
 
 ## 4. Skill 知识与 few-shot
 
 ### 4.1 Skill reference
 
-`InterviewSkillService.buildEvaluationReferenceSectionSafe(skillId)` 已存在，按 `skill.meta.yml` 的 `ref` 动态加载 references，上限 6000 字符。评估 Prompt 将其作为知识基线，但明确：
+Skill service 按 `skill.meta.yml` 的 `ref` 加载 references。加载失败明确暴露，不使用 `Safe` 方法静默返回空基线。通用 AgentContext/token 边界负责总输入大小，不再为 ProbeGap 单独维护魔法长度。
 
 - references 是知识基线，不是逐字标准答案；
 - 合理方案即使不在 references 中，也不能判错；
@@ -113,7 +120,7 @@ few-shot 只校准输出形态和追问粒度，不承载领域知识。
 
 `adaptive-agent-assessment-system.st` 增加：
 
-- `probeGaps` 最多 2 条；
+- `openedGaps/closedGaps` 必须引用本轮真实事实；
 - `anchor` 必须逐字来自 `answer`；
 - `missingPoint` 只写“回答提到 X，但未说明 Y”；
 - `probeGaps` 不得出现 L0-L4、深浅、好坏、分数等评级语言；
@@ -121,47 +128,47 @@ few-shot 只校准输出形态和追问粒度，不承载领域知识。
 
 ### 5.2 出题 Agent
 
-`adaptive-agent-interviewer-system.st` 增加：
+`adaptive-agent-interviewer-system.st` 提供选择空间：
 
-- `currentAnswerGaps` 存在时优先围绕其中一条 `missingPoint` 追问；
-- 必须结合 `currentAnswer` 中的 `anchor` 发问；
-- 将 `missingPoint` 转成自然问题，不出现“缺口、未说明、评级”等词；
-- `currentAnswerGaps` 为空时沿用原规则自行判断。
+- 展示当前 Plan/Coverage 中全部合法 open Gap，而不是只给 Java 预选的一条；
+- Agent 自行决定当前 Gap、继续深挖或切换 Target；
+- 选用某 Gap 时，问题必须能追溯到它的 `anchor/Evidence`；
+- Agent 可以不选任何 Gap，按当前事实调用只读 Tool 或建议结束。
 
 ## 6. 代码校验
 
 模型输出只做结构校验，不做领域关键词硬编码：
 
 ```text
-probeGaps == null 或 size > 2            → AI_SERVICE_ERROR
-anchor 为空 / 长度 > 80                  → AI_SERVICE_ERROR
-missingPoint 为空 / 长度 > 120           → AI_SERVICE_ERROR
-answer 不包含 anchor                     → AI_SERVICE_ERROR
+anchor 为空或 answer 不包含 anchor        → validation observation
+missingPoint 为空                         → validation observation
+closedGapId 不属于本 Session/Plan         → validation observation
+整体输出超过统一 schema/token 边界         → 明确失败
 ```
 
 ## 7. 公平性边界
 
-允许进入 interviewer：
+允许进入本次 InterviewAgentLoop：
 
 - `currentAnswer`
-- `currentAnswerGaps`
+- 本场 Assessment / Evidence / 全部 open ProbeGap
+- 上一份 Working Memory Snapshot
 
-禁止进入 interviewer：
+禁止进入本轮 Assessor：
 
-- `depthLevel`
-- `confidence`
-- `rationaleSummary`
-- `recommendSwitchQuestion`
-- `evidenceQuotes`
+- 跨会话历史评级；
+- Semantic 能力画像；
+- 上一轮 Agent 的未验证 Working Hypothesis。
 
-该边界由 `CandidateMemoryFairnessContractTest` 和上下文装配测试共同锁定。
+公平性保护的是“本轮评分不被历史结论污染”，不是禁止 Interview Agent 读取本场已确认事实。该边界由 `CandidateMemoryFairnessContractTest` 和上下文装配测试共同锁定。
 
 ## 8. 落地清单
 
 ```text
-新增：
-  app/src/main/java/interview/guide/modules/interview/agent/adaptive/core/ProbeGap.java
-  app/src/main/resources/prompts/adaptive-agent-assessment-agents.md
+演进：
+  ProbeGap value object → 带来源与关闭事实的持久领域模型
+  InterviewerContext.currentAnswerGaps → AgentContext.openProbeGaps
+  Turn source gap 唯一约束 → 仅保留外键
 
 修改：
   assessment/AssessmentRequest.java
@@ -171,7 +178,7 @@ answer 不包含 anchor                     → AI_SERVICE_ERROR
   assessment/SpringAiAssessmentProposalGenerator.java
   application/AdaptiveAgentProperties.java
   application/AdaptiveInterviewApplicationService.java
-  core/InterviewerContext.java
+  core/context/AgentContext.java
   memory/ContextAssembler.java
   resources/prompts/adaptive-agent-assessment-system.st
   resources/prompts/adaptive-agent-interviewer-system.st
@@ -180,7 +187,9 @@ answer 不包含 anchor                     → AI_SERVICE_ERROR
 ## 9. 成功标准
 
 1. “只说名词”的回答能产出锚定原文的 `probeGaps`；
-2. 下一轮 interviewer prompt 包含 `currentAnswerGaps`，但不包含评级字段；
-3. 评级、画像、报告链路行为不变；
-4. `./gradlew :app:test --no-daemon` 全绿；
-5. 前端构建不受影响。
+2. ProbeGap 与来源 Assessment/Turn 一起持久化，并能明确关闭；
+3. CoverageProjector 能返回当前 Plan 内全部 open Gap；
+4. Working Memory 只保存 activeGapId、临时优先级和假设，不复制 Gap 正文；
+5. Agent 可以选择任一合法 Gap，也可以切换 Target；Java 不固定优先级；
+6. 历史评级与 Semantic 画像仍不进入本轮 Assessor；
+7. `./gradlew :app:test --no-daemon` 全绿，前端构建不受影响。

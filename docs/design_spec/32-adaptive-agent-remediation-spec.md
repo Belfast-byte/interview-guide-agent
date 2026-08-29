@@ -7,6 +7,8 @@
 > 权威输入：2026-08-22 全包代码分析（core/runtime/role/planning/assessment/tool/mcp/memory/persistence/algorithm/codeanalysis/observability/api 十四个子包逐一排查）、[30-improvement-spec-2026-08-16.md](./30-improvement-spec-2026-08-16.md)、[20-implementation-modules.md](./20-implementation-modules.md)
 >
 > 最后更新：2026-08-22
+>
+> **历史记录声明（2026-08-29）**：本文只记录 2026-08-22 当时完成的治理与提交，不再是当前 Agent 架构约束。T-2/T-3 中固定重写次数、截断、确定性维度策略、FINISH 门槛、Role Registry、Tool 持久幂等和 ToolResultEvent 恢复均不得继续据此实现；当前边界以 [36-agent-loop-working-memory-spec.md](./36-agent-loop-working-memory-spec.md) 为准。权限、证据真实性、沙箱安全和数据库并发约束继续有效。
 
 ## 1. 文档目的
 
@@ -19,10 +21,10 @@
 - T-6 对齐 IM-11（上下文压缩）的首题链路部分；
 - 30 号 spec 其余条目（IM-3/4/8/9/10/12）不在本 spec 范围。
 
-## 2. 全局约束（所有票必须遵守）
+## 2. 当时的执行约束（历史）
 
-1. 遵守 AGENTS.md 与 `.claude/rules/backend.md`、`.claude/rules/interview-agent.md`：模型建议代码裁决、外部调用不进事务、写库走 `AdaptiveInterviewPersistenceService`、不吞错误、最小改动。
-2. 「硬约束保留、终局软化」是本 spec 的核心立场：约束数值（轮次上限、白名单、预算）不动，失败语义从「整场报废」改为「降级/截断/重试注入」。
+1. 外部调用不进事务、不吞错误、最小改动仍有效；“所有写库必须经过一个 `AdaptiveInterviewPersistenceService`”和“模型只建议、Java 决定策略”已失效。
+2. 当前只保留权限、最大轮次、Plan 成员关系、Tool 安全、证据真实性和数据库完整性等硬边界。本文当时采用的静默降级、截断和固定重试次数不得作为新实现依据。
 3. 每票完成定义 = `./gradlew :app:compileJava` 通过 + 相关测试全绿 + 验收标准逐条可演示；前端相关票额外要求 `cd frontend && pnpm run build` 通过。
 4. 删除死代码时连同其专属测试一起删；放宽约束时注意反射契约测试（`PlanningContractTest`、`DepthAssessmentAgentTest:17-31`）与 SQL 正则契约测试（`AssessmentFoundationContractTest`）的连带修改。
 

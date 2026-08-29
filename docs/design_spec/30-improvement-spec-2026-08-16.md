@@ -2,11 +2,13 @@
 
 > 维护：Agent；上游设计决策以 `docs/design/` 为准。
 >
-> 状态：实施基线
+> 状态：历史实施基线；Agent 策略与恢复机制不得继续按本文实现
 >
 > 权威输入：2026-08-16 综合审查结论（原报告已移除，下称“评审”）、[13-adaptive-optimization.md](./13-adaptive-optimization.md)、[20-implementation-modules.md](./20-implementation-modules.md)
 >
-> 最后更新：2026-08-16
+> 最后更新：2026-08-29
+>
+> 2026-08-29 校准：本文保留当时的问题证据和非 Agent 治理项。IM-2 的确定性 replan、ToolResultEvent、完整模型中间态持久化以及任何与 [36-agent-loop-working-memory-spec.md](./36-agent-loop-working-memory-spec.md) 冲突的方案均已失效。
 
 ## 1. 文档目的
 
@@ -19,7 +21,7 @@
 
 ## 2. 全局约束(所有改进项必须遵守)
 
-1. 沿用 20 号文 §2 的 7 条业务不变量,特别是:模型建议代码裁决、编排器唯一状态修改者、外部调用不进事务、证据不可后置。
+1. 沿用 20/36 号文边界：模型决定面试语义策略，Java 只裁决硬边界；只有 application 短事务修改领域事实；外部调用不进事务；用户可见事实和证据不可后置。
 2. 新增持久化一律 Flyway 迁移 + 短事务写入服务;禁止 Agent/Controller/Tool 直接写业务状态。
 3. 观测数据不得记录回答/代码等敏感原文(评审 §三.2 的"黑匣子"是唯一例外,见 IM-3 的脱敏与边界约定)。
 4. 每个改进项的完成定义 = 编译通过 + 新增/相关测试全绿 + 验收标准逐条可演示。
@@ -30,7 +32,7 @@
 | ID | 改进项 | 来源 | 优先级 | 依赖 | 预估 |
 |---|---|---|---|---|---|
 | IM-1 | 降级保护包(SAMPLE 空回答 / 小结与 claim 失败降级 / quote 与 probeGap 修复重试) | 评审 §1.2、§2.2-11 | P0 | 无 | 1~2 天 |
-| IM-2 | 评估驱动编排:`recommendSwitchQuestion` 消费 + `InterviewPlan.replan` + L4 文案修复 | 评审 §1.1;13 号文 §2 | P1 | IM-1 | 1~2 周 |
+| IM-2 | ~~确定性评估驱动 replan~~ → 被 36 号 Agent 策略取代 | 评审 §1.1；13/36 号文 | 已取代 | IM-1 | 不执行旧方案 |
 | IM-3 | 模型调用黑匣子 `agent_model_calls` + prompt 版本 hash | 评审 §三.1/2/3 | P1 | 无 | 1 周 |
 | IM-4 | 黄金场景离线评测 harness + CI 门禁 | 评审 §三.1 | P1 | IM-3 | 1~2 周 |
 | IM-5 | 答题异步化 + 进度推送(消除 45s/90s 超时错配) | 评审 §1.2、§三.4 | P1 | 无 | 1~2 周 |
@@ -60,7 +62,7 @@
 
 1. **SAMPLE 空回答保护**:`reassessAlgorithmResult` 入口校验 `turn.answer() == null` 时跳过重评,仅挂工具证据(证据链不断,评级等回答到达后的正常评估)。拒绝"吞异常"姿势——这是显式分支,不是 catch。
 2. **小结/claim 失败降级**:两者是"可后置"的导航/记忆产物(20 号文 §2.3 只要求证据不可后置),失败时记 warn + telemetry(`brief.degraded`/`claim.degraded` counter),本轮以 `dimensionBrief = null` / `claims = List.of()` 继续推进。**评估(depth)不降级**,仍快速失败——它是证据链的一部分。
-3. **quote/probeGap 修复重试**:在评估生成链路加一次"带错误反馈的修复重试"(复用 `StructuredOutputInvoker` 的 repair prompt 机制,把校验失败原因回灌),重试后仍失败:probeGaps 降级为丢弃非法条目 + warn(gap 是可选素材);quote 仍快速失败(证据不可后置)。probeGaps 校验逻辑改为"sanitize 返回合法子集",不再抛异常。
+3. **quote/probeGap 校验反馈**：把明确校验原因返回产生提案的模型重新生成；耗尽已有调用预算后显式失败。不得静默丢弃、截断 Gap 或伪造 Evidence。
 
 ### 改动点
 
@@ -80,46 +82,15 @@
 
 - 三个场景各自的失败路径单测(中文 @DisplayName);
 - 保留既有"评估模型失败时不推进状态"语义不变;
-- probeGaps sanitize 的边界用例(null、超长、锚点不在原文、超 2 条截断)。
+- ProbeGap 的 null、schema、锚点真实性和总体 payload 边界；不再测试“超 2 条截断”。
 
 ---
 
-## IM-2 评估驱动编排(P1,1~2 周,依赖 IM-1)
+## IM-2 Agent 决策通道（旧确定性 replan 已取代）
 
-### 背景与证据
+问题证据仍成立：`recommendSwitchQuestion` 没有消费者，静态 Plan 无法表达真正的语义自适应。但解决方案不再是在 Java 中增加 L0/L4、置信度、每维度题数和固定覆盖顺序。
 
-评审 §1.1:`recommendSwitchQuestion` 已计算、校验、落库(`persistence/assessment/AdaptiveAgentAssessmentEntity.java:72`)但零消费方;`planning/InterviewPlan.decide()` 一次性静态分配;`assessment/depth/DepthLevel.java:30` L4 文案与状态机矛盾。13 号文 §2(M-B)已有 replan 设计,本项按该设计执行,不重新发明。
-
-### 方案
-
-1. `InterviewPlan` 增加 `replan(当前评估结论) → 调整后计划`:纯领域函数,输入各维度最新评估与剩余轮次,输出轮次再分配;所有边界由代码强制(总轮次硬上限不变、每维度至少 1 轮、已用轮次不可回收)。
-2. 编排器在 `submitAnswer` 评估完成后消费 `recommendSwitchQuestion` 与 depthLevel:
-   - L0 且 recommendSwitch → 换题不换维(同维度内改 focus);
-   - L3+ 且维度证据充分 → 提前收维度,结余轮次按规则分配给弱维度;
-   - 裁决规则写在 core/planning,不写进 prompt。
-3. 修 `DepthLevel.java:30` L4 文案,与新的提前完成路径对齐。
-4. 持久化:计划调整记录落库(`agent_plans` 已有,增加调整历史或版本列,迁移脚本),保证可回放"为什么这一轮换了方向"。
-
-### 改动点
-
-- `planning/InterviewPlan.java`、`planning/PlannedDimension.java`(replan 领域逻辑);
-- `application/AdaptiveInterviewApplicationService.java`(消费评估结论);
-- `assessment/depth/DepthLevel.java`(文案);
-- `persistence/plan/` + 新迁移(调整历史);
-- 面试官上下文:`InterviewerContext` 增加"本维度剩余轮次/提前收口"信号(若 13 号文要求)。
-
-### 验收标准
-
-- 桩模型恒返回 L4 + recommendSwitch 时,面试在少于静态分配轮次内完成且覆盖全部维度;
-- 桩模型恒返回 L0 时,同维度换题且总轮次不超硬上限;
-- 每次 replan 可在 DB 中读到调整前后计划与触发依据;
-- 既有"覆盖前禁 FINISH""轮次上限强制 FINISH"测试保持绿。
-
-### 测试要求
-
-- `InterviewPlanTest` 增加 replan 规则矩阵(提前收口、换题、预算耗尽、边界);
-- 端到端:L4 提前完成 / L0 换题两条黄金路径;
-- 该功能是"自适应"的立身之本,合并前必须能用 IM-4 的黄金集跑通(若 IM-4 未就绪,至少手工回放 3 场标注会话)。
+当前方案是：Plan 保持不可变；Coverage 从 Turn/Assessment/ProbeGap/Evidence 推导；InterviewAgentLoop 读取全部合法 Target/Gap，自主决定深挖、切换或结束。Java 只校验 Plan 成员关系、最大轮次和证据/Tool 安全边界。详细改动和测试以 36 号规格为准。
 
 ---
 
@@ -220,7 +191,7 @@
 
 ### 内容与改动点
 
-1. **handleToolResult 预留泄漏**(评审 §2.2-5):`AdaptiveInterviewApplicationService.java:412-455` catch 放宽到 RuntimeException,或预留记录状态机化(RESERVED/FAILED 可重试);补"失败后可重试"测试。
+1. **ToolResult 两阶段窗口**：删除 reserve/complete 状态机；SandboxExecution 终态、唯一 Evidence 和 `consumedAt` 在一个事务提交，PENDING 重投复用同一 executionId。
 2. **限流头伪造**(评审 §2.2-6):`common/aspect/RateLimitAspect.java:215-242` 增加 `trusted-proxies` 配置,仅在可信代理后取 XFF;`X-User-Id` 只认认证过滤器的 request attribute,删除 header 回退;补伪造头绕过测试。
 3. **代码分析 Job 状态机守卫**(评审 §2.2-7):`codeanalysis/job/AnalysisJobEntity.java:73-95` complete/markRunning/fail/timeout 加合法迁移校验;FAILED/TIMED_OUT 的 job 允许重新投递(新建或重置重投);补迟到回调翻转测试。
 4. **pending_rejudge 重判回填**(评审 §2.2-8):补消费方——调度器扫描 `pendingRejudge=true` 且超稳定期的执行重新投递判题(有上限与退避);或若决定不做,在 11 号文降级该承诺。二选一,不留半成品。
@@ -235,7 +206,7 @@
 
 评审 §2.1:MCP 能 `createForTenant` 创建会话,但所有写路径 `findByIdAndTenantIdIsNull`,租户会话无法推进。二选一:
 
-- **方案 A(打通)**:写路径(recordDecision/reserveToolResultEvent/replaceInitialPlan/toolResultFollowUps)按租户维度查询,与 `getForTenant` 对称;补租户端到端测试。约 2 天。
+- **方案 A(打通)**：所有领域事实写入和只读 Tool scope 查询都按租户 ownership；删除旧 reserveToolResultEvent/toolResultFollowUps 路径。补租户端到端测试。
 - **方案 B(移除)**:`createForTenant` 下线,MCP 暂不暴露创建;文档标注租户链路待企业侧立项。约 0.5 天。
 
 禁止维持现状(半链路是最差状态)。无论选哪个,先用一个测试钉住选定行为。
@@ -260,7 +231,7 @@ Spec 只锁验收,不锁方案:
 
 ### 方案
 
-1. `DELETE /api/adaptive-agent-interviews/candidates/{candidateId}`(或管理侧入口):按外键级联删除 sessions → turns/assessments/evidences/tool_calls/tool_result_events → plans → memory claims/topics → ability profiles → practice records → IM-3 的黑匣子记录。先按外键关系梳理删除顺序,写迁移补充缺失的级联或索引。
+1. `DELETE /api/adaptive-agent-interviews/candidates/{candidateId}`（或管理侧入口）：按外键级联删除 Session/Turn/Assessment/Evidence/Plan/Working Memory Snapshot/Episode/SemanticContribution/SandboxExecution 和合规审计记录；不再把只读 Tool 调用当业务数据。
 2. 进行中会话 TTL:超过 N 天(建议 7 天)未推进的 IN_PROGRESS 会话定时回收(状态置 EXPIRED 或删除,与产品确认)。
 3. 删除动作写审计(谁、何时、删了什么范围),不存原文。
 
@@ -282,7 +253,7 @@ Spec 只锁验收,不锁方案:
 
 评审 §三.3/5:JD/简历/项目上下文每轮全文重复注入,12k 预算 fail-fast;无会话级成本。
 
-1. **压缩**:`ContextAssembler` 对 JD/简历做一次性摘要(会话创建时,LLM 一次,缓存进会话),轮次注入摘要而非全文;项目上下文按当前维度 focus 过滤 claim/scenario。压缩产物只是导航,报告/证据仍引用原文(不变量 3)。
+1. **压缩**：ContextAssembler 可对大输入建立显式导航摘要，但 AgentContext 必须包含全部合法 Coverage/Gap 的索引，不得因 Java 预选“当前维度”隐藏其他合法 Target。报告/证据仍引用原文。
 2. **会话级成本护栏**:`agent_sessions` 加累计 token 列(从 IM-3 黑匣子聚合),超阈值拒绝新轮次并返回明确错误;Redis 按 candidateId 日配额(复用现有限流设施)。
 3. **并发准入**:照抄 voice 模块 Semaphore 模式,配 `maxConcurrentSessions`。
 
@@ -298,8 +269,8 @@ Spec 只锁验收,不锁方案:
 评审 §1.2:`PracticeStatus.COMPLETED` 无流转入口,练习推荐是断头路。
 
 1. 练习完成入口(前端练习记录页 + 后端状态流转),`practice_records` 状态机补全;
-2. 复测降权:planning 读取已完成练习的维度,降低该维度优先级/轮次倾斜(接 IM-2 的 replan 规则);
-3. 验收:面试 → 推荐 → 练习 → 完成 → 复测降权全链路可走通,有端到端测试。
+2. 复测时把用户 scope 内的 Semantic planning view 交给 Planner，优先级由模型决定，Java 不扩大 scope；
+3. 验收：面试 → 推荐 → 练习 → 完成 → 复测计划全链路可走通，有端到端测试。
 
 ---
 

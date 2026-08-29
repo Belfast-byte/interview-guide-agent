@@ -1,6 +1,8 @@
 # 三层记忆设计
 
 > 状态：当前架构裁决。本文只描述职责和边界，具体模型、存储与实现由 Agent 在 `design_spec` 中维护。
+>
+> 更新说明（2026-08-29）：Working Memory 的最新定义见 [面试 Agent 的运行方式](./03-agent-loop-and-working-memory.md)。本文第 1、4、5 节中关于持久 WorkState、结构化 Patch、动作意图和“Java 决定下一动作”的内容已被替代；Episodic/Semantic Memory、正式评估公平性和历史隔离边界继续有效。
 
 记忆分为三层，分别回答三个问题：
 

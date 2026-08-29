@@ -9,6 +9,8 @@
 > 领域术语：[AI Interview Platform](./00-terminology.md)
 >
 > 最后更新：2026-08-11
+>
+> 更新说明（2026-08-29）：Agent 的策略控制、Tool 准入和 Working Memory 边界已由 [面试 Agent 的运行方式](./03-agent-loop-and-working-memory.md) 更新。与本文“Java 确定性状态机决定面试策略”冲突的部分，以新文档为准；权限、证据、预算、沙箱和数据完整性约束继续有效。
 
 ## 1. 目标与定位
 
@@ -315,7 +317,7 @@ MCP 集成放在多 Agent 拆分**之后**。理由：MCP 对接的是稳定的�
 | L1 短期记忆 | 单场面试会话 | 轮次记录、评估结果、证据、维度小结、会话状态机 | `interview_turns` / `assessments` / `evidences` 等表（第 8 节） |
 | L2 长期记忆 | 跨会话 | 候选人能力画像、练习记录、企业侧量规校准数据 | 结构化画像表 + pgvector 语义索引 |
 
-> 注：自适应面试 Agent 的 **Working / Episodic / Semantic** 目标技术规格见 [34-memory-three-layer-spec.md](../design_spec/34-memory-three-layer-spec.md) v4；其中已单列当前代码事实与替换边界。
+> 注：Agent Loop 与 Working Memory 的目标规格见 [36-agent-loop-working-memory-spec.md](../design_spec/36-agent-loop-working-memory-spec.md)；Episodic/Semantic 目标见 [34-memory-three-layer-spec.md](../design_spec/34-memory-three-layer-spec.md) v5。
 
 ### 7.3 L0：工作上下文装配
 
