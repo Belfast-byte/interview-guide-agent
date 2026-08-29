@@ -5,7 +5,6 @@ import static interview.guide.modules.interview.agent.adaptive.support.AdaptiveT
 
 import static org.assertj.core.api.Assertions.assertThat;
 
-import interview.guide.modules.interview.agent.adaptive.algorithm.judge.AlgorithmResultReadyHandler;
 import interview.guide.modules.interview.agent.adaptive.algorithm.sandbox.CreateSandboxExecution;
 import interview.guide.modules.interview.agent.adaptive.algorithm.sandbox.SandboxExecutionEntity;
 import interview.guide.modules.interview.agent.adaptive.algorithm.sandbox.SandboxExecutionResult;
@@ -41,33 +40,29 @@ class JpaAlgorithmResultReadyDeliveryStoreIntegrationTest {
   private EntityManager entityManager;
 
   @Test
-  @DisplayName("终态且已过稳定期、会话进行中、无唤醒事件的执行需要补偿重投")
-  void shouldFindSettledUndeliveredExecution() {
+  @DisplayName("终态且已过稳定期、会话进行中、未消费的执行需要补偿")
+  void shouldFindSettledUnconsumedExecution() {
     persistSession("session-1", AdaptiveSessionStatus.IN_PROGRESS);
     String doneId = persistDoneExecution("session-1", "execution-done");
     String timeoutId = persistQueuedTimeoutExecution("session-1", "execution-timeout");
 
-    List<String> undelivered = store.findUndeliveredBefore(
-        AlgorithmResultReadyHandler.SANDBOX_SUBMIT_TOOL_NAME,
-        LocalDateTime.now().plusSeconds(1)
-    );
+    List<String> undelivered = store.findUnconsumedBefore(LocalDateTime.now().plusSeconds(1));
 
     assertThat(undelivered).containsExactlyInAnyOrder(doneId, timeoutId);
   }
 
   @Test
-  @DisplayName("已有唤醒事件的执行不会重复补偿")
-  void shouldSkipAlreadyDeliveredExecution() {
+  @DisplayName("已消费的执行不会重复补偿")
+  void shouldSkipConsumedExecution() {
     persistSession("session-1", AdaptiveSessionStatus.IN_PROGRESS);
-    String doneId = persistDoneExecution("session-1", "execution-done");
-    insertToolResultEvent("session-1", "execution-done");
+    SandboxExecutionEntity execution = doneExecution("session-1", "execution-done");
+    execution.markConsumed();
+    persistExecution(execution);
+    backdateFinishedAt("execution-done");
 
-    List<String> undelivered = store.findUndeliveredBefore(
-        AlgorithmResultReadyHandler.SANDBOX_SUBMIT_TOOL_NAME,
-        LocalDateTime.now().plusSeconds(1)
-    );
+    List<String> undelivered = store.findUnconsumedBefore(LocalDateTime.now().plusSeconds(1));
 
-    assertThat(undelivered).doesNotContain(doneId);
+    assertThat(undelivered).doesNotContain("execution-done");
   }
 
   @Test
@@ -76,29 +71,23 @@ class JpaAlgorithmResultReadyDeliveryStoreIntegrationTest {
     persistSession("session-1", AdaptiveSessionStatus.COMPLETED);
     persistDoneExecution("session-1", "execution-done");
 
-    List<String> undelivered = store.findUndeliveredBefore(
-        AlgorithmResultReadyHandler.SANDBOX_SUBMIT_TOOL_NAME,
-        LocalDateTime.now().plusSeconds(1)
-    );
+    List<String> undelivered = store.findUnconsumedBefore(LocalDateTime.now().plusSeconds(1));
 
     assertThat(undelivered).isEmpty();
   }
 
   @Test
-  @DisplayName("过期提交不进入补偿重投")
-  void shouldSkipSupersededExecution() {
+  @DisplayName("过期提交仍进入补偿消费以明确结束处理")
+  void shouldIncludeSupersededExecution() {
     persistSession("session-1", AdaptiveSessionStatus.IN_PROGRESS);
     SandboxExecutionEntity execution = doneExecution("session-1", "execution-stale");
     execution.supersedeWith("execution-newer");
     persistExecution(execution);
     backdateFinishedAt("execution-stale");
 
-    List<String> undelivered = store.findUndeliveredBefore(
-        AlgorithmResultReadyHandler.SANDBOX_SUBMIT_TOOL_NAME,
-        LocalDateTime.now().plusSeconds(1)
-    );
+    List<String> undelivered = store.findUnconsumedBefore(LocalDateTime.now().plusSeconds(1));
 
-    assertThat(undelivered).isEmpty();
+    assertThat(undelivered).containsExactly("execution-stale");
   }
 
   @Test
@@ -108,10 +97,7 @@ class JpaAlgorithmResultReadyDeliveryStoreIntegrationTest {
     SandboxExecutionEntity fresh = doneExecution("session-1", "execution-fresh");
     persistExecution(fresh);
 
-    List<String> undelivered = store.findUndeliveredBefore(
-        AlgorithmResultReadyHandler.SANDBOX_SUBMIT_TOOL_NAME,
-        LocalDateTime.now().minusSeconds(60)
-    );
+    List<String> undelivered = store.findUnconsumedBefore(LocalDateTime.now().minusSeconds(60));
 
     assertThat(undelivered).doesNotContain("execution-fresh");
   }
@@ -215,17 +201,4 @@ class JpaAlgorithmResultReadyDeliveryStoreIntegrationTest {
     entityManager.flush();
   }
 
-  private void insertToolResultEvent(String sessionId, String executionId) {
-    entityManager.createNativeQuery("""
-        insert into agent_tool_result_events
-          (session_id, turn_index, tool_name, result_id, result_summary, result_output, status, created_at)
-        values (:sessionId, 1, :toolName, :resultId, 'summary', 'output', 'RECEIVED', :createdAt)
-        """)
-        .setParameter("sessionId", sessionId)
-        .setParameter("toolName", AlgorithmResultReadyHandler.SANDBOX_SUBMIT_TOOL_NAME)
-        .setParameter("resultId", executionId)
-        .setParameter("createdAt", LocalDateTime.now())
-        .executeUpdate();
-    entityManager.flush();
-  }
 }

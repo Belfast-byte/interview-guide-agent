@@ -96,6 +96,9 @@ public class SandboxExecutionEntity {
   @Column(name = "finished_at")
   private LocalDateTime finishedAt;
 
+  @Column(name = "consumed_at")
+  private LocalDateTime consumedAt;
+
   protected SandboxExecutionEntity() {}
 
   public SandboxExecutionEntity(
@@ -143,6 +146,21 @@ public class SandboxExecutionEntity {
   public boolean isTerminal() {
     return status == SandboxExecutionStatus.DONE
         || status == SandboxExecutionStatus.TIMEOUT_QUEUED;
+  }
+
+  public boolean markConsumed() {
+    if (!isTerminal()) {
+      throw new IllegalStateException("只能消费终态沙箱执行");
+    }
+    if (consumedAt != null) {
+      return false;
+    }
+    consumedAt = LocalDateTime.now();
+    return true;
+  }
+
+  public LocalDateTime consumedAt() {
+    return consumedAt;
   }
 
   public void apply(SandboxExecutionResult result) {

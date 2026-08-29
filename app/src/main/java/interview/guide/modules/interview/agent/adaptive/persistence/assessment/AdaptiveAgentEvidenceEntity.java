@@ -15,6 +15,7 @@ import jakarta.persistence.JoinColumn;
 import jakarta.persistence.ManyToOne;
 import jakarta.persistence.PrePersist;
 import jakarta.persistence.Table;
+import jakarta.persistence.UniqueConstraint;
 import java.time.LocalDateTime;
 import java.util.Optional;
 
@@ -22,7 +23,13 @@ import java.util.Optional;
  * AdaptiveAgentEvidenceEntity JPA 实体，对应数据库中的相关表。
  */
 @Entity
-@Table(name = "agent_evidences")
+@Table(
+    name = "agent_evidences",
+    uniqueConstraints = @UniqueConstraint(
+        name = "uk_agent_evidence_sandbox_execution",
+        columnNames = "sandbox_execution_id"
+    )
+)
 public class AdaptiveAgentEvidenceEntity {
 
   @Id

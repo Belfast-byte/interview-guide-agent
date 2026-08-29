@@ -11,12 +11,12 @@ import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
 
 /**
- * 算法队列超时与结果就绪对账调度器：
+ * 算法队列超时与 Evidence 消费对账调度器：
  * <ul>
  *   <li>回收 PENDING 超龄任务并降级唤醒编排器；</li>
  *   <li>回收 RUNNING 超龄任务（消费者在 markRunning 后崩溃会遗留 RUNNING 卡死记录），
  *       标记基础设施失败并降级唤醒；</li>
- *   <li>补偿“判题已落库但唤醒未送达”的执行（resultReadyHandler 抛异常后消息被 ACK 丢弃的路径）。</li>
+ *   <li>补偿“判题已落库但 Evidence 未消费”的执行。</li>
  * </ul>
  */
 @Slf4j
@@ -57,10 +57,7 @@ class AlgorithmQueueTimeoutScheduler {
     LocalDateTime settledBefore = LocalDateTime.now().minus(
         properties.getResultReadyRedeliveryGrace()
     );
-    resultReadyDeliveryStore.findUndeliveredBefore(
-        AlgorithmResultReadyHandler.SANDBOX_SUBMIT_TOOL_NAME,
-        settledBefore
-    ).forEach(executionId -> {
+    resultReadyDeliveryStore.findUnconsumedBefore(settledBefore).forEach(executionId -> {
       try {
         telemetry.resultReadyRedelivered();
         resultReadyHandler.handle(persistenceService.getExecution(executionId));

@@ -2,7 +2,6 @@ package interview.guide.modules.interview.agent.adaptive.algorithm.judge;
 
 import static org.assertj.core.api.Assertions.assertThatCode;
 import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
@@ -128,10 +127,8 @@ class AlgorithmQueueTimeoutSchedulerTest {
     @DisplayName("判题已落库但唤醒未送达的执行被补偿重投")
     void shouldRedeliverUndeliveredResultReadyEvent() {
       SandboxExecution execution = execution("execution-1", SandboxExecutionStatus.DONE);
-      when(resultReadyDeliveryStore.findUndeliveredBefore(
-          eq(AlgorithmResultReadyHandler.SANDBOX_SUBMIT_TOOL_NAME),
-          any()
-      )).thenReturn(List.of("execution-1"));
+      when(resultReadyDeliveryStore.findUnconsumedBefore(any()))
+          .thenReturn(List.of("execution-1"));
       when(persistenceService.getExecution("execution-1")).thenReturn(execution);
 
       scheduler.redeliverMissingResultReadyEvents();
@@ -143,10 +140,7 @@ class AlgorithmQueueTimeoutSchedulerTest {
     @Test
     @DisplayName("已送达的执行不会被补偿重复唤醒")
     void shouldSkipAlreadyDeliveredExecution() {
-      when(resultReadyDeliveryStore.findUndeliveredBefore(
-          eq(AlgorithmResultReadyHandler.SANDBOX_SUBMIT_TOOL_NAME),
-          any()
-      )).thenReturn(List.of());
+      when(resultReadyDeliveryStore.findUnconsumedBefore(any())).thenReturn(List.of());
 
       scheduler.redeliverMissingResultReadyEvents();
 
@@ -158,10 +152,8 @@ class AlgorithmQueueTimeoutSchedulerTest {
     void shouldContinueRedeliveryBatchWhenSingleFails() {
       SandboxExecution first = execution("execution-1", SandboxExecutionStatus.DONE);
       SandboxExecution second = execution("execution-2", SandboxExecutionStatus.DONE);
-      when(resultReadyDeliveryStore.findUndeliveredBefore(
-          eq(AlgorithmResultReadyHandler.SANDBOX_SUBMIT_TOOL_NAME),
-          any()
-      )).thenReturn(List.of("execution-1", "execution-2"));
+      when(resultReadyDeliveryStore.findUnconsumedBefore(any()))
+          .thenReturn(List.of("execution-1", "execution-2"));
       when(persistenceService.getExecution("execution-1")).thenReturn(first);
       when(persistenceService.getExecution("execution-2")).thenReturn(second);
       doThrow(new IllegalStateException("唤醒失败")).doNothing().when(resultReadyHandler)

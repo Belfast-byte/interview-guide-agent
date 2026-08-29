@@ -7,7 +7,5 @@ import interview.guide.modules.interview.agent.adaptive.algorithm.sandbox.Sandbo
  */
 public interface AlgorithmResultReadyHandler {
 
-  String SANDBOX_SUBMIT_TOOL_NAME = "sandbox_submit";
-
   void handle(SandboxExecution execution);
 }
