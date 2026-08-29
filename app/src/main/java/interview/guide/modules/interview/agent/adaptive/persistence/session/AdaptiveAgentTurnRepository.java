@@ -2,6 +2,8 @@ package interview.guide.modules.interview.agent.adaptive.persistence.session;
 
 import java.util.List;
 import java.util.Optional;
+import jakarta.persistence.LockModeType;
+import org.springframework.data.jpa.repository.Lock;
 import org.springframework.data.jpa.repository.JpaRepository;
 
 /**
@@ -15,5 +17,14 @@ public interface AdaptiveAgentTurnRepository
       int turnIndex
   );
 
+  @Lock(LockModeType.PESSIMISTIC_WRITE)
+  Optional<AdaptiveAgentTurnEntity> findLockedBySessionIdAndTurnIndex(
+      String sessionId,
+      int turnIndex
+  );
+
   List<AdaptiveAgentTurnEntity> findBySessionIdOrderByTurnIndex(String sessionId);
+
+  Optional<AdaptiveAgentTurnEntity>
+      findFirstBySessionIdAndWorkingMemoryIsNotNullOrderByTurnIndexDesc(String sessionId);
 }

@@ -108,6 +108,7 @@ public class AdaptiveInterviewApplicationService {
   private final AdaptiveInterviewAnswerExecutor answerExecutor;
   private final AdaptiveInterviewCreationService creationService;
   private final AdaptiveAgentProperties properties;
+  private final AdaptiveAnswerProgressionService answerProgressionService;
 
   public PlannedInterview createForCandidate(CandidateInterviewCreationCommand command) {
     return create(resolveCandidateInput(command));
@@ -326,53 +327,23 @@ public class AdaptiveInterviewApplicationService {
 
   private PlannedInterview submitAnswer(AnswerSubmissionInput input) {
     String sessionId = input.sessionId();
-    CandidateAnswer answer = input.answer();
     PlannedInterview interview = input.tenantId() == null
         ? persistenceService.get(sessionId)
         : persistenceService.getForTenant(input.tenantId(), sessionId);
-    AdaptiveInterviewHistory history = interview.history();
-    MemoryOwner owner = new MemoryOwner(input.tenantId(), history.candidateId());
-    history.session().assertCanAnswer(answer);
-    InterviewWorkState workState = interview.workState();
-    if (workState.phase() == WorkPhase.ACTION_PENDING) {
-      return actionCoordinator.resume(interview, answer, input.sink());
-    }
-    if (workState.phase() == WorkPhase.READY_TO_DECIDE) {
-      return continuePreparedAnswer(interview, answer, input.sink(), null);
-    }
-    PlannedDimension currentDimension = interview.plan().dimension(
-        workState.activeTarget().target().identity().order());
     algorithmTelemetry.interviewTurnSubmitted(sessionId);
-    input.sink().onStage(AnswerEventSink.AnswerStage.ASSESSING);
-    AssessmentResult assessed = assessAnswer(interview, currentDimension, answer);
-    if (answer.codeSubmission() != null) {
-      return prepareSandboxAction(
-          input, interview, owner, currentDimension, assessed, workState);
-    }
-    AssessmentWorkStatePlanner.PreparedWorkDecision prepared = AssessmentWorkStatePlanner.prepare(
-        workState, assessed.decision(), assessed.evidences());
-    boolean targetEnded = targetEnded(prepared, workState.activeTargetId());
-    boolean sessionEnded = prepared.action().type() == NextActionType.FINISH;
-    MemoryArtifacts artifacts = memoryArtifacts(new MemoryArtifactInput(
-        interview, currentDimension, answer, assessed.decision(), targetEnded, sessionEnded));
-    Optional<DepthLevel> previousDepth = previousDepth(
-        sessionId, currentDimension, workState);
-    if (prepared.action().type() != NextActionType.FINISH) {
-      return prepareExternalAction(new ExternalActionInput(
-          input,
-          interview,
-          owner,
-          currentDimension,
-          assessed,
-          prepared,
-          artifacts,
-          previousDepth
-      ));
-    }
-    NextDecision nextDecision = finishDecision();
-    return persistDecision(new DecisionPersistence(
-        sessionId, owner, answer, currentDimension, assessed, prepared, artifacts,
-        nextDecision, previousDepth));
+    MemoryOwner owner = new MemoryOwner(
+        input.tenantId(), interview.history().candidateId());
+    answerProgressionService.advance(
+        new AdaptiveAnswerProgressionService.AnswerProgressionCommand(
+            owner,
+            interview,
+            new AdaptiveAnswerProgressionService.Submission(
+                input.answer(), input.sink(), properties.getDeadline())
+        )
+    );
+    return input.tenantId() == null
+        ? persistenceService.get(sessionId)
+        : persistenceService.getForTenant(input.tenantId(), sessionId);
   }
 
   private AssessmentResult assessAnswer(

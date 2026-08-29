@@ -15,8 +15,8 @@ public record TurnProvenance(
     if (parentTurnIndex != null && parentTurnIndex < 1) {
       throw new IllegalArgumentException("父轮次必须为正数");
     }
-    boolean planned = trigger.type() == TurnTriggerType.PLANNED;
-    if (planned != (parentTurnIndex == null)) {
+    boolean initial = trigger.type() == TurnTriggerType.PLANNED;
+    if (initial != (parentTurnIndex == null)) {
       throw new IllegalArgumentException("Turn trigger 与父轮次不匹配");
     }
   }
@@ -34,6 +34,10 @@ public record TurnProvenance(
         parentTurnIndex,
         TurnTrigger.assessmentGap(assessmentId, probeGapId)
     );
+  }
+
+  public static TurnProvenance agentDecision(int parentTurnIndex) {
+    return new TurnProvenance(parentTurnIndex, TurnTrigger.agentDecision());
   }
 
   public static TurnProvenance toolResult(int parentTurnIndex, long toolResultEventId) {

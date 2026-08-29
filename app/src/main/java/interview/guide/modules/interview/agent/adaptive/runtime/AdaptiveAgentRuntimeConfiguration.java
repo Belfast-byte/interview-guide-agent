@@ -1,5 +1,6 @@
 package interview.guide.modules.interview.agent.adaptive.runtime;
 
+import interview.guide.modules.interview.agent.adaptive.core.context.WorkingMemoryValidator;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 
@@ -8,6 +9,11 @@ import org.springframework.context.annotation.Configuration;
  */
 @Configuration(proxyBeanMethods = false)
 public class AdaptiveAgentRuntimeConfiguration {
+
+  @Bean
+  WorkingMemoryValidator workingMemoryValidator() {
+    return new WorkingMemoryValidator();
+  }
 
   @Bean
   BoundedActionRuntime boundedActionRuntime(

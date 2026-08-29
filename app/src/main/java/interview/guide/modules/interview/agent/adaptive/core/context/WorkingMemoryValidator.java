@@ -3,10 +3,8 @@ package interview.guide.modules.interview.agent.adaptive.core.context;
 import interview.guide.common.exception.BusinessException;
 import interview.guide.common.exception.ErrorCode;
 import java.util.Collection;
-import org.springframework.stereotype.Component;
 
 /** 只验证 WorkingMemory 引用来自当前上下文，不评判模型的注意力选择。 */
-@Component
 public class WorkingMemoryValidator {
 
   public void validate(WorkingMemory memory, WorkingMemoryReferences references) {

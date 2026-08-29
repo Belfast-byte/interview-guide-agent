@@ -8,6 +8,7 @@ import interview.guide.modules.interview.agent.adaptive.memory.episode.EpisodeAs
 import interview.guide.modules.interview.agent.adaptive.memory.episode.EpisodeClosureStatus;
 import interview.guide.modules.interview.agent.adaptive.memory.episode.EpisodeFact;
 import interview.guide.modules.interview.agent.adaptive.memory.episode.EpisodeFactCreation;
+import interview.guide.modules.interview.agent.adaptive.memory.episode.AgentEpisodeFactCreation;
 import interview.guide.modules.interview.agent.adaptive.core.session.SessionMode;
 import interview.guide.modules.interview.agent.adaptive.persistence.assessment.AdaptiveAgentAssessmentEntity;
 import jakarta.persistence.Column;
@@ -139,6 +140,33 @@ public class EpisodeFactEntity {
     this.assistanceLevel = creation.assistanceLevel();
     this.closureStatus = creation.closureStatus();
     this.correctsEpisodeId = creation.correctsEpisodeId();
+    this.enrichmentStatus = EpisodeEnrichmentStatus.PENDING;
+  }
+
+  public EpisodeFactEntity(
+      AgentEpisodeFactCreation creation,
+      AdaptiveAgentAssessmentEntity assessment
+  ) {
+    AgentEpisodeFactCreation.Ownership ownership = creation.ownership();
+    AgentEpisodeFactCreation.Source source = creation.source();
+    AgentEpisodeFactCreation.Evaluation evaluation = creation.evaluation();
+    if (!assessment.sessionId().equals(ownership.sessionId())
+        || assessment.turnIndex() != source.turnIndex()) {
+      throw new IllegalArgumentException("Episode 与 Assessment 不属于同一轮次");
+    }
+    this.tenantId = ownership.owner().tenantId();
+    this.candidateId = ownership.owner().candidateId();
+    this.sessionId = ownership.sessionId();
+    this.sessionMode = ownership.mode();
+    this.turnId = source.turnId();
+    this.turnIndex = source.turnIndex();
+    this.assessment = assessment;
+    this.assessmentId = assessment.id();
+    this.skillId = source.topic().skillId();
+    this.focusId = source.topic().focusId();
+    this.targetId = evaluation.targetId();
+    this.assistanceLevel = evaluation.assistance();
+    this.closureStatus = evaluation.closure();
     this.enrichmentStatus = EpisodeEnrichmentStatus.PENDING;
   }
 

@@ -28,6 +28,10 @@ public record TurnTrigger(
     );
   }
 
+  public static TurnTrigger agentDecision() {
+    return new TurnTrigger(TurnTriggerType.AGENT_DECISION, null, null);
+  }
+
   public static TurnTrigger toolResult(long toolResultEventId) {
     return new TurnTrigger(TurnTriggerType.TOOL_RESULT, null, toolResultEventId);
   }
@@ -40,7 +44,7 @@ public record TurnTrigger(
     boolean assessmentSource = assessmentGapSource != null;
     boolean toolSource = toolResultEventId != null && toolResultEventId > 0;
     boolean valid = switch (type) {
-      case PLANNED -> !assessmentSource && !toolSource;
+      case PLANNED, AGENT_DECISION -> !assessmentSource && !toolSource;
       case ASSESSMENT_GAP -> assessmentSource && !toolSource;
       case TOOL_RESULT -> !assessmentSource && toolSource;
     };
