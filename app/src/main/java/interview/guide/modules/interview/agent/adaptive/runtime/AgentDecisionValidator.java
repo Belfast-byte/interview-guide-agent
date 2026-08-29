@@ -63,6 +63,9 @@ public class AgentDecisionValidator {
     if (summary.isPresent()) {
       return summary;
     }
+    if (ask.question().adoptedSourceRefs() == null) {
+      return rejection("action.adoptedSourceRefs", "字段不能为空");
+    }
     return ask.question().adoptedSourceRefs().isEmpty()
         ? Optional.empty()
         : rejection("action.adoptedSourceRefs", "引用不在当前 Observation 中");

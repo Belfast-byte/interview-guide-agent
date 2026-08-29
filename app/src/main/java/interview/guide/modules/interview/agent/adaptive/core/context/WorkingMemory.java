@@ -9,6 +9,14 @@ public record WorkingMemory(
     Deliberation deliberation
 ) {
 
+  public static WorkingMemory empty() {
+    return new WorkingMemory(
+        null,
+        new Focus(null, null, List.of()),
+        new Deliberation(List.of(), null, List.of())
+    );
+  }
+
   public record Focus(
       String activeTargetId,
       Long activeGapId,

@@ -24,7 +24,9 @@ public record AgentDecision(
   ) {
 
     public QuestionDraft {
-      adoptedSourceRefs = List.copyOf(adoptedSourceRefs);
+      if (adoptedSourceRefs != null) {
+        adoptedSourceRefs = List.copyOf(adoptedSourceRefs);
+      }
     }
   }
 

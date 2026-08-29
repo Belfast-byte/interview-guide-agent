@@ -147,7 +147,11 @@ class InterviewAgentLoopTest {
         List.of()
     );
     return new AgentContext(
-        new AgentContext.SessionWindow(SessionMode.EVALUATION, 4),
+        new AgentContext.SessionWindow(
+            new AgentContext.SessionIdentity("session-1", "provider-1"),
+            SessionMode.EVALUATION,
+            4
+        ),
         new AgentContext.Facts(coverage, List.of(), List.of()),
         memory("target-0", null)
     );

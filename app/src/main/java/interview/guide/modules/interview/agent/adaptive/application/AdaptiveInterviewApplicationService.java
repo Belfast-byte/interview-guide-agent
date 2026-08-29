@@ -74,7 +74,6 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
 import java.util.concurrent.RejectedExecutionException;
-import java.util.function.Consumer;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.dao.DataIntegrityViolationException;
@@ -107,6 +106,8 @@ public class AdaptiveInterviewApplicationService {
   private final CandidateLlmProviderService candidateProviderService;
   private final AdaptiveInterviewCreationTaskRunner creationExecutor;
   private final AdaptiveInterviewAnswerExecutor answerExecutor;
+  private final AdaptiveInterviewCreationService creationService;
+  private final AdaptiveAgentProperties properties;
 
   public PlannedInterview createForCandidate(CandidateInterviewCreationCommand command) {
     return create(resolveCandidateInput(command));
@@ -163,91 +164,62 @@ public class AdaptiveInterviewApplicationService {
 
   private PlannedInterview create(InterviewCreationInput input) {
     String sessionId = UUID.randomUUID().toString();
-    PlannedInterview skeleton = persistenceService.createSkeleton(
-        input.toSessionCreation(sessionId)
-    );
+    AdaptiveInterviewCreationService.InitialAgentRun run = initializeCreation(sessionId, input);
+    PlannedInterview initialized = creationService.initialize(run);
     try {
-      submitCreation(sessionId, input, InterviewCreationEventSink.noop());
+      submitCreation(run, InterviewCreationEventSink.noop());
     } catch (RejectedExecutionException e) {
-      persistenceService.failCreation(sessionId, "创建队列已满，请稍后重试");
       throw new BusinessException(ErrorCode.INTERNAL_ERROR, "自适应面试创建任务提交失败", e);
     }
-    return skeleton;
+    return initialized;
   }
 
   private PlannedInterview createStreaming(
       InterviewCreationInput input,
-      InterviewCreationEventSink sink
+    InterviewCreationEventSink sink
   ) {
     String sessionId = UUID.randomUUID().toString();
-    PlannedInterview skeleton = persistenceService.createSkeleton(
-        input.toSessionCreation(sessionId)
-    );
-    sink.onCreated(skeleton);
+    AdaptiveInterviewCreationService.InitialAgentRun run = initializeCreation(sessionId, input);
+    PlannedInterview initialized = creationService.initialize(run);
+    sink.onCreated(initialized);
     try {
-      submitCreation(sessionId, input, sink);
+      submitCreation(run, sink);
     } catch (RejectedExecutionException e) {
       String message = "创建队列已满，请稍后重试";
-      persistenceService.failCreation(sessionId, message);
       sink.onFailed(message);
     }
-    return skeleton;
+    return initialized;
   }
 
   private void submitCreation(
-      String sessionId,
-      InterviewCreationInput input,
+      AdaptiveInterviewCreationService.InitialAgentRun run,
       InterviewCreationEventSink sink
   ) {
     creationExecutor.submit(() -> {
       try {
-        sink.onCompleted(generateFirstTurn(sessionId, input, sink.deltaSink()));
+        PlannedInterview completed = creationService.complete(run);
+        if (sink.deltaSink() != null) {
+          sink.deltaSink().accept(completed.history().turns().getFirst().question());
+        }
+        sink.onCompleted(completed);
       } catch (Exception e) {
         String message = readableFailure(e);
-        log.error("自适应面试创建失败: sessionId={}", sessionId, e);
-        persistenceService.failCreation(sessionId, message);
+        log.error("自适应面试创建失败: sessionId={}", run.creation().sessionId(), e);
         sink.onFailed(message);
       }
     });
   }
 
-  /**
-   * 创建链路的后半段：规划面试计划并生成首轮决策（LLM 调用全部在事务外）。
-   */
-  private PlannedInterview generateFirstTurn(
+  private AdaptiveInterviewCreationService.InitialAgentRun initializeCreation(
       String sessionId,
-      InterviewCreationInput input,
-      Consumer<String> deltaSink
+      InterviewCreationInput input
   ) {
     InterviewPlan plan = decidePlan(sessionId, input);
-    PlannedDimension firstDimension = plan.dimension(0);
-    intentTransactions.initializePlan(sessionId, plan);
-    PlannedInterview initialized = persistenceService.get(sessionId);
-    WorkStatePolicyPlanner.PolicyDecision policy = WorkStatePolicyPlanner.decide(
-        initialized.workState(), "initial");
-    requireAction(policy.action().type(), NextActionType.ASK);
-    AdaptivePlannedAction action = ActionIntentPlanFactory.ask(
-        policy.state(),
-        new ActionTarget(policy.state().activeTargetId(), null, 1),
-        new AskActionContext(NextTurnProvenanceDraft.planned(), null)
+    return new AdaptiveInterviewCreationService.InitialAgentRun(
+        input.toSessionCreation(sessionId),
+        plan,
+        properties.getDeadline()
     );
-    intentTransactions.planAction(sessionId, policy.patches(), action);
-    ReActRequest request = requestFactory.create(new InterviewerDecisionInput(
-        sessionId,
-        input.llmProviderId(),
-        input.jd(),
-        input.resume(),
-        plan.maxTurns(),
-        firstDimension,
-        List.of(),
-        null,
-        InterviewerWorkView.from(policy.state(), null),
-        new PracticeMemorySession(
-            sessionId,
-            input.settings().mode()
-        )
-    ));
-    return actionCoordinator.executeInitialAsk(action, request, deltaSink);
   }
 
   private InterviewPlan decidePlan(String sessionId, InterviewCreationInput input) {

@@ -11,7 +11,13 @@ public record AgentContext(
     WorkingMemory workingMemory
 ) {
 
-  public record SessionWindow(SessionMode mode, int maxTurns) {}
+  public record SessionWindow(
+      SessionIdentity identity,
+      SessionMode mode,
+      int maxTurns
+  ) {}
+
+  public record SessionIdentity(String sessionId, String llmProvider) {}
 
   public record Facts(
       CoverageView coverage,

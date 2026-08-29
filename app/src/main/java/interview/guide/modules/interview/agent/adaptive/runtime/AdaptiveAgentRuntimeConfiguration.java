@@ -16,4 +16,13 @@ public class AdaptiveAgentRuntimeConfiguration {
   ) {
     return new BoundedActionRuntime(modelGateway, deadlineExecutor);
   }
+
+  @Bean
+  InterviewAgentLoop interviewAgentLoop(
+      InterviewDecisionModel model,
+      AgentDecisionValidator validator,
+      DeadlineExecutor deadlineExecutor
+  ) {
+    return new InterviewAgentLoop(model, validator, deadlineExecutor);
+  }
 }
