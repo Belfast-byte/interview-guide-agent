@@ -60,13 +60,14 @@ class AdaptiveInterviewResponseTest {
     PlannedInterview interview = new PlannedInterview(
         history,
         plan,
-        plan.initialWorkState(),
+        null,
         List.of()
     );
 
     AdaptiveInterviewResponse response = AdaptiveInterviewResponse.from(interview);
 
     assertThat(response.currentQuestion()).isEqualTo("第一题？");
+    assertThat(response.currentTurn()).isEqualTo(1);
     assertThat(response.mode()).isEqualTo(EVALUATION_SETTINGS.mode());
     assertThat(response.candidateLevel()).isEqualTo(EVALUATION_SETTINGS.candidateLevel());
     assertThat(response.practiceScope()).isEmpty();
@@ -77,6 +78,7 @@ class AdaptiveInterviewResponseTest {
         .containsExactly("专业基础");
     assertThat(response.dimensions().getFirst().expectedDepth()).isEqualTo(DepthLevel.L2);
     assertThat(response.dimensions().getFirst().depthCeiling()).isEqualTo(DepthLevel.L3);
+    assertThat(response.dimensions().getFirst().completedTurns()).isEqualTo(1);
   }
 
   @Test

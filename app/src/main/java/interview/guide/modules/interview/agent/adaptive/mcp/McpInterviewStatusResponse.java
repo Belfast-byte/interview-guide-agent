@@ -23,7 +23,7 @@ public record McpInterviewStatusResponse(
     return new McpInterviewStatusResponse(
         history.session().id(),
         history.session().status(),
-        history.session().currentTurn(),
+        interview.coverage().askedTurns(),
         history.session().maxTurns(),
         question
     );

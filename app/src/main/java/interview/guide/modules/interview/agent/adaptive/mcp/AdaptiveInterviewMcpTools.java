@@ -151,8 +151,8 @@ public class AdaptiveInterviewMcpTools {
         sessionId,
         McpAuditOutcome.SUCCEEDED
     );
-    return interview.workState().targets().stream()
-        .map(McpInterviewDimensionResponse::from)
+    return interview.coverage().targets().stream()
+        .map(target -> McpInterviewDimensionResponse.from(target, interview.history()))
         .toList();
   }
 

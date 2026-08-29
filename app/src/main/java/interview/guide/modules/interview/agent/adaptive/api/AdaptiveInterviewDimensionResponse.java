@@ -1,8 +1,8 @@
 package interview.guide.modules.interview.agent.adaptive.api;
 
 import interview.guide.modules.interview.agent.adaptive.core.context.CapabilityTarget;
+import interview.guide.modules.interview.agent.adaptive.core.context.CoverageView.TargetCoverage;
 import interview.guide.modules.interview.agent.adaptive.core.context.DepthLevel;
-import interview.guide.modules.interview.agent.adaptive.core.memory.TargetWorkState;
 import interview.guide.modules.interview.agent.adaptive.core.memory.TargetWorkStatus;
 import java.util.List;
 
@@ -23,8 +23,11 @@ public record AdaptiveInterviewDimensionResponse(
     TargetWorkStatus status
 ) {
 
-  static AdaptiveInterviewDimensionResponse from(TargetWorkState state) {
-    CapabilityTarget target = state.target();
+  static AdaptiveInterviewDimensionResponse from(
+      TargetCoverage coverage,
+      TargetWorkStatus displayStatus
+  ) {
+    CapabilityTarget target = coverage.target();
     return new AdaptiveInterviewDimensionResponse(
         target.identity().order(),
         target.identity().dimension(),
@@ -35,8 +38,8 @@ public record AdaptiveInterviewDimensionResponse(
         target.depth().expected(),
         target.depth().ceiling(),
         target.evidenceObjectives(),
-        target.budget().turnBudget() - state.remainingBudget().turns(),
-        state.status()
+        coverage.askedTurns(),
+        displayStatus
     );
   }
 }

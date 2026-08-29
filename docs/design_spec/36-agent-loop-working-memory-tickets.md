@@ -175,3 +175,5 @@ T01 -> T02 -> T03 -> T04
 |---|---|---|---|
 | T01 | 已完成 | 实施稳定负载 ID 与 `createOrReuse`；复用已有终态锁，不增加重复守卫；现有同步入队失败已显式暴露，个人项目不为极小崩溃窗口新增 PENDING 常驻扫描器 | 6 组沙箱聚焦测试通过 |
 | T02 | 已完成 | 删除沙箱对 `ToolResultEvent` reserve/complete 的依赖；终态锁、唯一 Evidence 与 `consumedAt` 共用一个事务；平台失败、排队超时和过期结果不形成候选人证据 | 5 组 Evidence/对账/判题聚焦测试通过 |
+| T03 | 合并至 T04 | 单独建立无生产消费者的 Projector 删除后系统等价，因此拒绝横向脚手架；与 T04 合并为事实读链纵切 | 由 T04 共同验证 |
+| T04 | 已完成 | API/MCP 改读 Coverage，current turn 从 Turn 推导；报告原本已只读领域事实，不做重写；Context 切换与新 Agent Loop 强耦合，延后到 T07，避免双上下文约束模型 | Coverage、API、MCP、报告 4 组测试通过 |

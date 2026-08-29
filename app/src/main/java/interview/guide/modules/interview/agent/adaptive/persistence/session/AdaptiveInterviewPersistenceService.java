@@ -73,6 +73,7 @@ public class AdaptiveInterviewPersistenceService {
   private final EpisodeFactPersistence episodeFactPersistence;
   private final WorkStatePersistenceService workStatePersistenceService;
   private final ActionIntentPersistenceService actionIntentPersistenceService;
+  private final CoverageQueryService coverageQueryService;
 
   @Transactional(readOnly = true)
   public void requireCandidateSession(String candidateId, String sessionId) {
@@ -514,10 +515,12 @@ public class AdaptiveInterviewPersistenceService {
       AdaptiveAgentSessionEntity sessionEntity,
       InterviewPlan plan
   ) {
+    AdaptiveInterviewHistory history = history(sessionEntity);
     return new PlannedInterview(
-        history(sessionEntity),
+        history,
         plan,
         workStatePersistenceService.find(sessionEntity.id()),
+        coverageQueryService.load(plan, history.turns()),
         dimensionBriefRepository
             .findBySessionIdOrderByDimensionOrder(sessionEntity.id())
             .stream()

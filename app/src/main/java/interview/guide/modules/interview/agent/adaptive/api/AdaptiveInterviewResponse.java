@@ -1,6 +1,9 @@
 package interview.guide.modules.interview.agent.adaptive.api;
 
 import interview.guide.modules.interview.agent.adaptive.core.context.TopicKey;
+import interview.guide.modules.interview.agent.adaptive.core.context.CoverageView.TargetCoverage;
+import interview.guide.modules.interview.agent.adaptive.core.memory.TargetWorkStatus;
+import interview.guide.modules.interview.agent.adaptive.core.session.AdaptiveInterviewHistory;
 import interview.guide.modules.interview.agent.adaptive.core.session.AdaptiveSessionStatus;
 import interview.guide.modules.interview.agent.adaptive.core.session.CandidateLevel;
 import interview.guide.modules.interview.agent.adaptive.core.session.SessionMode;
@@ -37,7 +40,7 @@ public record AdaptiveInterviewResponse(
         history.session().id(),
         history.session().runtimeVersion(),
         history.session().status(),
-        history.session().currentTurn(),
+        interview.coverage().askedTurns(),
         history.session().maxTurns(),
         history.session().settings().mode(),
         history.session().settings().candidateLevel(),
@@ -46,12 +49,29 @@ public record AdaptiveInterviewResponse(
         history.failureReason(),
         history.llmProviderNameSnapshot(),
         history.llmModelSnapshot(),
-        interview.workState() == null ? List.of() : interview.workState().targets().stream()
-            .map(AdaptiveInterviewDimensionResponse::from)
+        interview.coverage().targets().stream()
+            .map(target -> AdaptiveInterviewDimensionResponse.from(
+                target, displayStatus(history, target)))
             .toList(),
         history.turns().stream()
             .map(AdaptiveInterviewTurnResponse::from)
             .toList()
     );
+  }
+
+  private static TargetWorkStatus displayStatus(
+      AdaptiveInterviewHistory history,
+      TargetCoverage coverage
+  ) {
+    boolean current = history.session().status() == AdaptiveSessionStatus.IN_PROGRESS
+        && !history.turns().isEmpty()
+        && history.turns().getLast().dimensionOrder() != null
+        && history.turns().getLast().dimensionOrder() == coverage.target().identity().order();
+    if (current) {
+      return TargetWorkStatus.ACTIVE;
+    }
+    return coverage.askedTurns() > 0
+        ? TargetWorkStatus.COMPLETED
+        : TargetWorkStatus.PENDING;
   }
 }
