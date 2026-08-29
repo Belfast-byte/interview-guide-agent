@@ -179,3 +179,4 @@ T01 -> T02 -> T03 -> T04
 | T04 | 已完成 | API/MCP 改读 Coverage，current turn 从 Turn 推导；报告原本已只读领域事实，不做重写；Context 切换与新 Agent Loop 强耦合，延后到 T07，避免双上下文约束模型 | Coverage、API、MCP、报告 4 组测试通过 |
 | T05 | 已完成 | Assessor 的公开结果原本已是 Assessment/Evidence/ProbeGap，拒绝再造等价 DTO；删除追问点数量截断、校验失败后的隐式重调与非法项丢弃；Plan 深度硬边界保留但改为明确拒绝，不替模型钳制结果。旧 WorkState Planner 的整体删除随 T07 新 Loop 替换，避免此票制造不可运行中间态 | Assessor、Evidence、旧 Planner 边界、Spring AI 生成器 4 组共 20 个测试通过 |
 | T06 | 已完成 | 仅新增不可变 WorkingMemory、上下文引用 Validator 和 Turn 上的可空 Snapshot；不建 Delta/Patch/Reducer/独立状态表，不增加内容上限或认知状态枚举；同一 Gap 多轮验证所需唯一约束一并移除。Snapshot 读入 AgentContext 与 T07 Loop 一起接通，避免提前建立无消费者读取层 | WorkingMemory Validator、Turn 数据库往返及既有 Turn 实体 3 组测试通过 |
+| T07 | 已完成 | 建立中性 AgentContext、AgentDecision 与 0-Tool InterviewAgentLoop；Java 只校验 Plan/Gap/事实引用及 ASK/FINISH 必填结构，非法提案以结构化 Observation 回流，不改写模型选择；复用共享 deadline，拒绝新增无独立收益的 step cap。生产创建链接线归 T08 | 单一 InterviewAgentLoopTest 覆盖自由选择、两类拒绝后重决策、FINISH、deadline 共 4 个场景 |

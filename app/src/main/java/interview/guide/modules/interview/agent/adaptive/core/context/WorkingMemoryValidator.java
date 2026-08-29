@@ -10,11 +10,12 @@ import org.springframework.stereotype.Component;
 public class WorkingMemoryValidator {
 
   public void validate(WorkingMemory memory, WorkingMemoryReferences references) {
-    requireAllowed(memory.basedOnTurnIndex(), references.turnIndexes(), "Turn");
-    requireAllowed(memory.focus().activeTargetId(), references.targetIds(), "Target");
-    requireAllowed(memory.focus().activeGapId(), references.gapIds(), "Gap");
+    WorkingMemoryReferences.ContextIds ids = references.contextIds();
+    requireAllowed(memory.basedOnTurnIndex(), ids.turnIndexes(), "Turn");
+    requireAllowed(memory.focus().activeTargetId(), ids.targetIds(), "Target");
+    requireAllowed(memory.focus().activeGapId(), ids.gapIds(), "Gap");
     for (WorkingMemory.GapPriority priority : memory.focus().gapPriorities()) {
-      requireAllowed(priority.gapId(), references.gapIds(), "Gap");
+      requireAllowed(priority.gapId(), ids.gapIds(), "Gap");
     }
     for (WorkingMemory.Hypothesis hypothesis : memory.deliberation().hypotheses()) {
       hypothesis.evidenceLinks().supportingEvidenceIds()

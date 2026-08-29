@@ -13,9 +13,11 @@ class WorkingMemoryValidatorTest {
 
   private final WorkingMemoryValidator validator = new WorkingMemoryValidator();
   private final WorkingMemoryReferences references = new WorkingMemoryReferences(
-      Set.of(2),
-      Set.of("target-1"),
-      Set.of(11L),
+      new WorkingMemoryReferences.ContextIds(
+          Set.of(2),
+          Set.of("target-1"),
+          Set.of(11L)
+      ),
       Set.of(21L, 22L),
       Set.of("observation-1")
   );
