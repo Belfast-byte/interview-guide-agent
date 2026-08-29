@@ -78,38 +78,8 @@ class DepthAssessmentAgentTest {
   }
 
   @Test
-  @DisplayName("追问点锚定内容不在回答原文时让模型重写一次")
-  void shouldRegenerateOnceWhenProbeGapAnchorMissing() {
-    AtomicInteger calls = new AtomicInteger();
-    DepthAssessmentAgent agent = new DepthAssessmentAgent((request, provider) -> {
-      if (calls.incrementAndGet() == 1) {
-        return new AssessmentProposal(
-            DepthLevel.L2,
-            0.8,
-            "描述了应用",
-            List.of("重要数据使用版本号"),
-            List.of(new ProbeGap("布隆过滤器", "未说明误判率"))
-        );
-      }
-      return new AssessmentProposal(
-          DepthLevel.L2,
-          0.8,
-          "描述了应用",
-          List.of("重要数据使用版本号"),
-          List.of(new ProbeGap("版本号", "未说明版本号如何推进"))
-      );
-    });
-
-    AssessmentDecision decision = agent.assess(request(), null);
-
-    assertThat(calls.get()).isEqualTo(2);
-    assertThat(decision.probeGaps())
-        .containsExactly(new ProbeGap("版本号", "未说明版本号如何推进"));
-  }
-
-  @Test
-  @DisplayName("重写后仅追问点锚定失败时降级丢弃非法追问点并接受结果")
-  void shouldDropInvalidProbeGapsWhenAnchorStillMissingAfterRetry() {
+  @DisplayName("追问点锚定内容不在回答原文时明确失败且不静默重调模型")
+  void shouldRejectMissingProbeGapAnchor() {
     AtomicInteger calls = new AtomicInteger();
     DepthAssessmentAgent agent = new DepthAssessmentAgent((request, provider) -> {
       calls.incrementAndGet();
@@ -118,19 +88,15 @@ class DepthAssessmentAgentTest {
           0.8,
           "描述了应用",
           List.of("重要数据使用版本号"),
-          List.of(
-              new ProbeGap("布隆过滤器", "未说明误判率"),
-              new ProbeGap("版本号", "未说明版本号如何推进")
-          )
+          List.of(new ProbeGap("布隆过滤器", "未说明误判率"))
       );
     });
 
-    AssessmentDecision decision = agent.assess(request(), null);
+    assertThatThrownBy(() -> agent.assess(request(), null))
+        .isInstanceOf(BusinessException.class)
+        .hasMessageContaining("锚定内容不存在");
 
-    assertThat(calls.get()).isEqualTo(2);
-    assertThat(decision.depthLevel()).isEqualTo(DepthLevel.L2);
-    assertThat(decision.probeGaps())
-        .containsExactly(new ProbeGap("版本号", "未说明版本号如何推进"));
+    assertThat(calls.get()).isEqualTo(1);
   }
 
   @Test
@@ -149,19 +115,11 @@ class DepthAssessmentAgentTest {
   }
 
   @Test
-  @DisplayName("重写后结果结构性不完整时仍快速失败")
-  void shouldRejectStructuralIncompletenessAfterRetry() {
+  @DisplayName("结果结构性不完整时直接失败")
+  void shouldRejectStructuralIncompleteness() {
     AtomicInteger calls = new AtomicInteger();
     DepthAssessmentAgent agent = new DepthAssessmentAgent((request, provider) -> {
-      if (calls.incrementAndGet() == 1) {
-        return new AssessmentProposal(
-            DepthLevel.L2,
-            0.8,
-            "描述了应用",
-            List.of("重要数据使用版本号"),
-            List.of(new ProbeGap("布隆过滤器", "未说明误判率"))
-        );
-      }
+      calls.incrementAndGet();
       return new AssessmentProposal(
           null,
           0.8,
@@ -173,12 +131,12 @@ class DepthAssessmentAgentTest {
     assertThatThrownBy(() -> agent.assess(request(), null))
         .isInstanceOf(BusinessException.class)
         .hasMessageContaining("不完整");
-    assertThat(calls.get()).isEqualTo(2);
+    assertThat(calls.get()).isEqualTo(1);
   }
 
   @Test
-  @DisplayName("追问点超过两条时截断为两条而非整轮失败")
-  void shouldTruncateExcessProbeGaps() {
+  @DisplayName("追问点数量不由 Java 截断")
+  void shouldKeepModelProbeGaps() {
     DepthAssessmentAgent agent = new DepthAssessmentAgent((request, provider) ->
         new AssessmentProposal(
             DepthLevel.L2,
@@ -197,7 +155,8 @@ class DepthAssessmentAgentTest {
 
     assertThat(decision.probeGaps()).containsExactly(
         new ProbeGap("版本号", "未说明版本号如何推进"),
-        new ProbeGap("延迟双删", "未说明延迟窗口")
+        new ProbeGap("延迟双删", "未说明延迟窗口"),
+        new ProbeGap("概率", "未说明残余风险")
     );
   }
 
@@ -249,8 +208,8 @@ class DepthAssessmentAgentTest {
   }
 
   @Test
-  @DisplayName("评估模型返回非有限置信度时重写一次，仍非法才快速失败")
-  void shouldRejectNonFiniteConfidenceAfterRetry() {
+  @DisplayName("评估模型返回非有限置信度时直接失败")
+  void shouldRejectNonFiniteConfidence() {
     AtomicInteger calls = new AtomicInteger();
     DepthAssessmentAgent agent = new DepthAssessmentAgent((request, provider) -> {
       calls.incrementAndGet();
@@ -265,7 +224,7 @@ class DepthAssessmentAgentTest {
     assertThatThrownBy(() -> agent.assess(request(), null))
         .isInstanceOf(BusinessException.class)
         .hasMessageContaining("不完整");
-    assertThat(calls.get()).isEqualTo(2);
+    assertThat(calls.get()).isEqualTo(1);
   }
 
   private AssessmentRequest request() {

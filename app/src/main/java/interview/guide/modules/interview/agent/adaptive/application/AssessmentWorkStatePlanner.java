@@ -1,5 +1,7 @@
 package interview.guide.modules.interview.agent.adaptive.application;
 
+import interview.guide.common.exception.BusinessException;
+import interview.guide.common.exception.ErrorCode;
 import interview.guide.modules.interview.agent.adaptive.assessment.depth.AssessmentDecision;
 import interview.guide.modules.interview.agent.adaptive.assessment.evidence.ValidatedAssessmentEvidence;
 import interview.guide.modules.interview.agent.adaptive.core.context.CapabilityTarget;
@@ -108,7 +110,10 @@ final class AssessmentWorkStatePlanner {
 
   private static DepthLevel boundedDepth(TargetWorkState target, DepthLevel proposed) {
     DepthLevel ceiling = target.target().depth().ceiling();
-    return proposed.ordinal() > ceiling.ordinal() ? ceiling : proposed;
+    if (proposed.ordinal() > ceiling.ordinal()) {
+      throw new BusinessException(ErrorCode.AI_SERVICE_ERROR, "评估深度超过 Plan 上限");
+    }
+    return proposed;
   }
 
   private static NextTurnProvenanceDraft provenance(

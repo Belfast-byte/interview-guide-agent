@@ -2,7 +2,9 @@ package interview.guide.modules.interview.agent.adaptive.application;
 
 import static interview.guide.modules.interview.agent.adaptive.support.AdaptiveTestFixtures.testPlan;
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
+import interview.guide.common.exception.BusinessException;
 import interview.guide.modules.interview.agent.adaptive.assessment.depth.AssessmentDecision;
 import interview.guide.modules.interview.agent.adaptive.core.context.DepthLevel;
 import interview.guide.modules.interview.agent.adaptive.core.context.ProbeGap;
@@ -20,6 +22,17 @@ import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
 class AssessmentWorkStatePlannerTest {
+
+  @Test
+  @DisplayName("评估深度超过 Plan 上限时明确拒绝而非静默截断")
+  void shouldRejectDepthBeyondPlanCeiling() {
+    InterviewWorkState state = state(1);
+
+    assertThatThrownBy(() -> AssessmentWorkStatePlanner.prepare(
+        state, assessment(1, DepthLevel.L4, List.of()), List.of()))
+        .isInstanceOf(BusinessException.class)
+        .hasMessageContaining("超过 Plan 上限");
+  }
 
   @Test
   @DisplayName("达到目标深度后由代码切换目标并生成下一题 Patch")

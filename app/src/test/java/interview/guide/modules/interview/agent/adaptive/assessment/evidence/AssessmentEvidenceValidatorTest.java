@@ -1,10 +1,12 @@
 package interview.guide.modules.interview.agent.adaptive.assessment.evidence;
 
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
+
+import interview.guide.common.exception.BusinessException;
 import java.util.List;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
-
-import static org.assertj.core.api.Assertions.assertThat;
 
 class AssessmentEvidenceValidatorTest {
 
@@ -28,16 +30,15 @@ class AssessmentEvidenceValidatorTest {
   }
 
   @Test
-  @DisplayName("模型改写而非逐字引用时丢弃该条证据而非整轮失败")
-  void shouldDropParaphrasedQuote() {
-    List<ValidatedAssessmentEvidence> evidences = validator.validate(
+  @DisplayName("模型改写而非逐字引用时明确拒绝正式提案")
+  void shouldRejectParaphrasedQuote() {
+    assertThatThrownBy(() -> validator.validate(
         "session-1",
         1,
         "重要数据使用版本号。",
         List.of(AssessmentEvidenceCandidate.quote("关键数据应当增加版本字段"))
-    );
-
-    assertThat(evidences).isEmpty();
+    )).isInstanceOf(BusinessException.class)
+        .hasMessageContaining("未命中回答原文");
   }
 
   @Test
