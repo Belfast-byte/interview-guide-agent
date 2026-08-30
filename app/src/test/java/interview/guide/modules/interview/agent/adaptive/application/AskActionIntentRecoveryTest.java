@@ -34,15 +34,11 @@ import interview.guide.modules.interview.agent.adaptive.persistence.session.Adap
 import interview.guide.modules.interview.agent.adaptive.persistence.working.WorkStatePersistenceService;
 import interview.guide.modules.interview.agent.adaptive.planning.PlannedInterview;
 import interview.guide.modules.interview.agent.adaptive.role.AgentRole;
-import interview.guide.modules.interview.agent.adaptive.role.AgentRoleDefinition;
-import interview.guide.modules.interview.agent.adaptive.role.AgentRoleRegistry;
 import interview.guide.modules.interview.agent.adaptive.runtime.BoundedActionRuntime;
 import interview.guide.modules.interview.agent.adaptive.runtime.ReActRequest;
 import interview.guide.modules.interview.agent.adaptive.runtime.RuntimeDeadline;
-import java.time.Duration;
 import java.time.LocalDateTime;
 import java.util.List;
-import java.util.Set;
 import java.util.function.Consumer;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
@@ -53,7 +49,7 @@ import org.mockito.InOrder;
 class AskActionIntentRecoveryTest {
 
   private final BoundedActionRuntime runtime = mock(BoundedActionRuntime.class);
-  private final AgentRoleRegistry roles = mock(AgentRoleRegistry.class);
+  private final AdaptiveAgentProperties properties = new AdaptiveAgentProperties();
   private final ActionIntentPersistenceService intents =
       mock(ActionIntentPersistenceService.class);
   private final ActionIntentTransactionService transactions =
@@ -71,10 +67,8 @@ class AskActionIntentRecoveryTest {
   @BeforeEach
   void setUp() {
     executor = new ActionIntentExecutor(
-        runtime, roles, intents, transactions, workStates, interviews, novelty);
+        runtime, properties, intents, transactions, workStates, interviews, novelty);
     when(request.role()).thenReturn(AgentRole.INTERVIEWER);
-    when(roles.get(AgentRole.INTERVIEWER)).thenReturn(new AgentRoleDefinition(
-        AgentRole.INTERVIEWER, Duration.ofSeconds(10), Set.of()));
     when(state.sessionId()).thenReturn("session-1");
     when(state.revision()).thenReturn(2L);
     when(interviews.get("session-1")).thenReturn(interview);

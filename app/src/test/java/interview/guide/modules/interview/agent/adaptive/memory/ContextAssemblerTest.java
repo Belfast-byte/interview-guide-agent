@@ -53,7 +53,7 @@ class ContextAssemblerTest {
         1,
         "项目经验",
         "架构取舍",
-        List.of("question_bank_search"),
+        List.of("rubric_search"),
         null,
         List.of(previousDimension, currentDimension),
         answer,

@@ -47,11 +47,11 @@ final class AdaptiveAgentRoleTestFixtures {
 
   static ToolObservation acceptedObservation() {
     return new ToolObservation(
-        "load_skill",
-        Map.of("skillId", "java"),
+        "rubric_search",
+        Map.of("query", "Java concurrency"),
         true,
-        "skill:java",
-        "Java interviewer persona"
+        "tool-0-0",
+        "Reviewed rubric fragments"
     );
   }
 
@@ -65,7 +65,7 @@ final class AdaptiveAgentRoleTestFixtures {
             0,
             "专业基础",
             "缓存与并发",
-            List.of("question_bank_search"),
+            List.of("rubric_search"),
             null,
             List.of(),
             null,
@@ -110,7 +110,7 @@ final class AdaptiveAgentRoleTestFixtures {
         0,
         "专业基础",
         "缓存与并发",
-        List.of("question_bank_search"),
+        List.of("rubric_search"),
         null,
         List.of(),
         answer,

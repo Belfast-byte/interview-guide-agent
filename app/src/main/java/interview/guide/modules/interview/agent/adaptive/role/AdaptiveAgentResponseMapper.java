@@ -9,11 +9,8 @@ import interview.guide.modules.interview.agent.adaptive.core.action.ToolCallActi
 import interview.guide.modules.interview.agent.adaptive.core.context.CodeFactUsage;
 import interview.guide.modules.interview.agent.adaptive.core.context.CodeQuestionProvenance;
 import interview.guide.modules.interview.agent.adaptive.core.context.ProjectInterviewContext;
-import interview.guide.modules.interview.agent.adaptive.core.context.QuestionProvenance;
 import interview.guide.modules.interview.agent.adaptive.runtime.ReActModelContext;
 import interview.guide.modules.interview.agent.adaptive.runtime.ToolObservation;
-import interview.guide.modules.interview.agent.adaptive.tool.QuestionBankQuestion;
-import interview.guide.modules.interview.agent.adaptive.tool.QuestionBankSearchTool;
 import java.util.List;
 import java.util.Map;
 import lombok.extern.slf4j.Slf4j;
@@ -34,8 +31,6 @@ public class AdaptiveAgentResponseMapper {
   private static final int MAX_CONTENT_LENGTH = 2_000;
   private static final int MAX_REASON_LENGTH = 500;
   private static final TypeReference<Map<String, Object>> TOOL_ARGUMENTS_TYPE =
-      new TypeReference<>() {};
-  private static final TypeReference<List<QuestionBankQuestion>> QUESTION_RESULTS_TYPE =
       new TypeReference<>() {};
 
   private final ObjectMapper objectMapper;
@@ -130,47 +125,13 @@ public class AdaptiveAgentResponseMapper {
     if (output.type() != AgentResponseType.ASK) {
       throw new ModelOutputRejectionException("Unsupported agent response type");
     }
+    if (output.sourceQuestionId() != null || output.sourceDifficulty() != null) {
+      throw new ModelOutputRejectionException("Question bank provenance is no longer supported");
+    }
     CodeQuestionProvenance codeProvenance = codeProvenance(output, context);
-    if (output.sourceQuestionId() == null && output.sourceDifficulty() == null) {
-      return codeProvenance == null
-          ? RespondAction.ask(output.content(), output.reason())
-          : RespondAction.askFromCode(output.content(), output.reason(), codeProvenance);
-    }
-    return mapQuestionBankAsk(output, context, codeProvenance);
-  }
-
-  private RespondAction mapQuestionBankAsk(
-      AgentStepOutput output,
-      ReActModelContext context,
-      CodeQuestionProvenance codeProvenance
-  ) {
-    if (output.sourceQuestionId() == null
-        || output.sourceDifficulty() == null
-        || codeProvenance != null) {
-      throw new ModelOutputRejectionException("Question provenance is incomplete");
-    }
-    QuestionBankQuestion sourceQuestion = findSourceQuestion(output, context);
-    return RespondAction.ask(
-        output.content(),
-        output.reason(),
-        new QuestionProvenance(sourceQuestion.stableId(), sourceQuestion.difficulty())
-    );
-  }
-
-  private QuestionBankQuestion findSourceQuestion(
-      AgentStepOutput output,
-      ReActModelContext context
-  ) {
-    return context.observations().stream()
-        .filter(ToolObservation::accepted)
-        .filter(observation -> QuestionBankSearchTool.NAME.equals(observation.toolName()))
-        .flatMap(observation -> readQuestions(observation.output()).stream())
-        .filter(question -> question.stableId().equals(output.sourceQuestionId()))
-        .filter(question -> question.difficulty().equals(output.sourceDifficulty()))
-        .findFirst()
-        .orElseThrow(() -> new ModelOutputRejectionException(
-            "Question provenance does not match an accepted tool result"
-        ));
+    return codeProvenance == null
+        ? RespondAction.ask(output.content(), output.reason())
+        : RespondAction.askFromCode(output.content(), output.reason(), codeProvenance);
   }
 
   private CodeQuestionProvenance codeProvenance(
@@ -237,18 +198,6 @@ public class AdaptiveAgentResponseMapper {
       throw new BusinessException(
           ErrorCode.AI_SERVICE_ERROR,
           "Agent tool arguments are invalid",
-          e
-      );
-    }
-  }
-
-  private List<QuestionBankQuestion> readQuestions(String output) {
-    try {
-      return objectMapper.readValue(output, QUESTION_RESULTS_TYPE);
-    } catch (JacksonException e) {
-      throw new BusinessException(
-          ErrorCode.AI_SERVICE_ERROR,
-          "Question bank result is invalid",
           e
       );
     }

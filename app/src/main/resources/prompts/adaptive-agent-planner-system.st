@@ -8,7 +8,7 @@
 - suggestedSkill 必须从 skillCatalog 选择一个 skillId，不得为空。
 - focusId 必须从该 suggestedSkill 的 focusIds 中选择，作为长期去重用的稳定标识。
 - suggestedTurns 是 1 到 12 的轮次建议；最终预算由代码裁决，维度可因评估结论提前完成并回收轮次再分配。
-- suggestedTools 只能从 load_skill、rubric_lookup 中选择；仅在维度确需外部检索时建议，不做默认推荐。
+- suggestedTools 返回空数组；只读工具由后续 Interview Agent 根据实时上下文自行决定。
 - EVALUATION 模式只根据本次 JD、简历与候选人阶段规划，保持独立题目分布。
 - PRACTICE 模式只能从 practiceScope 选择主题。
 

@@ -5,9 +5,7 @@ import interview.guide.modules.interview.agent.adaptive.core.action.RespondActio
 import interview.guide.modules.interview.agent.adaptive.core.action.ToolCallAction;
 import interview.guide.modules.interview.agent.adaptive.core.context.CodeFactUsage;
 import interview.guide.modules.interview.agent.adaptive.core.context.CodeQuestionProvenance;
-import interview.guide.modules.interview.agent.adaptive.core.context.QuestionProvenance;
 import interview.guide.modules.interview.agent.adaptive.runtime.ReActModelContext;
-import interview.guide.modules.interview.agent.adaptive.runtime.ToolObservation;
 import java.util.List;
 import java.util.Map;
 import org.junit.jupiter.api.BeforeEach;
@@ -83,7 +81,7 @@ class AdaptiveAgentResponseMapperTest {
         .toolCalls(List.of(new AssistantMessage.ToolCall(
             "call-1",
             "function",
-            "question_bank_search",
+            "rubric_search",
             "{\"query\":\"Redis\"}"
         )))
         .build();
@@ -91,7 +89,7 @@ class AdaptiveAgentResponseMapperTest {
     AgentAction action = mapper.map(response(message), context(null));
 
     assertThat(action).isInstanceOfSatisfying(ToolCallAction.class, toolCall -> {
-      assertThat(toolCall.toolName()).isEqualTo("question_bank_search");
+      assertThat(toolCall.toolName()).isEqualTo("rubric_search");
       assertThat(toolCall.arguments()).isEqualTo(Map.of("query", "Redis"));
     });
   }
@@ -105,14 +103,14 @@ class AdaptiveAgentResponseMapperTest {
             new AssistantMessage.ToolCall(
                 "call-1",
                 "function",
-                "question_bank_search",
+                "rubric_search",
                 "{\"query\":\"Redis\"}"
             ),
             new AssistantMessage.ToolCall(
                 "call-2",
                 "function",
-                "rubric_lookup",
-                "{\"topic\":\"Redis\"}"
+                "code.trace",
+                "{\"sourceId\":\"artifact-1\"}"
             )
         ))
         .build();
@@ -120,14 +118,14 @@ class AdaptiveAgentResponseMapperTest {
     AgentAction action = mapper.map(response(message), context(null));
 
     assertThat(action).isInstanceOfSatisfying(ToolCallAction.class, toolCall -> {
-      assertThat(toolCall.toolName()).isEqualTo("question_bank_search");
+      assertThat(toolCall.toolName()).isEqualTo("rubric_search");
       assertThat(toolCall.arguments()).isEqualTo(Map.of("query", "Redis"));
     });
   }
 
   @Test
-  @DisplayName("审核题来源必须与已接受的题库结果逐字段一致")
-  void shouldAcceptVerifiedQuestionProvenance() {
+  @DisplayName("旧题库来源字段不再被旧运行时接受")
+  void shouldRejectLegacyQuestionBankProvenance() {
     String output = """
         {
           "type":"ASK",
@@ -137,13 +135,10 @@ class AdaptiveAgentResponseMapperTest {
           "sourceDifficulty":"MEDIUM"
         }
         """;
-    ReActModelContext context = context(null, List.of(questionBankObservation()));
 
-    assertThat(mapper.map(response(output), context)).isEqualTo(RespondAction.ask(
-        "Redis 为什么需要过期策略？",
-        "采用审核题",
-        new QuestionProvenance("question:42", "MEDIUM")
-    ));
+    assertThatThrownBy(() -> mapper.map(response(output), context(null)))
+        .isInstanceOf(AdaptiveAgentResponseMapper.ModelOutputRejectionException.class)
+        .hasMessage("Question bank provenance is no longer supported");
   }
 
   @Test
@@ -231,16 +226,4 @@ class AdaptiveAgentResponseMapperTest {
         .hasMessage("Agent response is incomplete");
   }
 
-  private ToolObservation questionBankObservation() {
-    return new ToolObservation(
-        "question_bank_search",
-        Map.of("query", "Redis"),
-        true,
-        "question-search:42",
-        """
-            [{"stableId":"question:42","id":42,"category":"Redis",\
-            "difficulty":"MEDIUM","question":"Redis 为什么需要过期策略？"}]
-            """
-    );
-  }
 }

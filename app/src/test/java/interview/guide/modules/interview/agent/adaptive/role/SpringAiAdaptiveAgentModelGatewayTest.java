@@ -114,15 +114,15 @@ class SpringAiAdaptiveAgentModelGatewayTest {
     AssistantMessage parallelCalls = AssistantMessage.builder()
         .content("")
         .toolCalls(List.of(
-            toolCall("call-1", "question_bank_search"),
-            toolCall("call-2", "rubric_lookup")
+            toolCall("call-1", "rubric_search"),
+            toolCall("call-2", "code.trace")
         ))
         .build();
     when(responseSpec.chatResponse()).thenReturn(response(parallelCalls));
 
     assertThat(gateway.nextAction(context(null)))
         .isInstanceOfSatisfying(ToolCallAction.class, toolCall ->
-            assertThat(toolCall.toolName()).isEqualTo("question_bank_search")
+            assertThat(toolCall.toolName()).isEqualTo("rubric_search")
         );
     verify(responseSpec, times(1)).chatResponse();
   }
@@ -179,7 +179,7 @@ class SpringAiAdaptiveAgentModelGatewayTest {
     List<String> deltas = new java.util.ArrayList<>();
     AssistantMessage toolCalls = AssistantMessage.builder()
         .content("")
-        .toolCalls(List.of(toolCall("call-1", "question_bank_search")))
+        .toolCalls(List.of(toolCall("call-1", "rubric_search")))
         .build();
     when(requestSpec.stream()).thenReturn(streamResponseSpec);
     when(streamResponseSpec.chatResponse()).thenReturn(reactor.core.publisher.Flux.just(
@@ -189,7 +189,7 @@ class SpringAiAdaptiveAgentModelGatewayTest {
     AgentAction action = gateway.nextActionStreaming(context(null), deltas::add);
 
     assertThat(action).isInstanceOfSatisfying(ToolCallAction.class, toolCall ->
-        assertThat(toolCall.toolName()).isEqualTo("question_bank_search")
+        assertThat(toolCall.toolName()).isEqualTo("rubric_search")
     );
     assertThat(deltas).isEmpty();
     verify(responseSpec, times(0)).chatResponse();

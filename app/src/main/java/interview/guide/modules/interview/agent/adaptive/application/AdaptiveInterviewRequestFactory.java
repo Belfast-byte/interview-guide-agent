@@ -14,7 +14,6 @@ import interview.guide.modules.interview.agent.adaptive.memory.semantic.Practice
 import interview.guide.modules.interview.agent.adaptive.planning.PlannedDimension;
 import interview.guide.modules.interview.agent.adaptive.planning.PlannedInterview;
 import interview.guide.modules.interview.agent.adaptive.role.AgentRole;
-import interview.guide.modules.interview.agent.adaptive.role.AgentRoleRegistry;
 import interview.guide.modules.interview.agent.adaptive.runtime.ReActRequest;
 import java.util.List;
 import lombok.RequiredArgsConstructor;
@@ -28,7 +27,6 @@ class AdaptiveInterviewRequestFactory {
 
   private final ContextAssembler contextAssembler;
   private final CodeAnalysisInterviewContextService codeAnalysisContextService;
-  private final AgentRoleRegistry roleRegistry;
   private final PracticeCoachingMemoryAssembler practiceMemoryAssembler;
 
   ReActRequest create(InterviewerDecisionInput input) {
@@ -47,7 +45,7 @@ class AdaptiveInterviewRequestFactory {
             dimension.order(),
             dimension.dimension(),
             dimension.focus(),
-            allowedTools(dimension),
+            allowedTools(),
             dimension.suggestedSkill(),
             input.turns(),
             input.candidateAnswer(),
@@ -101,7 +99,7 @@ class AdaptiveInterviewRequestFactory {
             dimension.order(),
             dimension.dimension(),
             dimension.focus(),
-            allowedTools(dimension),
+            allowedTools(),
             dimension.suggestedSkill(),
             interview.history().turns(),
             event,
@@ -112,10 +110,8 @@ class AdaptiveInterviewRequestFactory {
     );
   }
 
-  private List<String> allowedTools(PlannedDimension dimension) {
-    return dimension.suggestedTools().stream()
-        .filter(roleRegistry.get(AgentRole.INTERVIEWER).allowedTools()::contains)
-        .toList();
+  private List<String> allowedTools() {
+    return List.of();
   }
 
   private int targetOrder(String targetId) {

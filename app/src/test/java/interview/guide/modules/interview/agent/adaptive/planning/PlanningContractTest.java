@@ -46,7 +46,7 @@ class PlanningContractTest {
   @Test
   @DisplayName("维度建议中的工具名单不可被调用方改写")
   void shouldKeepSuggestedToolsImmutable() {
-    List<String> tools = new ArrayList<>(List.of("question_bank_search"));
+    List<String> tools = new ArrayList<>(List.of("rubric_search"));
     DimensionProposal dimension = new DimensionProposal(
         "专业基础",
         "缓存与并发",
@@ -57,7 +57,7 @@ class PlanningContractTest {
     );
     tools.clear();
 
-    assertThat(dimension.suggestedTools()).containsExactly("question_bank_search");
+    assertThat(dimension.suggestedTools()).containsExactly("rubric_search");
     assertThatThrownBy(() -> dimension.suggestedTools().clear())
         .isInstanceOf(UnsupportedOperationException.class);
   }

@@ -22,7 +22,6 @@ import interview.guide.modules.interview.agent.adaptive.persistence.session.Adap
 import interview.guide.modules.interview.agent.adaptive.persistence.session.AdaptiveInterviewPersistenceService;
 import interview.guide.modules.interview.agent.adaptive.persistence.working.WorkStatePersistenceService;
 import interview.guide.modules.interview.agent.adaptive.planning.PlannedInterview;
-import interview.guide.modules.interview.agent.adaptive.role.AgentRoleRegistry;
 import interview.guide.modules.interview.agent.adaptive.runtime.BoundedActionRuntime;
 import interview.guide.modules.interview.agent.adaptive.runtime.ReActRequest;
 import interview.guide.modules.interview.agent.adaptive.runtime.RuntimeDeadline;
@@ -37,7 +36,7 @@ import org.springframework.stereotype.Service;
 public class ActionIntentExecutor {
 
   private final BoundedActionRuntime runtime;
-  private final AgentRoleRegistry roleRegistry;
+  private final AdaptiveAgentProperties properties;
   private final ActionIntentPersistenceService intentService;
   private final ActionIntentTransactionService intentTransactions;
   private final WorkStatePersistenceService workStateService;
@@ -105,8 +104,7 @@ public class ActionIntentExecutor {
       ActionIntent running
   ) {
     try {
-      RuntimeDeadline deadline = RuntimeDeadline.start(
-          roleRegistry.get(execution.request().role()).deadline());
+      RuntimeDeadline deadline = RuntimeDeadline.start(properties.getDeadline());
       RespondAction draft = proposeQuestion(execution.request(), deadline);
       QuestionReview first = noveltyService.review(execution.request(), draft);
       if (first.type() == QuestionNoveltyDecision.Type.ACCEPT) {

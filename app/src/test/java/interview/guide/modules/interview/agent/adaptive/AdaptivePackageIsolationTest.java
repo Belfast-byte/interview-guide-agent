@@ -46,7 +46,8 @@ class AdaptivePackageIsolationTest {
             ROOT + ".memory..",
             ROOT + ".assessment..",
             ROOT + ".planning..",
-            ROOT + ".runtime.."
+            ROOT + ".runtime..",
+            ROOT + ".tool.."
         )
         .should().dependOnClassesThat()
         .resideInAPackage(ROOT + ".persistence..")

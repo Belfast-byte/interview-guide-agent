@@ -139,7 +139,7 @@ class AdaptiveAgentTelemetryTest {
 
     telemetry.toolCallSucceeded(
         "INTERVIEWER",
-        "question_bank_search",
+        "rubric_search",
         System.nanoTime()
     );
 
@@ -147,7 +147,7 @@ class AdaptiveAgentTelemetryTest {
         AdaptiveAgentTelemetry.TOOL_CALLS,
         "role", "INTERVIEWER",
         "status", "success",
-        "action", "question_bank_search"
+        "action", "rubric_search"
     ).count()).isEqualTo(1);
   }
 }
