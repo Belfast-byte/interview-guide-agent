@@ -63,16 +63,13 @@ public final class AdaptiveTestFixtures {
         ),
         new CapabilityTarget.Budget(
             proposal.suggestedTurns(),
-            proposal.suggestedTurns(),
-            2,
-            proposal.suggestedTools().size()
+            proposal.suggestedTurns()
         ),
         new CapabilityTarget.Depth(DepthLevel.L2, DepthLevel.L3),
         List.of(new CapabilityTarget.EvidenceObjective(
             proposal.focus(),
             CapabilityTarget.EvidenceMethod.CANDIDATE_ANSWER
-        )),
-        proposal.suggestedTools()
+        ))
     );
     return new PlannedDimension(target);
   }

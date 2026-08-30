@@ -95,7 +95,6 @@ class AdaptiveCreationTransactionServiceTest {
         "并发更新",
         "CACHE_CONCURRENCY",
         2,
-        List.of(),
         "java-backend"
     ))));
   }

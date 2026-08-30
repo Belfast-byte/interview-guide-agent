@@ -59,9 +59,8 @@ class CoverageProjectorTest {
             dimension + " focus",
             new TopicKey("java-backend", dimension.toLowerCase())
         ),
-        new CapabilityTarget.Budget(2, 2, 1, 0),
+        new CapabilityTarget.Budget(2, 2),
         new CapabilityTarget.Depth(DepthLevel.L2, DepthLevel.L3),
-        List.of(),
         List.of()
     );
   }

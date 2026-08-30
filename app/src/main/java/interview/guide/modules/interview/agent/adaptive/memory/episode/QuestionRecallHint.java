@@ -1,4 +1,4 @@
-package interview.guide.modules.interview.agent.adaptive.core.context;
+package interview.guide.modules.interview.agent.adaptive.memory.episode;
 
 /** 正式面试官可见的中性历史题目提示，不包含旧答案或评级。 */
 public record QuestionRecallHint(

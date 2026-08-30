@@ -1,4 +1,4 @@
-package interview.guide.modules.interview.agent.adaptive.core.context;
+package interview.guide.modules.interview.agent.adaptive.codeanalysis;
 
 import java.util.List;
 

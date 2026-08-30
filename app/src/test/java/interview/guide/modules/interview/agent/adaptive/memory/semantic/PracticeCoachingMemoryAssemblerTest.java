@@ -7,7 +7,6 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 import interview.guide.modules.interview.agent.adaptive.core.context.MemoryOwner;
-import interview.guide.modules.interview.agent.adaptive.core.context.PracticeCoachingContext;
 import interview.guide.modules.interview.agent.adaptive.core.context.TopicKey;
 import interview.guide.modules.interview.agent.adaptive.core.context.DepthLevel;
 import interview.guide.modules.interview.agent.adaptive.core.session.PracticeScope;

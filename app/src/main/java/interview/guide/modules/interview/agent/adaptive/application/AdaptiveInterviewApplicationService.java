@@ -3,7 +3,7 @@ package interview.guide.modules.interview.agent.adaptive.application;
 import interview.guide.common.exception.BusinessException;
 import interview.guide.common.exception.ErrorCode;
 import interview.guide.modules.interview.agent.adaptive.core.context.MemoryOwner;
-import interview.guide.modules.interview.agent.adaptive.core.context.PlannerContext;
+import interview.guide.modules.interview.agent.adaptive.planning.PlannerContext;
 import interview.guide.modules.interview.agent.adaptive.core.event.CandidateAnswer;
 import interview.guide.modules.interview.agent.adaptive.core.session.InterviewSessionSettings;
 import interview.guide.modules.interview.agent.adaptive.core.session.SessionMode;

@@ -130,7 +130,7 @@ class AdaptiveAnswerProgressionTest {
 
   private InterviewPlan initializeInterview() {
     InterviewPlan plan = testPlan(SESSION_ID, new PlanProposal(List.of(new DimensionProposal(
-        "缓存一致性", "并发更新", "CACHE", 2, List.of(), "java-backend"))));
+        "缓存一致性", "并发更新", "CACHE", 2, "java-backend"))));
     AdaptiveSessionCreation session = new AdaptiveSessionCreation(
         null, SESSION_ID, "candidate-1", "JD", "Resume", "provider-1",
         null, null, EVALUATION_SETTINGS);

@@ -8,7 +8,7 @@ import interview.guide.modules.interview.agent.adaptive.core.session.SessionMode
 import interview.guide.modules.interview.agent.adaptive.planning.PlannedDimension;
 import interview.guide.modules.interview.skill.InterviewSkillService;
 import interview.guide.modules.interview.agent.adaptive.core.session.AdaptiveInterviewTurn;
-import interview.guide.modules.interview.agent.adaptive.core.context.PlannerContext;
+import interview.guide.modules.interview.agent.adaptive.planning.PlannerContext;
 import java.util.List;
 import org.springframework.stereotype.Component;
 

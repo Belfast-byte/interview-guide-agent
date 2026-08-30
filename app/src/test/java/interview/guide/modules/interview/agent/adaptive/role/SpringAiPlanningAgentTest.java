@@ -6,7 +6,7 @@ import interview.guide.common.ai.StructuredOutputInvoker;
 import interview.guide.common.exception.BusinessException;
 import interview.guide.common.exception.ErrorCode;
 import interview.guide.modules.interview.agent.adaptive.application.AdaptiveAgentProperties;
-import interview.guide.modules.interview.agent.adaptive.core.context.PlannerContext;
+import interview.guide.modules.interview.agent.adaptive.planning.PlannerContext;
 import interview.guide.modules.interview.agent.adaptive.core.session.CandidateLevel;
 import interview.guide.modules.interview.agent.adaptive.core.session.SessionMode;
 import interview.guide.modules.interview.agent.adaptive.core.context.TopicKey;
@@ -251,6 +251,6 @@ class SpringAiPlanningAgentTest {
   }
 
   private DimensionProposal dimension(String name, String focus) {
-    return new DimensionProposal(name, focus, "JAVA", 2, List.of(), "java-backend");
+    return new DimensionProposal(name, focus, "JAVA", 2, "java-backend");
   }
 }

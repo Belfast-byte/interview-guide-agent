@@ -3,7 +3,6 @@ package interview.guide.modules.interview.agent.adaptive.planning;
 import static interview.guide.modules.interview.agent.adaptive.support.AdaptiveTestFixtures.testPlan;
 
 import interview.guide.common.exception.BusinessException;
-import interview.guide.modules.interview.agent.adaptive.core.context.PlanningSkill;
 import interview.guide.modules.interview.skill.InterviewSkillService;
 import interview.guide.modules.interview.skill.InterviewSkillService.SkillCategoryDTO;
 import interview.guide.modules.interview.skill.InterviewSkillService.SkillDTO;
@@ -74,7 +73,6 @@ class PlanningTaxonomyTest {
             "缓存一致性",
             focusId,
             2,
-            List.of(),
             skillId
         )
     )));

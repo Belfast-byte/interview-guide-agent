@@ -101,7 +101,6 @@ class PracticeRecommendationServiceTest {
             "缓存权衡",
             "ARCHITECTURE",
             1,
-            List.of(),
             null
         ), 0, 0),
         new AssessmentDecision(
@@ -122,7 +121,6 @@ class PracticeRecommendationServiceTest {
         "定位过程",
         "PROBLEM_SOLVING",
         1,
-        List.of(),
         null
     ), 1, 0);
   }

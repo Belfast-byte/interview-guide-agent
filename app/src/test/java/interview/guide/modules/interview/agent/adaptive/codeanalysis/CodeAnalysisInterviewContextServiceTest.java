@@ -16,7 +16,6 @@ import interview.guide.modules.interview.agent.adaptive.codeanalysis.scenario.Sc
 import interview.guide.modules.interview.agent.adaptive.codeanalysis.scenario.ScenarioCardEntity;
 import interview.guide.modules.interview.agent.adaptive.codeanalysis.scenario.ScenarioCardRepository;
 import interview.guide.modules.interview.agent.adaptive.codeanalysis.scenario.ScenarioTaskType;
-import interview.guide.modules.interview.agent.adaptive.core.context.ProjectInterviewContext;
 import java.util.List;
 import java.util.Optional;
 import org.junit.jupiter.api.BeforeEach;

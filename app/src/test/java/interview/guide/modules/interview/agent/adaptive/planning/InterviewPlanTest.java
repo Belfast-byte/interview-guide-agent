@@ -50,13 +50,13 @@ class InterviewPlanTest {
           "session-1",
           new PlanProposal(List.of(
               new DimensionProposal(
-                  "核心项目", "架构取舍", "PROJECT", 12, List.of(), "java-backend"
+                  "核心项目", "架构取舍", "PROJECT", 12, "java-backend"
               ),
               new DimensionProposal(
-                  "专业基础", "并发", "JAVA", 1, List.of(), "java-backend"
+                  "专业基础", "并发", "JAVA", 1, "java-backend"
               ),
               new DimensionProposal(
-                  "协作", "复盘", "TEAMWORK", 1, List.of(), "java-backend"
+                  "协作", "复盘", "TEAMWORK", 1, "java-backend"
               )
           ))
       );
@@ -67,8 +67,8 @@ class InterviewPlanTest {
     }
 
     @Test
-    @DisplayName("候选人阶段由代码裁决目标深度与追问预算")
-    void shouldDecideDepthAndFollowUpBudgetFromCandidateLevel() {
+    @DisplayName("候选人阶段由代码裁决目标深度")
+    void shouldDecideDepthFromCandidateLevel() {
       InterviewSessionSettings settings = new InterviewSessionSettings(
           SessionMode.EVALUATION,
           CandidateLevel.EXPERIENCED,
@@ -80,7 +80,6 @@ class InterviewPlanTest {
 
       assertThat(target.expectedDepth()).isEqualTo(DepthLevel.L3);
       assertThat(target.depthCeiling()).isEqualTo(DepthLevel.L4);
-      assertThat(target.followUpBudget()).isEqualTo(3);
       assertThat(target.evidenceObjectives()).hasSize(1);
     }
 
@@ -163,6 +162,6 @@ class InterviewPlanTest {
   }
 
   private DimensionProposal dimension(String name, String skillId, String focusId) {
-    return new DimensionProposal(name, name + "重点", focusId, 12, List.of(), skillId);
+    return new DimensionProposal(name, name + "重点", focusId, 12, skillId);
   }
 }

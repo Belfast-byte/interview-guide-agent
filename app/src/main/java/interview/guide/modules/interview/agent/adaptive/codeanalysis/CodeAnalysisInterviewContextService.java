@@ -8,7 +8,6 @@ import interview.guide.modules.interview.agent.adaptive.codeanalysis.repo.Projec
 import interview.guide.modules.interview.agent.adaptive.codeanalysis.repo.ProjectDigestRepository;
 import interview.guide.modules.interview.agent.adaptive.codeanalysis.scenario.ScenarioCard;
 import interview.guide.modules.interview.agent.adaptive.codeanalysis.scenario.ScenarioCardRepository;
-import interview.guide.modules.interview.agent.adaptive.core.context.ProjectInterviewContext;
 import java.util.Optional;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;

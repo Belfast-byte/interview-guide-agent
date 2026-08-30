@@ -54,9 +54,6 @@ public class AdaptiveAgentPlanEntity {
   @Column(name = "suggested_turns", nullable = false)
   private int suggestedTurns;
 
-  @Column(name = "suggested_tools", nullable = false, length = 500)
-  private String suggestedTools;
-
   @Column(name = "suggested_skill", length = 64)
   private String suggestedSkill;
 
@@ -70,12 +67,6 @@ public class AdaptiveAgentPlanEntity {
   @Enumerated(EnumType.STRING)
   @Column(name = "depth_ceiling", nullable = false, length = 8)
   private DepthLevel depthCeiling;
-
-  @Column(name = "follow_up_budget", nullable = false)
-  private int followUpBudget;
-
-  @Column(name = "tool_budget", nullable = false)
-  private int toolBudget;
 
   @Convert(converter = EvidenceObjectivesJsonConverter.class)
   @Column(name = "evidence_objectives_json", nullable = false, columnDefinition = "TEXT")
@@ -105,13 +96,10 @@ public class AdaptiveAgentPlanEntity {
             ),
             new CapabilityTarget.Budget(
                 suggestedTurns,
-                allocatedTurns,
-                followUpBudget,
-                toolBudget
+                allocatedTurns
             ),
             new CapabilityTarget.Depth(expectedDepth, depthCeiling),
-            evidenceObjectives,
-            suggestedTools.isBlank() ? List.of() : List.of(suggestedTools.split(","))
+            evidenceObjectives
         )
     );
   }
@@ -122,13 +110,10 @@ public class AdaptiveAgentPlanEntity {
     focus = plannedDimension.focus();
     focusId = plannedDimension.focusId();
     suggestedTurns = plannedDimension.suggestedTurns();
-    suggestedTools = String.join(",", plannedDimension.suggestedTools());
     suggestedSkill = plannedDimension.suggestedSkill();
     allocatedTurns = plannedDimension.allocatedTurns();
     expectedDepth = plannedDimension.expectedDepth();
     depthCeiling = plannedDimension.depthCeiling();
-    followUpBudget = plannedDimension.followUpBudget();
-    toolBudget = plannedDimension.toolBudget();
     evidenceObjectives = plannedDimension.evidenceObjectives();
   }
 

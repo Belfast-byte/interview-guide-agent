@@ -5,7 +5,7 @@ import interview.guide.modules.interview.agent.adaptive.core.session.AdoptedRubr
 import interview.guide.modules.interview.agent.adaptive.core.action.AgentResponseType;
 import interview.guide.modules.interview.agent.adaptive.core.event.CandidateAnswer;
 import interview.guide.modules.interview.agent.adaptive.core.event.CandidateCodeSubmission;
-import interview.guide.modules.interview.agent.adaptive.core.context.CodeFactUsage;
+import interview.guide.modules.interview.agent.adaptive.core.action.CodeFactUsage;
 import interview.guide.modules.interview.agent.adaptive.core.context.WorkingMemory;
 import interview.guide.modules.interview.agent.adaptive.core.action.RespondAction;
 import interview.guide.modules.interview.agent.adaptive.core.session.TurnProvenance;

@@ -40,14 +40,6 @@ public record PlannedDimension(CapabilityTarget target) {
     return target.budget().turnBudget();
   }
 
-  public int followUpBudget() {
-    return target.budget().followUpBudget();
-  }
-
-  public int toolBudget() {
-    return target.budget().toolBudget();
-  }
-
   public DepthLevel expectedDepth() {
     return target.depth().expected();
   }
@@ -60,7 +52,4 @@ public record PlannedDimension(CapabilityTarget target) {
     return target.evidenceObjectives();
   }
 
-  public List<String> suggestedTools() {
-    return target.suggestedTools();
-  }
 }

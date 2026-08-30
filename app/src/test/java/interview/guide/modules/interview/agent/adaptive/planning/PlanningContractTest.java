@@ -1,6 +1,5 @@
 package interview.guide.modules.interview.agent.adaptive.planning;
 
-import interview.guide.modules.interview.agent.adaptive.core.context.PlannerContext;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
@@ -43,26 +42,7 @@ class PlanningContractTest {
         .isInstanceOf(UnsupportedOperationException.class);
   }
 
-  @Test
-  @DisplayName("维度建议中的工具名单不可被调用方改写")
-  void shouldKeepSuggestedToolsImmutable() {
-    List<String> tools = new ArrayList<>(List.of("rubric_search"));
-    DimensionProposal dimension = new DimensionProposal(
-        "专业基础",
-        "缓存与并发",
-        "REDIS",
-        2,
-        tools,
-        "java-backend"
-    );
-    tools.clear();
-
-    assertThat(dimension.suggestedTools()).containsExactly("rubric_search");
-    assertThatThrownBy(() -> dimension.suggestedTools().clear())
-        .isInstanceOf(UnsupportedOperationException.class);
-  }
-
   private DimensionProposal dimension(String name, String focus) {
-    return new DimensionProposal(name, focus, "JAVA", 2, List.of(), "java-backend");
+    return new DimensionProposal(name, focus, "JAVA", 2, "java-backend");
   }
 }

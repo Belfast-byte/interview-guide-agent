@@ -1,5 +1,6 @@
-package interview.guide.modules.interview.agent.adaptive.core.context;
+package interview.guide.modules.interview.agent.adaptive.planning;
 
+import interview.guide.modules.interview.agent.adaptive.core.context.TopicKey;
 import interview.guide.modules.interview.agent.adaptive.core.session.CandidateLevel;
 import interview.guide.modules.interview.agent.adaptive.core.session.SessionMode;
 import java.util.List;

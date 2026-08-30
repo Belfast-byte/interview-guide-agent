@@ -2,7 +2,7 @@ package interview.guide.modules.interview.agent.adaptive.persistence.assessment;
 
 import interview.guide.modules.interview.agent.adaptive.assessment.evidence.EvidenceType;
 import interview.guide.modules.interview.agent.adaptive.assessment.evidence.ValidatedAssessmentEvidence;
-import interview.guide.modules.interview.agent.adaptive.core.context.CodeFactUsage;
+import interview.guide.modules.interview.agent.adaptive.core.action.CodeFactUsage;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.EnumType;

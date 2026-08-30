@@ -1,6 +1,6 @@
 package interview.guide.modules.interview.agent.adaptive.assessment.report;
 
-import interview.guide.modules.interview.agent.adaptive.core.context.CodeFactUsage;
+import interview.guide.modules.interview.agent.adaptive.core.action.CodeFactUsage;
 
 /**
  * 项目代码来源引用。

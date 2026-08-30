@@ -1,6 +1,5 @@
 package interview.guide.modules.interview.agent.adaptive.planning;
 
-import interview.guide.modules.interview.agent.adaptive.core.context.PlannerContext;
 import interview.guide.modules.interview.agent.adaptive.core.session.SessionMode;
 import interview.guide.modules.interview.agent.adaptive.memory.semantic.PracticePlanningMemory;
 

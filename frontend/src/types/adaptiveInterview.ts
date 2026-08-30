@@ -11,7 +11,7 @@ export interface InterviewTopic {
 
 export interface EvidenceObjective {
   description: string;
-  method: 'CANDIDATE_ANSWER' | 'TOOL_FACT';
+  method: 'CANDIDATE_ANSWER';
 }
 
 export interface AdaptiveInterviewDimension {
@@ -19,8 +19,6 @@ export interface AdaptiveInterviewDimension {
   dimension: string;
   focus: string;
   allocatedTurns: number;
-  followUpBudget: number;
-  toolBudget: number;
   expectedDepth: AdaptiveDepthLevel;
   depthCeiling: AdaptiveDepthLevel;
   evidenceObjectives: EvidenceObjective[];
@@ -97,7 +95,6 @@ export interface AdaptiveEvidenceReference {
   answer: string;
   quote: string | null;
   toolResult: {
-    toolCallId: number | null;
     sandboxExecutionId: string | null;
     toolName: string;
     resultId: string;
@@ -141,13 +138,6 @@ export interface SandboxExecution {
   firstFailedCase: number | null;
   pendingRejudge: boolean;
   policyViolation: SandboxPolicyViolation | null;
-}
-
-export interface ToolResultFollowUp {
-  resultId: string;
-  turnIndex: number;
-  responseContent: string;
-  completedAt: string;
 }
 
 export interface AdaptiveDimensionConclusion {

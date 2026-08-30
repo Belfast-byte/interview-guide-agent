@@ -71,16 +71,6 @@ public record InterviewPlan(
 
   private static CapabilityTarget target(TargetInput input) {
     DimensionProposal proposed = input.proposed();
-    List<String> tools = proposed.suggestedTools().stream().map(String::trim).toList();
-    List<CapabilityTarget.EvidenceObjective> objectives = new ArrayList<>();
-    objectives.add(new CapabilityTarget.EvidenceObjective(
-        proposed.focus().trim(),
-        CapabilityTarget.EvidenceMethod.CANDIDATE_ANSWER
-    ));
-    tools.forEach(tool -> objectives.add(new CapabilityTarget.EvidenceObjective(
-        "通过 " + tool + " 获取事实",
-        CapabilityTarget.EvidenceMethod.TOOL_FACT
-    )));
     return new CapabilityTarget(
         new CapabilityTarget.Identity(
             input.order(),
@@ -90,13 +80,13 @@ public record InterviewPlan(
         ),
         new CapabilityTarget.Budget(
             proposed.suggestedTurns(),
-            input.allocatedTurns(),
-            input.profile().followUpBudget(),
-            tools.size()
+            input.allocatedTurns()
         ),
         input.profile().depth(),
-        objectives,
-        tools
+        List.of(new CapabilityTarget.EvidenceObjective(
+            proposed.focus().trim(),
+            CapabilityTarget.EvidenceMethod.CANDIDATE_ANSWER
+        ))
     );
   }
 
@@ -146,12 +136,6 @@ public record InterviewPlan(
       String normalizedName = dimension.dimension().trim().toLowerCase(Locale.ROOT);
       if (!dimensionNames.add(normalizedName)) {
         throw new BusinessException(ErrorCode.AI_SERVICE_ERROR, "规划结果包含重复维度");
-      }
-      if (dimension.suggestedTools().stream().anyMatch(String::isBlank)) {
-        throw new BusinessException(ErrorCode.AI_SERVICE_ERROR, "建议工具标识不能为空");
-      }
-      if (dimension.suggestedTools().stream().anyMatch(tool -> !isValidIdentifier(tool))) {
-        throw new BusinessException(ErrorCode.AI_SERVICE_ERROR, "Invalid suggested tool identifier");
       }
       if (dimension.suggestedSkill() == null || dimension.suggestedSkill().isBlank()) {
         throw new BusinessException(ErrorCode.AI_SERVICE_ERROR, "建议 Skill 标识不能为空");

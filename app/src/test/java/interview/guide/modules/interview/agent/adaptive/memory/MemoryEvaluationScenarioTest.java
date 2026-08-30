@@ -56,11 +56,10 @@ class MemoryEvaluationScenarioTest {
   private CapabilityTarget target() {
     return new CapabilityTarget(
         new CapabilityTarget.Identity(0, "Redis", "持久化", REDIS_PERSISTENCE),
-        new CapabilityTarget.Budget(2, 2, 1, 0),
+        new CapabilityTarget.Budget(2, 2),
         new CapabilityTarget.Depth(DepthLevel.L2, DepthLevel.L3),
         List.of(new CapabilityTarget.EvidenceObjective(
-            OBJECTIVE, CapabilityTarget.EvidenceMethod.CANDIDATE_ANSWER)),
-        List.of()
+            OBJECTIVE, CapabilityTarget.EvidenceMethod.CANDIDATE_ANSWER))
     );
   }
 

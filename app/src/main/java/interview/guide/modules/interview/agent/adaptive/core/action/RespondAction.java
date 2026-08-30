@@ -1,8 +1,5 @@
 package interview.guide.modules.interview.agent.adaptive.core.action;
 
-import interview.guide.modules.interview.agent.adaptive.core.context.CodeQuestionProvenance;
-import interview.guide.modules.interview.agent.adaptive.core.context.QuestionProvenance;
-
 /**
  * Agent 回复动作，表示直接向候选人输出文本响应。
  */

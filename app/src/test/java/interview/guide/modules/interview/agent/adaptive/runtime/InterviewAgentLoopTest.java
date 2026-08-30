@@ -179,9 +179,8 @@ class InterviewAgentLoopTest {
   private CapabilityTarget target(int order, String id, DepthLevel expected) {
     return new CapabilityTarget(
         new CapabilityTarget.Identity(order, id, "focus", new TopicKey("skill", id)),
-        new CapabilityTarget.Budget(2, 2, 1, 0),
+        new CapabilityTarget.Budget(2, 2),
         new CapabilityTarget.Depth(expected, DepthLevel.L4),
-        List.of(),
         List.of()
     );
   }

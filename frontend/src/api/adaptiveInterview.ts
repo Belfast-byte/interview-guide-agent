@@ -10,7 +10,6 @@ import type {
   SubmitAlgorithmCodeRequest,
   SandboxExecution,
   PublicAlgorithmProblem,
-  ToolResultFollowUp,
 } from '../types/adaptiveInterview';
 import type { CandidateMemoryResponse } from '../types/candidateMemory';
 
@@ -139,11 +138,6 @@ export const adaptiveInterviewApi = {
     );
   },
 
-  getToolResultFollowUps(sessionId: string): Promise<ToolResultFollowUp[]> {
-    return request.get<ToolResultFollowUp[]>(
-      `${BASE_PATH}/${sessionId}/tool-result-follow-ups`,
-    );
-  },
 };
 
 interface InterviewStreamOptions {

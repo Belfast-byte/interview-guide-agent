@@ -82,7 +82,6 @@ class DimensionBriefServiceTest {
         "缓存一致性",
         "REDIS",
         2,
-        List.of(),
         "java-backend"
     ), 0, 1);
   }

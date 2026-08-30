@@ -53,7 +53,6 @@ class AdaptiveInterviewResponseTest {
                 "缓存与并发",
                 "REDIS",
                 2,
-                List.of(),
                 "java-backend"
             ), 0, 0)
         ));

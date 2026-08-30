@@ -1,6 +1,5 @@
 package interview.guide.modules.interview.agent.adaptive.memory.semantic;
 
-import interview.guide.modules.interview.agent.adaptive.core.context.PracticeCoachingContext;
 import interview.guide.modules.interview.agent.adaptive.core.session.PracticeScope;
 import interview.guide.modules.interview.agent.adaptive.core.session.SessionMode;
 import interview.guide.modules.interview.agent.adaptive.memory.episode.EpisodeRecallSource;

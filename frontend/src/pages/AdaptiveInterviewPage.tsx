@@ -33,7 +33,6 @@ import type {
   PublicAlgorithmProblem,
   SandboxLanguage,
   SandboxRunMode,
-  ToolResultFollowUp,
   AdaptiveSessionMode,
   CandidateLevel,
 } from '../types/adaptiveInterview';
@@ -78,7 +77,6 @@ export default function AdaptiveInterviewPage() {
   const [runMode, setRunMode] = useState<SandboxRunMode>('SAMPLE');
   const [source, setSource] = useState('');
   const [submission, setSubmission] = useState<SandboxExecution | null>(null);
-  const [followUps, setFollowUps] = useState<ToolResultFollowUp[]>([]);
   const [judging, setJudging] = useState(false);
   const [judgeError, setJudgeError] = useState('');
   const [answerStage, setAnswerStage] = useState<'assessing' | 'generating' | null>(null);
@@ -180,20 +178,6 @@ export default function AdaptiveInterviewPage() {
     }, 2_000);
     return () => window.clearTimeout(timer);
   }, [session, submission]);
-
-  useEffect(() => {
-    if (!session || !submission || session.status !== 'IN_PROGRESS') return;
-    if (['PENDING', 'RUNNING'].includes(submission.status)) return;
-    if (followUps.some(item => item.resultId === submission.submissionId)) return;
-    const timer = window.setTimeout(async () => {
-      try {
-        setFollowUps(await adaptiveInterviewApi.getToolResultFollowUps(session.sessionId));
-      } catch (requestError) {
-        setJudgeError(getErrorMessage(requestError));
-      }
-    }, 2_000);
-    return () => window.clearTimeout(timer);
-  }, [followUps, session, submission]);
 
   const createInterview = async () => {
     const request = {
@@ -515,17 +499,6 @@ export default function AdaptiveInterviewPage() {
                   </div>
                 )}
               </motion.article>
-            ))}
-            {followUps.filter(item => item.turnIndex === session.currentTurn).map(item => (
-              <div key={item.resultId} className="flex gap-3">
-                <div className="flex h-9 w-9 flex-none items-center justify-center rounded-xl bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-300">
-                  <Code2 className="h-4 w-4" />
-                </div>
-                <div className="min-w-0 flex-1 rounded-2xl rounded-tl-md border border-amber-200 bg-amber-50/70 px-4 py-3.5 dark:border-amber-800/60 dark:bg-amber-950/20">
-                  <p className="mb-1 font-mono text-[10px] uppercase tracking-[0.14em] text-amber-600">Judge follow-up</p>
-                  <p className="text-sm font-medium leading-7 text-slate-900 dark:text-slate-100">{item.responseContent}</p>
-                </div>
-              </div>
             ))}
             {streamingQuestion && (
               <div className="flex gap-3">

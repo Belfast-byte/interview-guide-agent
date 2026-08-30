@@ -4,11 +4,11 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 import interview.guide.modules.interview.agent.adaptive.core.context.DepthLevel;
 import interview.guide.modules.interview.agent.adaptive.core.context.MemoryOwner;
-import interview.guide.modules.interview.agent.adaptive.core.context.PracticeCoachingContext;
 import interview.guide.modules.interview.agent.adaptive.core.context.ProbeGap;
 import interview.guide.modules.interview.agent.adaptive.core.context.TopicKey;
 import interview.guide.modules.interview.agent.adaptive.core.session.PracticeScope;
 import interview.guide.modules.interview.agent.adaptive.core.session.SessionMode;
+import interview.guide.modules.interview.agent.adaptive.memory.semantic.PracticeCoachingContext;
 import interview.guide.modules.interview.agent.adaptive.memory.episode.EpisodeAssistanceLevel;
 import interview.guide.modules.interview.agent.adaptive.memory.episode.EpisodeClosureStatus;
 import interview.guide.modules.interview.agent.adaptive.memory.episode.EpisodeRecallSource;

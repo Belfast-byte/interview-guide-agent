@@ -7,13 +7,11 @@ public record CapabilityTarget(
     Identity identity,
     Budget budget,
     Depth depth,
-    List<EvidenceObjective> evidenceObjectives,
-    List<String> suggestedTools
+    List<EvidenceObjective> evidenceObjectives
 ) {
 
   public CapabilityTarget {
     evidenceObjectives = List.copyOf(evidenceObjectives);
-    suggestedTools = List.copyOf(suggestedTools);
   }
 
   public record Identity(
@@ -25,9 +23,7 @@ public record CapabilityTarget(
 
   public record Budget(
       int suggestedTurns,
-      int turnBudget,
-      int followUpBudget,
-      int toolBudget
+      int turnBudget
   ) {
   }
 
@@ -36,7 +32,6 @@ public record CapabilityTarget(
   public record EvidenceObjective(String description, EvidenceMethod method) {}
 
   public enum EvidenceMethod {
-    CANDIDATE_ANSWER,
-    TOOL_FACT
+    CANDIDATE_ANSWER
   }
 }

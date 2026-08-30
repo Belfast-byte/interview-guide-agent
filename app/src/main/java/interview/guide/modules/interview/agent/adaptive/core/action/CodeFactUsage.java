@@ -1,4 +1,4 @@
-package interview.guide.modules.interview.agent.adaptive.core.context;
+package interview.guide.modules.interview.agent.adaptive.core.action;
 
 /**
  * 代码事实使用方式枚举，标识代码事实在评估中是被引用、验证还是丢弃。

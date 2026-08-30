@@ -3,8 +3,8 @@ package interview.guide.modules.interview.agent.adaptive.memory;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.Mockito.mock;
 
-import interview.guide.modules.interview.agent.adaptive.core.context.PlannerContext;
-import interview.guide.modules.interview.agent.adaptive.core.context.PlanningSkill;
+import interview.guide.modules.interview.agent.adaptive.planning.PlannerContext;
+import interview.guide.modules.interview.agent.adaptive.planning.PlanningSkill;
 import interview.guide.modules.interview.agent.adaptive.core.session.CandidateLevel;
 import interview.guide.modules.interview.agent.adaptive.core.session.SessionMode;
 import interview.guide.modules.interview.skill.InterviewSkillService;
