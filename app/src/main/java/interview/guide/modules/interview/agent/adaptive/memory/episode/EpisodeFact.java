@@ -18,8 +18,6 @@ public record EpisodeFact(
     long assessmentId,
     TopicKey topic,
     String targetId,
-    long workRevisionBefore,
-    long workRevisionAfter,
     EpisodeAssistanceLevel assistanceLevel,
     EpisodeClosureStatus closureStatus,
     Long correctsEpisodeId,

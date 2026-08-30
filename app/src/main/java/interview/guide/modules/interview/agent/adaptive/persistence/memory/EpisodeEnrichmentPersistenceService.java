@@ -21,7 +21,6 @@ public class EpisodeEnrichmentPersistenceService implements EpisodeEnrichmentSto
 
   private final EpisodeFactRepository episodeRepository;
   private final EpisodeTagRepository tagRepository;
-  private final SemanticMemoryPersistenceService semanticMemory;
 
   @Transactional
   @Override
@@ -41,7 +40,6 @@ public class EpisodeEnrichmentPersistenceService implements EpisodeEnrichmentSto
     tagRepository.deleteByEpisodeId(completion.episodeId());
     tagRepository.saveAllAndFlush(toEntities(episode, completion.tags()));
     episodeRepository.saveAndFlush(episode);
-    semanticMemory.refreshForEpisode(completion.episodeId());
   }
 
   @Transactional

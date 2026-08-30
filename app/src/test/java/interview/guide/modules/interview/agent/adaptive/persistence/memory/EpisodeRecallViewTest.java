@@ -169,8 +169,6 @@ class EpisodeRecallViewTest {
         1,
         TOPIC,
         "target-0",
-        1,
-        2,
         EpisodeAssistanceLevel.NONE,
         EpisodeClosureStatus.UNRESOLVED,
         null

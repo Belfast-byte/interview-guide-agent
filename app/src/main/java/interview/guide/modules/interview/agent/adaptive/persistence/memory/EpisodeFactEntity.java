@@ -80,12 +80,6 @@ public class EpisodeFactEntity {
   @Column(name = "target_id", nullable = false, length = 36)
   private String targetId;
 
-  @Column(name = "work_revision_before", nullable = false)
-  private long workRevisionBefore;
-
-  @Column(name = "work_revision_after", nullable = false)
-  private long workRevisionAfter;
-
   @Enumerated(EnumType.STRING)
   @Column(name = "assistance_level", nullable = false, length = 16)
   private EpisodeAssistanceLevel assistanceLevel;
@@ -135,8 +129,6 @@ public class EpisodeFactEntity {
     this.skillId = creation.topic().skillId();
     this.focusId = creation.topic().focusId();
     this.targetId = creation.targetId();
-    this.workRevisionBefore = creation.workRevisionBefore();
-    this.workRevisionAfter = creation.workRevisionAfter();
     this.assistanceLevel = creation.assistanceLevel();
     this.closureStatus = creation.closureStatus();
     this.correctsEpisodeId = creation.correctsEpisodeId();
@@ -203,8 +195,6 @@ public class EpisodeFactEntity {
         assessmentId,
         new TopicKey(skillId, focusId),
         targetId,
-        workRevisionBefore,
-        workRevisionAfter,
         assistanceLevel,
         closureStatus,
         correctsEpisodeId,

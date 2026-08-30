@@ -31,5 +31,4 @@
 | [33-remediation-execution-plan.md](./33-remediation-execution-plan.md) | 32 号规格执行计划 | 已完成历史记录，不是当前架构约束 |
 | [34-memory-three-layer-spec.md](./34-memory-three-layer-spec.md) | 三层记忆目标规格 | v5 目标规格 |
 | [35-memory-three-layer-tickets.md](./35-memory-three-layer-tickets.md) | 三层记忆 v4 实施票据 | 历史记录，禁止继续执行 |
-| [36-agent-loop-working-memory-spec.md](./36-agent-loop-working-memory-spec.md) | Agent Loop、Tool、Working Memory 与删旧迁移 | 目标规格，待实施 |
-| [36-agent-loop-working-memory-tickets.md](./36-agent-loop-working-memory-tickets.md) | 36 号规格临时实施票据 | 执行中使用，全部验收后删除 |
+| [36-agent-loop-working-memory-spec.md](./36-agent-loop-working-memory-spec.md) | Agent Loop、Tool、Working Memory 与删旧迁移 | 已实施，当前技术权威 |

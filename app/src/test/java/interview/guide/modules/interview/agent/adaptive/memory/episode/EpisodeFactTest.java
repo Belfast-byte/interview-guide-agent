@@ -11,26 +11,14 @@ import org.junit.jupiter.api.Test;
 class EpisodeFactTest {
 
   @Test
-  @DisplayName("Episode WorkState revision 必须严格前进")
-  void shouldRequireIncreasingWorkRevision() {
-    assertThatThrownBy(() -> creation(2, 2, null))
-        .isInstanceOf(IllegalArgumentException.class)
-        .hasMessageContaining("revision");
-  }
-
-  @Test
   @DisplayName("纠正 Episode 必须引用有效历史 Episode")
   void shouldRequireValidCorrectionReference() {
-    assertThatThrownBy(() -> creation(1, 2, 0L))
+    assertThatThrownBy(() -> creation(0L))
         .isInstanceOf(IllegalArgumentException.class)
         .hasMessageContaining("纠正");
   }
 
-  private EpisodeFactCreation creation(
-      long before,
-      long after,
-      Long correctsEpisodeId
-  ) {
+  private EpisodeFactCreation creation(Long correctsEpisodeId) {
     return new EpisodeFactCreation(
         new MemoryOwner(null, "candidate-1"),
         "session-1",
@@ -39,8 +27,6 @@ class EpisodeFactTest {
         2,
         new TopicKey("java-backend", "REDIS"),
         "target-0",
-        before,
-        after,
         EpisodeAssistanceLevel.FOLLOW_UP,
         EpisodeClosureStatus.RESOLVED,
         correctsEpisodeId

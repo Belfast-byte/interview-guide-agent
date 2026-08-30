@@ -15,14 +15,12 @@ import interview.guide.modules.interview.agent.adaptive.memory.semantic.Practice
 import interview.guide.modules.interview.agent.adaptive.memory.semantic.PracticeResult;
 import interview.guide.modules.interview.agent.adaptive.memory.semantic.SemanticAggregator;
 import interview.guide.modules.interview.agent.adaptive.memory.semantic.SemanticSource;
-import interview.guide.modules.interview.agent.adaptive.memory.semantic.SemanticStateKey;
-import interview.guide.modules.interview.agent.adaptive.memory.semantic.SemanticTrack;
+import interview.guide.modules.interview.agent.adaptive.memory.semantic.SemanticStateProjector;
 import interview.guide.modules.interview.agent.adaptive.persistence.memory.JpaSemanticStateSource;
-import interview.guide.modules.interview.agent.adaptive.persistence.memory.SemanticStateEntity;
-import interview.guide.modules.interview.agent.adaptive.persistence.memory.SemanticStateRepository;
+import interview.guide.modules.interview.agent.adaptive.persistence.memory.SemanticContributionEntity;
+import interview.guide.modules.interview.agent.adaptive.persistence.memory.SemanticContributionRepository;
 import java.time.LocalDateTime;
 import java.util.Arrays;
-import java.util.List;
 import java.util.UUID;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
@@ -35,7 +33,12 @@ import org.springframework.context.annotation.Import;
     "spring.flyway.enabled=false",
     "spring.jpa.hibernate.ddl-auto=create-drop"
 })
-@Import({CandidateMemoryQueryService.class, JpaSemanticStateSource.class})
+@Import({
+    CandidateMemoryQueryService.class,
+    JpaSemanticStateSource.class,
+    SemanticStateProjector.class,
+    SemanticAggregator.class
+})
 @DisplayName("候选人双轨长期记忆查询接口")
 class CandidateMemoryControllerTest {
 
@@ -46,9 +49,8 @@ class CandidateMemoryControllerTest {
   private static final LocalDateTime BASE = LocalDateTime.of(2026, 8, 28, 10, 0);
 
   @Autowired private CandidateMemoryQueryService queryService;
-  @Autowired private SemanticStateRepository states;
+  @Autowired private SemanticContributionRepository contributions;
   private CandidateMemoryController controller;
-  private final SemanticAggregator aggregator = new SemanticAggregator();
 
   @BeforeEach
   void setUp() {
@@ -60,7 +62,7 @@ class CandidateMemoryControllerTest {
   void shouldReturnDualTrackSemanticState() {
     saveEvaluation(OWNER);
     savePractice(OWNER);
-    saveEvaluation(new MemoryOwner("tenant-a", OWNER.candidateId()));
+    saveEvaluation(new MemoryOwner("tenant-a", OWNER.candidateId()), 3);
 
     CandidateMemoryResponse response = controller.get(principal(CANDIDATE_ID), 0).getData();
 
@@ -100,12 +102,13 @@ class CandidateMemoryControllerTest {
   }
 
   private void saveEvaluation(MemoryOwner owner) {
+    saveEvaluation(owner, 1);
+  }
+
+  private void saveEvaluation(MemoryOwner owner, long episodeId) {
     EvaluationContribution contribution = new EvaluationContribution(
-        source(owner, 1), DepthLevel.L2);
-    SemanticStateEntity state = new SemanticStateEntity(new SemanticStateKey(
-        owner, REDIS, SemanticTrack.EVALUATED_CAPABILITY));
-    state.apply(aggregator.evaluation(List.of(contribution), List.of()));
-    states.saveAndFlush(state);
+        source(owner, episodeId), DepthLevel.L2);
+    contributions.saveAndFlush(new SemanticContributionEntity(contribution));
   }
 
   private void savePractice(MemoryOwner owner) {
@@ -116,10 +119,7 @@ class CandidateMemoryControllerTest {
             EpisodeAssistanceLevel.FOLLOW_UP,
             DepthLevel.L2
         ));
-    SemanticStateEntity state = new SemanticStateEntity(new SemanticStateKey(
-        owner, REDIS, SemanticTrack.PRACTICE_MASTERY));
-    state.apply(aggregator.practice(List.of(contribution), List.of(), List.of()));
-    states.saveAndFlush(state);
+    contributions.saveAndFlush(new SemanticContributionEntity(contribution));
   }
 
   private SemanticSource source(MemoryOwner owner, long episodeId) {

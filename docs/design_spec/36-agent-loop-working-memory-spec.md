@@ -1,9 +1,9 @@
 # Agent Loop 与 Working Memory 演进规格
 
 > 维护：Agent；上游产品意图以 [面试 Agent 的运行方式](../design/03-agent-loop-and-working-memory.md) 为准。
-> 状态：目标规格，待实施。
+> 状态：已实施，作为当前 Agent 运行与记忆边界的技术权威。
 > 依据：[2026-08-29 架构审计](../review/adaptive-agent-complexity-audit-2026-08-29.md)。
-> 最后更新：2026-08-29
+> 最后更新：2026-08-30
 
 本规格取代 34 号 v4 中 WorkState/Patch/ActionIntent 和固定 NextActionPolicy，取代 35 号旧 T02/T03，并校准 10/11/12/13/14/20 中的模型/Java、Tool 和恢复边界。Episodic/Semantic 的当前目标仍见 [34-memory-three-layer-spec.md](./34-memory-three-layer-spec.md) v5。
 
@@ -246,31 +246,18 @@ Tool 必须同时满足：是否调用由模型决定、关键参数依赖语义
 - KEEP：Session、Turn、Plan、Assessment、ProbeGap、Evidence、Episode、QuestionExposure、权限、DB unique、一个乐观版本、固定 Skill、结构化输出、deadline、Tool allowlist、SandboxExecution/隔离/稳定幂等、确定性 Report。
 - REDESIGN：`BoundedActionRuntime` → `InterviewAgentLoop`；workflow WorkState → 内存 WorkingMemory + Turn Snapshot；`ContextAssembler` → facts + Coverage + Memory；`ToolGateway` → 无状态只读 executor；`RubricLookupTool` → `RubricSearchTool`。
 
-## 11. 迁移切片
+## 11. 实施结果
 
-### S0：固定真实副作用 owner
+| 切片 | 已落地裁决 |
+|---|---|
+| S0 | SandboxExecution 使用稳定业务键；终态与 Evidence 原子消费，不再依赖 Intent/Event。 |
+| S1 | Context、Coverage、API 与报告读取领域事实投影，不读取 WorkState/Snapshot 副本。 |
+| S2 | 创建与回答链统一进入 InterviewAgentLoop；最终 Turn 只保存一次 Working Memory Snapshot。 |
+| S3 | `rubric_search` 是请求级真 Tool，Observation 回流模型；固定 Skill、sandbox command 不伪装 Tool。 |
+| S4 | Intent/WorkState/Patch/read-only ToolExecution 运行时、schema、配置和前端伪状态已删除。 |
+| S5 | Episode 无 work revision/题答副本；扫描只选择缺 enrichment 结果的 Episode；SemanticState 按 Contribution 与 Tag 实时投影，不持久化 cache。 |
 
-沙箱改稳定业务键；ToolResult 消费改为一个事务；修复终态 race。旧 Agent 主链暂时运行，但 sandbox 不再依赖 Intent UUID。
-
-### S1：建立事实投影读链
-
-ContextAssembler、维度 API 和报告改读 Session/Plan/Turn/Assessment/ProbeGap/Evidence，建立 CoverageProjector；停止新增 WorkState 消费者，暂不删表。
-
-### S2：切换 ASK/FINISH
-
-引入 WorkingMemory、AgentDecision、Validator 和 InterviewAgentLoop，先支持 ASK/FINISH。回答链改为 answer claim → Assessor → AgentLoop → 一个最终短事务；删除 ASK Intent、NextActionPolicy 和 WorkState 写入。切换后不双写。
-
-### S3：启用第一个真 Tool
-
-实现 `rubric_search` 与 Observation 回流；Skill 自动加载；sandbox 直接 application command。删除 read-only ToolExecution、Role Registry 和三个伪 Tool。
-
-### S4：删除恢复协议与 schema
-
-删除 Intent/WorkState/Patch/Event 类、repository、scheduler、迁移列/FK/表和前端伪状态；用新 Flyway 迁移，不改已应用历史迁移，不保留 legacy codec 或长期 feature flag。
-
-### S5：收缩派生记忆
-
-删除 Episode work revision；enrichment 只扫描缺少结果的 Episode；Semantic 默认按 Contribution 聚合。每个切片必须留下单一运行路径，不维护新旧状态机。
+正式 Assessor 的输入只包含本轮问题、回答和本轮评估契约，不读取 Working Memory 或历史 Semantic 评级；历史记忆只服务于出题去重和练习规划。V20260927/V20260928 负责从旧 schema 单向升级，历史 migration 不回改。
 
 ## 12. 必须通过的测试
 
@@ -297,3 +284,4 @@ ContextAssembler、维度 API 和报告改读 Session/Plan/Turn/Assessment/Probe
 - SandboxExecution 是副作用唯一执行事实源；Working Memory 只在 Loop 内更新并在 Turn 边界保存一次；
 - 报告/API 只读领域事实；WorkState、Patch、Intent 及其恢复/schema/死测试已删除；
 - 没有双写、legacy runtime 分支、silent fallback 或 mock success。
+- PostgreSQL 空库与 V20260926 基线升级均通过 Flyway validate 和 JPA validate；后端测试在 60 秒门禁内按包等价全量通过。

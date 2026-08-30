@@ -16,8 +16,6 @@ public record EpisodeFactCreation(
     int turnIndex,
     TopicKey topic,
     String targetId,
-    long workRevisionBefore,
-    long workRevisionAfter,
     EpisodeAssistanceLevel assistanceLevel,
     EpisodeClosureStatus closureStatus,
     Long correctsEpisodeId
@@ -33,9 +31,6 @@ public record EpisodeFactCreation(
     Objects.requireNonNull(closureStatus, "closureStatus 不能为空");
     if (sessionId.isBlank() || targetId.isBlank() || turnId < 1 || turnIndex < 1) {
       throw new IllegalArgumentException("Episode sessionId 和 turnIndex 非法");
-    }
-    if (workRevisionBefore < 1 || workRevisionAfter <= workRevisionBefore) {
-      throw new IllegalArgumentException("Episode WorkState revision 非法");
     }
     if (correctsEpisodeId != null && correctsEpisodeId < 1) {
       throw new IllegalArgumentException("Episode 纠正引用非法");

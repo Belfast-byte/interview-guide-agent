@@ -207,8 +207,6 @@ class EpisodeEnrichmentRecoveryIntegrationTest {
             1,
             new TopicKey("java-backend", "REDIS"),
             "target-0",
-            1,
-            2,
             EpisodeAssistanceLevel.NONE,
             EpisodeClosureStatus.UNRESOLVED,
             null

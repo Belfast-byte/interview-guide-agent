@@ -20,15 +20,15 @@ import static org.assertj.core.api.Assertions.assertThat;
 @EnabledIfEnvironmentVariable(named = "POSTGRES_SCHEMA_TEST_PASSWORD", matches = ".+")
 class PostgresAgentSchemaMigrationTest {
 
-  private static final MigrationVersion PRE_T14_VERSION =
+  private static final MigrationVersion PRE_SCHEMA_CLEANUP_VERSION =
       MigrationVersion.fromVersion("20260926");
 
   @Test
-  @DisplayName("PostgreSQL 空库和 T14 前基线均可迁移并通过 JPA validate")
+  @DisplayName("PostgreSQL 空库和遗留 Agent 基线均可迁移并通过 JPA validate")
   void shouldMigrateEmptyAndExistingSchemas() {
     DatabaseConfig config = DatabaseConfig.fromEnvironment();
     verifySchema(config, migrationSchema("empty"), null);
-    verifySchema(config, migrationSchema("upgrade"), PRE_T14_VERSION);
+    verifySchema(config, migrationSchema("upgrade"), PRE_SCHEMA_CLEANUP_VERSION);
   }
 
   private void verifySchema(
@@ -89,7 +89,8 @@ class PostgresAgentSchemaMigrationTest {
   }
 
   private String migrationSchema(String prefix) {
-    return "agent_t14_" + prefix + "_" + UUID.randomUUID().toString().replace("-", "");
+    return "agent_schema_" + prefix + "_"
+        + UUID.randomUUID().toString().replace("-", "");
   }
 
   private record DatabaseConfig(String url, String user, String password) {

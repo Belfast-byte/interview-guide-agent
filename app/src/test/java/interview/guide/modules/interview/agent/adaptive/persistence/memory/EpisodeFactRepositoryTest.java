@@ -36,7 +36,7 @@ class EpisodeFactRepositoryTest {
   private AdaptiveAgentAssessmentRepository assessmentRepository;
 
   @Test
-  @DisplayName("Episode 保存不可变会话、目标和 WorkState 事实")
+  @DisplayName("Episode 保存不可变会话、Turn、Assessment 和目标事实")
   void shouldPersistImmutableFact() {
     EpisodeFactEntity saved = saveEpisode(
         new MemoryOwner(null, "candidate-1"),
@@ -49,8 +49,6 @@ class EpisodeFactRepositoryTest {
       assertThat(fact.topic()).isEqualTo(TOPIC);
       assertThat(fact.sessionMode()).isEqualTo(SessionMode.EVALUATION);
       assertThat(fact.targetId()).isEqualTo("target-0");
-      assertThat(fact.workRevisionBefore()).isEqualTo(1);
-      assertThat(fact.workRevisionAfter()).isEqualTo(2);
       assertThat(fact.assistanceLevel()).isEqualTo(EpisodeAssistanceLevel.NONE);
       assertThat(fact.closureStatus()).isEqualTo(EpisodeClosureStatus.UNRESOLVED);
       assertThat(fact.enrichmentStatus()).isEqualTo(EpisodeEnrichmentStatus.PENDING);
@@ -114,8 +112,6 @@ class EpisodeFactRepositoryTest {
             assessment.turnIndex(),
             TOPIC,
             "target-0",
-            1,
-            2,
             EpisodeAssistanceLevel.NONE,
             EpisodeClosureStatus.UNRESOLVED,
             null

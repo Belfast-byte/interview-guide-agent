@@ -37,9 +37,17 @@ public interface EpisodeFactRepository extends JpaRepository<EpisodeFactEntity, 
   );
 
   @Lock(LockModeType.PESSIMISTIC_WRITE)
-  List<EpisodeFactEntity> findByEnrichmentStatusAndUpdatedAtBeforeOrderByUpdatedAtAscIdAsc(
-      EpisodeEnrichmentStatus status,
-      LocalDateTime cutoff
+  @Query("""
+      SELECT episode
+      FROM EpisodeFactEntity episode
+      WHERE episode.enrichmentStatus = :status
+        AND episode.answerSummary IS NULL
+        AND episode.updatedAt < :cutoff
+      ORDER BY episode.updatedAt ASC, episode.id ASC
+      """)
+  List<EpisodeFactEntity> findMissingEnrichmentBefore(
+      @Param("status") EpisodeEnrichmentStatus status,
+      @Param("cutoff") LocalDateTime cutoff
   );
 
   @Query("""
@@ -49,9 +57,10 @@ public interface EpisodeFactRepository extends JpaRepository<EpisodeFactEntity, 
       FROM EpisodeFactEntity episode
       LEFT JOIN AdaptiveAgentSessionEntity session ON session.id = episode.sessionId
       WHERE episode.enrichmentStatus = :status
+        AND episode.answerSummary IS NULL
       ORDER BY episode.updatedAt ASC, episode.id ASC
       """)
-  List<EpisodeEnrichmentJobProjection> findEnrichmentJobsByStatus(
+  List<EpisodeEnrichmentJobProjection> findMissingEnrichmentJobs(
       @Param("status") EpisodeEnrichmentStatus status
   );
 

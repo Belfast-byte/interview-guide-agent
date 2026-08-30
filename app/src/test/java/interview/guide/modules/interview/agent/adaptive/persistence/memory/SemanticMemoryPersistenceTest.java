@@ -20,6 +20,8 @@ import interview.guide.modules.interview.agent.adaptive.memory.semantic.Practice
 import interview.guide.modules.interview.agent.adaptive.memory.semantic.SemanticAggregator;
 import interview.guide.modules.interview.agent.adaptive.memory.semantic.SemanticContributionFactory;
 import interview.guide.modules.interview.agent.adaptive.memory.semantic.SemanticContributionInput;
+import interview.guide.modules.interview.agent.adaptive.memory.semantic.SemanticStateProjector;
+import interview.guide.modules.interview.agent.adaptive.memory.semantic.SemanticStateSource;
 import interview.guide.modules.interview.agent.adaptive.memory.semantic.SemanticTrack;
 import interview.guide.modules.interview.agent.adaptive.memory.semantic.TransferStatus;
 import interview.guide.modules.interview.agent.adaptive.persistence.assessment.AdaptiveAgentAssessmentEntity;
@@ -37,9 +39,10 @@ import org.springframework.context.annotation.Import;
 })
 @Import({
     SemanticMemoryPersistenceService.class,
-    SemanticMemoryRepositories.class,
     SemanticContributionFactory.class,
-    SemanticAggregator.class
+    SemanticAggregator.class,
+    SemanticStateProjector.class,
+    JpaSemanticStateSource.class
 })
 class SemanticMemoryPersistenceTest {
 
@@ -47,8 +50,8 @@ class SemanticMemoryPersistenceTest {
   private static final TopicKey TOPIC = new TopicKey("redis", "persistence");
 
   @Autowired private SemanticMemoryPersistenceService service;
+  @Autowired private SemanticStateSource states;
   @Autowired private SemanticContributionRepository contributions;
-  @Autowired private SemanticStateRepository states;
   @Autowired private EpisodeFactRepository episodes;
   @Autowired private EpisodeTagRepository tags;
   @Autowired private AdaptiveAgentAssessmentRepository assessments;
@@ -107,8 +110,6 @@ class SemanticMemoryPersistenceTest {
     service.record(input(second, DepthLevel.L2));
     tags.saveAllAndFlush(List.of(tag(first, habit, 1), tag(second, habit, 2)));
 
-    service.refreshForEpisode(second.id());
-
     assertThat(practiceState().stablePatterns())
         .singleElement()
         .satisfies(pattern -> {
@@ -142,8 +143,6 @@ class SemanticMemoryPersistenceTest {
         1,
         TOPIC,
         "target-0",
-        1,
-        2,
         fixture.kind().assistance(),
         fixture.kind().closure(),
         null
@@ -174,7 +173,6 @@ class SemanticMemoryPersistenceTest {
 
   private PracticeSemanticState practiceState() {
     return (PracticeSemanticState) states.findByOwner(OWNER).stream()
-        .map(SemanticStateEntity::toDomain)
         .filter(state -> state.key().track() == SemanticTrack.PRACTICE_MASTERY)
         .findFirst()
         .orElseThrow();
@@ -182,7 +180,6 @@ class SemanticMemoryPersistenceTest {
 
   private EvaluationSemanticState evaluationState() {
     return (EvaluationSemanticState) states.findByOwner(OWNER).stream()
-        .map(SemanticStateEntity::toDomain)
         .filter(state -> state.key().track() == SemanticTrack.EVALUATED_CAPABILITY)
         .findFirst()
         .orElseThrow();

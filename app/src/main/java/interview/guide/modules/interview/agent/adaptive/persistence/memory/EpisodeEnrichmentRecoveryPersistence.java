@@ -41,13 +41,13 @@ public class EpisodeEnrichmentRecoveryPersistence
       LocalDateTime processingCutoff
   ) {
     List<EpisodeFactEntity> stale = episodeRepository
-        .findByEnrichmentStatusAndUpdatedAtBeforeOrderByUpdatedAtAscIdAsc(
+        .findMissingEnrichmentBefore(
             EpisodeEnrichmentStatus.PROCESSING,
             processingCutoff
         );
     stale.forEach(EpisodeFactEntity::recoverStaleEnrichment);
     episodeRepository.flush();
-    return episodeRepository.findEnrichmentJobsByStatus(
+    return episodeRepository.findMissingEnrichmentJobs(
         EpisodeEnrichmentStatus.PENDING
     ).stream().map(this::toJob).toList();
   }

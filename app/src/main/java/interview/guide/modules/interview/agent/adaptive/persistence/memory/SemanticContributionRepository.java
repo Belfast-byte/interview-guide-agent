@@ -1,7 +1,8 @@
 package interview.guide.modules.interview.agent.adaptive.persistence.memory;
 
-import interview.guide.modules.interview.agent.adaptive.memory.semantic.SemanticTrack;
+import interview.guide.modules.interview.agent.adaptive.core.context.MemoryOwner;
 import interview.guide.modules.interview.agent.adaptive.memory.semantic.SemanticOwnerTopic;
+import interview.guide.modules.interview.agent.adaptive.memory.semantic.SemanticTrack;
 import java.util.List;
 import java.util.Optional;
 import org.springframework.data.jpa.repository.JpaRepository;
@@ -16,7 +17,16 @@ public interface SemanticContributionRepository
       SemanticTrack track
   );
 
-  Optional<SemanticContributionEntity> findByEpisodeId(long episodeId);
+  @Query("""
+      SELECT contribution
+      FROM SemanticContributionEntity contribution
+      WHERE contribution.candidateId = :#{#owner.candidateId}
+        AND ((:#{#owner.tenantId} IS NULL AND contribution.tenantId IS NULL)
+          OR contribution.tenantId = :#{#owner.tenantId})
+      ORDER BY contribution.skillId, contribution.focusId, contribution.createdAt,
+        contribution.id
+      """)
+  List<SemanticContributionEntity> findByOwner(@Param("owner") MemoryOwner owner);
 
   @Query("""
       SELECT contribution
