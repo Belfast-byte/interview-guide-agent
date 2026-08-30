@@ -22,6 +22,9 @@ class PlanningContractTest {
         .containsExactly(
             "jd", "resume", "mode", "candidateLevel", "practiceScope", "skillCatalog"
         );
+    assertThat(Arrays.stream(PlanProposal.class.getRecordComponents())
+        .map(component -> component.getName()))
+        .containsExactly("dimensions", "initialQuestion");
   }
 
   @Test

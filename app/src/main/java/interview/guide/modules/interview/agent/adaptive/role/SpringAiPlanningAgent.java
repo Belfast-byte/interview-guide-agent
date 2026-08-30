@@ -81,7 +81,7 @@ public class SpringAiPlanningAgent implements PlanningAgent {
       // 规划是无工具的结构化输出：使用 plain client，避免默认工具 advisor 引入隐藏的额外往返
       ChatClient chatClient = plannerClient(llmProvider, request.sessionId());
       proposal = deadlineExecutor.invoke(
-          () -> structuredOutputInvoker.invoke(
+          () -> structuredOutputInvoker.invokeOnce(
               chatClient,
               systemPrompt,
               userPrompt,

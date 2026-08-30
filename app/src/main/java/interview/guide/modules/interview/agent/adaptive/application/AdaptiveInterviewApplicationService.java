@@ -15,11 +15,13 @@ import interview.guide.modules.interview.agent.adaptive.observability.AlgorithmI
 import interview.guide.modules.interview.agent.adaptive.persistence.session.AdaptiveInterviewPersistenceService;
 import interview.guide.modules.interview.agent.adaptive.persistence.session.AdaptiveSessionCreation;
 import interview.guide.modules.interview.agent.adaptive.planning.InterviewPlan;
+import interview.guide.modules.interview.agent.adaptive.planning.InitialQuestionProposal;
 import interview.guide.modules.interview.agent.adaptive.planning.PlanProposal;
 import interview.guide.modules.interview.agent.adaptive.planning.PlannedInterview;
 import interview.guide.modules.interview.agent.adaptive.planning.PlanningAgent;
 import interview.guide.modules.interview.agent.adaptive.planning.PlanningRequest;
 import interview.guide.modules.interview.agent.adaptive.planning.PlanningTaxonomy;
+import interview.guide.modules.interview.agent.adaptive.runtime.AgentDecision;
 import interview.guide.modules.llmprovider.service.CandidateChatProvider;
 import interview.guide.modules.llmprovider.service.CandidateLlmProviderService;
 import java.util.UUID;
@@ -141,15 +143,18 @@ public class AdaptiveInterviewApplicationService {
       String sessionId,
       InterviewCreationInput input
   ) {
-    InterviewPlan plan = decidePlan(sessionId, input);
+    InitialCreationProposal proposal = decideInitialProposal(sessionId, input);
     return new AdaptiveInterviewCreationService.InitialAgentRun(
         input.toSessionCreation(sessionId),
-        plan,
-        properties.getDeadline()
+        proposal.plan(),
+        proposal.decision()
     );
   }
 
-  private InterviewPlan decidePlan(String sessionId, InterviewCreationInput input) {
+  private InitialCreationProposal decideInitialProposal(
+      String sessionId,
+      InterviewCreationInput input
+  ) {
     PlanProposal proposal = planningAgent.propose(
         new PlanningRequest(sessionId, contextAssembler.planner(new PlannerContext(
             input.jd(),
@@ -164,12 +169,18 @@ public class AdaptiveInterviewApplicationService {
     try {
       InterviewPlan plan = InterviewPlan.decide(sessionId, proposal, input.settings());
       planningTaxonomy.validate(plan);
-      return plan;
+      InitialQuestionProposal initialQuestion = proposal.initialQuestion();
+      if (initialQuestion == null) {
+        throw new BusinessException(ErrorCode.AI_SERVICE_ERROR, "创建 Agent 未返回首题提案");
+      }
+      return new InitialCreationProposal(plan, initialQuestion.toDecision(plan));
     } catch (BusinessException e) {
       telemetry.planRejected(sessionId, e.getCode());
       throw e;
     }
   }
+
+  private record InitialCreationProposal(InterviewPlan plan, AgentDecision decision) {}
 
   private PracticePlanningMemory practiceMemory(InterviewCreationInput input) {
     if (input.settings().mode() != SessionMode.PRACTICE) {
@@ -266,36 +277,4 @@ public class AdaptiveInterviewApplicationService {
     return persistenceService.getForTenant(tenantId, sessionId);
   }
 
-  private record InterviewCreationInput(
-      String tenantId,
-      String candidateId,
-      String jd,
-      String resume,
-      String llmProviderId,
-      String llmProviderNameSnapshot,
-      String llmModelSnapshot,
-      InterviewSessionSettings settings
-  ) {
-
-    AdaptiveSessionCreation toSessionCreation(String sessionId) {
-      return new AdaptiveSessionCreation(
-          tenantId,
-          sessionId,
-          candidateId,
-          jd,
-          resume,
-          llmProviderId,
-          llmProviderNameSnapshot,
-          llmModelSnapshot,
-          settings
-      );
-    }
-  }
-
-  private record AnswerSubmissionInput(
-      String tenantId,
-      String sessionId,
-      CandidateAnswer answer,
-      AnswerEventSink sink
-  ) {}
 }

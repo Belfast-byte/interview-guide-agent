@@ -110,10 +110,11 @@ class SpringAiPlanningAgentTest {
     PlanProposal actual = planningAgent.propose(request(), "provider-1");
 
     assertThat(actual).isSameAs(expected);
+    ArgumentCaptor<String> systemPrompt = ArgumentCaptor.forClass(String.class);
     ArgumentCaptor<String> userPrompt = ArgumentCaptor.forClass(String.class);
-    verify(structuredOutputInvoker).invoke(
+    verify(structuredOutputInvoker).invokeOnce(
         eq(chatClient),
-        anyString(),
+        systemPrompt.capture(),
         userPrompt.capture(),
         any(),
         eq(ErrorCode.AI_SERVICE_ERROR),
@@ -131,6 +132,8 @@ class SpringAiPlanningAgentTest {
             "skillCatalog"
         )
         .doesNotContain("semanticMemory");
+    assertThat(systemPrompt.getValue())
+        .contains("Initial Question Contract", "initialQuestion.targetOrder");
     verify(telemetry).modelCallSucceeded(eq("planner"), eq("PLAN"), anyLong());
   }
 
@@ -151,7 +154,7 @@ class SpringAiPlanningAgentTest {
     planningAgent.propose(practiceRequest(topic, memory), "provider-1");
 
     ArgumentCaptor<String> userPrompt = ArgumentCaptor.forClass(String.class);
-    verify(structuredOutputInvoker).invoke(
+    verify(structuredOutputInvoker).invokeOnce(
         eq(chatClient), anyString(), userPrompt.capture(), any(),
         eq(ErrorCode.AI_SERVICE_ERROR), anyString(),
         eq("adaptive_agent_planning"), any(Logger.class));
@@ -205,7 +208,7 @@ class SpringAiPlanningAgentTest {
   }
 
   private PlanProposal invoke() {
-    return structuredOutputInvoker.invoke(
+    return structuredOutputInvoker.invokeOnce(
         eq(chatClient),
         anyString(),
         anyString(),

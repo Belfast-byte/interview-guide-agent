@@ -51,10 +51,9 @@ Planner 与 Assessor 仍是明确的结构化模型调用，不包装成通用 R
 ### 2.1 创建会话与首题
 
 ~~~text
-Planner LLM
-  -> Java 校验 catalog/scope/depth ceiling/maxTurns
+Bootstrap LLM 单次调用返回 Plan + 初始 ASK + Working Memory，不做结构化输出重试
+  -> Java 校验 catalog/scope/depth ceiling/maxTurns/Target/Memory
   -> 短事务保存 Session + immutable Plan
-  -> ContextAssembler + InterviewAgentLoop
   -> 短事务保存首个 Turn + WorkingMemorySnapshot
 ~~~
 
@@ -261,7 +260,7 @@ Tool 必须同时满足：是否调用由模型决定、关键参数依赖语义
 
 ## 12. 必须通过的测试
 
-1. 首题无 Tool 直接 ASK；
+1. 创建链一次模型往返同时提出 Plan 与无 Tool 的首题 ASK；
 2. `rubric_search → Observation → ASK` 真实循环；
 3. 多 Gap 时模型可选非首项，Java 只校验引用；
 4. 模型可自由 follow-up/switch，Plan 顺序和 expectedDepth 不自动决定动作；
