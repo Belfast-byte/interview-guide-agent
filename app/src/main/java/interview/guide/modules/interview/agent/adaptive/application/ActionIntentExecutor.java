@@ -5,15 +5,11 @@ import interview.guide.common.exception.ErrorCode;
 import interview.guide.modules.interview.agent.adaptive.core.action.AgentAction;
 import interview.guide.modules.interview.agent.adaptive.core.action.AgentResponseType;
 import interview.guide.modules.interview.agent.adaptive.core.action.RespondAction;
-import interview.guide.modules.interview.agent.adaptive.core.action.ToolCallAction;
 import interview.guide.modules.interview.agent.adaptive.core.intent.ActionIntent;
 import interview.guide.modules.interview.agent.adaptive.core.intent.ActionIntentStatus;
 import interview.guide.modules.interview.agent.adaptive.core.intent.ActionResultType;
 import interview.guide.modules.interview.agent.adaptive.core.intent.AskActionPayload;
-import interview.guide.modules.interview.agent.adaptive.core.intent.ToolActionPayload;
 import interview.guide.modules.interview.agent.adaptive.core.memory.InterviewWorkState;
-import interview.guide.modules.interview.agent.adaptive.core.memory.WorkEvidenceRef;
-import interview.guide.modules.interview.agent.adaptive.core.memory.WorkIssueStatus;
 import interview.guide.modules.interview.agent.adaptive.core.memory.WorkStateOperation;
 import interview.guide.modules.interview.agent.adaptive.core.memory.WorkStatePatch;
 import interview.guide.modules.interview.agent.adaptive.core.memory.WorkStatePatchSource;
@@ -30,23 +26,18 @@ import interview.guide.modules.interview.agent.adaptive.role.AgentRoleRegistry;
 import interview.guide.modules.interview.agent.adaptive.runtime.BoundedActionRuntime;
 import interview.guide.modules.interview.agent.adaptive.runtime.ReActRequest;
 import interview.guide.modules.interview.agent.adaptive.runtime.RuntimeDeadline;
-import interview.guide.modules.interview.agent.adaptive.runtime.ToolExecution;
-import interview.guide.modules.interview.agent.adaptive.runtime.ToolExecutionOutcome;
-import interview.guide.modules.interview.agent.adaptive.tool.ToolGateway;
-import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 
-/** 执行已持久化的 ASK/CALL_TOOL，并把结果与状态应用分成两个短事务。 */
+/** 执行已持久化的 ASK，并把问题发布与状态应用分成两个短事务。 */
 @Service
 @RequiredArgsConstructor
 public class ActionIntentExecutor {
 
   private final BoundedActionRuntime runtime;
   private final AgentRoleRegistry roleRegistry;
-  private final ToolGateway toolGateway;
   private final ActionIntentPersistenceService intentService;
   private final ActionIntentTransactionService intentTransactions;
   private final WorkStatePersistenceService workStateService;
@@ -74,32 +65,12 @@ public class ActionIntentExecutor {
         restarted, execution.request(), execution.deltaSink()));
   }
 
-  public InterviewWorkState executeTool(ToolIntentExecution execution) {
-    ActionIntent running = begin(execution.intent());
-    if (running.progress().status() == ActionIntentStatus.APPLIED) {
-      return workStateService.get(running.key().sessionId());
-    }
-    if (running.progress().status() == ActionIntentStatus.SUCCEEDED) {
-      return applyTool(running);
-    }
-    ToolExecution result = invokeTool(execution.request(), running);
-    intentTransactions.completeTool(
-        running.key().sessionId(), running.key().intentId(), result);
-    return applyTool(intentService.get(running.key().intentId()));
-  }
 
-  public InterviewWorkState recoverTool(ToolIntentExecution execution) {
-    ActionIntent restarted = intentService.restart(execution.intent().key().intentId());
-    return executeRunningTool(new ToolIntentExecution(restarted, execution.request()));
-  }
 
   public PlannedInterview applySucceededAsk(ActionIntent intent) {
     return applyQuestion(intent);
   }
 
-  public InterviewWorkState applySucceededTool(ActionIntent intent) {
-    return applyTool(intent);
-  }
 
   private ActionIntent begin(ActionIntent intent) {
     return switch (intent.progress().status()) {
@@ -128,15 +99,6 @@ public class ActionIntentExecutor {
     return applyQuestion(intentService.get(execution.intent().key().intentId()));
   }
 
-  private InterviewWorkState executeRunningTool(ToolIntentExecution execution) {
-    ToolExecution result = invokeTool(execution.request(), execution.intent());
-    intentTransactions.completeTool(
-        execution.intent().key().sessionId(),
-        execution.intent().key().intentId(),
-        result
-    );
-    return applyTool(intentService.get(execution.intent().key().intentId()));
-  }
 
   private QuestionPublication prepareQuestion(
       AskIntentExecution execution,
@@ -179,20 +141,6 @@ public class ActionIntentExecutor {
     }
   }
 
-  private ToolExecution invokeTool(
-      ReActRequest request,
-      ActionIntent running
-  ) {
-    ToolActionPayload payload = (ToolActionPayload) running.payload();
-    ToolCallAction action = new ToolCallAction(
-        payload.call().toolName(), payload.call().arguments(), payload.call().reason());
-    try {
-      return toolGateway.execute(request, action, payload.idempotencyKey());
-    } catch (RuntimeException e) {
-      intentService.fail(running.key().intentId(), failureMessage(e));
-      throw e;
-    }
-  }
 
   private PlannedInterview applyQuestion(ActionIntent intent) {
     if (intent.progress().status() == ActionIntentStatus.APPLIED) {
@@ -212,49 +160,8 @@ public class ActionIntentExecutor {
     return interviewPersistence.get(intent.key().sessionId());
   }
 
-  private InterviewWorkState applyTool(ActionIntent intent) {
-    if (intent.progress().status() == ActionIntentStatus.APPLIED) {
-      return workStateService.get(intent.key().sessionId());
-    }
-    ToolActionPayload payload = (ToolActionPayload) intent.payload();
-    ToolExecution execution = intentTransactions.toolExecution(
-        intent.progress().outcome().resultRef());
-    InterviewWorkState state = workStateService.get(intent.key().sessionId());
-    List<WorkStateOperation> operations = toolResultOperations(state, payload, execution);
-    intentService.apply(intent.key().intentId(), resultPatch(state, intent, operations));
-    return workStateService.get(intent.key().sessionId());
-  }
 
-  private List<WorkStateOperation> toolResultOperations(
-      InterviewWorkState state,
-      ToolActionPayload payload,
-      ToolExecution execution
-  ) {
-    List<WorkStateOperation> operations = new ArrayList<>();
-    if (execution.outcome() == ToolExecutionOutcome.COMPLETED) {
-      operations.add(new WorkStateOperation.AddEvidenceRef(new WorkEvidenceRef(
-          state.activeTargetId(), execution.toolName(), execution.resultId(),
-          execution.outputSummary())));
-      closeToolIssue(state, payload).ifPresent(operations::add);
-    }
-    operations.add(new WorkStateOperation.ApplyActionResult(
-        ActionResultType.TOOL_RESULT, null, null));
-    return List.copyOf(operations);
-  }
 
-  private java.util.Optional<WorkStateOperation> closeToolIssue(
-      InterviewWorkState state,
-      ToolActionPayload payload
-  ) {
-    if (payload.target().issueId() == null) {
-      return java.util.Optional.empty();
-    }
-    return state.activeOpenIssues().stream()
-        .filter(issue -> issue.issueId().equals(payload.target().issueId()))
-        .findFirst()
-        .map(issue -> new WorkStateOperation.CloseIssue(
-            issue.issueId(), WorkIssueStatus.RESOLVED, "工具事实已经返回"));
-  }
 
   private WorkStatePatch resultPatch(
       InterviewWorkState state,

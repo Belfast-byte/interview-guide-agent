@@ -12,7 +12,6 @@ import interview.guide.modules.interview.agent.adaptive.observability.AdaptiveIn
 import interview.guide.modules.interview.agent.adaptive.runtime.AgentModelGateway;
 import interview.guide.modules.interview.agent.adaptive.runtime.ReActModelContext;
 import interview.guide.modules.interview.agent.adaptive.runtime.ToolObservation;
-import interview.guide.modules.interview.agent.adaptive.tool.ToolGateway;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.atomic.AtomicReference;
@@ -25,7 +24,6 @@ import org.springframework.ai.chat.messages.AssistantMessage;
 import org.springframework.ai.chat.model.ChatResponse;
 import org.springframework.ai.chat.model.MessageAggregator;
 import org.springframework.ai.chat.prompt.PromptTemplate;
-import org.springframework.ai.tool.ToolCallback;
 import org.springframework.stereotype.Component;
 import tools.jackson.core.JacksonException;
 import tools.jackson.databind.ObjectMapper;
@@ -41,8 +39,6 @@ public class SpringAiAdaptiveAgentModelGateway implements AgentModelGateway {
   private final ObjectMapper objectMapper;
   private final AdaptiveAgentTelemetry telemetry;
   private final AdaptiveInputTokenBudget inputTokenBudget;
-  private final AgentRoleRegistry roleRegistry;
-  private final ToolGateway toolGateway;
   private final AdaptiveModelOptionsFactory modelOptionsFactory;
   private final PromptTemplate systemPromptTemplate;
   private final PromptTemplate userPromptTemplate;
@@ -53,8 +49,6 @@ public class SpringAiAdaptiveAgentModelGateway implements AgentModelGateway {
       ObjectMapper objectMapper,
       AdaptiveAgentTelemetry telemetry,
       AdaptiveInputTokenBudget inputTokenBudget,
-      AgentRoleRegistry roleRegistry,
-      ToolGateway toolGateway,
       AdaptiveModelOptionsFactory modelOptionsFactory,
       AdaptiveAgentResponseMapper responseMapper,
       AdaptiveAgentProperties properties,
@@ -64,8 +58,6 @@ public class SpringAiAdaptiveAgentModelGateway implements AgentModelGateway {
     this.objectMapper = objectMapper;
     this.telemetry = telemetry;
     this.inputTokenBudget = inputTokenBudget;
-    this.roleRegistry = roleRegistry;
-    this.toolGateway = toolGateway;
     this.modelOptionsFactory = modelOptionsFactory;
     this.responseMapper = responseMapper;
     this.systemPromptTemplate = promptLoader.loadTemplate(properties.getSystemPromptPath());
@@ -180,7 +172,7 @@ public class SpringAiAdaptiveAgentModelGateway implements AgentModelGateway {
     var responseFlux = prompt.chatClient().prompt()
         .system(prompt.systemPrompt())
         .user(prompt.userPrompt())
-        .options(modelOptionsFactory.interviewer(availableToolCallbacks(context)))
+        .options(modelOptionsFactory.interviewer(List.of()))
         .advisors(advisor -> advisor.param(
             ChatClientAttributes.TOOL_CALLING_ADVISOR_AUTO_REGISTER.getKey(),
             false
@@ -229,9 +221,8 @@ public class SpringAiAdaptiveAgentModelGateway implements AgentModelGateway {
     return prompt.chatClient().prompt()
         .system(prompt.systemPrompt())
         .user(prompt.userPrompt())
-        .options(modelOptionsFactory.interviewer(availableToolCallbacks(context)))
-        // 关闭 Spring AI 2.0 自动注册的 ToolCallingAdvisor：
-        // 工具调用这里只生成参数提案；持久化 ActionIntent 后才由 ToolGateway 执行。
+        .options(modelOptionsFactory.interviewer(List.of()))
+        // 旧 ReAct 路径不再声明或执行 Tool；只读 Tool 统一由 InterviewAgentLoop 驱动。
         .advisors(advisor -> advisor.param(
             ChatClientAttributes.TOOL_CALLING_ADVISOR_AUTO_REGISTER.getKey(),
             false
@@ -254,12 +245,6 @@ public class SpringAiAdaptiveAgentModelGateway implements AgentModelGateway {
     );
   }
 
-  private List<ToolCallback> availableToolCallbacks(ReActModelContext context) {
-    if (context.hasAcceptedToolObservation()) {
-      return List.of();
-    }
-    return toolGateway.callbacksFor(roleRegistry.get(context.request().role()));
-  }
 
   private int inputTurn(ReActModelContext context) {
     return context.request().inputTurnIndex();

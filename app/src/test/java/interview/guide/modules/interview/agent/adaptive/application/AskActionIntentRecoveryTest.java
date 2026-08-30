@@ -39,7 +39,6 @@ import interview.guide.modules.interview.agent.adaptive.role.AgentRoleRegistry;
 import interview.guide.modules.interview.agent.adaptive.runtime.BoundedActionRuntime;
 import interview.guide.modules.interview.agent.adaptive.runtime.ReActRequest;
 import interview.guide.modules.interview.agent.adaptive.runtime.RuntimeDeadline;
-import interview.guide.modules.interview.agent.adaptive.tool.ToolGateway;
 import java.time.Duration;
 import java.time.LocalDateTime;
 import java.util.List;
@@ -55,7 +54,6 @@ class AskActionIntentRecoveryTest {
 
   private final BoundedActionRuntime runtime = mock(BoundedActionRuntime.class);
   private final AgentRoleRegistry roles = mock(AgentRoleRegistry.class);
-  private final ToolGateway tools = mock(ToolGateway.class);
   private final ActionIntentPersistenceService intents =
       mock(ActionIntentPersistenceService.class);
   private final ActionIntentTransactionService transactions =
@@ -73,7 +71,7 @@ class AskActionIntentRecoveryTest {
   @BeforeEach
   void setUp() {
     executor = new ActionIntentExecutor(
-        runtime, roles, tools, intents, transactions, workStates, interviews, novelty);
+        runtime, roles, intents, transactions, workStates, interviews, novelty);
     when(request.role()).thenReturn(AgentRole.INTERVIEWER);
     when(roles.get(AgentRole.INTERVIEWER)).thenReturn(new AgentRoleDefinition(
         AgentRole.INTERVIEWER, Duration.ofSeconds(10), Set.of()));

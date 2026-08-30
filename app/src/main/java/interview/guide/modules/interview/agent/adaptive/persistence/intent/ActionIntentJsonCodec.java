@@ -3,7 +3,6 @@ package interview.guide.modules.interview.agent.adaptive.persistence.intent;
 import interview.guide.modules.interview.agent.adaptive.core.intent.ActionIntentPayload;
 import interview.guide.modules.interview.agent.adaptive.core.intent.ActionIntentType;
 import interview.guide.modules.interview.agent.adaptive.core.intent.AskActionPayload;
-import interview.guide.modules.interview.agent.adaptive.core.intent.ToolActionPayload;
 import org.springframework.stereotype.Component;
 import tools.jackson.core.JacksonException;
 import tools.jackson.databind.ObjectMapper;
@@ -27,10 +26,7 @@ public class ActionIntentJsonCodec {
 
   public ActionIntentPayload decode(ActionIntentType type, String json) {
     try {
-      return switch (type) {
-        case ASK -> objectMapper.readValue(json, AskActionPayload.class);
-        case CALL_TOOL -> objectMapper.readValue(json, ToolActionPayload.class);
-      };
+      return objectMapper.readValue(json, AskActionPayload.class);
     } catch (JacksonException e) {
       throw new IllegalArgumentException("ActionIntent payload 反序列化失败", e);
     }

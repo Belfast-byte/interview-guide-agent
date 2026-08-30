@@ -27,7 +27,6 @@ import interview.guide.modules.interview.agent.adaptive.core.intent.ActionResult
 import interview.guide.modules.interview.agent.adaptive.core.intent.AskActionPayload;
 import interview.guide.modules.interview.agent.adaptive.planning.PlannedDimension;
 import interview.guide.modules.interview.agent.adaptive.planning.PlannedInterview;
-import interview.guide.modules.interview.agent.adaptive.runtime.ToolExecution;
 import interview.guide.modules.interview.agent.adaptive.persistence.assessment.AdaptiveAgentAssessmentEntity;
 import interview.guide.modules.interview.agent.adaptive.persistence.assessment.AdaptiveAgentAssessmentRepository;
 import interview.guide.modules.interview.agent.adaptive.persistence.assessment.AdaptiveAgentEvidenceEntity;
@@ -63,7 +62,6 @@ public class AdaptiveInterviewPersistenceService {
   private final AdaptiveAgentSessionRepository sessionRepository;
   private final AdaptiveAgentTurnRepository turnRepository;
   private final AdaptiveAgentPlanRepository planRepository;
-  private final AdaptiveAgentToolCallRepository toolCallRepository;
   private final AdaptiveDimensionBriefRepository dimensionBriefRepository;
   private final AdaptiveAgentAssessmentRepository assessmentRepository;
   private final AdaptiveAgentEvidenceRepository evidenceRepository;
@@ -268,7 +266,6 @@ public class AdaptiveInterviewPersistenceService {
     String sessionId = input.sessionId();
     CandidateAnswer answer = input.answer();
     RespondAction proposedAction = input.proposedAction();
-    List<ToolExecution> toolExecutions = input.toolExecutions();
     DimensionBrief dimensionBrief = input.dimensionBrief();
     AssessmentDecision assessmentDecision = input.assessmentDecision();
     List<ValidatedAssessmentEvidence> assessmentEvidences = input.assessmentEvidences();
@@ -330,7 +327,6 @@ public class AdaptiveInterviewPersistenceService {
           provenance
       )));
     }
-    saveToolExecutions(sessionId, toolExecutions);
     if (dimensionBrief != null) {
       dimensionBriefRepository.save(new AdaptiveDimensionBriefEntity(dimensionBrief));
     }
@@ -529,14 +525,6 @@ public class AdaptiveInterviewPersistenceService {
     );
   }
 
-  private void saveToolExecutions(
-      String sessionId,
-      List<ToolExecution> toolExecutions
-  ) {
-    toolCallRepository.saveAll(toolExecutions.stream()
-        .map(execution -> new AdaptiveAgentToolCallEntity(sessionId, execution))
-        .toList());
-  }
 
   private InterviewPlan toPlan(
       String sessionId,

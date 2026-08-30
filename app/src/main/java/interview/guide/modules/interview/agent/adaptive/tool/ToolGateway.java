@@ -2,197 +2,131 @@ package interview.guide.modules.interview.agent.adaptive.tool;
 
 import interview.guide.common.exception.BusinessException;
 import interview.guide.common.exception.ErrorCode;
-import interview.guide.common.util.Sha256;
-import interview.guide.modules.interview.agent.adaptive.core.action.ToolCallAction;
-import interview.guide.modules.interview.agent.adaptive.observability.AdaptiveAgentTelemetry;
-import interview.guide.modules.interview.agent.adaptive.role.AgentRoleDefinition;
-import interview.guide.modules.interview.agent.adaptive.role.AgentRoleRegistry;
-import interview.guide.modules.interview.agent.adaptive.runtime.ReActRequest;
-import interview.guide.modules.interview.agent.adaptive.runtime.ToolExecution;
-import interview.guide.modules.interview.agent.adaptive.runtime.ToolExecutionOutcome;
+import interview.guide.modules.interview.agent.adaptive.runtime.DecisionObservation;
+import interview.guide.modules.interview.agent.adaptive.runtime.DecisionObservation.Kind;
+import interview.guide.modules.interview.agent.adaptive.runtime.ReadToolBatch;
+import interview.guide.modules.interview.agent.adaptive.runtime.ReadToolCall;
+import interview.guide.modules.interview.agent.adaptive.runtime.ReadToolExecutor;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.function.Function;
 import java.util.stream.Collectors;
-import org.springframework.ai.tool.ToolCallback;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;
-import tools.jackson.core.JacksonException;
-import tools.jackson.databind.ObjectMapper;
 
-/**
- * 工具网关，负责执行 Agent 请求的工具调用并管理同步/异步结果。
- */
+/** 请求内按模型顺序执行只读工具，不持久化任何中间执行状态。 */
+@Slf4j
 @Component
-public class ToolGateway {
+public class ToolGateway implements ReadToolExecutor {
 
-  private static final String TRUNCATED_MARKER = "[truncated]";
+  private static final String DEADLINE_MESSAGE = "Interview Agent 资源截止时间已耗尽";
+  private static final String TOOL_ERROR_MESSAGE = "只读工具执行失败";
 
-  private final Map<String, AdaptiveAgentTool> tools;
-  private final AgentRoleRegistry roleRegistry;
-  private final ObjectMapper objectMapper;
-  private final AdaptiveAgentTelemetry telemetry;
-  private final int maxResultChars;
+  private final Map<String, ReadOnlyAgentTool> tools;
 
-  public ToolGateway(
-      List<AdaptiveAgentTool> tools,
-      AgentRoleRegistry roleRegistry,
-      ObjectMapper objectMapper,
-      AdaptiveAgentTelemetry telemetry,
-      ToolProperties properties
-  ) {
+  public ToolGateway(List<ReadOnlyAgentTool> tools) {
     this.tools = tools.stream().collect(Collectors.toUnmodifiableMap(
-        AdaptiveAgentTool::name,
+        ReadOnlyAgentTool::name,
         Function.identity()
     ));
-    this.roleRegistry = roleRegistry;
-    this.objectMapper = objectMapper;
-    this.telemetry = telemetry;
-    this.maxResultChars = properties.getMaxResultChars();
   }
 
-  /**
-   * 执行一次 Agent 工具调用：校验角色白名单、调用具体工具、记录执行轨迹和遥测。
-   *
-   * @param request ReAct 请求上下文
-   * @param action 工具调用动作
-   * @return 工具执行结果
-   */
-  public ToolExecution execute(ReActRequest request, ToolCallAction action) {
-    return execute(request, action, invocationId(request, action));
+  @Override
+  public List<DecisionObservation> execute(ReadToolBatch batch) {
+    List<DecisionObservation> observations = new ArrayList<>(batch.calls().size());
+    for (int callIndex = 0; callIndex < batch.calls().size(); callIndex++) {
+      requireTimeRemaining(batch.deadlineNanos());
+      observations.add(executeCall(batch, batch.calls().get(callIndex), callIndex));
+    }
+    return List.copyOf(observations);
   }
 
-  public ToolExecution execute(
-      ReActRequest request,
-      ToolCallAction action,
-      String idempotencyKey
+  private DecisionObservation executeCall(
+      ReadToolBatch batch,
+      ReadToolCall call,
+      int callIndex
   ) {
-    long startedNanos = System.nanoTime();
+    String reference = "tool-" + batch.batchIndex() + "-" + callIndex;
+    ReadOnlyAgentTool tool = tools.get(call.toolName());
+    if (!batch.context().facts().allowedReadTools().contains(call.toolName())) {
+      return rejection(reference, call, "toolName", "工具不在当前会话白名单中");
+    }
+    if (tool == null) {
+      return rejection(reference, call, "toolName", "工具未装配");
+    }
+    ReadToolRequest request = new ReadToolRequest(
+        batch.context(), call.arguments(), batch.deadlineNanos());
     try {
-      ToolExecution execution = executeAllowed(
-          new ToolExecutionInput(request, action, idempotencyKey), startedNanos);
-      telemetry.toolCallSucceeded(request.role().name(), action.toolName(), startedNanos);
-      return execution;
+      tool.validate(request);
+      requireTimeRemaining(batch.deadlineNanos());
+      return observation(reference, call, tool.execute(request));
+    } catch (ReadToolValidationException e) {
+      return rejection(reference, call, e.field(), e.getMessage());
     } catch (BusinessException e) {
-      telemetry.toolCallFailed(
-          request.role().name(),
-          action.toolName(),
-          request.sessionId(),
-          request.targetTurnIndex(),
-          e.getCode(),
-          startedNanos
-      );
       throw e;
     } catch (Exception e) {
-      telemetry.toolCallFailed(
-          request.role().name(),
-          action.toolName(),
-          request.sessionId(),
-          request.targetTurnIndex(),
-          ErrorCode.AI_SERVICE_ERROR.getCode(),
-          startedNanos
-      );
-      throw new BusinessException(
-          ErrorCode.AI_SERVICE_ERROR,
-          "Agent tool execution failed",
+      log.error(
+          "只读工具执行异常: sessionId={}, toolName={}, reference={}",
+          batch.context().session().identity().sessionId(),
+          call.toolName(),
+          reference,
           e
       );
+      return envelope(
+          reference, Kind.TOOL_ERROR, null, TOOL_ERROR_MESSAGE,
+          call.toolName(), Map.of(), List.of());
     }
   }
 
-  public void validate(ReActRequest request, ToolCallAction action) {
-    tool(request, action).validate(request, action.arguments());
-  }
-
-  private ToolExecution executeAllowed(
-      ToolExecutionInput input,
-      long startedNanos
+  private DecisionObservation observation(
+      String reference,
+      ReadToolCall call,
+      ReadToolResult result
   ) {
-    ReActRequest request = input.request();
-    ToolCallAction action = input.action();
-    AdaptiveAgentTool tool = tool(request, action);
-    tool.validate(request, action.arguments());
-
-    ToolResult result = tool.execute(request, action.arguments(), input.idempotencyKey());
-    String output = writeJson(result.value());
-    if (output.length() > maxResultChars) {
-      output = output.substring(0, maxResultChars) + TRUNCATED_MARKER;
-    }
-    return new ToolExecution(
-        input.idempotencyKey(),
-        action.toolName(),
-        action.reason(),
-        request.role().name(),
-        result instanceof PendingToolResult pending && pending.targetTurnIndex() != null
-            ? pending.targetTurnIndex()
-            : request.targetTurnIndex(),
-        "keys=" + action.arguments().keySet().stream().sorted().toList(),
-        result.summary(),
-        result.resultId(),
-        output,
-        result instanceof PendingToolResult
-            ? ToolExecutionOutcome.PENDING
-            : ToolExecutionOutcome.COMPLETED,
-        (System.nanoTime() - startedNanos) / 1_000_000
-    );
+    return switch (result) {
+      case ReadToolResult.Success success -> envelope(
+          reference, Kind.TOOL_SUCCESS, null, null, call.toolName(),
+          success.data(), success.adoptableSources());
+      case ReadToolResult.Empty empty -> envelope(
+          reference, Kind.TOOL_EMPTY, null, empty.message(), call.toolName(),
+          Map.of(), List.of());
+      case ReadToolResult.Timeout timeout -> envelope(
+          reference, Kind.TOOL_TIMEOUT, null, timeout.message(), call.toolName(),
+          Map.of(), List.of());
+      case ReadToolResult.Error error -> envelope(
+          reference, Kind.TOOL_ERROR, null, error.message(), call.toolName(),
+          Map.of(), List.of());
+    };
   }
 
-  private AdaptiveAgentTool tool(ReActRequest request, ToolCallAction action) {
-    AgentRoleDefinition role = roleRegistry.get(request.role());
-    if (!role.allowedTools().contains(action.toolName())) {
-      throw new BusinessException(
-          ErrorCode.AI_SERVICE_ERROR,
-          "Agent role is not allowed to call tool: " + action.toolName()
-      );
-    }
-    AdaptiveAgentTool tool = tools.get(action.toolName());
-    if (tool == null) {
-      throw new BusinessException(
-          ErrorCode.AI_SERVICE_ERROR,
-          "Agent requested an unavailable tool: " + action.toolName()
-      );
-    }
-    return tool;
+  private DecisionObservation rejection(
+      String reference,
+      ReadToolCall call,
+      String field,
+      String message
+  ) {
+    return envelope(
+        reference, Kind.VALIDATION_REJECTION, field, message,
+        call.toolName(), Map.of(), List.of());
   }
 
-  private String invocationId(ReActRequest request, ToolCallAction action) {
-    return Sha256.hex(String.join(
-        "\n",
-        request.sessionId(),
-        Integer.toString(request.targetTurnIndex()),
-        action.toolName(),
-        writeJson(action.arguments())
-    ));
+  private DecisionObservation envelope(
+      String reference,
+      Kind kind,
+      String field,
+      String message,
+      String toolName,
+      Map<String, Object> data,
+      List<DecisionObservation.AdoptableSource> sources
+  ) {
+    return new DecisionObservation(
+        reference, kind, field, message, toolName, data, sources);
   }
 
-  /**
-   * 按角色白名单生成 Spring AI ToolCallback 列表，供模型调用。
-   *
-   * @param role 角色定义
-   * @return 该角色可用的工具回调
-   */
-  public List<ToolCallback> callbacksFor(AgentRoleDefinition role) {
-    return role.allowedTools().stream()
-        .sorted()
-        .map(tools::get)
-        .map(AdaptiveAgentTool::callback)
-        .toList();
-  }
-
-  private String writeJson(Object value) {
-    try {
-      return objectMapper.writeValueAsString(value);
-    } catch (JacksonException e) {
-      throw new BusinessException(
-          ErrorCode.AI_SERVICE_ERROR,
-          "Agent tool data serialization failed",
-          e
-      );
+  private void requireTimeRemaining(long deadlineNanos) {
+    if (System.nanoTime() >= deadlineNanos) {
+      throw new BusinessException(ErrorCode.AI_SERVICE_TIMEOUT, DEADLINE_MESSAGE);
     }
   }
-
-  private record ToolExecutionInput(
-      ReActRequest request,
-      ToolCallAction action,
-      String idempotencyKey
-  ) {}
 }

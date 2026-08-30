@@ -10,7 +10,6 @@ import interview.guide.modules.interview.agent.adaptive.core.action.ToolCallActi
 import interview.guide.modules.interview.agent.adaptive.core.event.CandidateAnswer;
 import interview.guide.modules.interview.agent.adaptive.observability.AdaptiveAgentTelemetry;
 import interview.guide.modules.interview.agent.adaptive.observability.AdaptiveInputTokenBudget;
-import interview.guide.modules.interview.agent.adaptive.tool.ToolGateway;
 import java.io.IOException;
 import java.util.List;
 import java.util.function.Consumer;
@@ -26,7 +25,6 @@ import org.springframework.ai.chat.client.ChatClient;
 import org.springframework.ai.chat.client.ChatClientAttributes;
 import org.springframework.ai.chat.messages.AssistantMessage;
 import org.springframework.ai.openai.OpenAiChatOptions;
-import org.springframework.ai.tool.ToolCallback;
 import org.springframework.core.io.DefaultResourceLoader;
 import tools.jackson.databind.ObjectMapper;
 
@@ -61,8 +59,6 @@ class SpringAiAdaptiveAgentModelGatewayTest {
   @Mock
   private AdaptiveInputTokenBudget inputTokenBudget;
   @Mock
-  private ToolGateway toolGateway;
-  @Mock
   private AdaptiveModelOptionsFactory modelOptionsFactory;
 
   private SpringAiAdaptiveAgentModelGateway gateway;
@@ -82,7 +78,6 @@ class SpringAiAdaptiveAgentModelGatewayTest {
     when(requestSpec.advisors(ArgumentMatchers.<Consumer<ChatClient.AdvisorSpec>>any()))
         .thenReturn(requestSpec);
     lenient().when(requestSpec.call()).thenReturn(responseSpec);
-    when(toolGateway.callbacksFor(any())).thenReturn(List.of());
     when(modelOptionsFactory.interviewer(any())).thenReturn(OpenAiChatOptions.builder());
   }
 
@@ -154,22 +149,6 @@ class SpringAiAdaptiveAgentModelGatewayTest {
     );
   }
 
-  @Test
-  @DisplayName("首个工具成功后不再向 interviewer 注册工具")
-  void shouldDisableInterviewerToolsAfterFirstAcceptedObservation() {
-    ToolCallback callback = mock(ToolCallback.class);
-    when(toolGateway.callbacksFor(any())).thenReturn(List.of(callback));
-    respondWith("""
-        {"type":"ASK","content":"Redis 缓存失效有哪些取舍？","reason":"继续验证"}
-        """);
-
-    gateway.nextAction(context(null));
-    gateway.nextAction(context(null, List.of(acceptedObservation())));
-
-    verify(modelOptionsFactory).interviewer(List.of(callback));
-    verify(modelOptionsFactory).interviewer(List.of());
-    verify(toolGateway, times(1)).callbacksFor(any());
-  }
 
   @Test
   @DisplayName("流式决策把文本增量推给 deltaSink 并按完整文本解析动作")
@@ -246,8 +225,6 @@ class SpringAiAdaptiveAgentModelGatewayTest {
         objectMapper,
         gatewayTelemetry,
         inputTokenBudget,
-        new AgentRoleRegistry(properties),
-        toolGateway,
         modelOptionsFactory,
         new AdaptiveAgentResponseMapper(objectMapper),
         properties,

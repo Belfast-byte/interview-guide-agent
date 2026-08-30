@@ -52,16 +52,24 @@ class InterviewAgentLoopTest {
     assertThat(requests).hasSize(3);
     assertThat(requests.get(1).observations()).containsExactly(
         new DecisionObservation(
-            "INVALID_DECISION",
+            "validation",
+            DecisionObservation.Kind.VALIDATION_REJECTION,
             "action.targetId",
-            "Target 不属于当前 Plan"
+            "Target 不属于当前 Plan",
+            null,
+            java.util.Map.of(),
+            List.of()
         )
     );
     assertThat(requests.get(2).observations().get(1))
         .isEqualTo(new DecisionObservation(
-            "INVALID_DECISION",
+            "validation",
+            DecisionObservation.Kind.VALIDATION_REJECTION,
             "action.adoptedSourceRefs",
-            "引用不在当前 Observation 中"
+            "引用不在当前 Observation 中",
+            null,
+            java.util.Map.of(),
+            List.of()
         ));
   }
 

@@ -21,8 +21,6 @@ import interview.guide.modules.interview.agent.adaptive.persistence.plan.Adaptiv
 import interview.guide.modules.interview.agent.adaptive.persistence.memory.QuestionExposurePersistence;
 import interview.guide.modules.interview.agent.adaptive.persistence.session.AdaptiveAgentSessionEntity;
 import interview.guide.modules.interview.agent.adaptive.persistence.session.AdaptiveAgentSessionRepository;
-import interview.guide.modules.interview.agent.adaptive.persistence.session.AdaptiveAgentToolCallEntity;
-import interview.guide.modules.interview.agent.adaptive.persistence.session.AdaptiveAgentToolCallRepository;
 import interview.guide.modules.interview.agent.adaptive.persistence.session.AdaptiveAgentTurnEntity;
 import interview.guide.modules.interview.agent.adaptive.persistence.session.AdaptiveAgentTurnRepository;
 import interview.guide.modules.interview.agent.adaptive.persistence.session.AdaptiveAskIntentCompletion;
@@ -30,7 +28,6 @@ import interview.guide.modules.interview.agent.adaptive.persistence.session.Adap
 import interview.guide.modules.interview.agent.adaptive.persistence.session.AdaptiveTurnCreation;
 import interview.guide.modules.interview.agent.adaptive.persistence.working.WorkStatePersistenceService;
 import interview.guide.modules.interview.agent.adaptive.planning.InterviewPlan;
-import interview.guide.modules.interview.agent.adaptive.runtime.ToolExecution;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -48,7 +45,6 @@ public class ActionIntentTransactionService {
   private final AdaptiveAgentSessionRepository sessionRepository;
   private final AdaptiveAgentTurnRepository turnRepository;
   private final AdaptiveAgentPlanRepository planRepository;
-  private final AdaptiveAgentToolCallRepository toolCallRepository;
   private final AdaptiveAgentAssessmentRepository assessmentRepository;
   private final AssessmentProbeGapRepository probeGapRepository;
   private final WorkStatePersistenceService workStateService;
@@ -105,21 +101,7 @@ public class ActionIntentTransactionService {
     );
   }
 
-  @Transactional
-  public void completeTool(String sessionId, String intentId, ToolExecution execution) {
-    toolCallRepository.save(new AdaptiveAgentToolCallEntity(sessionId, execution));
-    intentService.succeed(
-        intentId,
-        ActionIntentOutcome.succeeded(ActionResultType.TOOL_RESULT, execution.invocationId())
-    );
-  }
 
-  @Transactional(readOnly = true)
-  public ToolExecution toolExecution(String invocationId) {
-    return toolCallRepository.findByInvocationId(invocationId)
-        .map(AdaptiveAgentToolCallEntity::toDomain)
-        .orElseThrow(() -> new BusinessException(ErrorCode.NOT_FOUND, "工具执行结果不存在"));
-  }
 
   @Transactional(readOnly = true)
   public Optional<CandidateAnswer> currentCandidateAnswer(String sessionId) {

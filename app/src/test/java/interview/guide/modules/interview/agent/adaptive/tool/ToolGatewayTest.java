@@ -1,207 +1,196 @@
 package interview.guide.modules.interview.agent.adaptive.tool;
 
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
+
 import interview.guide.common.exception.BusinessException;
-import interview.guide.modules.interview.agent.adaptive.application.AdaptiveAgentProperties;
-import interview.guide.modules.interview.agent.adaptive.core.context.InterviewerContext;
-import interview.guide.modules.interview.agent.adaptive.core.context.InterviewerWorkView;
-import interview.guide.modules.interview.agent.adaptive.core.context.DepthLevel;
-import interview.guide.modules.interview.agent.adaptive.core.context.TopicKey;
-import interview.guide.modules.interview.agent.adaptive.core.action.ToolCallAction;
-import interview.guide.modules.interview.agent.adaptive.observability.AdaptiveAgentTelemetry;
-import io.micrometer.core.instrument.simple.SimpleMeterRegistry;
-import interview.guide.modules.interview.agent.adaptive.role.AgentRole;
-import interview.guide.modules.interview.agent.adaptive.role.AgentRoleRegistry;
-import interview.guide.modules.interview.agent.adaptive.runtime.ReActRequest;
-import interview.guide.modules.interview.agent.adaptive.runtime.ToolExecution;
-import interview.guide.modules.interview.agent.adaptive.runtime.ToolExecutionOutcome;
+import interview.guide.modules.interview.agent.adaptive.core.context.AgentContext;
+import interview.guide.modules.interview.agent.adaptive.core.context.CoverageView;
+import interview.guide.modules.interview.agent.adaptive.core.context.WorkingMemory;
+import interview.guide.modules.interview.agent.adaptive.core.session.SessionMode;
+import interview.guide.modules.interview.agent.adaptive.runtime.DecisionObservation;
+import interview.guide.modules.interview.agent.adaptive.runtime.DecisionObservation.AdoptableSource;
+import interview.guide.modules.interview.agent.adaptive.runtime.DecisionObservation.Kind;
+import interview.guide.modules.interview.agent.adaptive.runtime.ReadToolBatch;
+import interview.guide.modules.interview.agent.adaptive.runtime.ReadToolCall;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.stream.Stream;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
-import org.springframework.ai.tool.ToolCallback;
-import tools.jackson.databind.ObjectMapper;
-
-import static org.assertj.core.api.Assertions.assertThat;
-import static org.assertj.core.api.Assertions.assertThatThrownBy;
-import static org.mockito.Mockito.mock;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.Arguments;
+import org.junit.jupiter.params.provider.MethodSource;
 
 class ToolGatewayTest {
 
-  @Test
-  @DisplayName("角色白名单在工具执行前拒绝越权调用")
-  void shouldRejectUnauthorizedRoleBeforeExecution() {
+  @ParameterizedTest(name = "{0}")
+  @MethodSource("rejectionScenarios")
+  @DisplayName("白名单、schema 与 scope 校验在 dispatch 前返回拒绝 Observation")
+  void shouldRejectBeforeDispatch(
+      String name,
+      List<String> allowlist,
+      Map<String, Object> arguments,
+      String expectedField
+  ) {
     AtomicInteger executions = new AtomicInteger();
-    ToolGateway gateway = gateway(new StubTool("rubric_lookup", executions, "ok"), 100);
+    ToolGateway gateway = new ToolGateway(List.of(new ValidatingTool(executions)));
 
-    assertThatThrownBy(() -> gateway.execute(
-        request(AgentRole.PLANNER),
-        call(Map.of("query", "Redis"))
-    )).isInstanceOf(BusinessException.class)
-        .hasMessageContaining("not allowed");
+    List<DecisionObservation> observations = gateway.execute(batch(
+        context(allowlist), List.of(call("rubric_search", arguments)), 0));
+
+    assertThat(observations).singleElement().satisfies(observation -> {
+      assertThat(observation.reference()).isEqualTo("tool-0-0");
+      assertThat(observation.kind()).isEqualTo(Kind.VALIDATION_REJECTION);
+      assertThat(observation.field()).isEqualTo(expectedField);
+      assertThat(observation.adoptableSources()).isEmpty();
+    });
     assertThat(executions).hasValue(0);
   }
 
   @Test
-  @DisplayName("相同会话轮次工具和参数生成相同幂等键")
-  void shouldCreateStableInvocationId() {
-    ToolGateway gateway = gateway(
-        new StubTool("rubric_lookup", new AtomicInteger(), "ok"),
-        100
+  @DisplayName("调用按模型顺序串行执行且同步终态形成可区分 Observation")
+  void shouldPreserveOrderAndMapResults() {
+    List<String> order = new ArrayList<>();
+    ToolGateway gateway = new ToolGateway(List.of(new ResultTool(order)));
+    List<ReadToolCall> calls = List.of(
+        call("result_tool", Map.of("mode", "success")),
+        call("result_tool", Map.of("mode", "empty")),
+        call("result_tool", Map.of("mode", "timeout")),
+        call("result_tool", Map.of("mode", "error"))
     );
 
-    ToolExecution first = gateway.execute(
-        request(AgentRole.INTERVIEWER),
-        call(Map.of("query", "Redis", "difficulty", "MEDIUM"))
-    );
-    ToolExecution second = gateway.execute(
-        request(AgentRole.INTERVIEWER),
-        call(Map.of("query", "Redis", "difficulty", "MEDIUM"))
-    );
+    List<DecisionObservation> observations = gateway.execute(
+        batch(context(List.of("result_tool")), calls, 3));
 
-    assertThat(first.invocationId()).isEqualTo(second.invocationId());
-    assertThat(first.invocationId()).hasSize(64);
+    assertThat(order).containsExactly("success", "empty", "timeout", "error");
+    assertThat(observations).extracting(DecisionObservation::reference)
+        .containsExactly("tool-3-0", "tool-3-1", "tool-3-2", "tool-3-3");
+    assertThat(observations).extracting(DecisionObservation::kind)
+        .containsExactly(
+            Kind.TOOL_SUCCESS, Kind.TOOL_EMPTY, Kind.TOOL_TIMEOUT, Kind.TOOL_ERROR);
+    assertThat(observations.getFirst().data()).containsEntry("rubric", "按事实评分");
+    assertThat(observations.getFirst().adoptableSources()).containsExactly(
+        new AdoptableSource("rubric:question:1@v1", "rubric", "question:1", "v1"));
+    assertThat(observations.subList(1, observations.size()))
+        .allMatch(observation -> observation.adoptableSources().isEmpty());
   }
 
   @Test
-  @DisplayName("工具结果超过配置上限时截断并追加标注而非失败")
-  void shouldTruncateOversizedResult() {
-    ToolGateway gateway = gateway(
-        new StubTool("rubric_lookup", new AtomicInteger(), "x".repeat(100)),
-        20
+  @DisplayName("共享绝对 deadline 耗尽后终止批次且不 dispatch 后续调用")
+  void shouldStopWhenSharedDeadlineIsExhausted() {
+    AtomicInteger executions = new AtomicInteger();
+    ToolGateway gateway = new ToolGateway(List.of(new ValidatingTool(executions)));
+    ReadToolBatch batch = new ReadToolBatch(
+        context(List.of("rubric_search")),
+        List.of(
+            call("rubric_search", Map.of("query", "first")),
+            call("rubric_search", Map.of("query", "second"))
+        ),
+        System.nanoTime(),
+        0
     );
 
-    ToolExecution execution = gateway.execute(
-        request(AgentRole.INTERVIEWER),
-        call(Map.of("query", "Redis"))
-    );
-
-    assertThat(execution.output()).hasSize(20 + "[truncated]".length());
-    assertThat(execution.output()).endsWith("[truncated]");
+    assertThatThrownBy(() -> gateway.execute(batch))
+        .isInstanceOf(BusinessException.class)
+        .hasMessageContaining("资源截止时间已耗尽");
+    assertThat(executions).hasValue(0);
   }
 
-  @Test
-  @DisplayName("Pending 工具结果保留句柄并进入异步结果类型")
-  void shouldMapPendingToolResult() {
-    ToolGateway gateway = gateway(new PendingStubTool(), 200);
-
-    ToolExecution execution = gateway.execute(
-        request(AgentRole.INTERVIEWER),
-        new ToolCallAction("rubric_lookup", Map.of(), "异步提交")
-    );
-
-    assertThat(execution.resultId()).isEqualTo("submission-1");
-    assertThat(execution.outcome()).isEqualTo(ToolExecutionOutcome.PENDING);
-    assertThat(execution.turnIndex()).isEqualTo(4);
-  }
-
-  private ToolGateway gateway(AdaptiveAgentTool tool, int maxResultChars) {
-    AdaptiveAgentProperties agentProperties = new AdaptiveAgentProperties();
-    ToolProperties toolProperties = new ToolProperties();
-    toolProperties.setMaxResultChars(maxResultChars);
-    return new ToolGateway(
-        List.of(tool),
-        new AgentRoleRegistry(agentProperties),
-        new ObjectMapper(),
-        new AdaptiveAgentTelemetry(new SimpleMeterRegistry()),
-        toolProperties
+  private static Stream<Arguments> rejectionScenarios() {
+    return Stream.of(
+        Arguments.of("非白名单", List.of(), Map.of("query", "Redis"), "toolName"),
+        Arguments.of(
+            "schema 非法", List.of("rubric_search"), Map.of(), "arguments.query"),
+        Arguments.of(
+            "scope 越界",
+            List.of("rubric_search"),
+            Map.of("query", "Redis", "tenantId", "other"),
+            "arguments.tenantId")
     );
   }
 
-  private ReActRequest request(AgentRole role) {
-    return new ReActRequest(
-        "session-1",
-        role,
-        null,
-        new InterviewerContext(
-            "JD",
-            "Resume",
-            0,
-            6,
-            0,
-            "专业基础",
-            "缓存",
-            List.of("rubric_lookup"),
-            null,
+  private ReadToolBatch batch(
+      AgentContext context,
+      List<ReadToolCall> calls,
+      int batchIndex
+  ) {
+    return new ReadToolBatch(context, calls, System.nanoTime() + 1_000_000_000L, batchIndex);
+  }
+
+  private ReadToolCall call(String toolName, Map<String, Object> arguments) {
+    return new ReadToolCall(toolName, arguments, "读取评分事实");
+  }
+
+  private AgentContext context(List<String> allowedReadTools) {
+    return new AgentContext(
+        new AgentContext.SessionWindow(
+            new AgentContext.SessionIdentity("session-1", "provider-1"),
+            SessionMode.EVALUATION,
+            4
+        ),
+        new AgentContext.Facts(
+            new CoverageView(0, 4, List.of(), List.of(), List.of()),
             List.of(),
-            null,
-            plannedMemory(),
-            List.of(),
-            null,
-            null,
-            null,
-            null
-        )
+            allowedReadTools
+        ),
+        WorkingMemory.empty()
     );
   }
 
-  private ToolCallAction call(Map<String, Object> arguments) {
-    return new ToolCallAction(
-        "rubric_lookup",
-        arguments,
-        "读取审核题"
-    );
-  }
-
-  private InterviewerWorkView plannedMemory() {
-    return new InterviewerWorkView(
-        "target-0",
-        new TopicKey("java-backend", "CACHE"),
-        DepthLevel.L2,
-        DepthLevel.L3,
-        DepthLevel.L0,
-        "缓存与并发",
-        null,
-        5,
-        2,
-        1
-    );
-  }
-
-  private record StubTool(
-      String name,
-      AtomicInteger executions,
-      String output
-  ) implements AdaptiveAgentTool {
-
-    @Override
-    public ToolCallback callback() {
-      return mock(ToolCallback.class);
-    }
-
-    @Override
-    public void validate(ReActRequest request, Map<String, Object> arguments) {}
-
-    @Override
-    public ToolResult execute(Map<String, Object> arguments) {
-      executions.incrementAndGet();
-      return new CompletedToolResult("result-1", output, "stub result");
-    }
-  }
-
-  private record PendingStubTool() implements AdaptiveAgentTool {
+  private record ValidatingTool(AtomicInteger executions) implements ReadOnlyAgentTool {
 
     @Override
     public String name() {
-      return "rubric_lookup";
+      return "rubric_search";
     }
 
     @Override
-    public ToolCallback callback() {
-      return mock(ToolCallback.class);
+    public void validate(ReadToolRequest request) {
+      Object query = request.arguments().get("query");
+      if (!(query instanceof String text) || text.isBlank()) {
+        throw new ReadToolValidationException("arguments.query", "query 不能为空");
+      }
+      if (request.arguments().containsKey("tenantId")) {
+        throw new ReadToolValidationException(
+            "arguments.tenantId", "scope 只能来自服务端 AgentContext");
+      }
     }
 
     @Override
-    public void validate(ReActRequest request, Map<String, Object> arguments) {}
+    public ReadToolResult execute(ReadToolRequest request) {
+      executions.incrementAndGet();
+      return new ReadToolResult.Empty("没有命中");
+    }
+  }
+
+  private record ResultTool(List<String> order) implements ReadOnlyAgentTool {
 
     @Override
-    public ToolResult execute(Map<String, Object> arguments) {
-      return new PendingToolResult(
-          "submission-1",
-          Map.of("submissionId", "submission-1", "status", "PENDING"),
-          "submission pending",
-          4
-      );
+    public String name() {
+      return "result_tool";
+    }
+
+    @Override
+    public void validate(ReadToolRequest request) {}
+
+    @Override
+    public ReadToolResult execute(ReadToolRequest request) {
+      String mode = (String) request.arguments().get("mode");
+      order.add(mode);
+      return switch (mode) {
+        case "success" -> new ReadToolResult.Success(
+            Map.of("rubric", "按事实评分"),
+            List.of(new AdoptableSource(
+                "rubric:question:1@v1", "rubric", "question:1", "v1"))
+        );
+        case "empty" -> new ReadToolResult.Empty("没有命中");
+        case "timeout" -> new ReadToolResult.Timeout("查询超时");
+        case "error" -> new ReadToolResult.Error("查询失败");
+        default -> throw new IllegalArgumentException("未知测试模式");
+      };
     }
   }
 }

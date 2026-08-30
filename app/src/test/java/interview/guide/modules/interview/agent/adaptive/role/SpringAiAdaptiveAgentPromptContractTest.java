@@ -11,7 +11,6 @@ import interview.guide.modules.interview.agent.adaptive.core.action.RespondActio
 import interview.guide.modules.interview.agent.adaptive.core.event.CandidateAnswer;
 import interview.guide.modules.interview.agent.adaptive.observability.AdaptiveAgentTelemetry;
 import interview.guide.modules.interview.agent.adaptive.observability.AdaptiveInputTokenBudget;
-import interview.guide.modules.interview.agent.adaptive.tool.ToolGateway;
 import java.io.IOException;
 import java.util.List;
 import java.util.function.Consumer;
@@ -58,8 +57,6 @@ class SpringAiAdaptiveAgentPromptContractTest {
   @Mock
   private AdaptiveInputTokenBudget inputTokenBudget;
   @Mock
-  private ToolGateway toolGateway;
-  @Mock
   private AdaptiveModelOptionsFactory modelOptionsFactory;
 
   private SpringAiAdaptiveAgentModelGateway gateway;
@@ -77,7 +74,6 @@ class SpringAiAdaptiveAgentPromptContractTest {
     when(requestSpec.advisors(ArgumentMatchers.<Consumer<ChatClient.AdvisorSpec>>any()))
         .thenReturn(requestSpec);
     lenient().when(requestSpec.call()).thenReturn(responseSpec);
-    when(toolGateway.callbacksFor(any())).thenReturn(List.of());
     when(modelOptionsFactory.interviewer(any())).thenReturn(OpenAiChatOptions.builder());
   }
 
@@ -140,8 +136,6 @@ class SpringAiAdaptiveAgentPromptContractTest {
         objectMapper,
         gatewayTelemetry,
         inputTokenBudget,
-        new AgentRoleRegistry(properties),
-        toolGateway,
         modelOptionsFactory,
         new AdaptiveAgentResponseMapper(objectMapper),
         properties,

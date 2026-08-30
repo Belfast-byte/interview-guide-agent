@@ -9,7 +9,6 @@ import interview.guide.modules.interview.agent.adaptive.core.context.MemoryOwner
 import interview.guide.modules.interview.agent.adaptive.core.event.CandidateAnswer;
 import interview.guide.modules.interview.agent.adaptive.core.session.NextTurnProvenanceDraft;
 import interview.guide.modules.interview.agent.adaptive.core.memory.WorkStatePatch;
-import interview.guide.modules.interview.agent.adaptive.runtime.ToolExecution;
 import java.util.List;
 import java.util.Objects;
 
@@ -19,7 +18,6 @@ public record AdaptiveDecisionPersistenceInput(
     String sessionId,
     CandidateAnswer answer,
     RespondAction proposedAction,
-    List<ToolExecution> toolExecutions,
     DimensionBrief dimensionBrief,
     AssessmentDecision assessmentDecision,
     List<ValidatedAssessmentEvidence> assessmentEvidences,
@@ -30,7 +28,6 @@ public record AdaptiveDecisionPersistenceInput(
 
   public AdaptiveDecisionPersistenceInput {
     Objects.requireNonNull(owner, "owner 不能为空");
-    toolExecutions = List.copyOf(toolExecutions);
     assessmentEvidences = List.copyOf(assessmentEvidences);
     practiceRecommendations = List.copyOf(practiceRecommendations);
     Objects.requireNonNull(nextTurnProvenance, "nextTurnProvenance 不能为空");

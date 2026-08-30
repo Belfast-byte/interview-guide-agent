@@ -114,6 +114,14 @@ public class AgentDecisionValidator {
   }
 
   private Optional<DecisionObservation> rejection(String field, String message) {
-    return Optional.of(new DecisionObservation("INVALID_DECISION", field, message));
+    return Optional.of(new DecisionObservation(
+        "validation",
+        DecisionObservation.Kind.VALIDATION_REJECTION,
+        field,
+        message,
+        null,
+        java.util.Map.of(),
+        java.util.List.of()
+    ));
   }
 }

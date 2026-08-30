@@ -1,8 +1,36 @@
 package interview.guide.modules.interview.agent.adaptive.runtime;
 
-/** Java 拒绝模型提案后返回模型的结构化原因。 */
+import java.util.List;
+import java.util.Map;
+
+/** Java 校验与只读工具返回模型的统一不可信数据边界信封。 */
 public record DecisionObservation(
-    String code,
+    String reference,
+    Kind kind,
     String field,
-    String message
-) {}
+    String message,
+    String toolName,
+    Map<String, Object> data,
+    List<AdoptableSource> adoptableSources
+) {
+
+  public DecisionObservation {
+    data = Map.copyOf(data);
+    adoptableSources = List.copyOf(adoptableSources);
+  }
+
+  public enum Kind {
+    VALIDATION_REJECTION,
+    TOOL_SUCCESS,
+    TOOL_EMPTY,
+    TOOL_TIMEOUT,
+    TOOL_ERROR
+  }
+
+  public record AdoptableSource(
+      String reference,
+      String type,
+      String id,
+      String version
+  ) {}
+}

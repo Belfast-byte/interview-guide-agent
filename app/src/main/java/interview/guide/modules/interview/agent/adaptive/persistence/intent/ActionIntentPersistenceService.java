@@ -5,9 +5,7 @@ import interview.guide.common.exception.ErrorCode;
 import interview.guide.modules.interview.agent.adaptive.core.intent.ActionIntent;
 import interview.guide.modules.interview.agent.adaptive.core.intent.ActionIntentOutcome;
 import interview.guide.modules.interview.agent.adaptive.core.intent.ActionIntentKey;
-import interview.guide.modules.interview.agent.adaptive.core.intent.ActionIntentPayload;
 import interview.guide.modules.interview.agent.adaptive.core.intent.AskActionPayload;
-import interview.guide.modules.interview.agent.adaptive.core.intent.ToolActionPayload;
 import interview.guide.modules.interview.agent.adaptive.core.intent.ActionIntentStatus;
 import interview.guide.modules.interview.agent.adaptive.core.memory.WorkStatePatch;
 import interview.guide.modules.interview.agent.adaptive.core.memory.InterviewWorkState;
@@ -80,9 +78,10 @@ public class ActionIntentPersistenceService {
     repository.flush();
     InterviewWorkState state = workStateService.get(failed.key().sessionId());
     String retryIntentId = UUID.randomUUID().toString();
+    AskActionPayload failedPayload = (AskActionPayload) failed.payload();
     ActionIntent retry = ActionIntent.planned(
         new ActionIntentKey(retryIntentId, state.sessionId(), state.revision()),
-        retryPayload(failed.payload(), retryIntentId),
+        new AskActionPayload(failedPayload.target(), retryIntentId, failedPayload.context()),
         LocalDateTime.now()
     );
     repository.save(new AdaptiveActionIntentEntity(retry, codec));
@@ -118,17 +117,6 @@ public class ActionIntentPersistenceService {
     return intent;
   }
 
-  private ActionIntentPayload retryPayload(
-      ActionIntentPayload payload,
-      String idempotencyKey
-  ) {
-    return switch (payload) {
-      case AskActionPayload ask -> new AskActionPayload(
-          ask.target(), idempotencyKey, ask.context());
-      case ToolActionPayload tool -> new ToolActionPayload(
-          tool.target(), tool.call(), idempotencyKey);
-    };
-  }
 
   private AdaptiveActionIntentEntity entity(String intentId) {
     return repository.findById(intentId)
