@@ -9,7 +9,6 @@ import interview.guide.modules.interview.agent.adaptive.core.session.SessionMode
 import interview.guide.modules.interview.agent.adaptive.memory.episode.EpisodeClosureStatus;
 import interview.guide.modules.interview.agent.adaptive.memory.episode.EpisodeFact;
 import interview.guide.modules.interview.agent.adaptive.memory.episode.EpisodeRecallSource;
-import interview.guide.modules.interview.agent.adaptive.memory.episode.EpisodeToolResultFact;
 import interview.guide.modules.interview.agent.adaptive.memory.episode.EvaluationRecallView;
 import interview.guide.modules.interview.agent.adaptive.memory.episode.PracticeDiagnosticView;
 import interview.guide.modules.interview.agent.adaptive.memory.episode.QuestionExposure;
@@ -24,7 +23,6 @@ import interview.guide.modules.interview.agent.adaptive.persistence.assessment.A
 import interview.guide.modules.interview.agent.adaptive.persistence.assessment.AssessmentProbeGapRepository;
 import interview.guide.modules.interview.agent.adaptive.persistence.session.AdaptiveAgentSessionEntity;
 import interview.guide.modules.interview.agent.adaptive.persistence.session.AdaptiveAgentSessionRepository;
-import interview.guide.modules.interview.agent.adaptive.persistence.session.AdaptiveAgentToolResultEventRepository;
 import interview.guide.modules.interview.agent.adaptive.persistence.session.AdaptiveAgentTurnEntity;
 import interview.guide.modules.interview.agent.adaptive.persistence.session.AdaptiveAgentTurnRepository;
 import java.util.List;
@@ -47,7 +45,6 @@ public class JpaEpisodeRecallSource implements EpisodeRecallSource {
   private final AdaptiveAgentAssessmentRepository assessmentRepository;
   private final AdaptiveAgentEvidenceRepository evidenceRepository;
   private final AssessmentProbeGapRepository gapRepository;
-  private final AdaptiveAgentToolResultEventRepository toolResultRepository;
   private final QuestionSimilaritySearch similaritySearch;
 
   @Override
@@ -109,8 +106,7 @@ public class JpaEpisodeRecallSource implements EpisodeRecallSource {
         turns(turnIds),
         assessments(assessmentIds),
         evidences(assessmentIds),
-        gaps(assessmentIds),
-        toolFacts(turnIds)
+        gaps(assessmentIds)
     );
   }
 
@@ -172,7 +168,6 @@ public class JpaEpisodeRecallSource implements EpisodeRecallSource {
         assessment.confidence(),
         facts.evidences().getOrDefault(assessment.id(), List.of()),
         facts.gaps().getOrDefault(assessment.id(), List.of()),
-        facts.toolFacts().getOrDefault(exposure.turnId(), List.of()),
         episode.assistanceLevel(),
         episode.closureStatus(),
         similarity(exposure, facts)
@@ -225,28 +220,6 @@ public class JpaEpisodeRecallSource implements EpisodeRecallSource {
         ));
   }
 
-  private Map<Long, List<String>> toolFacts(List<Long> turnIds) {
-    Map<Long, Long> eventTurns = turnRepository.findAllById(turnIds).stream()
-        .filter(turn -> turn.toDomain().provenance().trigger().sourceToolResultEventId() != null)
-        .collect(Collectors.toMap(
-            turn -> turn.toDomain().provenance().trigger().sourceToolResultEventId(),
-            AdaptiveAgentTurnEntity::id
-        ));
-    if (eventTurns.isEmpty()) {
-      return Map.of();
-    }
-    return toolResultRepository.findEpisodeFactsByIds(
-            eventTurns.keySet().stream().toList()).stream()
-        .collect(Collectors.groupingBy(
-            fact -> eventTurns.get(fact.id()),
-            Collectors.mapping(this::toolText, Collectors.toList())
-        ));
-  }
-
-  private String toolText(EpisodeToolResultFact fact) {
-    return fact.summary() + ": " + fact.output();
-  }
-
   private record RecallFacts(
       List<QuestionExposure> exposures,
       Map<Long, Double> similarities,
@@ -254,7 +227,6 @@ public class JpaEpisodeRecallSource implements EpisodeRecallSource {
       Map<Long, AdaptiveAgentTurnEntity> turns,
       Map<Long, AdaptiveAgentAssessmentEntity> assessments,
       Map<Long, List<String>> evidences,
-      Map<Long, List<ProbeGap>> gaps,
-      Map<Long, List<String>> toolFacts
+      Map<Long, List<ProbeGap>> gaps
   ) {}
 }

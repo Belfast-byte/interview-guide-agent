@@ -13,6 +13,5 @@
 3. 每个标签必须引用输入中真实存在的 source：
    - evidences 对应 ASSESSMENT_EVIDENCE
    - probeGaps 对应 PROBE_GAP
-   - toolResults 对应 TOOL_RESULT
 4. sourceId 必须逐字使用输入对象中的 id；没有权威 source 支持时不要输出该标签。
 5. 不要生成 outcome、能力等级或新的证据。

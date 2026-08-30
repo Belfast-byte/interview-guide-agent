@@ -12,7 +12,7 @@ class EpisodeTagValidatorTest {
   private final EpisodeTagValidator validator = new EpisodeTagValidator();
 
   @Test
-  @DisplayName("三类权威 source 均可支持白名单标签")
+  @DisplayName("权威 source 均可支持白名单标签")
   void shouldAcceptOwnedSources() {
     List<ValidatedEpisodeTag> tags = validator.validate(
         List.of(
@@ -21,15 +21,12 @@ class EpisodeTagValidatorTest {
             ),
             new EpisodeTagProposal(
                 "ANSWER_HABIT", "STRUCTURED_REASONING", "PROBE_GAP", 2L
-            ),
-            new EpisodeTagProposal(
-                "ANSWER_HABIT", "SELF_CORRECTS_AFTER_PROBE", "TOOL_RESULT", 3L
             )
         ),
         facts()
     );
 
-    assertThat(tags).hasSize(3);
+    assertThat(tags).hasSize(2);
   }
 
   @Test
@@ -81,6 +78,6 @@ class EpisodeTagValidatorTest {
   }
 
   private EpisodeSourceFacts facts() {
-    return new EpisodeSourceFacts(Set.of(1L), Set.of(2L), Set.of(3L));
+    return new EpisodeSourceFacts(Set.of(1L), Set.of(2L));
   }
 }

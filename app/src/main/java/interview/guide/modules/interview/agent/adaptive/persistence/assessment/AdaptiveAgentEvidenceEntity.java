@@ -53,9 +53,6 @@ public class AdaptiveAgentEvidenceEntity {
   @Column(name = "quote_text", columnDefinition = "TEXT")
   private String quoteText;
 
-  @Column(name = "tool_call_id")
-  private Long toolCallId;
-
   @Column(name = "sandbox_execution_id", length = 36)
   private String sandboxExecutionId;
 
@@ -85,7 +82,6 @@ public class AdaptiveAgentEvidenceEntity {
     this.sourceSessionId = sessionId;
     this.sourceTurnIndex = turnIndex;
     this.quoteText = evidence.quote();
-    this.toolCallId = evidence.toolCallId();
     this.sandboxExecutionId = evidence.sandboxExecutionId();
   }
 
@@ -153,10 +149,6 @@ public class AdaptiveAgentEvidenceEntity {
 
   public String quoteText() {
     return quoteText;
-  }
-
-  public Long toolCallId() {
-    return toolCallId;
   }
 
   public String sandboxExecutionId() {

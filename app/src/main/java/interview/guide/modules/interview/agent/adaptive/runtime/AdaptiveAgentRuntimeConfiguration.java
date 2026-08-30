@@ -16,14 +16,6 @@ public class AdaptiveAgentRuntimeConfiguration {
   }
 
   @Bean
-  BoundedActionRuntime boundedActionRuntime(
-      AgentModelGateway modelGateway,
-      DeadlineExecutor deadlineExecutor
-  ) {
-    return new BoundedActionRuntime(modelGateway, deadlineExecutor);
-  }
-
-  @Bean
   InterviewAgentLoop interviewAgentLoop(
       InterviewDecisionModel model,
       AgentDecisionValidator validator,

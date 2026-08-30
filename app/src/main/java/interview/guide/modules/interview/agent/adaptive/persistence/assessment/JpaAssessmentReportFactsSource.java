@@ -16,8 +16,6 @@ import interview.guide.modules.interview.agent.adaptive.persistence.practice.Pra
 import interview.guide.modules.interview.agent.adaptive.persistence.practice.PracticeRecordRepository;
 import interview.guide.modules.interview.agent.adaptive.persistence.session.AdaptiveAgentSessionEntity;
 import interview.guide.modules.interview.agent.adaptive.persistence.session.AdaptiveAgentSessionRepository;
-import interview.guide.modules.interview.agent.adaptive.persistence.session.AdaptiveAgentToolCallEntity;
-import interview.guide.modules.interview.agent.adaptive.persistence.session.AdaptiveAgentToolCallRepository;
 import interview.guide.modules.interview.agent.adaptive.persistence.session.AdaptiveAgentTurnEntity;
 import interview.guide.modules.interview.agent.adaptive.persistence.session.AdaptiveAgentTurnRepository;
 import java.util.List;
@@ -39,7 +37,6 @@ public class JpaAssessmentReportFactsSource
   private final AdaptiveAgentTurnRepository turnRepository;
   private final AdaptiveAgentAssessmentRepository assessmentRepository;
   private final AdaptiveAgentEvidenceRepository evidenceRepository;
-  private final AdaptiveAgentToolCallRepository toolCallRepository;
   private final PracticeRecordRepository practiceRecordRepository;
   private final AlgorithmEvidenceSource algorithmEvidenceSource;
 
@@ -49,7 +46,6 @@ public class JpaAssessmentReportFactsSource
       AdaptiveAgentTurnRepository turnRepository,
       AdaptiveAgentAssessmentRepository assessmentRepository,
       AdaptiveAgentEvidenceRepository evidenceRepository,
-      AdaptiveAgentToolCallRepository toolCallRepository,
       PracticeRecordRepository practiceRecordRepository,
       AlgorithmEvidenceSource algorithmEvidenceSource
   ) {
@@ -58,7 +54,6 @@ public class JpaAssessmentReportFactsSource
     this.turnRepository = turnRepository;
     this.assessmentRepository = assessmentRepository;
     this.evidenceRepository = evidenceRepository;
-    this.toolCallRepository = toolCallRepository;
     this.practiceRecordRepository = practiceRecordRepository;
     this.algorithmEvidenceSource = algorithmEvidenceSource;
   }
@@ -93,17 +88,6 @@ public class JpaAssessmentReportFactsSource
         ));
     List<AdaptiveAgentEvidenceEntity> evidences = evidenceRepository
         .findReportEvidence(session.id());
-    Map<Long, AdaptiveAgentToolCallEntity> toolCalls = toolCallRepository
-        .findAllById(evidences.stream()
-            .filter(evidence -> evidence.evidenceType() == EvidenceType.TOOL_RESULT)
-            .map(AdaptiveAgentEvidenceEntity::toolCallId)
-            .filter(Objects::nonNull)
-            .toList())
-        .stream()
-        .collect(Collectors.toMap(
-            AdaptiveAgentToolCallEntity::id,
-            Function.identity()
-        ));
     Map<String, AlgorithmEvidence> algorithmEvidences = algorithmEvidenceSource.findEvidence(
         evidences.stream()
             .map(AdaptiveAgentEvidenceEntity::sandboxExecutionId)
@@ -127,7 +111,6 @@ public class JpaAssessmentReportFactsSource
                     assessment,
                     turns,
                     evidenceByAssessment,
-                    toolCalls,
                     algorithmEvidences
                 ))
                 .toList()
@@ -159,7 +142,6 @@ public class JpaAssessmentReportFactsSource
       AdaptiveAgentAssessmentEntity assessment,
       Map<Integer, AdaptiveAgentTurnEntity> turns,
       Map<Long, List<AdaptiveAgentEvidenceEntity>> evidenceByAssessment,
-      Map<Long, AdaptiveAgentToolCallEntity> toolCalls,
       Map<String, AlgorithmEvidence> algorithmEvidences
   ) {
     return new AssessmentReportTurnFacts(
@@ -169,12 +151,9 @@ public class JpaAssessmentReportFactsSource
         assessment.rationaleSummary(),
         evidenceByAssessment.get(assessment.id()).stream()
             .filter(evidence -> evidence.evidenceType() != EvidenceType.CODE_FACT)
-            .map(evidence -> evidenceFacts(
-                evidence,
-                turns,
-                toolCalls,
-                algorithmEvidences
-            ))
+            .filter(evidence -> evidence.evidenceType() != EvidenceType.TOOL_RESULT
+                || evidence.sandboxExecutionId() != null)
+            .map(evidence -> evidenceFacts(evidence, turns, algorithmEvidences))
             .toList()
     );
   }
@@ -182,7 +161,6 @@ public class JpaAssessmentReportFactsSource
   private AssessmentReportEvidenceFacts evidenceFacts(
       AdaptiveAgentEvidenceEntity evidence,
       Map<Integer, AdaptiveAgentTurnEntity> turns,
-      Map<Long, AdaptiveAgentToolCallEntity> toolCalls,
       Map<String, AlgorithmEvidence> algorithmEvidences
   ) {
     AdaptiveAgentTurnEntity turn = turns.get(evidence.sourceTurnIndex());
@@ -193,7 +171,6 @@ public class JpaAssessmentReportFactsSource
           turn.question(),
           turn.answer(),
           evidence.quoteText(),
-          null,
           null,
           null,
           null,
@@ -210,26 +187,13 @@ public class JpaAssessmentReportFactsSource
           turn.question(),
           turn.answer(),
           null,
-          null,
           algorithmEvidence.executionId(),
           "sandbox_submit",
           algorithmEvidence.executionId(),
           algorithmEvidence.summary()
       );
     }
-    AdaptiveAgentToolCallEntity toolCall = toolCalls.get(evidence.toolCallId());
-    return new AssessmentReportEvidenceFacts(
-        evidence.evidenceType(),
-        evidence.sourceTurnIndex(),
-        turn.question(),
-        turn.answer(),
-        evidence.quoteText(),
-        toolCall.id(),
-        null,
-        toolCall.toolName(),
-        toolCall.resultId(),
-        toolCall.outputSummary()
-    );
+    throw new IllegalStateException("不支持的评估证据类型: " + evidence.evidenceType());
   }
 
   private BusinessException notFound() {

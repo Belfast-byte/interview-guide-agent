@@ -172,7 +172,6 @@ class EpisodeEnrichmentServiceTest {
         DepthLevel.L2,
         "基础回答",
         List.of(new EpisodeEvidenceFact(7, EvidenceType.QUOTE, "版本号", null)),
-        List.of(),
         List.of()
     );
   }

@@ -14,11 +14,9 @@ import interview.guide.modules.interview.agent.adaptive.assessment.report.Assess
 import interview.guide.modules.interview.agent.adaptive.assessment.report.CandidateAssessmentReport;
 import interview.guide.modules.interview.agent.adaptive.core.event.CandidateAnswer;
 import interview.guide.modules.interview.agent.adaptive.core.event.CandidateCodeSubmission;
-import interview.guide.modules.interview.agent.adaptive.core.event.ToolResultFollowUp;
 import interview.guide.modules.interview.agent.adaptive.planning.PlannedInterview;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.Min;
-import java.util.List;
 import java.util.Locale;
 import java.util.function.Consumer;
 import lombok.RequiredArgsConstructor;
@@ -207,18 +205,6 @@ public class AdaptiveInterviewController {
     ));
   }
 
-  @PostMapping("/{sessionId}/action-intents/{intentId}/retry")
-  public Result<AdaptiveInterviewResponse> retryActionIntent(
-      @PathVariable String sessionId,
-      @PathVariable String intentId,
-      @AuthenticationPrincipal AuthenticatedUser principal
-  ) {
-    return Result.success(AdaptiveInterviewResponse.from(
-        applicationService.retryActionIntentForCandidate(
-            candidateId(principal), sessionId, intentId)
-    ));
-  }
-
   @GetMapping("/history")
   public Result<AdaptiveInterviewHistoryPageResponse> history(
       @AuthenticationPrincipal AuthenticatedUser principal,
@@ -237,17 +223,6 @@ public class AdaptiveInterviewController {
   ) {
     applicationService.requireCandidateSession(candidateId(principal), sessionId);
     return Result.success(reportService.candidateReport(sessionId));
-  }
-
-  @GetMapping("/{sessionId}/tool-result-follow-ups")
-  public Result<List<ToolResultFollowUp>> getToolResultFollowUps(
-      @PathVariable String sessionId,
-      @AuthenticationPrincipal AuthenticatedUser principal
-  ) {
-    return Result.success(applicationService.toolResultFollowUpsForCandidate(
-        candidateId(principal),
-        sessionId
-    ));
   }
 
   private String candidateId(AuthenticatedUser principal) {

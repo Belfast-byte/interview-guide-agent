@@ -157,7 +157,7 @@ class AdaptiveAnswerProgressionTest {
         List.of(),
         List.of()
     ));
-    return new PlannedInterview(history, plan, null, coverage, List.of());
+    return new PlannedInterview(history, plan, coverage, List.of());
   }
 
   private AnswerProgressionDecision progression(InterviewPlan plan) {

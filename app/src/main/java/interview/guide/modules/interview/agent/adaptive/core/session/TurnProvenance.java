@@ -40,10 +40,6 @@ public record TurnProvenance(
     return new TurnProvenance(parentTurnIndex, TurnTrigger.agentDecision());
   }
 
-  public static TurnProvenance toolResult(int parentTurnIndex, long toolResultEventId) {
-    return new TurnProvenance(parentTurnIndex, TurnTrigger.toolResult(toolResultEventId));
-  }
-
   public void validateForTurn(int turnIndex) {
     if (turnIndex < 1) {
       throw new IllegalArgumentException("轮次必须为正数");

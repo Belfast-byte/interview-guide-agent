@@ -16,7 +16,6 @@ public record ReportEvidenceReference(
   static ReportEvidenceReference from(AssessmentReportEvidenceFacts facts) {
     ReportToolResult toolResult = facts.type() == EvidenceType.TOOL_RESULT
         ? new ReportToolResult(
-            facts.toolCallId(),
             facts.sandboxExecutionId(),
             facts.toolName(),
             facts.toolResultId(),

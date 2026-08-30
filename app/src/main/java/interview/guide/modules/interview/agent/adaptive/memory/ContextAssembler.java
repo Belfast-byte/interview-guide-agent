@@ -8,8 +8,6 @@ import interview.guide.modules.interview.agent.adaptive.core.session.SessionMode
 import interview.guide.modules.interview.agent.adaptive.planning.PlannedDimension;
 import interview.guide.modules.interview.skill.InterviewSkillService;
 import interview.guide.modules.interview.agent.adaptive.core.session.AdaptiveInterviewTurn;
-import interview.guide.modules.interview.agent.adaptive.core.event.CandidateAnswer;
-import interview.guide.modules.interview.agent.adaptive.core.context.InterviewerContext;
 import interview.guide.modules.interview.agent.adaptive.core.context.PlannerContext;
 import java.util.List;
 import org.springframework.stereotype.Component;
@@ -64,73 +62,6 @@ public class ContextAssembler {
         input.candidateLevel(),
         input.practiceScope(),
         input.skillCatalog()
-    );
-  }
-
-  /**
-   * 组装带追问缺口的面试官上下文。
-   */
-  public InterviewerContext interviewer(
-      InterviewerContextInput input
-  ) {
-    List<AdaptiveInterviewTurn> currentDimensionTurns = input.turns().stream()
-        .filter(turn -> turn.dimensionOrder() == input.targetDimensionOrder())
-        .toList();
-    CandidateAnswer currentDimensionAnswer = input.candidateAnswer();
-    if (input.candidateAnswer() != null
-        && input.turns().get(input.candidateAnswer().turnIndex() - 1).dimensionOrder()
-            != input.targetDimensionOrder()) {
-      currentDimensionAnswer = null;
-    }
-    return new InterviewerContext(
-        truncate(input.jd()),
-        truncate(input.resume()),
-        input.turns().size(),
-        input.maxTurns(),
-        input.targetDimensionOrder(),
-        input.targetDimension(),
-        input.targetFocus(),
-        input.suggestedTools(),
-        input.suggestedSkill(),
-        currentDimensionTurns,
-        currentDimensionAnswer,
-        input.working(),
-        List.of(),
-        null,
-        input.candidateAnswer() != null && input.candidateAnswer().codeSubmission() != null
-            ? input.candidateAnswer()
-            : null,
-        input.project(),
-        input.practiceMemory()
-    );
-  }
-
-  /**
-   * 组装“工具结果到达后”的面试官上下文，用于生成基于客观结果的追问。
-   */
-  public InterviewerContext toolResult(
-      ToolResultContextInput input
-  ) {
-    return new InterviewerContext(
-        truncate(input.jd()),
-        truncate(input.resume()),
-        input.event().turnIndex(),
-        input.maxTurns(),
-        input.targetDimensionOrder(),
-        input.targetDimension(),
-        input.targetFocus(),
-        input.suggestedTools(),
-        input.suggestedSkill(),
-        input.turns().stream()
-            .filter(turn -> turn.dimensionOrder() == input.targetDimensionOrder())
-            .toList(),
-        null,
-        input.working(),
-        List.of(),
-        input.event(),
-        null,
-        input.project(),
-        input.practiceMemory()
     );
   }
 

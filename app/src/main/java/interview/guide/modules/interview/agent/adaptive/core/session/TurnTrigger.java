@@ -7,46 +7,36 @@ import java.util.Objects;
  */
 public record TurnTrigger(
     TurnTriggerType type,
-    AssessmentGapSource assessmentGapSource,
-    Long sourceToolResultEventId
+    AssessmentGapSource assessmentGapSource
 ) {
 
   public TurnTrigger {
     Objects.requireNonNull(type, "type 不能为空");
-    validateSource(type, assessmentGapSource, sourceToolResultEventId);
+    validateSource(type, assessmentGapSource);
   }
 
   public static TurnTrigger planned() {
-    return new TurnTrigger(TurnTriggerType.PLANNED, null, null);
+    return new TurnTrigger(TurnTriggerType.PLANNED, null);
   }
 
   public static TurnTrigger assessmentGap(long assessmentId, long probeGapId) {
     return new TurnTrigger(
         TurnTriggerType.ASSESSMENT_GAP,
-        new AssessmentGapSource(assessmentId, probeGapId),
-        null
+        new AssessmentGapSource(assessmentId, probeGapId)
     );
   }
 
   public static TurnTrigger agentDecision() {
-    return new TurnTrigger(TurnTriggerType.AGENT_DECISION, null, null);
-  }
-
-  public static TurnTrigger toolResult(long toolResultEventId) {
-    return new TurnTrigger(TurnTriggerType.TOOL_RESULT, null, toolResultEventId);
+    return new TurnTrigger(TurnTriggerType.AGENT_DECISION, null);
   }
 
   private static void validateSource(
       TurnTriggerType type,
-      AssessmentGapSource assessmentGapSource,
-      Long toolResultEventId
+      AssessmentGapSource assessmentGapSource
   ) {
-    boolean assessmentSource = assessmentGapSource != null;
-    boolean toolSource = toolResultEventId != null && toolResultEventId > 0;
     boolean valid = switch (type) {
-      case PLANNED, AGENT_DECISION -> !assessmentSource && !toolSource;
-      case ASSESSMENT_GAP -> assessmentSource && !toolSource;
-      case TOOL_RESULT -> !assessmentSource && toolSource;
+      case PLANNED, AGENT_DECISION -> assessmentGapSource == null;
+      case ASSESSMENT_GAP -> assessmentGapSource != null;
     };
     if (!valid) {
       throw new IllegalArgumentException("Turn trigger 与来源引用不匹配");

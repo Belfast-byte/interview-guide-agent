@@ -136,7 +136,6 @@ class MemoryPracticeScenarioTest {
           0.9,
           List.of("说出了 fork"),
           List.of(new ProbeGap("fork", "解释 COW 页复制条件")),
-          List.of(),
           EpisodeAssistanceLevel.HINT,
           EpisodeClosureStatus.UNRESOLVED,
           0.92

@@ -60,7 +60,6 @@ class AdaptiveInterviewResponseTest {
     PlannedInterview interview = new PlannedInterview(
         history,
         plan,
-        null,
         List.of()
     );
 
@@ -101,7 +100,6 @@ class AdaptiveInterviewResponseTest {
             List.of()
         ),
         new InterviewPlan("session-1", 0, List.of()),
-        null,
         List.of()
     );
 

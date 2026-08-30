@@ -16,7 +16,6 @@ public record PracticeDiagnosticView(
     double confidence,
     List<String> evidence,
     List<ProbeGap> gaps,
-    List<String> toolFacts,
     EpisodeAssistanceLevel assistanceLevel,
     EpisodeClosureStatus closureStatus,
     double similarity
@@ -25,6 +24,5 @@ public record PracticeDiagnosticView(
   public PracticeDiagnosticView {
     evidence = List.copyOf(evidence);
     gaps = List.copyOf(gaps);
-    toolFacts = List.copyOf(toolFacts);
   }
 }

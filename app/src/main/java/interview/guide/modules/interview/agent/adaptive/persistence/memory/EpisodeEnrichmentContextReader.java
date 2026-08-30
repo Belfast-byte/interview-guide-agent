@@ -8,7 +8,6 @@ import interview.guide.modules.interview.agent.adaptive.memory.episode.EpisodeEn
 import interview.guide.modules.interview.agent.adaptive.memory.episode.EpisodeEnrichmentRequest;
 import interview.guide.modules.interview.agent.adaptive.memory.episode.EpisodeEvidenceFact;
 import interview.guide.modules.interview.agent.adaptive.memory.episode.EpisodeProbeGapFact;
-import interview.guide.modules.interview.agent.adaptive.memory.episode.EpisodeToolResultFact;
 import interview.guide.modules.interview.agent.adaptive.persistence.assessment.AdaptiveAgentAssessmentEntity;
 import interview.guide.modules.interview.agent.adaptive.persistence.assessment.AssessmentProbeGapEntity;
 import interview.guide.modules.interview.agent.adaptive.persistence.session.AdaptiveAgentTurnEntity;
@@ -57,8 +56,7 @@ public class EpisodeEnrichmentContextReader implements EpisodeEnrichmentContextS
                 evidence.codeAnchor()
             ))
             .toList(),
-        loadGaps(turn, assessment),
-        loadToolResults(turn, episode.sessionId())
+        loadGaps(turn, assessment)
     );
   }
 
@@ -100,31 +98,6 @@ public class EpisodeEnrichmentContextReader implements EpisodeEnrichmentContextS
     LinkedHashMap<Long, EpisodeProbeGapFact> unique = new LinkedHashMap<>();
     current.forEach(fact -> unique.putIfAbsent(fact.id(), fact));
     triggered.forEach(fact -> unique.putIfAbsent(fact.id(), fact));
-    return List.copyOf(unique.values());
-  }
-
-  private List<EpisodeToolResultFact> loadToolResults(
-      AdaptiveAgentTurnEntity turn,
-      String sessionId
-  ) {
-    List<EpisodeToolResultFact> current = repositories.toolResults()
-        .findEpisodeFactsBySessionIdAndTurnIndex(sessionId, turn.turnIndex());
-    if (turn.triggerType() != TurnTriggerType.TOOL_RESULT) {
-      return current;
-    }
-    EpisodeToolResultFact triggered = repositories.toolResults()
-        .findEpisodeFactByIdAndSessionId(turn.sourceToolResultEventId(), sessionId)
-        .orElseThrow(() -> notFound("追问来源 ToolResult 不属于当前 session"));
-    return mergeToolResults(current, triggered);
-  }
-
-  private List<EpisodeToolResultFact> mergeToolResults(
-      List<EpisodeToolResultFact> current,
-      EpisodeToolResultFact triggered
-  ) {
-    LinkedHashMap<Long, EpisodeToolResultFact> unique = new LinkedHashMap<>();
-    current.forEach(fact -> unique.putIfAbsent(fact.id(), fact));
-    unique.putIfAbsent(triggered.id(), triggered);
     return List.copyOf(unique.values());
   }
 

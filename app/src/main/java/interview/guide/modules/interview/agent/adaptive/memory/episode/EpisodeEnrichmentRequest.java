@@ -19,21 +19,18 @@ public record EpisodeEnrichmentRequest(
     DepthLevel depthLevel,
     String assessmentSummary,
     List<EpisodeEvidenceFact> evidences,
-    List<EpisodeProbeGapFact> probeGaps,
-    List<EpisodeToolResultFact> toolResults
+    List<EpisodeProbeGapFact> probeGaps
 ) {
 
   public EpisodeEnrichmentRequest {
     evidences = List.copyOf(evidences);
     probeGaps = List.copyOf(probeGaps);
-    toolResults = List.copyOf(toolResults);
   }
 
   public EpisodeSourceFacts sourceFacts() {
     return new EpisodeSourceFacts(
         ids(evidences.stream().map(EpisodeEvidenceFact::id).toList()),
-        ids(probeGaps.stream().map(EpisodeProbeGapFact::id).toList()),
-        ids(toolResults.stream().map(EpisodeToolResultFact::id).toList())
+        ids(probeGaps.stream().map(EpisodeProbeGapFact::id).toList())
     );
   }
 

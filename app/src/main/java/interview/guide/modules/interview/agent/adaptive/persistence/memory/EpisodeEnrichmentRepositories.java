@@ -3,7 +3,6 @@ package interview.guide.modules.interview.agent.adaptive.persistence.memory;
 import interview.guide.modules.interview.agent.adaptive.persistence.assessment.AdaptiveAgentAssessmentRepository;
 import interview.guide.modules.interview.agent.adaptive.persistence.assessment.AdaptiveAgentEvidenceRepository;
 import interview.guide.modules.interview.agent.adaptive.persistence.assessment.AssessmentProbeGapRepository;
-import interview.guide.modules.interview.agent.adaptive.persistence.session.AdaptiveAgentToolResultEventRepository;
 import interview.guide.modules.interview.agent.adaptive.persistence.session.AdaptiveAgentTurnRepository;
 import org.springframework.stereotype.Component;
 
@@ -16,6 +15,5 @@ public record EpisodeEnrichmentRepositories(
     AdaptiveAgentTurnRepository turns,
     AdaptiveAgentAssessmentRepository assessments,
     AdaptiveAgentEvidenceRepository evidences,
-    AssessmentProbeGapRepository gaps,
-    AdaptiveAgentToolResultEventRepository toolResults
+    AssessmentProbeGapRepository gaps
 ) {}

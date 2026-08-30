@@ -10,7 +10,6 @@ public record AssessmentReportEvidenceFacts(
     String question,
     String answer,
     String quote,
-    Long toolCallId,
     String sandboxExecutionId,
     String toolName,
     String toolResultId,

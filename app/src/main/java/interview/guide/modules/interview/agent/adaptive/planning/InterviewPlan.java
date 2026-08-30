@@ -3,14 +3,7 @@ package interview.guide.modules.interview.agent.adaptive.planning;
 import interview.guide.common.exception.BusinessException;
 import interview.guide.common.exception.ErrorCode;
 import interview.guide.modules.interview.agent.adaptive.core.context.CapabilityTarget;
-import interview.guide.modules.interview.agent.adaptive.core.context.DepthLevel;
 import interview.guide.modules.interview.agent.adaptive.core.context.TopicKey;
-import interview.guide.modules.interview.agent.adaptive.core.memory.InterviewWorkState;
-import interview.guide.modules.interview.agent.adaptive.core.memory.TargetWorkState;
-import interview.guide.modules.interview.agent.adaptive.core.memory.TargetWorkStatus;
-import interview.guide.modules.interview.agent.adaptive.core.memory.WorkBudget;
-import interview.guide.modules.interview.agent.adaptive.core.memory.WorkBudgetType;
-import interview.guide.modules.interview.agent.adaptive.core.memory.WorkPhase;
 import interview.guide.modules.interview.agent.adaptive.core.session.AdaptiveInterviewSession;
 import interview.guide.modules.interview.agent.adaptive.core.session.InterviewSessionSettings;
 import interview.guide.modules.interview.agent.adaptive.core.session.SessionMode;
@@ -119,64 +112,6 @@ public record InterviewPlan(
         .filter(dimension -> dimension.order() == order)
         .findFirst()
         .orElseThrow(() -> new BusinessException(ErrorCode.BAD_REQUEST, "面试维度不存在"));
-  }
-
-  /** Planner 产出的能力目标是初始化运行状态的唯一输入。 */
-  public InterviewWorkState initialWorkState() {
-    InterviewWorkState ready = readyWorkState();
-    TargetWorkState active = ready.activeTarget().consume(WorkBudgetType.TURN);
-    List<TargetWorkState> targets = ready.targets().stream()
-        .map(target -> target.targetId().equals(active.targetId()) ? active : target)
-        .toList();
-    return new InterviewWorkState(
-        sessionId,
-        1,
-        WorkPhase.AWAITING_ANSWER,
-        targets,
-        active.targetId(),
-        active.target().identity().focus(),
-        List.of(),
-        List.of(),
-        1,
-        null,
-        null
-    );
-  }
-
-  /** Plan 已落库但首题尚未生成时的状态。 */
-  public InterviewWorkState readyWorkState() {
-    List<TargetWorkState> states = dimensions.stream()
-        .map(this::initialTargetState)
-        .toList();
-    TargetWorkState active = states.getFirst();
-    return new InterviewWorkState(
-        sessionId,
-        1,
-        WorkPhase.READY_TO_DECIDE,
-        states,
-        active.targetId(),
-        active.target().identity().focus(),
-        List.of(),
-        List.of(),
-        null,
-        null,
-        null
-    );
-  }
-
-  private TargetWorkState initialTargetState(PlannedDimension dimension) {
-    int order = dimension.order();
-    return new TargetWorkState(
-        "target-" + order,
-        dimension.target(),
-        new WorkBudget(
-            dimension.allocatedTurns(),
-            dimension.followUpBudget(),
-            dimension.toolBudget()
-        ),
-        DepthLevel.L0,
-        order == 0 ? TargetWorkStatus.ACTIVE : TargetWorkStatus.PENDING
-    );
   }
 
   private static void validate(PlanProposal proposal) {

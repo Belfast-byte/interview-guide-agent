@@ -69,7 +69,6 @@ class AdaptiveTurnProvenanceRepositoryTest {
     assertThat(reloaded.triggerType()).isEqualTo(TurnTriggerType.ASSESSMENT_GAP);
     assertThat(reloaded.sourceAssessmentId()).isEqualTo(42);
     assertThat(reloaded.sourceProbeGapId()).isEqualTo(84);
-    assertThat(reloaded.sourceToolResultEventId()).isNull();
     assertThat(reloaded.toDomain().provenance())
         .isEqualTo(TurnProvenance.assessmentGap(2, 42, 84));
     assertThat(reloaded.workingMemory()).isEqualTo(memory);

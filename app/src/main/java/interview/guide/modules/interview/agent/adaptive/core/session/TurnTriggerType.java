@@ -6,6 +6,5 @@ package interview.guide.modules.interview.agent.adaptive.core.session;
 public enum TurnTriggerType {
   PLANNED,
   AGENT_DECISION,
-  ASSESSMENT_GAP,
-  TOOL_RESULT
+  ASSESSMENT_GAP
 }

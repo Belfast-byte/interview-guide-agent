@@ -114,9 +114,6 @@ public class AdaptiveAgentTurnEntity {
   @Column(name = "source_probe_gap_id")
   private Long sourceProbeGapId;
 
-  @Column(name = "source_tool_result_event_id")
-  private Long sourceToolResultEventId;
-
   @Convert(converter = WorkingMemoryJsonConverter.class)
   @Column(name = "working_memory_snapshot", columnDefinition = "TEXT")
   private WorkingMemory workingMemory;
@@ -146,7 +143,6 @@ public class AdaptiveAgentTurnEntity {
     triggerType = provenance.trigger().type();
     sourceAssessmentId = provenance.trigger().sourceAssessmentId();
     sourceProbeGapId = provenance.trigger().sourceProbeGapId();
-    sourceToolResultEventId = provenance.trigger().sourceToolResultEventId();
   }
 
   private void applyQuestion(RespondAction questionAction) {
@@ -216,7 +212,7 @@ public class AdaptiveAgentTurnEntity {
   private TurnProvenance provenance() {
     return new TurnProvenance(
         parentTurnIndex,
-        new TurnTrigger(triggerType, assessmentGapSource(), sourceToolResultEventId)
+        new TurnTrigger(triggerType, assessmentGapSource())
     );
   }
 
@@ -293,9 +289,5 @@ public class AdaptiveAgentTurnEntity {
 
   public Long sourceProbeGapId() {
     return sourceProbeGapId;
-  }
-
-  public Long sourceToolResultEventId() {
-    return sourceToolResultEventId;
   }
 }

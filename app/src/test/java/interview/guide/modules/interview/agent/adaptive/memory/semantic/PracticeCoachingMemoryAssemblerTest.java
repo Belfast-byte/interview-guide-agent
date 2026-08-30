@@ -63,7 +63,6 @@ class PracticeCoachingMemoryAssemblerTest {
         0.7,
         List.of(),
         List.of(),
-        List.of(),
         EpisodeAssistanceLevel.FOLLOW_UP,
         EpisodeClosureStatus.UNRESOLVED,
         0.8

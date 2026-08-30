@@ -68,7 +68,6 @@ public class PracticeCoachingMemoryAssembler {
     values.put("confidence", source.confidence());
     values.put("evidence", source.evidence());
     values.put("gaps", source.gaps());
-    values.put("toolFacts", source.toolFacts());
     values.put("assistanceLevel", source.assistanceLevel());
     values.put("closureStatus", source.closureStatus());
     values.put("similarity", source.similarity());

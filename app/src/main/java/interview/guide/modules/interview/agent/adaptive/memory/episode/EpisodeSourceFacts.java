@@ -7,21 +7,18 @@ import java.util.Set;
  */
 public record EpisodeSourceFacts(
     Set<Long> assessmentEvidenceIds,
-    Set<Long> probeGapIds,
-    Set<Long> toolResultEventIds
+    Set<Long> probeGapIds
 ) {
 
   public EpisodeSourceFacts {
     assessmentEvidenceIds = Set.copyOf(assessmentEvidenceIds);
     probeGapIds = Set.copyOf(probeGapIds);
-    toolResultEventIds = Set.copyOf(toolResultEventIds);
   }
 
   public boolean contains(EpisodeTagSource source) {
     return switch (source.type()) {
       case ASSESSMENT_EVIDENCE -> assessmentEvidenceIds.contains(source.sourceId());
       case PROBE_GAP -> probeGapIds.contains(source.sourceId());
-      case TOOL_RESULT -> toolResultEventIds.contains(source.sourceId());
     };
   }
 }
