@@ -6,6 +6,7 @@ import interview.guide.common.exception.ErrorCode;
 import interview.guide.modules.interview.agent.adaptive.runtime.AgentDecision;
 import interview.guide.modules.interview.agent.adaptive.runtime.DecisionModelContext;
 import interview.guide.modules.interview.agent.adaptive.runtime.InterviewDecisionModel;
+import java.util.List;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.ai.chat.client.ChatClient;
 import org.springframework.stereotype.Component;
@@ -18,22 +19,28 @@ public class SpringAiInterviewDecisionModel implements InterviewDecisionModel {
   private final LlmProviderRegistry providerRegistry;
   private final StructuredOutputInvoker outputInvoker;
   private final InterviewDecisionPrompt prompt;
+  private final AdaptiveModelOptionsFactory modelOptionsFactory;
 
   public SpringAiInterviewDecisionModel(
       LlmProviderRegistry providerRegistry,
       StructuredOutputInvoker outputInvoker,
-      InterviewDecisionPrompt prompt
+      InterviewDecisionPrompt prompt,
+      AdaptiveModelOptionsFactory modelOptionsFactory
   ) {
     this.providerRegistry = providerRegistry;
     this.outputInvoker = outputInvoker;
     this.prompt = prompt;
+    this.modelOptionsFactory = modelOptionsFactory;
   }
 
   @Override
   public AgentDecision decide(DecisionModelContext context) {
     var identity = context.agentContext().session().identity();
     InterviewDecisionPrompt.PreparedPrompt prepared = prompt.prepare(context);
-    ChatClient client = providerRegistry.getPlainChatClient(identity.llmProvider());
+    ChatClient client = providerRegistry.getPlainChatClient(identity.llmProvider())
+        .mutate()
+        .defaultOptions(modelOptionsFactory.interviewer(List.of()))
+        .build();
     InterviewDecisionOutput output = outputInvoker.invokeOnce(
         client,
         prepared.system(),
