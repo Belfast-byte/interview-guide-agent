@@ -11,5 +11,17 @@ public record AssessmentReportTurnFacts(
     DepthLevel depthLevel,
     double confidence,
     String rationale,
-    List<AssessmentReportEvidenceFacts> evidences
-) {}
+    List<AssessmentReportEvidenceFacts> evidences,
+    boolean budgetExhaustedFinal
+) {
+
+  public AssessmentReportTurnFacts(
+      int turnIndex,
+      DepthLevel depthLevel,
+      double confidence,
+      String rationale,
+      List<AssessmentReportEvidenceFacts> evidences
+  ) {
+    this(turnIndex, depthLevel, confidence, rationale, evidences, false);
+  }
+}

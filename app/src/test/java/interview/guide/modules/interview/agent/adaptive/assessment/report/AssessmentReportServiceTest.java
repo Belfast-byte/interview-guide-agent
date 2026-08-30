@@ -81,6 +81,29 @@ class AssessmentReportServiceTest {
         .hasFieldOrPropertyWithValue("code", 3007);
   }
 
+  @Test
+  @DisplayName("预算耗尽时使用当前轮评级而不是历史最高评级")
+  void shouldUseBudgetFinalAssessment() {
+    AssessmentReportDimensionFacts dimension = new AssessmentReportDimensionFacts(
+        0,
+        "工具设计",
+        "失败边界",
+        List.of(
+            assessment(1, DepthLevel.L3, "历史较高评级", "说明了幂等"),
+            new AssessmentReportTurnFacts(
+                3, DepthLevel.L1, 0.8, "当前验证仍不充分", List.of(), true)
+        )
+    );
+    AssessmentReportFacts facts = new AssessmentReportFacts(
+        "session-1", "candidate-1", AdaptiveSessionStatus.COMPLETED,
+        List.of(dimension), List.of(), List.of());
+
+    CandidateAssessmentReport report = new AssessmentReportService(
+        new StubFactsSource(facts)).candidateReport("session-1");
+
+    assertThat(report.dimensions().getFirst().depthLevel()).isEqualTo(DepthLevel.L1);
+  }
+
   private AssessmentReportFacts completedFacts() {
     return new AssessmentReportFacts(
         "session-1",

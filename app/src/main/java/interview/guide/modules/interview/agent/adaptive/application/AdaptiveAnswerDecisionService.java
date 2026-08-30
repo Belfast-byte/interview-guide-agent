@@ -1,5 +1,6 @@
 package interview.guide.modules.interview.agent.adaptive.application;
 
+import interview.guide.modules.interview.agent.adaptive.application.TargetBudgetPolicy.BudgetDecision;
 import interview.guide.modules.interview.agent.adaptive.core.context.CoverageProjector;
 import interview.guide.modules.interview.agent.adaptive.core.context.CoverageView;
 import interview.guide.modules.interview.agent.adaptive.core.context.MemoryOwner;
@@ -24,31 +25,36 @@ public class AdaptiveAnswerDecisionService {
   private final ContextAssembler contextAssembler;
   private final WorkingMemorySnapshotReader snapshotReader;
   private final InterviewAgentLoop agentLoop;
+  private final TargetBudgetPolicy budgetPolicy;
 
   public AdaptiveAnswerDecisionService(
       AdaptiveAnswerPreparationService preparation,
       ContextAssembler contextAssembler,
       WorkingMemorySnapshotReader snapshotReader,
-      InterviewAgentLoop agentLoop
+      InterviewAgentLoop agentLoop,
+      TargetBudgetPolicy budgetPolicy
   ) {
     this.preparation = preparation;
     this.contextAssembler = contextAssembler;
     this.snapshotReader = snapshotReader;
     this.agentLoop = agentLoop;
+    this.budgetPolicy = budgetPolicy;
   }
 
   public AnswerProgressionDecision decide(AnswerDecisionRequest request) {
     AnswerAssessment assessment = preparation.prepare(request.interview(), request.answer());
-    var context = context(request, assessment);
+    BudgetDecision budget = budgetPolicy.evaluate(request.interview().coverage(), assessment);
+    var context = context(request, assessment, budget);
     AgentDecision decision = request.interview().coverage().remainingTurns() == 0
         ? new AgentDecision(context.workingMemory(), new AgentDecision.Finish("已达到本场最大轮次"))
-        : agentLoop.run(context, request.deadline());
-    return new AnswerProgressionDecision(assessment, decision);
+        : agentLoop.run(context, budget.observations(), request.deadline());
+    return new AnswerProgressionDecision(assessment, decision, budget.exhausted());
   }
 
   private interview.guide.modules.interview.agent.adaptive.core.context.AgentContext context(
       AnswerDecisionRequest request,
-      AnswerAssessment assessment
+      AnswerAssessment assessment,
+      BudgetDecision budget
   ) {
     var interview = request.interview();
     var history = interview.history();
@@ -59,7 +65,11 @@ public class AdaptiveAnswerDecisionService {
         history.session().settings().mode(),
         history.session().maxTurns(),
         interview.plan().dimensions(),
-        coverage(interview.coverage(), request.answer(), assessment),
+        coverage(
+            interview.coverage(),
+            request.answer(),
+            new CoverageUpdate(assessment, budget)
+        ),
         answeredTurns(history.turns(), request.answer()),
         snapshotReader.latest(history.session().id())
     ));
@@ -68,12 +78,39 @@ public class AdaptiveAnswerDecisionService {
   private CoverageView coverage(
       CoverageView current,
       CandidateAnswer answer,
-      AnswerAssessment assessment
+      CoverageUpdate update
   ) {
+    AnswerAssessment assessment = update.assessment();
     String targetId = CoverageProjector.targetId(assessment.dimension().order());
+    List<CoverageView.OpenProbeGap> gaps = gaps(current, answer, update);
+    List<Long> evidenceIds = new ArrayList<>(current.evidenceIds());
+    for (int index = 0; index < assessment.evidences().size(); index++) {
+      evidenceIds.add(PendingAssessmentReferences.evidenceId(index));
+    }
+    return new CoverageView(
+        current.askedTurns(),
+        current.remainingTurns(),
+        targetCoverage(current, assessment, gaps),
+        gaps,
+        evidenceIds
+    );
+  }
+
+  private List<CoverageView.OpenProbeGap> gaps(
+      CoverageView current,
+      CandidateAnswer answer,
+      CoverageUpdate update
+  ) {
+    String targetId = CoverageProjector.targetId(update.assessment().dimension().order());
+    if (update.budget().exhausted()) {
+      return current.openProbeGaps().stream()
+          .filter(gap -> !gap.targetId().equals(targetId))
+          .toList();
+    }
     List<CoverageView.OpenProbeGap> gaps = new ArrayList<>(current.openProbeGaps());
-    for (int index = 0; index < assessment.decision().probeGaps().size(); index++) {
-      var gap = assessment.decision().probeGaps().get(index);
+    var proposedGaps = update.assessment().decision().probeGaps();
+    for (int index = 0; index < proposedGaps.size(); index++) {
+      var gap = proposedGaps.get(index);
       gaps.add(new CoverageView.OpenProbeGap(
           PendingAssessmentReferences.gapId(index),
           PendingAssessmentReferences.ASSESSMENT_ID,
@@ -83,25 +120,15 @@ public class AdaptiveAnswerDecisionService {
           gap.missingPoint()
       ));
     }
-    List<Long> evidenceIds = new ArrayList<>(current.evidenceIds());
-    for (int index = 0; index < assessment.evidences().size(); index++) {
-      evidenceIds.add(PendingAssessmentReferences.evidenceId(index));
-    }
-    return new CoverageView(
-        current.askedTurns(),
-        current.remainingTurns(),
-        targetCoverage(current, targetId, assessment, gaps),
-        gaps,
-        evidenceIds
-    );
+    return gaps;
   }
 
   private List<CoverageView.TargetCoverage> targetCoverage(
       CoverageView current,
-      String targetId,
       AnswerAssessment assessment,
       List<CoverageView.OpenProbeGap> gaps
   ) {
+    String targetId = CoverageProjector.targetId(assessment.dimension().order());
     return current.targets().stream().map(target -> target.targetId().equals(targetId)
         ? new CoverageView.TargetCoverage(
             target.targetId(),
@@ -144,4 +171,10 @@ public class AdaptiveAnswerDecisionService {
       CandidateAnswer answer,
       Duration deadline
   ) {}
+
+  private record CoverageUpdate(
+      AnswerAssessment assessment,
+      BudgetDecision budget
+  ) {}
+
 }

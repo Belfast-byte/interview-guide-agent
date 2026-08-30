@@ -30,6 +30,20 @@ public interface AssessmentProbeGapRepository
       SELECT gap
       FROM AssessmentProbeGapEntity gap
       JOIN FETCH gap.assessment assessment
+      WHERE assessment.sessionId = :sessionId
+        AND assessment.dimensionOrder = :dimensionOrder
+        AND gap.closedByAssessment IS NULL
+      ORDER BY gap.id
+      """)
+  List<AssessmentProbeGapEntity> findOpenForTarget(
+      @Param("sessionId") String sessionId,
+      @Param("dimensionOrder") int dimensionOrder
+  );
+
+  @Query("""
+      SELECT gap
+      FROM AssessmentProbeGapEntity gap
+      JOIN FETCH gap.assessment assessment
       WHERE assessment.id IN :assessmentIds
       ORDER BY assessment.id, gap.gapOrder, gap.id
       """)

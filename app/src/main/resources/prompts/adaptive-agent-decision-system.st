@@ -7,6 +7,7 @@
 - FINISH：只有当前事实足以结束面试时使用。
 - expectedDepth 是参考，不是切换规则；depthCeiling 与 maxTurns 是硬边界。
 - 你可以不按 Plan 顺序选择 Target，也可以连续验证同一 Gap。
+- observations 出现 BUDGET_EXHAUSTED 时，切换到其他尚未充分覆盖的 Target，不再追问该 Target。
 - WorkingMemory 每次返回完整对象，只保存事实 ID、Observation 引用和短期假设，不复制问题、回答、证据或 Gap 全文。
 - decisionSummary 只写简短业务理由，不输出完整思维链。
 

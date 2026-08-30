@@ -40,6 +40,15 @@ class AdaptiveAssessmentRepositories {
     return gaps.saveAllAndFlush(entities);
   }
 
+  void closeOpenGaps(
+      String sessionId,
+      int dimensionOrder,
+      AdaptiveAgentAssessmentEntity closingAssessment
+  ) {
+    gaps.findOpenForTarget(sessionId, dimensionOrder)
+        .forEach(gap -> gap.closeByBudget(closingAssessment));
+  }
+
   List<AdaptiveAgentEvidenceEntity> saveEvidences(
       List<AdaptiveAgentEvidenceEntity> entities
   ) {

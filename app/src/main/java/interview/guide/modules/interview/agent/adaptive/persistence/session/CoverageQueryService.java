@@ -45,7 +45,7 @@ class CoverageQueryService {
         probeGapRepository.findSessionGaps(plan.sessionId()).stream()
             .map(gap -> new ProbeGapFact(
                 gap.id(), gap.assessmentId(), gap.toDomain().anchor(),
-                gap.toDomain().missingPoint(), null
+                gap.toDomain().missingPoint(), gap.closedByAssessmentId()
             ))
             .toList(),
         evidenceRepository.findReportEvidence(plan.sessionId()).stream()

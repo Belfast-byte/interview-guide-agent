@@ -112,6 +112,7 @@ Java 拒绝非法提案时返回结构化 validation Observation，由模型重�
 - 达到 `maxTurns` 后代码直接完成 Session，不再调用模型生成不可能被接受的 ASK。
 - Plan 创建后不可变，只描述合法 Target、TopicKey、固定 Skill、证据目标、expected depth 和 depth ceiling。
 - expected depth 是 Agent 的参考；depth ceiling 和 maxTurns 是硬边界。
+- Target 达到向上取整后的 `1.25 × turnBudget` 且当前 Assessment 仍产生 Gap 时，Java 关闭该 Target 的开放 Gap，并将 `BUDGET_EXHAUSTED` Observation 返回模型请求其切换；该 Observation 暂不作为 ASK 硬拒绝条件。
 - 删除 Plan 的运行时 completedTurns/status、固定 dimensionOrder 行为、follow-up/tool budget 和 replan 历史。
 
 ### Turn
@@ -127,6 +128,7 @@ Java 拒绝非法提案时返回结构化 validation Observation，由模型重�
 - Assessor 只生成正式判断，不再生成 WorkState Patch。
 - quote、Gap anchor 和代码 provenance 必须命中真实来源。
 - ProbeGap 是带 Assessment/Turn 来源的正式事实；后续 Assessment 可以记录其关闭事实。
+- 因 Target 预算耗尽关闭的 Gap 必须记录 closing Assessment 与 `BUDGET_EXHAUSTED` 原因；该 Assessment 是该模块的最终评级事实。
 - Rubric/题库 Observation 只提供问题或评分 provenance，不自动成为候选人能力 Evidence。
 - 沙箱和代码分析结果以稳定 execution/artifact ID 进入 Evidence。
 

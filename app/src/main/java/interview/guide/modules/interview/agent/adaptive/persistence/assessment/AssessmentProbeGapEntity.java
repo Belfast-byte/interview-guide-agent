@@ -3,6 +3,8 @@ package interview.guide.modules.interview.agent.adaptive.persistence.assessment;
 import interview.guide.modules.interview.agent.adaptive.core.context.ProbeGap;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
+import jakarta.persistence.EnumType;
+import jakarta.persistence.Enumerated;
 import jakarta.persistence.FetchType;
 import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
@@ -48,6 +50,14 @@ public class AssessmentProbeGapEntity {
 
   @Column(nullable = false, columnDefinition = "TEXT")
   private String description;
+
+  @ManyToOne(fetch = FetchType.LAZY)
+  @JoinColumn(name = "closed_by_assessment_id")
+  private AdaptiveAgentAssessmentEntity closedByAssessment;
+
+  @Enumerated(EnumType.STRING)
+  @Column(name = "closure_reason", length = 32)
+  private ProbeGapClosureReason closureReason;
 
   @Column(name = "created_at", nullable = false)
   private LocalDateTime createdAt;
@@ -100,5 +110,14 @@ public class AssessmentProbeGapEntity {
 
   public ProbeGap toDomain() {
     return new ProbeGap(anchor, description);
+  }
+
+  public Long closedByAssessmentId() {
+    return closedByAssessment == null ? null : closedByAssessment.id();
+  }
+
+  public void closeByBudget(AdaptiveAgentAssessmentEntity assessment) {
+    closedByAssessment = assessment;
+    closureReason = ProbeGapClosureReason.BUDGET_EXHAUSTED;
   }
 }

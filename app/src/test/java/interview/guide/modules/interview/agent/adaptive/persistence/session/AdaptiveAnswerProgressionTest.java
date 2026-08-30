@@ -103,6 +103,10 @@ class AdaptiveAnswerProgressionTest {
     assertThat(assessments.findBySessionIdOrderByDimensionOrderAscTurnIndexAsc(SESSION_ID))
         .hasSize(1);
     assertThat(gaps.findSessionGaps(SESSION_ID)).hasSize(1);
+    assertThat(assessments.findBySessionIdOrderByDimensionOrderAscTurnIndexAsc(SESSION_ID)
+        .getFirst().budgetExhaustedFinal()).isTrue();
+    assertThat(gaps.findSessionGaps(SESSION_ID).getFirst().closedByAssessmentId())
+        .isPositive();
     assertThat(evidences.findReportEvidence(SESSION_ID)).hasSize(1);
     var nextTurn = turns.findBySessionIdAndTurnIndex(SESSION_ID, 2).orElseThrow();
     assertThat(nextTurn.sourceProbeGapId()).isPositive();
@@ -198,7 +202,7 @@ class AdaptiveAnswerProgressionTest {
         PendingAssessmentReferences.gapId(0),
         new AgentDecision.QuestionDraft("版本号如何推进？", "验证冲突细节", List.of())
     ));
-    return new AnswerProgressionDecision(assessed, decision);
+    return new AnswerProgressionDecision(assessed, decision, true);
   }
 
   private AgentDecision initialDecision() {

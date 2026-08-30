@@ -154,7 +154,8 @@ public class JpaAssessmentReportFactsSource
             .filter(evidence -> evidence.evidenceType() != EvidenceType.TOOL_RESULT
                 || evidence.sandboxExecutionId() != null)
             .map(evidence -> evidenceFacts(evidence, turns, algorithmEvidences))
-            .toList()
+            .toList(),
+        assessment.budgetExhaustedFinal()
     );
   }
 

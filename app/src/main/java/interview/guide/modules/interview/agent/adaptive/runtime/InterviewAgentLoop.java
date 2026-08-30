@@ -28,8 +28,16 @@ public class InterviewAgentLoop {
   }
 
   public AgentDecision run(AgentContext context, Duration timeout) {
+    return run(context, List.of(), timeout);
+  }
+
+  public AgentDecision run(
+      AgentContext context,
+      List<DecisionObservation> initialObservations,
+      Duration timeout
+  ) {
     RuntimeDeadline deadline = RuntimeDeadline.start(timeout);
-    List<DecisionObservation> observations = new ArrayList<>();
+    List<DecisionObservation> observations = new ArrayList<>(initialObservations);
     WorkingMemory memory = context.workingMemory();
     int batchIndex = 0;
     while (true) {

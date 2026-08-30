@@ -102,7 +102,11 @@ public class AdaptiveAnswerTransactionService {
   ) {
     AnswerAssessment proposed = progression.assessment();
     AdaptiveAgentAssessmentEntity assessment = assessments.saveAssessment(
-        new AdaptiveAgentAssessmentEntity(proposed.dimension().order(), proposed.decision()));
+        new AdaptiveAgentAssessmentEntity(
+            proposed.dimension().order(),
+            proposed.decision(),
+            progression.targetBudgetExhausted()
+        ));
     List<AssessmentProbeGapEntity> gaps = new ArrayList<>();
     for (int index = 0; index < proposed.decision().probeGaps().size(); index++) {
       gaps.add(new AssessmentProbeGapEntity(
@@ -112,9 +116,14 @@ public class AdaptiveAnswerTransactionService {
         .map(evidence -> new AdaptiveAgentEvidenceEntity(
             assessment, sessionId, answer.turnIndex(), evidence))
         .toList();
+    List<AssessmentProbeGapEntity> savedGaps = assessments.saveGaps(gaps);
+    if (progression.targetBudgetExhausted()) {
+      assessments.closeOpenGaps(
+          sessionId, proposed.dimension().order(), assessment);
+    }
     return new SavedAssessment(
         assessment,
-        assessments.saveGaps(gaps),
+        savedGaps,
         assessments.saveEvidences(evidences)
     );
   }

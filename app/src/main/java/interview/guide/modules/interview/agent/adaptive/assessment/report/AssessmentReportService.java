@@ -76,9 +76,7 @@ public class AssessmentReportService {
   private ReportDimensionConclusion conclusion(
       AssessmentReportDimensionFacts dimension
   ) {
-    AssessmentReportTurnFacts finalAssessment = dimension.assessments().stream()
-        .max(FINAL_ASSESSMENT)
-        .orElseThrow();
+    AssessmentReportTurnFacts finalAssessment = finalAssessment(dimension);
     return new ReportDimensionConclusion(
         dimension.order(),
         dimension.dimension(),
@@ -90,6 +88,17 @@ public class AssessmentReportService {
             .map(ReportEvidenceReference::from)
             .toList()
     );
+  }
+
+  private AssessmentReportTurnFacts finalAssessment(
+      AssessmentReportDimensionFacts dimension
+  ) {
+    return dimension.assessments().stream()
+        .filter(AssessmentReportTurnFacts::budgetExhaustedFinal)
+        .max(Comparator.comparingInt(AssessmentReportTurnFacts::turnIndex))
+        .orElseGet(() -> dimension.assessments().stream()
+            .max(FINAL_ASSESSMENT)
+            .orElseThrow());
   }
 
   private List<CandidateWeakPoint> weakPoints(

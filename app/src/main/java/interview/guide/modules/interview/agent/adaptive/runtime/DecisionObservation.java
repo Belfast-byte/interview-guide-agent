@@ -20,6 +20,7 @@ public record DecisionObservation(
   }
 
   public enum Kind {
+    BUDGET_EXHAUSTED,
     VALIDATION_REJECTION,
     TOOL_SUCCESS,
     TOOL_EMPTY,

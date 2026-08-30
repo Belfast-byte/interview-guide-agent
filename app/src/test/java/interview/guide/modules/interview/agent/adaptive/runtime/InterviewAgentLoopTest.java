@@ -87,6 +87,29 @@ class InterviewAgentLoopTest {
   }
 
   @Test
+  @DisplayName("预算 Observation 在第一次模型决策前直接注入")
+  void shouldInjectInitialBudgetObservation() {
+    List<DecisionModelContext> requests = new ArrayList<>();
+    DecisionObservation observation = new DecisionObservation(
+        "budget-exhausted-target-0",
+        DecisionObservation.Kind.BUDGET_EXHAUSTED,
+        "coverage.targets[target-0]",
+        "请切换 Target",
+        null,
+        java.util.Map.of("targetId", "target-0"),
+        List.of()
+    );
+    InterviewAgentLoop loop = loop(context -> {
+      requests.add(context);
+      return ask("target-1", 12L, memory("target-1", 12L));
+    });
+
+    loop.run(context(), List.of(observation), Duration.ofSeconds(1));
+
+    assertThat(requests.getFirst().observations()).containsExactly(observation);
+  }
+
+  @Test
   @DisplayName("共享 deadline 耗尽时明确失败")
   void shouldFailWhenDeadlineExhausted() {
     InterviewAgentLoop loop = loop(context -> {
