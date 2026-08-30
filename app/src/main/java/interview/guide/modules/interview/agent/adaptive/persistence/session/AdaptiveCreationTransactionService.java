@@ -6,6 +6,7 @@ import interview.guide.modules.interview.agent.adaptive.core.action.RespondActio
 import interview.guide.modules.interview.agent.adaptive.core.context.CoverageProjector;
 import interview.guide.modules.interview.agent.adaptive.core.session.AdaptiveInterviewSession;
 import interview.guide.modules.interview.agent.adaptive.core.session.TurnProvenance;
+import interview.guide.modules.interview.agent.adaptive.core.session.AdoptedRubricSource;
 import interview.guide.modules.interview.agent.adaptive.memory.episode.QuestionIdentityFactory;
 import interview.guide.modules.interview.agent.adaptive.memory.episode.QuestionPublication;
 import interview.guide.modules.interview.agent.adaptive.persistence.memory.QuestionExposurePersistence;
@@ -67,7 +68,10 @@ public class AdaptiveCreationTransactionService {
             target.order(),
             action,
             TurnProvenance.initial(),
-            commit.decision().workingMemory()
+            commit.decision().workingMemory(),
+            ask.question().adoptedSourceRefs().stream()
+                .map(AdoptedRubricSource::fromReference)
+                .toList()
         ))
     );
     exposurePersistence.save(session, turn, new QuestionPublication(

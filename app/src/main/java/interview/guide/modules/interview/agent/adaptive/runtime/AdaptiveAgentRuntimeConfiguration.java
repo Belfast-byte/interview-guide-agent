@@ -27,8 +27,9 @@ public class AdaptiveAgentRuntimeConfiguration {
   InterviewAgentLoop interviewAgentLoop(
       InterviewDecisionModel model,
       AgentDecisionValidator validator,
+      ReadToolExecutor toolExecutor,
       DeadlineExecutor deadlineExecutor
   ) {
-    return new InterviewAgentLoop(model, validator, deadlineExecutor);
+    return new InterviewAgentLoop(model, validator, toolExecutor, deadlineExecutor);
   }
 }

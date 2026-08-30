@@ -9,13 +9,22 @@ public record AgentDecision(
     Action action
 ) {
 
-  public sealed interface Action permits Ask, Finish {}
+  public sealed interface Action permits Ask, CallReadTools, Finish {}
 
   public record Ask(
       String targetId,
       Long sourceGapId,
       QuestionDraft question
   ) implements Action {}
+  public record CallReadTools(List<ReadToolCall> calls) implements Action {
+
+    public CallReadTools {
+      if (calls != null) {
+        calls = List.copyOf(calls);
+      }
+    }
+  }
+
 
   public record QuestionDraft(
       String content,

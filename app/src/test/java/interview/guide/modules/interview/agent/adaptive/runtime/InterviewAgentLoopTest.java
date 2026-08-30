@@ -8,6 +8,7 @@ import interview.guide.modules.interview.agent.adaptive.core.context.AgentContex
 import interview.guide.modules.interview.agent.adaptive.core.context.CapabilityTarget;
 import interview.guide.modules.interview.agent.adaptive.core.context.CoverageView;
 import interview.guide.modules.interview.agent.adaptive.core.context.DepthLevel;
+import interview.guide.modules.interview.agent.adaptive.core.context.MemoryOwner;
 import interview.guide.modules.interview.agent.adaptive.core.context.TopicKey;
 import interview.guide.modules.interview.agent.adaptive.core.context.WorkingMemory;
 import interview.guide.modules.interview.agent.adaptive.core.context.WorkingMemoryValidator;
@@ -52,9 +53,9 @@ class InterviewAgentLoopTest {
     assertThat(requests).hasSize(3);
     assertThat(requests.get(1).observations()).containsExactly(
         new DecisionObservation(
-            "validation",
+            "validation-0",
             DecisionObservation.Kind.VALIDATION_REJECTION,
-            "action.targetId",
+            "action.ask.targetId",
             "Target 不属于当前 Plan",
             null,
             java.util.Map.of(),
@@ -63,10 +64,10 @@ class InterviewAgentLoopTest {
     );
     assertThat(requests.get(2).observations().get(1))
         .isEqualTo(new DecisionObservation(
-            "validation",
+            "validation-1",
             DecisionObservation.Kind.VALIDATION_REJECTION,
-            "action.adoptedSourceRefs",
-            "引用不在当前 Observation 中",
+            "action.ask.question.adoptedSourceRefs",
+            "引用不在成功 Tool Observation 中",
             null,
             java.util.Map.of(),
             List.of()
@@ -101,6 +102,7 @@ class InterviewAgentLoopTest {
     return new InterviewAgentLoop(
         model,
         new AgentDecisionValidator(new WorkingMemoryValidator()),
+        batch -> List.of(),
         new DeadlineExecutor()
     );
   }
@@ -156,11 +158,12 @@ class InterviewAgentLoopTest {
     );
     return new AgentContext(
         new AgentContext.SessionWindow(
-            new AgentContext.SessionIdentity("session-1", "provider-1"),
+            new AgentContext.SessionIdentity(
+                "session-1", "provider-1", new MemoryOwner("tenant-1", "candidate-1")),
             SessionMode.EVALUATION,
             4
         ),
-        new AgentContext.Facts(coverage, List.of(), List.of()),
+        new AgentContext.Facts(coverage, List.of(), List.of(), List.of()),
         memory("target-0", null)
     );
   }

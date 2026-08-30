@@ -10,6 +10,8 @@ public record ReadToolCall(
 ) {
 
   public ReadToolCall {
-    arguments = Map.copyOf(arguments);
+    if (arguments != null) {
+      arguments = Map.copyOf(arguments);
+    }
   }
 }

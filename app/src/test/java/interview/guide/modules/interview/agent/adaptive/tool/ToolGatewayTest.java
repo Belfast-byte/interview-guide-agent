@@ -6,6 +6,7 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import interview.guide.common.exception.BusinessException;
 import interview.guide.modules.interview.agent.adaptive.core.context.AgentContext;
 import interview.guide.modules.interview.agent.adaptive.core.context.CoverageView;
+import interview.guide.modules.interview.agent.adaptive.core.context.MemoryOwner;
 import interview.guide.modules.interview.agent.adaptive.core.context.WorkingMemory;
 import interview.guide.modules.interview.agent.adaptive.core.session.SessionMode;
 import interview.guide.modules.interview.agent.adaptive.runtime.DecisionObservation;
@@ -127,12 +128,14 @@ class ToolGatewayTest {
   private AgentContext context(List<String> allowedReadTools) {
     return new AgentContext(
         new AgentContext.SessionWindow(
-            new AgentContext.SessionIdentity("session-1", "provider-1"),
+            new AgentContext.SessionIdentity(
+                "session-1", "provider-1", new MemoryOwner("tenant-1", "candidate-1")),
             SessionMode.EVALUATION,
             4
         ),
         new AgentContext.Facts(
             new CoverageView(0, 4, List.of(), List.of(), List.of()),
+            List.of(),
             List.of(),
             allowedReadTools
         ),

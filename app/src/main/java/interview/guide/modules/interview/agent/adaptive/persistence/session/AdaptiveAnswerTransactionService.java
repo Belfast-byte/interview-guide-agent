@@ -11,6 +11,7 @@ import interview.guide.modules.interview.agent.adaptive.core.context.MemoryOwner
 import interview.guide.modules.interview.agent.adaptive.core.context.WorkingMemory;
 import interview.guide.modules.interview.agent.adaptive.core.event.CandidateAnswer;
 import interview.guide.modules.interview.agent.adaptive.core.session.TurnProvenance;
+import interview.guide.modules.interview.agent.adaptive.core.session.AdoptedRubricSource;
 import interview.guide.modules.interview.agent.adaptive.persistence.assessment.AdaptiveAgentAssessmentEntity;
 import interview.guide.modules.interview.agent.adaptive.persistence.assessment.AdaptiveAgentEvidenceEntity;
 import interview.guide.modules.interview.agent.adaptive.persistence.assessment.AssessmentProbeGapEntity;
@@ -169,7 +170,10 @@ public class AdaptiveAnswerTransactionService {
             target.order(),
             action,
             provenance,
-            memory
+            memory,
+            ask.question().adoptedSourceRefs().stream()
+                .map(AdoptedRubricSource::fromReference)
+                .toList()
         ))
     );
     sideEffects.saveExposure(new QuestionExposureInput(

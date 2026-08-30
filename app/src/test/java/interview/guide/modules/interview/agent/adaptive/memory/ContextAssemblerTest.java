@@ -11,15 +11,17 @@ import interview.guide.modules.interview.agent.adaptive.core.context.PlanningSki
 import interview.guide.modules.interview.agent.adaptive.core.context.TopicKey;
 import interview.guide.modules.interview.agent.adaptive.core.session.CandidateLevel;
 import interview.guide.modules.interview.agent.adaptive.core.session.SessionMode;
+import interview.guide.modules.interview.skill.InterviewSkillService;
 import java.util.List;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.mockito.Mockito.mock;
 
 class ContextAssemblerTest {
 
-  private final ContextAssembler assembler = new ContextAssembler();
+  private final ContextAssembler assembler = new ContextAssembler(mock(InterviewSkillService.class));
 
   @Test
   @DisplayName("规划上下文只包含本次会话输入和稳定技能目录")

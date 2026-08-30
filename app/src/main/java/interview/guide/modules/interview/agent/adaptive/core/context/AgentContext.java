@@ -17,17 +17,25 @@ public record AgentContext(
       int maxTurns
   ) {}
 
-  public record SessionIdentity(String sessionId, String llmProvider) {}
+  public record SessionIdentity(
+      String sessionId,
+      String llmProvider,
+      MemoryOwner owner
+  ) {}
 
   public record Facts(
       CoverageView coverage,
       List<AdaptiveInterviewTurn> recentTurns,
+      List<SkillReference> fixedSkills,
       List<String> allowedReadTools
   ) {
 
     public Facts {
       recentTurns = List.copyOf(recentTurns);
+      fixedSkills = List.copyOf(fixedSkills);
       allowedReadTools = List.copyOf(allowedReadTools);
     }
   }
+
+  public record SkillReference(String skillId, String referenceText) {}
 }

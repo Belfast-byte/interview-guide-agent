@@ -1,5 +1,12 @@
 package interview.guide.modules.interview.agent.adaptive.memory;
 
+import interview.guide.modules.interview.agent.adaptive.core.context.AgentContext;
+import interview.guide.modules.interview.agent.adaptive.core.context.CoverageView;
+import interview.guide.modules.interview.agent.adaptive.core.context.MemoryOwner;
+import interview.guide.modules.interview.agent.adaptive.core.context.WorkingMemory;
+import interview.guide.modules.interview.agent.adaptive.core.session.SessionMode;
+import interview.guide.modules.interview.agent.adaptive.planning.PlannedDimension;
+import interview.guide.modules.interview.skill.InterviewSkillService;
 import interview.guide.modules.interview.agent.adaptive.core.session.AdaptiveInterviewTurn;
 import interview.guide.modules.interview.agent.adaptive.core.event.CandidateAnswer;
 import interview.guide.modules.interview.agent.adaptive.core.context.InterviewerContext;
@@ -12,6 +19,35 @@ import org.springframework.stereotype.Component;
  */
 @Component
 public class ContextAssembler {
+  private static final List<String> ALLOWED_READ_TOOLS = List.of("rubric_search");
+
+  private final InterviewSkillService skillService;
+
+  public ContextAssembler(InterviewSkillService skillService) {
+    this.skillService = skillService;
+  }
+
+  /** 创建唯一的中性 AgentContext，并严格加载 Plan 固定 Skill。 */
+  public AgentContext agent(AgentContextInput input) {
+    List<AgentContext.SkillReference> fixedSkills = input.dimensions().stream()
+        .map(PlannedDimension::suggestedSkill)
+        .distinct()
+        .map(skillId -> new AgentContext.SkillReference(
+            skillId, skillService.buildEvaluationReferenceSection(skillId)))
+        .toList();
+    return new AgentContext(
+        new AgentContext.SessionWindow(
+            new AgentContext.SessionIdentity(
+                input.sessionId(), input.llmProvider(), input.owner()),
+            input.mode(),
+            input.maxTurns()
+        ),
+        new AgentContext.Facts(
+            input.coverage(), input.recentTurns(), fixedSkills, ALLOWED_READ_TOOLS),
+        input.workingMemory()
+    );
+  }
+
 
   /**
    * JD 与简历注入上下文的最大字符数，超出部分截断并标注，控制每次调用的输入预算。
@@ -96,6 +132,24 @@ public class ContextAssembler {
         input.project(),
         input.practiceMemory()
     );
+  }
+
+  public record AgentContextInput(
+      MemoryOwner owner,
+      String sessionId,
+      String llmProvider,
+      SessionMode mode,
+      int maxTurns,
+      List<PlannedDimension> dimensions,
+      CoverageView coverage,
+      List<AdaptiveInterviewTurn> recentTurns,
+      WorkingMemory workingMemory
+  ) {
+
+    public AgentContextInput {
+      dimensions = List.copyOf(dimensions);
+      recentTurns = List.copyOf(recentTurns);
+    }
   }
 
   private String truncate(String document) {

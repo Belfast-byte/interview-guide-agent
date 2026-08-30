@@ -4,4 +4,4 @@
 {contextJson}
 </data-boundary>
 
-请返回 ASK 或 FINISH 决策；若 observations 中存在拒绝原因，请修正提案后重新决定。
+请返回 CALL_READ_TOOLS、ASK 或 FINISH 决策；若 observations 中存在工具结果或拒绝原因，请据此继续决定。

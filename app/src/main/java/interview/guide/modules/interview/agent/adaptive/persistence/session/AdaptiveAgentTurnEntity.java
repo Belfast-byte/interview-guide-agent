@@ -1,6 +1,7 @@
 package interview.guide.modules.interview.agent.adaptive.persistence.session;
 
 import interview.guide.modules.interview.agent.adaptive.core.session.AdaptiveInterviewTurn;
+import interview.guide.modules.interview.agent.adaptive.core.session.AdoptedRubricSource;
 import interview.guide.modules.interview.agent.adaptive.core.action.AgentResponseType;
 import interview.guide.modules.interview.agent.adaptive.core.event.CandidateAnswer;
 import interview.guide.modules.interview.agent.adaptive.core.event.CandidateCodeSubmission;
@@ -23,6 +24,7 @@ import jakarta.persistence.PrePersist;
 import jakarta.persistence.Table;
 import jakarta.persistence.UniqueConstraint;
 import java.time.LocalDateTime;
+import java.util.List;
 
 /**
  * AdaptiveAgentTurnEntity JPA 实体，对应数据库中的相关表。
@@ -119,6 +121,10 @@ public class AdaptiveAgentTurnEntity {
   @Column(name = "working_memory_snapshot", columnDefinition = "TEXT")
   private WorkingMemory workingMemory;
 
+  @Convert(converter = AdoptedRubricsJsonConverter.class)
+  @Column(name = "adopted_rubrics_json", nullable = false, columnDefinition = "TEXT")
+  private List<AdoptedRubricSource> adoptedRubrics;
+
   @Column(name = "created_at", nullable = false)
   private LocalDateTime createdAt;
 
@@ -131,6 +137,7 @@ public class AdaptiveAgentTurnEntity {
     applyQuestion(creation.questionAction());
     applyProvenance(creation.provenance());
     this.workingMemory = creation.workingMemory();
+    this.adoptedRubrics = creation.adoptedRubrics();
   }
 
   private void applyProvenance(TurnProvenance provenance) {
@@ -201,7 +208,8 @@ public class AdaptiveAgentTurnEntity {
         responseType,
         responseContent,
         decisionReason,
-        provenance()
+        provenance(),
+        adoptedRubrics
     );
   }
 

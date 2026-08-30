@@ -32,4 +32,16 @@ public class ToolProperties {
   @DecimalMin("0.0")
   @DecimalMax("1.0")
   private double questionBankMinScore = 0.3;
+
+  @Min(1)
+  @Max(20)
+  private int rubricSearchLimit = 5;
+
+  @Min(1)
+  @Max(100)
+  private int rubricIndexBatchSize = 10;
+
+  @DecimalMin("0.0")
+  @DecimalMax("1.0")
+  private double rubricMinScore = 0.3;
 }

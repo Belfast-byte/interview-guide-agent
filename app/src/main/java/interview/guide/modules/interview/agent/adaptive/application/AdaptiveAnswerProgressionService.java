@@ -40,7 +40,7 @@ public class AdaptiveAnswerProgressionService {
     command.submission().sink().onStage(AnswerEventSink.AnswerStage.ASSESSING);
     AnswerProgressionDecision decision = decisions.decide(
         new AdaptiveAnswerDecisionService.AnswerDecisionRequest(
-            interview, answer, command.submission().deadline()));
+            command.owner(), interview, answer, command.submission().deadline()));
     command.submission().sink().onStage(AnswerEventSink.AnswerStage.GENERATING);
     transactions.commit(new AnswerCommit(
         command.owner(), interview, new CommitFacts(answer, decision)));
