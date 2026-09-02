@@ -6,8 +6,8 @@ Identify adaptive-agent runtime pieces that can be disconnected or removed witho
 This is a complexity ablation, not a latency contest. Do not weaken, delete, skip, or rewrite tests to make an ablation pass. Do not change benchmark inputs or count generated/build files. Distinguish “not covered by tests” from “proven unnecessary.”
 
 ## Metrics
-- **Primary**: `adaptive_prod_loc` (lines, lower is better) — nonblank Java source lines under the adaptive production package.
-- **Secondary**: `adaptive_prod_files`, `adaptive_spring_components`, `adaptive_test_files` — footprint and guardrail visibility.
+- **Primary**: `adaptive_removed_loc` (lines, higher is better) — verified baseline (17,048) minus current nonblank adaptive Java lines.
+- **Secondary**: `adaptive_prod_loc`, `adaptive_prod_files`, `adaptive_spring_components`, `adaptive_test_files` — footprint and guardrail visibility.
 
 ## How to Run
 `./.auto/measure.sh` outputs structured `METRIC name=value` lines. After each passing measurement, `.auto/checks.sh` runs the unchanged backend test suite.
