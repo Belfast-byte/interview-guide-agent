@@ -11,12 +11,10 @@ import java.util.List;
 import java.util.Set;
 import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
-import org.springframework.stereotype.Service;
 
 /**
  * 维度简报服务，生成某维度的小结供后续轮次使用。
  */
-@Service
 @RequiredArgsConstructor
 public class DimensionBriefService {
 

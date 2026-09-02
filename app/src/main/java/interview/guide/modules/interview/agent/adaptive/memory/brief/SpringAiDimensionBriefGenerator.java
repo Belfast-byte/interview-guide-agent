@@ -13,13 +13,11 @@ import java.nio.charset.StandardCharsets;
 import org.springframework.ai.chat.prompt.PromptTemplate;
 import org.springframework.ai.converter.BeanOutputConverter;
 import org.springframework.core.io.ResourceLoader;
-import org.springframework.stereotype.Component;
 import tools.jackson.databind.ObjectMapper;
 
 /**
  * 基于 Spring AI 的维度简报生成器。
  */
-@Component
 public class SpringAiDimensionBriefGenerator
     extends AbstractSpringAiMemoryGenerator<DimensionBriefRequest, DimensionBriefProposal>
     implements DimensionBriefGenerator {
