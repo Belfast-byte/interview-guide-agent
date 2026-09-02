@@ -48,7 +48,7 @@ jobs:
       - name: Verify application health
         run: |
           for attempt in $(seq 1 60); do
-            if curl --fail --silent http://127.0.0.1/actuator/health | grep -q '"status":"UP"'; then
+            if curl --resolve 141433.xyz:443:127.0.0.1 --fail --silent https://141433.xyz/actuator/health | grep -q '"status":"UP"'; then
               docker compose \
                 --env-file /etc/interview-guide/.env.production \
                 -f docker-compose.prod.yml \
