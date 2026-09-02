@@ -2,15 +2,17 @@ import { lazy, Suspense } from 'react';
 import { BrowserRouter, Navigate, Outlet, Route, Routes } from 'react-router-dom';
 import { AuthProvider, useAuth } from './auth/AuthContext';
 import ProtectedRoute from './auth/ProtectedRoute';
-import Layout from './components/Layout';
 import AuthPage from './pages/AuthPage';
 import { ROUTES } from './constants/routes';
 
-const HomePage = lazy(() => import('./pages/HomePage'));
-const AdaptiveInterviewPage = lazy(() => import('./pages/AdaptiveInterviewPage'));
 const ProvidersPage = lazy(() => import('./pages/ProvidersPage'));
-const AdaptiveInterviewHistoryPage = lazy(() => import('./pages/AdaptiveInterviewHistoryPage'));
-const CandidateMemoryPage = lazy(() => import('./pages/CandidateMemoryPage'));
+const WorkspaceLayout = lazy(() => import('./components/workspace/WorkspaceLayout'));
+const InterviewSetupPage = lazy(() => import('./pages/workspace/InterviewSetupPage'));
+const InterviewSessionPage = lazy(() => import('./pages/workspace/InterviewSessionPage'));
+const InterviewReportPage = lazy(() => import('./pages/workspace/InterviewReportPage'));
+const WorkspaceHistoryPage = lazy(() => import('./pages/workspace/WorkspaceHistoryPage'));
+const WorkspaceMemoryPage = lazy(() => import('./pages/workspace/WorkspaceMemoryPage'));
+const ArchitectureAuditPage = lazy(() => import('./pages/architectureAudit/ArchitectureAuditPage'));
 
 function Loading() {
   return (
@@ -43,20 +45,20 @@ export default function App() {
           <Routes>
             <Route path="/login" element={<AuthPage mode="login" />} />
             <Route path="/register" element={<AuthPage mode="register" />} />
+            <Route path="/architecture-audit-preview" element={<ArchitectureAuditPage />} />
             <Route element={<ProtectedRoute />}>
+              <Route path={ROUTES.architectureAudit} element={<ArchitectureAuditPage />} />
               <Route element={<CandidateRoute />}>
-                <Route path="/" element={<Layout />}>
-                  <Route index element={<HomePage />} />
-                  <Route path={ROUTES.adaptiveInterview} element={<AdaptiveInterviewPage />} />
-                  <Route path={ROUTES.providers} element={<ProvidersPage />} />
-                  <Route path={ROUTES.interviewHistory} element={<AdaptiveInterviewHistoryPage />} />
-                  <Route path={ROUTES.candidateMemory} element={<CandidateMemoryPage />} />
-                  <Route
-                    path={`${ROUTES.adaptiveInterview}/:sessionId`}
-                    element={<AdaptiveInterviewPage />}
-                  />
-                  <Route path="*" element={<Navigate to="/" replace />} />
+                <Route path="/" element={<Navigate to={ROUTES.workspace} replace />} />
+                <Route path={ROUTES.workspace} element={<WorkspaceLayout />}>
+                  <Route index element={<InterviewSetupPage />} />
+                  <Route path="session/:sessionId" element={<InterviewSessionPage />} />
+                  <Route path="session/:sessionId/report" element={<InterviewReportPage />} />
+                  <Route path="history" element={<WorkspaceHistoryPage />} />
+                  <Route path="memory" element={<WorkspaceMemoryPage />} />
+                  <Route path="providers" element={<ProvidersPage />} />
                 </Route>
+                <Route path="*" element={<Navigate to={ROUTES.workspace} replace />} />
               </Route>
             </Route>
           </Routes>

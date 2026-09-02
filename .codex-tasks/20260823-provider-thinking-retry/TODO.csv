@@ -1,0 +1,4 @@
+id,task,status,acceptance_criteria,validation_command,completed_at,retry_count,notes
+1,确认 Provider 配置与结构化重试现状,DONE,"明确最小字段链路和唯一重试所有者","rg -n \"thinking|validateSchema|structuredMaxAttempts\" app/src/main app/src/test",2026-08-23T16:25:00+08:00,0,"Provider 开关落在候选人 Provider 链路；StructuredOutputInvoker 外层为唯一重试所有者"
+2,实现 thinking 开关与单次重试,DONE,"请求按 Provider 配置发送 thinking 且总尝试次数为 2","git diff --check",2026-08-23T16:38:00+08:00,0,"显式开关仅在 true 时发送 thinking.disabled；移除 validateSchema 内层重试"
+3,补齐并运行定向验证,DONE,"相关单测及编译在 60 秒内通过","timeout 60s ./gradlew :app:test --no-daemon --console=plain --tests '*CandidateLlmProviderServiceTest' --tests '*AdaptiveModelOptionsFactoryTest' --tests '*AdaptiveModelOptionsHttpContractTest' --tests '*StructuredOutputInvokerTest' --tests '*SpringAiPlanningAgentTest'",2026-08-23T16:45:00+08:00,0,"后端 21 秒 BUILD SUCCESSFUL；前端 pnpm build 通过；git diff --check 通过"

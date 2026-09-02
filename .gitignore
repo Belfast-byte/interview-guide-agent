@@ -24,6 +24,11 @@ GEMINI.md
 # Playwright MCP
 .playwright-mcp/
 /.pnpm-store/
+/.auto/
+/.gradle-agent/
+/.zcode/
+/frontend/test-results/
+/tokscale-export-*.json
 /.agents/*
 !/.agents/skills/
 /.agents/skills/*

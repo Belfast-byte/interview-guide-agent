@@ -75,17 +75,24 @@ export default function CandidateProviderForm(props: CandidateProviderFormProps)
     && (props.provider || form.apiKey.trim());
 
   return (
-    <section className="mb-6 rounded-2xl border border-primary-200 bg-white p-6 shadow-lg dark:border-primary-900 dark:bg-slate-900">
-      <div className="mb-5 flex items-center justify-between">
+    <section className="wk-rise mt-6 rounded border border-line bg-raised p-6" style={{ animationDelay: '0.06s' }}>
+      <div className="mb-5 flex items-start justify-between gap-4">
         <div>
-          <h2 className="text-lg font-bold text-slate-950 dark:text-white">
+          <h2 className="font-serifsc text-lg font-bold tracking-wide text-ink">
             {props.provider ? '编辑 Provider' : '新增 Provider'}
           </h2>
-          <p className="mt-1 text-xs text-slate-500">
+          <p className="mt-1 text-[13px] text-wk-muted">
             {props.provider ? 'API Key 留空会保留原密钥。' : 'Provider 仅当前候选人可见。'}
           </p>
         </div>
-        <button type="button" onClick={props.onCancel} aria-label="关闭表单"><X /></button>
+        <button
+          type="button"
+          onClick={props.onCancel}
+          aria-label="关闭表单"
+          className="wk-btn-ghost flex h-8 w-8 flex-none items-center justify-center"
+        >
+          <X className="h-4 w-4" />
+        </button>
       </div>
       <div className="grid gap-4 md:grid-cols-2">
         <Field label="名称" value={form.displayName} onChange={value => update('displayName', value)} />
@@ -95,22 +102,30 @@ export default function CandidateProviderForm(props: CandidateProviderFormProps)
         <Field label="嵌入模型（可选）" value={form.embeddingModel} onChange={value => update('embeddingModel', value)} />
         <Field label="嵌入维度（可选）" value={form.embeddingDimensions} onChange={value => update('embeddingDimensions', value)} number />
         <Field label="温度（可选）" value={form.temperature} onChange={value => update('temperature', value)} number />
-        <label className="flex items-center gap-3 text-sm font-medium text-slate-700 dark:text-slate-200">
+        <label className="flex items-center gap-2.5 self-end pb-1 text-sm text-ink-soft">
           <input
             type="checkbox"
             checked={form.thinkingDisabled}
             onChange={event => update('thinkingDisabled', event.target.checked)}
-            className="h-4 w-4 rounded border-slate-300 text-primary-600"
+            className="h-4 w-4"
+            style={{ accentColor: 'var(--cinnabar)' }}
           />
           关闭 Thinking
         </label>
       </div>
-      <p className="mt-4 text-xs text-amber-700 dark:text-amber-300">
+      <p className="mt-4 text-[12.5px] leading-5 text-wk-muted">
         嵌入模型仅保存配置，暂未接入业务链路；连接测试只验证文本模型。
       </p>
-      <div className="mt-5 flex justify-end gap-3">
-        <button type="button" onClick={props.onCancel} className="btn-secondary rounded-xl px-4 py-2">取消</button>
-        <button type="button" onClick={submit} disabled={!valid || props.saving} className="btn-primary inline-flex items-center gap-2 rounded-xl px-4 py-2 disabled:opacity-50">
+      <div className="mt-5 flex justify-end gap-2 border-t border-dashed border-line pt-4">
+        <button type="button" onClick={props.onCancel} className="wk-btn-ghost px-4 py-2 text-sm">
+          取消
+        </button>
+        <button
+          type="button"
+          onClick={submit}
+          disabled={!valid || props.saving}
+          className="wk-cta px-5 py-2.5 text-sm"
+        >
           {props.saving && <Loader2 className="h-4 w-4 animate-spin" />}
           保存
         </button>
@@ -130,15 +145,15 @@ interface FieldProps {
 
 function Field(props: FieldProps) {
   return (
-    <label className="text-sm font-medium text-slate-700 dark:text-slate-200">
-      {props.label}
+    <label className="block">
+      <span className="wk-label">{props.label}</span>
       <input
         type={props.password ? 'password' : props.number ? 'number' : 'text'}
         value={props.value}
         onChange={event => props.onChange(event.target.value)}
         placeholder={props.placeholder}
         step={props.number ? 'any' : undefined}
-        className="dark-input mt-2 w-full rounded-xl px-3 py-2.5"
+        className="wk-input mt-2"
       />
     </label>
   );

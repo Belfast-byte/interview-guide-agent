@@ -1,0 +1,4 @@
+id,task,status,acceptance_criteria,validation_command,completed_at,retry_count,notes
+1,定位模型步预算耗尽路径,DONE,"确认通用 7003 由重复工具分支绕过最终回复要求导致","rg -n \"toolInvocations.add|模型步预算已用尽\" app/src/main/java/interview/guide/modules/interview/agent/adaptive/runtime/BoundedReActRuntime.java",2026-08-23 17:31:07,0,"重复调用分支在预算判断前 continue"
+2,首个工具成功后关闭后续工具注册,DONE,"后续 interviewer 请求的 callbacks 为空","timeout 60s ./gradlew :app:test --no-daemon --console=plain --tests '*SpringAiAdaptiveAgentModelGatewayTest'",2026-08-23 17:33:15,0,"网关测试 BUILD SUCCESSFUL"
+3,执行回归验证,DONE,"映射器、网关和运行时定向测试全部通过","timeout 60s ./gradlew :app:test --no-daemon --console=plain --tests '*AdaptiveAgentResponseMapperTest' --tests '*SpringAiAdaptiveAgentModelGatewayTest' --tests '*BoundedReActRuntimeTest'",2026-08-23 17:34:52,0,"BUILD SUCCESSFUL in 9s；git diff --check 通过"

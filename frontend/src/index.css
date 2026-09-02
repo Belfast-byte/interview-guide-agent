@@ -1,5 +1,5 @@
 @import "tailwindcss";
-@import url('https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700;800&family=DM+Sans:wght@400;500;600;700&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700;800&family=DM+Sans:wght@400;500;600;700&family=Noto+Serif+SC:wght@600;700;900&family=IBM+Plex+Mono:wght@400;500&display=swap');
 @plugin "@tailwindcss/typography";
 
 /* 启用深色模式 - 使用 class 策略 */
@@ -22,6 +22,7 @@
 
   --font-display: 'Outfit', -apple-system, BlinkMacSystemFont, 'PingFang SC', sans-serif;
   --font-sans: 'DM Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', 'PingFang SC', sans-serif;
+  --font-mono: 'IBM Plex Mono', ui-monospace, SFMono-Regular, Menlo, monospace;
 }
 
 /* 自定义基础样式 */
@@ -266,4 +267,195 @@
   .dark .rbc-agenda-view table.rbc-agenda-table tbody > tr > td {
     @apply border-slate-800/30;
   }
+}
+
+/* ===== 面试工作台设计层（/workspace 页面专用） =====
+   视觉语言：评估档案。冷调纸灰 + 岩青墨 + 朱砂红（评分/印章之色），
+   衬线标题（Noto Serif SC）+ 黑体正文 + 等宽编号（IBM Plex Mono）。
+   语义变量在 :root / .dark 双写，组件类只引用变量，不写 dark: 前缀。 */
+
+@theme inline {
+  --color-paper: var(--paper);
+  --color-raised: var(--raised);
+  --color-ink: var(--ink);
+  --color-ink-soft: var(--ink-soft);
+  --color-wk-muted: var(--wk-muted);
+  --color-line: var(--line);
+  --color-cinnabar: var(--cinnabar);
+  --color-cinnabar-deep: var(--cinnabar-deep);
+  --color-cinnabar-wash: var(--cinnabar-wash);
+
+  --font-serifsc: 'Noto Serif SC', 'Songti SC', serif;
+  --font-monosc: 'IBM Plex Mono', ui-monospace, SFMono-Regular, monospace;
+}
+
+@layer base {
+  :root {
+    --paper: #F5F5F0;
+    --raised: #FCFCF9;
+    --ink: #1C2B2D;
+    --ink-soft: #3D4F51;
+    --wk-muted: #6E7A78;
+    --line: #E0E0D6;
+    --cinnabar: #C1432E;
+    --cinnabar-deep: #9A3322;
+    --cinnabar-wash: #F7E9E6;
+  }
+
+  .dark {
+    --paper: #141412;
+    --raised: #1C1C19;
+    --ink: #EDEDE6;
+    --ink-soft: #C9C9C0;
+    --wk-muted: #9A9A90;
+    --line: #32322C;
+    --cinnabar: #D95D43;
+    --cinnabar-deep: #C1432E;
+    --cinnabar-wash: #3A231D;
+  }
+}
+
+@layer components {
+  /* 字段标签：等宽小号大写 */
+  .wk-label {
+    @apply font-monosc text-[11.5px] tracking-[0.1em] uppercase;
+    color: var(--wk-muted);
+  }
+
+  /* 输入框/下拉/文本域：纸面底、发丝边框、3px 圆角，focus 墨色描边 */
+  .wk-input {
+    @apply w-full rounded-[3px] border px-3.5 py-2.5 text-[15px];
+    background: var(--raised);
+    border-color: var(--line);
+    color: var(--ink);
+    @apply transition-colors duration-150;
+  }
+  .wk-input::placeholder {
+    color: var(--wk-muted);
+    opacity: 0.65;
+  }
+  .wk-input:hover {
+    border-color: var(--wk-muted);
+  }
+  .wk-input:focus {
+    outline: none;
+    border-color: var(--ink);
+    box-shadow: 0 0 0 3px color-mix(in srgb, var(--ink) 8%, transparent);
+  }
+  .wk-input:disabled {
+    @apply cursor-not-allowed opacity-60;
+  }
+
+  /* 分段单选项：未选中纸面细框；选中墨色实心 */
+  .wk-seg {
+    @apply rounded-[3px] border px-3.5 py-2.5 text-left text-sm transition-colors duration-150;
+    background: var(--raised);
+    border-color: var(--line);
+    color: var(--ink);
+  }
+  .wk-seg:hover {
+    border-color: var(--wk-muted);
+  }
+  .wk-seg[data-active='true'] {
+    background: var(--ink);
+    border-color: var(--ink);
+    color: var(--paper);
+  }
+  .wk-seg[data-active='true'] .wk-seg-desc {
+    color: var(--paper);
+    opacity: 0.72;
+  }
+  .wk-seg:disabled {
+    @apply cursor-not-allowed opacity-60;
+  }
+  .wk-seg-desc {
+    color: var(--wk-muted);
+  }
+
+  /* 主按钮：朱砂纯色，无渐变无发光 */
+  .wk-cta {
+    @apply inline-flex items-center justify-center gap-2.5 rounded-[3px] px-7 py-3.5;
+    @apply text-[15px] font-bold text-white transition-colors duration-150;
+    background: var(--cinnabar);
+  }
+  .wk-cta:hover:not(:disabled) {
+    background: var(--cinnabar-deep);
+  }
+  .wk-cta:disabled {
+    @apply cursor-not-allowed;
+    background: var(--line);
+    color: var(--wk-muted);
+  }
+
+  /* 小号幽灵按钮（填充示例等辅助动作） */
+  .wk-btn-ghost {
+    @apply inline-flex items-center gap-1.5 rounded-[3px] border px-2.5 py-1.5 text-xs;
+    @apply transition-colors duration-150;
+    background: transparent;
+    border-color: var(--line);
+    color: var(--ink-soft);
+  }
+  .wk-btn-ghost:hover:not(:disabled) {
+    border-color: var(--cinnabar);
+    color: var(--cinnabar);
+  }
+  .wk-btn-ghost:disabled {
+    @apply cursor-not-allowed opacity-50;
+  }
+
+  /* 面试单：档案卡，顶部装订孔纹 */
+  .wk-docket {
+    @apply relative rounded border px-6 pb-5 pt-7;
+    background: var(--raised);
+    border-color: var(--line);
+    box-shadow: 0 1px 2px color-mix(in srgb, var(--ink) 5%, transparent),
+      0 12px 32px -16px color-mix(in srgb, var(--ink) 14%, transparent);
+  }
+  .wk-docket::before {
+    content: '';
+    @apply absolute left-6 right-6 top-0 h-[5px];
+    background: repeating-linear-gradient(90deg, var(--line) 0 8px, transparent 8px 16px);
+  }
+
+  /* 印章：朱砂圆章，就绪时回正放大 */
+  .wk-seal {
+    @apply grid h-[74px] w-[74px] select-none place-content-center rounded-full text-center font-serifsc text-[15px] font-black leading-tight tracking-widest;
+    border: 2.5px solid var(--cinnabar);
+    color: var(--cinnabar);
+    transform: rotate(9deg);
+    opacity: 0.88;
+    transition: transform 0.3s cubic-bezier(0.34, 1.56, 0.64, 1), opacity 0.2s ease;
+  }
+  .wk-seal[data-ready='true'] {
+    transform: rotate(-3deg) scale(1.04);
+    opacity: 1;
+  }
+
+  /* 语义标签：小圆角非 pill，配色在使用处补充 */
+  .wk-tag {
+    @apply inline-flex items-center gap-1 rounded px-1.5 py-0.5 text-xs font-medium;
+  }
+
+  /* 错误条 */
+  .wk-error {
+    @apply flex items-start gap-2 rounded-[3px] border px-3.5 py-2.5 text-sm;
+    border-color: color-mix(in srgb, var(--cinnabar) 35%, transparent);
+    background: var(--cinnabar-wash);
+    color: var(--cinnabar-deep);
+  }
+  .dark .wk-error {
+    color: var(--cinnabar);
+  }
+}
+
+/* 入场动效：一次编排，随后保持安静 */
+@keyframes wk-rise {
+  from { opacity: 0; transform: translateY(14px); }
+  to { opacity: 1; transform: none; }
+}
+.wk-rise {
+  animation: wk-rise 0.55s ease both;
+}
+@media (prefers-reduced-motion: reduce) {
+  .wk-rise { animation: none; }
 }

@@ -1,4 +1,4 @@
-import { AlertCircle, Loader2, Plus, RefreshCw, ServerCog } from 'lucide-react';
+import { AlertCircle, Plus, RefreshCw } from 'lucide-react';
 import { useCallback, useEffect, useState } from 'react';
 import { candidateProviderApi } from '../api/candidateProvider';
 import { getErrorMessage } from '../api/request';
@@ -100,33 +100,64 @@ export default function ProvidersPage() {
   };
 
   return (
-    <div className="mx-auto max-w-6xl pb-12">
-      <header className="mb-6 flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
+    <div className="pb-24">
+      {/* ===== 页首 ===== */}
+      <div
+        className="wk-rise flex flex-col gap-6 pt-10 sm:flex-row sm:items-end sm:justify-between"
+        style={{ animationDelay: '0.02s' }}
+      >
         <div>
-          <div className="mb-3 flex items-center gap-2 text-primary-600 dark:text-primary-300"><ServerCog className="h-5 w-5" /><span className="text-xs font-bold uppercase tracking-wider">Private Providers</span></div>
-          <h1 className="text-3xl font-bold text-slate-950 dark:text-white">我的模型服务</h1>
-          <p className="mt-2 text-sm text-slate-500">管理自适应面试使用的文本模型；所有配置仅当前账号可见。</p>
+          <p className="flex items-center gap-3 font-monosc text-[11.5px] tracking-[0.18em] text-cinnabar">
+            <span className="h-px w-8 bg-cinnabar" aria-hidden="true" />
+            MODEL PROVIDERS / 模型服务
+          </p>
+          <h1 className="mt-5 font-serifsc text-[32px] font-black leading-[1.25] tracking-wide text-ink sm:text-[40px]">
+            用你自己的模型面试。
+          </h1>
+          <p className="mt-4 max-w-[44em] text-[15px] leading-7 text-wk-muted">
+            管理自适应面试使用的文本模型；所有配置仅当前账号可见。
+          </p>
         </div>
-        <button type="button" onClick={() => { setEditing(null); setFormOpen(true); }} className="btn-primary inline-flex items-center justify-center gap-2 rounded-xl px-4 py-3"><Plus className="h-4 w-4" />新增 Provider</button>
-      </header>
-
-      <div className="mb-5 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800 dark:border-amber-900 dark:bg-amber-950/30 dark:text-amber-200">
-        嵌入模型仅保存配置，暂未接入向量化、检索、题库或知识库业务链路。
+        <button
+          type="button"
+          onClick={() => { setEditing(null); setFormOpen(true); }}
+          className="wk-cta flex-none"
+        >
+          <Plus className="h-4 w-4" />
+          新增 Provider
+        </button>
       </div>
 
-      {error && <div role="alert" className="mb-5 flex items-start gap-2 rounded-xl border border-red-200 bg-red-50 p-4 text-sm text-red-700 dark:border-red-900 dark:bg-red-950/40 dark:text-red-300"><AlertCircle className="mt-0.5 h-4 w-4 flex-none" />{error}</div>}
-      {formOpen && <CandidateProviderForm provider={editing} saving={saving} onCancel={closeForm} onSubmit={request => void submit(request)} />}
+      <p className="mt-8 rounded-[3px] border border-dashed border-line px-4 py-3 text-[13px] leading-6 text-wk-muted">
+        嵌入模型仅保存配置，暂未接入向量化、检索、题库或知识库业务链路。
+      </p>
+
+      {error && (
+        <div role="alert" className="wk-error mt-6">
+          <AlertCircle className="mt-0.5 h-4 w-4 flex-none" />
+          {error}
+        </div>
+      )}
+      {formOpen && (
+        <CandidateProviderForm
+          provider={editing}
+          saving={saving}
+          onCancel={closeForm}
+          onSubmit={request => void submit(request)}
+        />
+      )}
 
       {loading ? (
-        <div className="flex min-h-64 items-center justify-center"><Loader2 className="h-8 w-8 animate-spin text-primary-500" /></div>
+        <p className="mt-16 font-monosc text-xs tracking-[0.15em] text-wk-muted">载入中…</p>
       ) : providers.length === 0 ? (
         <EmptyState onCreate={() => setFormOpen(true)} />
       ) : (
-        <div className="grid gap-5 xl:grid-cols-2">
-          {providers.map(provider => (
+        <div className="mt-10 grid gap-5 xl:grid-cols-2">
+          {providers.map((provider, index) => (
             <CandidateProviderCard
               key={provider.id}
               provider={provider}
+              index={index}
               busy={busyId === provider.id}
               testResult={testResults[provider.id]}
               onEdit={() => openEdit(provider)}
@@ -139,7 +170,12 @@ export default function ProvidersPage() {
         </div>
       )}
 
-      {!loading && providers.length > 0 && <button type="button" onClick={() => void load()} className="mt-6 inline-flex items-center gap-2 text-sm text-slate-500 hover:text-primary-600"><RefreshCw className="h-4 w-4" />刷新配置</button>}
+      {!loading && providers.length > 0 && (
+        <button type="button" onClick={() => void load()} className="wk-btn-ghost mt-8">
+          <RefreshCw className="h-3.5 w-3.5" />
+          刷新配置
+        </button>
+      )}
       <ConfirmDialog
         open={Boolean(deleting)}
         title="删除 Provider"
@@ -156,11 +192,14 @@ export default function ProvidersPage() {
 
 function EmptyState({ onCreate }: { onCreate: () => void }) {
   return (
-    <div className="rounded-2xl border border-dashed border-slate-300 bg-white/70 p-12 text-center dark:border-slate-700 dark:bg-slate-900/70">
-      <ServerCog className="mx-auto h-10 w-10 text-slate-300" />
-      <h2 className="mt-4 font-bold text-slate-800 dark:text-white">还没有模型服务</h2>
-      <p className="mt-2 text-sm text-slate-500">先新增 Provider，并将其中一个设为默认文本模型后再开始面试。</p>
-      <button type="button" onClick={onCreate} className="btn-primary mt-5 rounded-xl px-4 py-2.5">新增 Provider</button>
+    <div className="wk-rise mt-16 max-w-[36em]" style={{ animationDelay: '0.1s' }}>
+      <p className="text-[15px] leading-7 text-wk-muted">
+        还没有模型服务。先新增 Provider，并将其中一个设为默认文本模型后再开始面试。
+      </p>
+      <button type="button" onClick={onCreate} className="wk-cta mt-5">
+        <Plus className="h-4 w-4" />
+        新增 Provider
+      </button>
     </div>
   );
 }

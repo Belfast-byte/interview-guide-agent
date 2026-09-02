@@ -18,6 +18,18 @@ Spring Boot 4.1.0 + Java 21 + Spring AI 2.0.0 + React 面试平台。
 - 不做没有真实使用者的角色、配置项、扩展点和预留抽象；只写解决当前问题的最小代码。
 - 落地细则见 `.claude/rules/backend.md`「Minimal Implementation」。
 
+## 反模式：不信任模型的防御性过度设计
+
+以下模式在 2026-08 复杂度审计中实际发生过（证据：`docs/review/8.29-review.md`），是屎山的直接成因，再犯即返工：
+
+- **不信任模型**：用 Java 预先算完语义策略（选 Gap、切 Target、是否继续深挖），模型只剩措辞；同一套规则在代码和 Prompt 里双重维护、互相漂移。正确分工：模型提案语义策略，Java 只裁决硬约束（预算、合法 Target、权限、来源、终态）。
+- **不信任重算**：为可重算的 LLM / 只读步骤建持久化 checkpoint、Intent、Patch journal、恢复调度器。恢复 = 从最近领域事实重跑；只有不可重放的外部副作用（沙箱执行、分析任务）才需要持久执行状态。
+- **多校验 PTSD**：同一 invariant 叠 exists 预检 + status guard + 逻辑 revision + `@Version` + unique，结果竞态仍在、错误类型取决于 flush 顺序。一条 invariant 只选一个原子 owner（条件更新 / 行锁 / unique / `@Version` 四选一），其余全部删除；性能优化（如 single-flight）不得冒充 correctness 机制。
+- **伪 Agent 化**：把是否调用和参数都已由代码确定的普通编排包装成 Tool / ReAct / Runtime 术语。只有「是否调用和关键参数需要模型根据 observation 动态决定」的能力才配叫 Agent Tool；名义框架成本必须与真实自主性匹配。
+- **派生状态平台化**：为没有消费者的 projection 建状态机、版本号和恢复框架。projection 默认按事实请求内组装；确需保留时必须声明是可删除重建的 cache / index，并允许随时重算。
+- **事实复制**：同一事实存多份（标量列 + JSON + Patch + 指针）。每个事实只有一个 Source of Truth，其余一律推导或删除。
+
+
 ## Commands
 
 ```bash
@@ -79,7 +91,7 @@ docker compose -f docker-compose.dev.yml up -d
 - 模型负责语义策略：选择当前 Target/Gap、追问或切换、是否调用只读 Tool、Tool 参数与顺序、下一题内容及结束建议。Java 不得预先替模型算出这些选择。
 - Java 只强制业务与安全边界：权限和归属、Session/Turn 合法性、最大轮次、Target 属于 Plan、Tool allowlist/schema/scope、证据和代码锚点真实、沙箱隔离、稳定业务幂等、数据库唯一约束与并发一次推进。
 - 非法模型提案必须以明确拒绝原因返回 Agent 重新决策；禁止静默改写动作、替换 Gap、截断语义结果或生成兜底问题。
-- 真正的只读 Tool 才进入 Agent Loop：是否调用和关键参数必须依赖模型语义判断，Observation 必须回到模型。固定 Skill 自动装配；固定 ID 查询是普通服务；沙箱提交是 Application Service，不是通用 Agent Tool。
+
 - 领域事实和每轮最终 Working Memory Snapshot 可持久化；不得为可重算的 LLM/只读 Tool 中间步骤新增 `WorkState`、`Patch`、`ActionIntent`、`ToolExecution` 或恢复调度。
 - LLM、MCP、S3、HTTP 和沙箱调用在事务外；最终 Turn/Assessment/Evidence/Working Memory 以短事务提交。沙箱由 `SandboxExecution` 作为唯一执行事实源并使用稳定业务键。
 - 历史画像可以帮助避免重复问题，但不得影响本场同一回答的正式评级；日志不得记录回答、简历或代码原文。

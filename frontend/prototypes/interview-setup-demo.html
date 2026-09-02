@@ -1,0 +1,539 @@
+c<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>面试工作台 — 开始一场自适应面试</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Noto+Serif+SC:wght@600;700;900&family=Noto+Sans+SC:wght@400;500;700&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+  /* ============ Tokens ============ */
+  :root {
+    --paper:        #F5F5F0;   /* 冷调纸灰 */
+    --paper-raised: #FCFCF9;   /* 卡片纸面 */
+    --ink:          #1C2B2D;   /* 深岩青墨 */
+    --ink-soft:     #3D4F51;
+    --muted:        #6E7A78;   /* 次级文字 */
+    --line:         #E0E0D6;   /* 发丝线 */
+    --cinnabar:     #C1432E;   /* 朱砂 —— 评分与印章之色 */
+    --cinnabar-deep:#9A3322;
+    --cinnabar-wash:#F7E9E6;
+    --ok:           #2F6B4F;
+    --serif: "Noto Serif SC", "Songti SC", serif;
+    --sans:  "Noto Sans SC", "PingFang SC", -apple-system, sans-serif;
+    --mono:  "IBM Plex Mono", "SFMono-Regular", monospace;
+  }
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  html { -webkit-text-size-adjust: 100%; }
+
+  body {
+    background: var(--paper);
+    color: var(--ink);
+    font-family: var(--sans);
+    font-size: 15px;
+    line-height: 1.65;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  ::selection { background: var(--cinnabar); color: #fff; }
+
+  :focus-visible {
+    outline: 2px solid var(--cinnabar);
+    outline-offset: 2px;
+    border-radius: 2px;
+  }
+
+  /* ============ 顶栏 ============ */
+  .topbar {
+    position: sticky; top: 0; z-index: 20;
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 0 clamp(20px, 4vw, 56px);
+    height: 60px;
+    background: color-mix(in srgb, var(--paper) 88%, transparent);
+    backdrop-filter: blur(8px);
+    border-bottom: 1px solid var(--line);
+  }
+  .wordmark {
+    font-family: var(--serif);
+    font-weight: 900;
+    font-size: 17px;
+    letter-spacing: .02em;
+    display: flex; align-items: baseline; gap: 10px;
+    text-decoration: none; color: var(--ink);
+  }
+  .wordmark .dot { width: 8px; height: 8px; background: var(--cinnabar); border-radius: 1px; transform: translateY(-1px); }
+  .topnav { display: flex; align-items: center; gap: 26px; }
+  .topnav a {
+    font-size: 13px; color: var(--muted); text-decoration: none;
+    padding: 4px 0; border-bottom: 1px solid transparent;
+    transition: color .18s ease, border-color .18s ease;
+  }
+  .topnav a:hover { color: var(--ink); border-bottom-color: var(--ink); }
+  .topnav a[aria-current="page"] { color: var(--ink); border-bottom-color: var(--cinnabar); }
+
+  /* ============ 页首 ============ */
+  .hero {
+    padding: clamp(56px, 9vh, 96px) clamp(20px, 4vw, 56px) clamp(36px, 5vh, 56px);
+    max-width: 1280px; margin: 0 auto;
+  }
+  .eyebrow {
+    font-family: var(--mono);
+    font-size: 11.5px;
+    letter-spacing: .18em;
+    color: var(--cinnabar);
+    display: flex; align-items: center; gap: 12px;
+    margin-bottom: 22px;
+  }
+  .eyebrow::before { content: ""; width: 34px; height: 1px; background: var(--cinnabar); }
+  .hero h1 {
+    font-family: var(--serif);
+    font-weight: 900;
+    font-size: clamp(30px, 4.6vw, 52px);
+    line-height: 1.22;
+    letter-spacing: .01em;
+    max-width: 15em;
+  }
+  .hero h1 em { font-style: normal; color: var(--cinnabar); }
+  .hero .lede {
+    margin-top: 18px;
+    max-width: 44em;
+    color: var(--muted);
+    font-size: 15.5px;
+  }
+
+  /* ============ 主区双栏 ============ */
+  .board {
+    max-width: 1280px; margin: 0 auto;
+    padding: 0 clamp(20px, 4vw, 56px) 96px;
+    display: grid;
+    grid-template-columns: minmax(0, 7fr) minmax(0, 5fr);
+    gap: clamp(28px, 4vw, 64px);
+    align-items: start;
+  }
+
+  /* ---- 左：表单分节 ---- */
+  .section { padding: 34px 0 38px; border-top: 1px solid var(--ink); }
+  .section + .section { border-top: 1px solid var(--line); }
+  .section-head {
+    display: flex; align-items: baseline; gap: 14px;
+    margin-bottom: 26px;
+  }
+  .section-num {
+    font-family: var(--mono); font-size: 12px; color: var(--cinnabar);
+    letter-spacing: .08em;
+  }
+  .section-title { font-family: var(--serif); font-weight: 700; font-size: 19px; }
+  .section-hint { margin-left: auto; font-size: 12.5px; color: var(--muted); }
+
+  .field-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 18px 22px; }
+  .field { display: flex; flex-direction: column; gap: 7px; min-width: 0; }
+  .field.span-2 { grid-column: span 2; }
+  .field label {
+    font-family: var(--mono); font-size: 11.5px; letter-spacing: .1em;
+    color: var(--muted); text-transform: uppercase;
+    display: flex; justify-content: space-between; align-items: baseline;
+  }
+  .field label .req { color: var(--cinnabar); }
+  .field label .count { text-transform: none; letter-spacing: 0; font-size: 11px; }
+
+  .input, .textarea, .select {
+    width: 100%;
+    background: var(--paper-raised);
+    border: 1px solid var(--line);
+    border-radius: 3px;
+    padding: 11px 13px;
+    font: inherit; color: var(--ink);
+    transition: border-color .16s ease, box-shadow .16s ease;
+  }
+  .input::placeholder, .textarea::placeholder { color: #A9B0AB; }
+  .input:hover, .textarea:hover, .select:hover { border-color: #C6C6BA; }
+  .input:focus, .textarea:focus, .select:focus {
+    outline: none;
+    border-color: var(--ink);
+    box-shadow: 0 0 0 3px rgba(28, 43, 45, .08);
+  }
+  .textarea { min-height: 132px; resize: vertical; line-height: 1.7; }
+  .select {
+    appearance: none;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8'%3E%3Cpath d='M1 1l5 5 5-5' stroke='%236E7A78' stroke-width='1.6' fill='none' stroke-linecap='round'/%3E%3C/svg%3E");
+    background-repeat: no-repeat;
+    background-position: right 13px center;
+    padding-right: 34px;
+  }
+
+  /* 分段单选 */
+  .segments { display: flex; gap: 8px; flex-wrap: wrap; }
+  .seg {
+    flex: 1 1 0; min-width: 108px;
+    border: 1px solid var(--line);
+    background: var(--paper-raised);
+    border-radius: 3px;
+    padding: 10px 12px;
+    text-align: left;
+    cursor: pointer;
+    font: inherit;
+    transition: border-color .16s ease, background .16s ease;
+  }
+  .seg .seg-name { display: block; font-weight: 700; font-size: 13.5px; }
+  .seg .seg-desc { display: block; font-size: 11.5px; color: var(--muted); margin-top: 2px; }
+  .seg:hover { border-color: #C6C6BA; }
+  /* 紧凑组：三个短词塞一行 */
+  .segments.compact { flex-wrap: nowrap; }
+  .segments.compact .seg { min-width: 0; padding: 10px 6px; text-align: center; }
+  .seg[aria-pressed="true"] {
+    border-color: var(--ink);
+    background: var(--ink);
+    color: var(--paper);
+  }
+  .seg[aria-pressed="true"] .seg-desc { color: #B9C2BE; }
+
+  .collapsible { overflow: hidden; max-height: 0; opacity: 0; transition: max-height .3s ease, opacity .25s ease; }
+  .collapsible.open { max-height: 220px; opacity: 1; }
+  .collapsible .field { padding-top: 18px; }
+
+  /* 提交行 */
+  .submit-row {
+    display: flex; align-items: center; gap: 20px;
+    padding: 30px 0 8px; border-top: 1px solid var(--ink);
+  }
+  .cta {
+    display: inline-flex; align-items: center; gap: 12px;
+    background: var(--cinnabar); color: #fff;
+    border: none; border-radius: 3px;
+    font: inherit; font-weight: 700; font-size: 15px;
+    padding: 14px 30px;
+    cursor: pointer;
+    transition: background .16s ease, transform .16s ease;
+  }
+  .cta:hover:not(:disabled) { background: var(--cinnabar-deep); }
+  .cta:disabled { background: #C9C9BE; cursor: not-allowed; }
+  .cta .arrow { transition: transform .18s ease; }
+  .cta:hover:not(:disabled) .arrow { transform: translateX(4px); }
+  .submit-note { font-size: 12.5px; color: var(--muted); }
+
+  /* ---- 右：面试单（signature） ---- */
+  .docket-wrap { position: sticky; top: 84px; }
+  .docket {
+    position: relative;
+    background: var(--paper-raised);
+    border: 1px solid var(--line);
+    border-radius: 4px;
+    box-shadow: 0 1px 2px rgba(28,43,45,.05), 0 12px 32px -16px rgba(28,43,45,.14);
+    padding: 26px 26px 22px;
+  }
+  /* 顶部装订孔 */
+  .docket::before {
+    content: ""; position: absolute; top: -1px; left: 26px; right: 26px;
+    height: 5px;
+    background: repeating-linear-gradient(90deg, var(--line) 0 8px, transparent 8px 16px);
+  }
+  .docket-head {
+    display: flex; align-items: flex-start; justify-content: space-between;
+    padding-bottom: 16px; margin-bottom: 4px;
+    border-bottom: 1px solid var(--ink);
+  }
+  .docket-title { font-family: var(--serif); font-weight: 900; font-size: 20px; letter-spacing: .06em; }
+  .docket-no { font-family: var(--mono); font-size: 11px; color: var(--muted); margin-top: 5px; letter-spacing: .08em; }
+
+  /* 印章 */
+  .seal {
+    flex-shrink: 0;
+    width: 74px; height: 74px;
+    border: 2.5px solid var(--cinnabar);
+    border-radius: 50%;
+    display: grid; place-content: center; text-align: center;
+    color: var(--cinnabar);
+    font-family: var(--serif); font-weight: 900;
+    font-size: 15px; line-height: 1.15; letter-spacing: .1em;
+    transform: rotate(9deg);
+    opacity: .88;
+    transition: transform .3s cubic-bezier(.34,1.56,.64,1), color .2s ease, border-color .2s ease;
+    user-select: none;
+  }
+  .seal small { font-family: var(--mono); font-weight: 400; font-size: 8.5px; letter-spacing: .14em; margin-top: 3px; }
+  .seal.ready { transform: rotate(-3deg) scale(1.04); opacity: 1; }
+
+  .docket-rows { list-style: none; }
+  .docket-rows li {
+    display: flex; align-items: baseline; gap: 14px;
+    padding: 11px 0;
+    border-bottom: 1px dashed var(--line);
+    font-size: 13.5px;
+  }
+  .docket-rows li:last-child { border-bottom: none; }
+  .docket-key {
+    font-family: var(--mono); font-size: 10.5px; letter-spacing: .12em;
+    color: var(--muted); text-transform: uppercase;
+    width: 62px; flex-shrink: 0;
+  }
+  .docket-val { font-weight: 500; overflow-wrap: anywhere; }
+  .docket-val.empty { color: #B4BAB2; font-weight: 400; }
+
+  .docket-foot {
+    margin-top: 18px; padding-top: 14px;
+    border-top: 1px solid var(--line);
+    display: flex; justify-content: space-between; align-items: flex-end;
+  }
+  .barcode {
+    height: 26px; width: 120px;
+    background: repeating-linear-gradient(90deg,
+      var(--ink) 0 2px, transparent 2px 5px,
+      var(--ink) 5px 6px, transparent 6px 11px,
+      var(--ink) 11px 14px, transparent 14px 17px);
+    opacity: .75;
+  }
+  .docket-foot .tip { font-family: var(--mono); font-size: 10px; color: var(--muted); letter-spacing: .06em; text-align: right; }
+
+  /* ============ 入场动效（一次编排） ============ */
+  @keyframes rise { from { opacity: 0; transform: translateY(14px); } to { opacity: 1; transform: none; } }
+  .hero > *, .section, .submit-row, .docket-wrap { animation: rise .55s ease both; }
+  .hero .eyebrow { animation-delay: .02s; }
+  .hero h1 { animation-delay: .08s; }
+  .hero .lede { animation-delay: .14s; }
+  .section:nth-of-type(1) { animation-delay: .18s; }
+  .section:nth-of-type(2) { animation-delay: .24s; }
+  .section:nth-of-type(3) { animation-delay: .30s; }
+  .section:nth-of-type(4) { animation-delay: .36s; }
+  .submit-row { animation-delay: .42s; }
+  .docket-wrap { animation-delay: .30s; }
+
+  @media (prefers-reduced-motion: reduce) {
+    *, *::before, *::after { animation: none !important; transition: none !important; }
+  }
+
+  /* ============ 响应式 ============ */
+  @media (max-width: 960px) {
+    .board { grid-template-columns: 1fr; }
+    .docket-wrap { position: static; order: -1; }
+    .topnav { gap: 16px; }
+    .topnav a:nth-child(3) { display: none; }
+  }
+  @media (max-width: 560px) {
+    .field-grid { grid-template-columns: 1fr; }
+    .field.span-2 { grid-column: span 1; }
+    .submit-row { flex-direction: column; align-items: stretch; }
+    .cta { justify-content: center; }
+  }
+</style>
+</head>
+<body>
+
+<header class="topbar">
+  <a class="wordmark" href="#"><span class="dot"></span>面试工作台</a>
+  <nav class="topnav" aria-label="主导航">
+    <a href="#" aria-current="page">新的面试</a>
+    <a href="#">面试记录</a>
+    <a href="#">候选人记忆</a>
+  </nav>
+</header>
+
+<div class="hero">
+  <p class="eyebrow">ADAPTIVE INTERVIEW / 自适应面试</p>
+  <h1>把下一场面试，<br>先在这里<em>走完一遍</em>。</h1>
+  <p class="lede">填好岗位与简历，面试官会按你的回答实时调整追问的方向和深度。聊完给一份带证据的评估报告——哪里扎实、哪里露怯，都写在纸上。</p>
+</div>
+
+<main class="board">
+
+  <!-- ============ 左：表单 ============ -->
+  <form id="setupForm" novalidate>
+
+    <section class="section" aria-labelledby="s1">
+      <div class="section-head">
+        <span class="section-num">01</span>
+        <h2 class="section-title" id="s1">面试目标</h2>
+        <span class="section-hint">决定要考什么</span>
+      </div>
+      <div class="field-grid">
+        <div class="field">
+          <label for="role">目标岗位 <span class="req">*</span></label>
+          <input class="input" id="role" name="role" type="text" placeholder="例：后端开发工程师" autocomplete="off">
+        </div>
+        <div class="field">
+          <label for="company">目标公司</label>
+          <input class="input" id="company" name="company" type="text" placeholder="例：字节跳动（可不填）" autocomplete="off">
+        </div>
+      </div>
+    </section>
+
+    <section class="section" aria-labelledby="s2">
+      <div class="section-head">
+        <span class="section-num">02</span>
+        <h2 class="section-title" id="s2">面试配置</h2>
+        <span class="section-hint">决定怎么考</span>
+      </div>
+      <div class="field-grid">
+        <div class="field span-2">
+          <label id="modeLabel">面试模式 <span class="req">*</span></label>
+          <div class="segments" role="group" aria-labelledby="modeLabel">
+            <button type="button" class="seg" data-group="mode" data-value="EVALUATION" aria-pressed="true">
+              <span class="seg-name">评估模式</span>
+              <span class="seg-name seg-desc">全面考察，产出正式评估报告</span>
+            </button>
+            <button type="button" class="seg" data-group="mode" data-value="PRACTICE" aria-pressed="false">
+              <span class="seg-name">练习模式</span>
+              <span class="seg-desc">针对单个技能点，轻装热身</span>
+            </button>
+          </div>
+        </div>
+        <div class="collapsible field span-2" id="practiceFields">
+          <label for="practiceSkill">练习技能点</label>
+          <input class="input" id="practiceSkill" type="text" placeholder="例：Redis 缓存一致性" autocomplete="off">
+        </div>
+        <div class="field">
+          <label id="levelLabel">候选人阶段 <span class="req">*</span></label>
+          <div class="segments compact" role="group" aria-labelledby="levelLabel">
+            <button type="button" class="seg" data-group="level" data-value="INTERN" aria-pressed="false">
+              <span class="seg-name">实习</span>
+            </button>
+            <button type="button" class="seg" data-group="level" data-value="CAMPUS" aria-pressed="true">
+              <span class="seg-name">校招</span>
+            </button>
+            <button type="button" class="seg" data-group="level" data-value="EXPERIENCED" aria-pressed="false">
+              <span class="seg-name">社招</span>
+            </button>
+          </div>
+        </div>
+        <div class="field">
+          <label for="provider">模型服务</label>
+          <select class="select" id="provider" name="provider">
+            <option value="">默认服务（Qwen3-Plus）</option>
+            <option value="deepseek">DeepSeek-V3.2</option>
+            <option value="kimi">Kimi-K2</option>
+          </select>
+        </div>
+      </div>
+    </section>
+
+    <section class="section" aria-labelledby="s3">
+      <div class="section-head">
+        <span class="section-num">03</span>
+        <h2 class="section-title" id="s3">职位描述</h2>
+        <span class="section-hint">JD 越真，题越准</span>
+      </div>
+      <div class="field">
+        <label for="jd">JD 原文 <span class="req">*</span> <span class="count" id="jdCount">0 字</span></label>
+        <textarea class="textarea" id="jd" placeholder="粘贴目标岗位的职位描述。系统会从中提取考察维度，而不是出通用题。"></textarea>
+      </div>
+    </section>
+
+    <section class="section" aria-labelledby="s4">
+      <div class="section-head">
+        <span class="section-num">04</span>
+        <h2 class="section-title" id="s4">候选人简历</h2>
+        <span class="section-hint">追问会盯着你写过的东西</span>
+      </div>
+      <div class="field">
+        <label for="resume">简历要点 <span class="req">*</span> <span class="count" id="resumeCount">0 字</span></label>
+        <textarea class="textarea" id="resume" placeholder="粘贴简历中的项目经历与技能描述。写在简历里的每一行，都可能被追问到底。"></textarea>
+      </div>
+    </section>
+
+    <div class="submit-row">
+      <button class="cta" type="submit" id="submitBtn" disabled>
+        生成面试 <span class="arrow" aria-hidden="true">→</span>
+      </button>
+      <p class="submit-note" id="submitNote">填完目标岗位、JD 与简历后即可开始。</p>
+    </div>
+
+  </form>
+
+  <!-- ============ 右：面试单 ============ -->
+  <div class="docket-wrap">
+    <aside class="docket" aria-label="面试安排摘要">
+      <div class="docket-head">
+        <div>
+          <p class="docket-title">面试单</p>
+          <p class="docket-no" id="docketNo">No. INT-2026-0829</p>
+        </div>
+        <div class="seal" id="seal">待开始<small>STANDBY</small></div>
+      </div>
+      <ul class="docket-rows">
+        <li><span class="docket-key">岗位</span><span class="docket-val empty" id="sumRole">未填写</span></li>
+        <li><span class="docket-key">公司</span><span class="docket-val empty" id="sumCompany">不限</span></li>
+        <li><span class="docket-key">模式</span><span class="docket-val" id="sumMode">评估模式</span></li>
+        <li><span class="docket-key">阶段</span><span class="docket-val" id="sumLevel">校招</span></li>
+        <li><span class="docket-key">模型</span><span class="docket-val" id="sumProvider">默认服务</span></li>
+        <li><span class="docket-key">材料</span><span class="docket-val empty" id="sumMaterial">JD 0 字 · 简历 0 字</span></li>
+      </ul>
+      <div class="docket-foot">
+        <div class="barcode" aria-hidden="true"></div>
+        <p class="tip">预计 25–40 分钟<br>约 6–8 轮问答</p>
+      </div>
+    </aside>
+  </div>
+
+</main>
+
+<script>
+(function () {
+  const state = { mode: 'EVALUATION', level: 'CAMPUS' };
+  const $ = (id) => document.getElementById(id);
+
+  /* 分段单选 */
+  document.querySelectorAll('.seg').forEach((btn) => {
+    btn.addEventListener('click', () => {
+      const group = btn.dataset.group;
+      document.querySelectorAll(`.seg[data-group="${group}"]`).forEach((b) => b.setAttribute('aria-pressed', 'false'));
+      btn.setAttribute('aria-pressed', 'true');
+      state[group] = btn.dataset.value;
+      if (group === 'mode') {
+        $('practiceFields').classList.toggle('open', state.mode === 'PRACTICE');
+      }
+      sync();
+    });
+  });
+
+  /* 文本输入联动 */
+  ['role', 'company', 'jd', 'resume', 'practiceSkill'].forEach((id) => $(id).addEventListener('input', sync));
+  $('provider').addEventListener('change', sync);
+
+  const MODE_LABEL = { EVALUATION: '评估模式', PRACTICE: '练习模式' };
+  const LEVEL_LABEL = { INTERN: '实习', CAMPUS: '校招', EXPERIENCED: '社招' };
+
+  function setVal(el, text, emptyText) {
+    const empty = !text;
+    el.textContent = empty ? emptyText : text;
+    el.classList.toggle('empty', empty);
+  }
+
+  function sync() {
+    const role = $('role').value.trim();
+    const company = $('company').value.trim();
+    const jd = $('jd').value.trim();
+    const resume = $('resume').value.trim();
+    const skill = $('practiceSkill').value.trim();
+
+    setVal($('sumRole'), role, '未填写');
+    setVal($('sumCompany'), company, '不限');
+    const modeText = MODE_LABEL[state.mode] + (state.mode === 'PRACTICE' && skill ? ` · ${skill}` : '');
+    $('sumMode').textContent = modeText;
+    $('sumLevel').textContent = LEVEL_LABEL[state.level];
+    $('sumProvider').textContent = $('provider').selectedOptions[0].textContent.replace(/（.*）/, '');
+
+    $('jdCount').textContent = jd.length + ' 字';
+    $('resumeCount').textContent = resume.length + ' 字';
+    const hasMaterial = jd.length > 0 || resume.length > 0;
+    setVal($('sumMaterial'), hasMaterial ? `JD ${jd.length} 字 · 简历 ${resume.length} 字` : '', 'JD 0 字 · 简历 0 字');
+
+    const ready = role && jd && resume;
+    $('submitBtn').disabled = !ready;
+    $('seal').classList.toggle('ready', !!ready);
+    $('seal').innerHTML = ready ? '就绪<small>READY</small>' : '待开始<small>STANDBY</small>';
+    $('submitNote').textContent = ready ? '材料齐了，随时可以开始。' : '填完目标岗位、JD 与简历后即可开始。';
+  }
+
+  $('setupForm').addEventListener('submit', (e) => {
+    e.preventDefault();
+    $('seal').innerHTML = '已受理<small>SEALED</small>';
+    $('submitNote').textContent = 'Demo：此处将调用 createStream 并跳转会话页。';
+  });
+
+  sync();
+})();
+</script>
+</body>
+</html>
