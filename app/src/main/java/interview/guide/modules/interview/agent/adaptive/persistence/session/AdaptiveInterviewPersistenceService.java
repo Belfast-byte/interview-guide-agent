@@ -4,8 +4,6 @@ import interview.guide.common.exception.BusinessException;
 import interview.guide.common.exception.ErrorCode;
 import interview.guide.modules.interview.agent.adaptive.core.session.AdaptiveInterviewHistory;
 import interview.guide.modules.interview.agent.adaptive.core.session.AdaptiveInterviewSession;
-import interview.guide.modules.interview.agent.adaptive.persistence.memory.AdaptiveDimensionBriefEntity;
-import interview.guide.modules.interview.agent.adaptive.persistence.memory.AdaptiveDimensionBriefRepository;
 import interview.guide.modules.interview.agent.adaptive.persistence.plan.AdaptiveAgentPlanEntity;
 import interview.guide.modules.interview.agent.adaptive.persistence.plan.AdaptiveAgentPlanRepository;
 import interview.guide.modules.interview.agent.adaptive.planning.InterviewPlan;
@@ -23,7 +21,6 @@ public class AdaptiveInterviewPersistenceService {
   private final AdaptiveAgentSessionRepository sessionRepository;
   private final AdaptiveAgentTurnRepository turnRepository;
   private final AdaptiveAgentPlanRepository planRepository;
-  private final AdaptiveDimensionBriefRepository dimensionBriefRepository;
   private final CoverageQueryService coverageQueryService;
 
   @Transactional(readOnly = true)
@@ -67,9 +64,7 @@ public class AdaptiveInterviewPersistenceService {
         history,
         plan,
         coverageQueryService.load(plan, history.turns()),
-        dimensionBriefRepository.findBySessionIdOrderByDimensionOrder(session.id()).stream()
-            .map(AdaptiveDimensionBriefEntity::toDomain)
-            .toList()
+        List.of()
     );
   }
 
