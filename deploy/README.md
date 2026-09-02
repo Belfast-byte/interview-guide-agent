@@ -9,7 +9,7 @@ sudo docker compose --env-file .env.production -f docker-compose.prod.yml up -d 
 sudo docker compose --env-file .env.production -f docker-compose.prod.yml ps
 ```
 
-当前通过 `http://129.146.62.132` 访问。Oracle Cloud Security List / NSG 还必须允许 TCP 80；本机防火墙已经允许 80/443。
+当前通过 `https://141433.xyz` 访问。Cloudflare SSL/TLS 模式必须使用 `Full (strict)`；本机防火墙已允许 80/443。
 
 ## 查看日志
 
@@ -33,10 +33,12 @@ sudo BACKUP_ROOT=/var/backups/interview-guide ./scripts/backup-production.sh
 
 备份包含 PostgreSQL、MinIO、应用 Provider 配置和恢复所需的生产环境变量。备份目录含密钥，必须限制访问并复制到服务器之外。
 
-## 切换域名和 HTTPS
+## Cloudflare 配置
 
-1. 把域名 A 记录指向服务器公网 IP。
-2. 将 `deploy/Caddyfile` 第一行 `:80` 改为实际域名。
-3. 将 `.env.production` 的 `CORS_ALLOWED_ORIGINS` 改为 `https://实际域名`。
-4. 在 `docker-compose.prod.yml` 的 Caddy 端口中增加 `443:443` 和 `443:443/udp`。
-5. 重新执行启动命令，Caddy 会自动申请证书。
+DNS A 记录指向 `129.146.62.132` 并开启代理。Cloudflare 控制台中设置：
+
+- SSL/TLS 加密模式：`Full (strict)`
+- WebSockets：开启
+- `/api/*`、`/ws/*`、`/actuator/*`：绕过缓存
+
+Caddy 自动申请并续期源站证书。
