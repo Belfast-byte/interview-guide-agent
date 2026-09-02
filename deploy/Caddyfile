@@ -1,4 +1,4 @@
-:80 {
+141433.xyz {
   encode zstd gzip
 
   handle /api/* {
