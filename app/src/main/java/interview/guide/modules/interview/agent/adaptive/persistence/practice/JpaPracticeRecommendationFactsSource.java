@@ -13,12 +13,10 @@ import interview.guide.modules.interview.agent.adaptive.persistence.session.Adap
 import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
-import org.springframework.stereotype.Component;
 
 /**
  * 基于 JPA 的练习推荐事实来源实现。
  */
-@Component
 public class JpaPracticeRecommendationFactsSource
     implements PracticeRecommendationFactsSource {
 

@@ -11,12 +11,10 @@ import java.util.Comparator;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
-import org.springframework.stereotype.Service;
 
 /**
  * 练习推荐服务，根据评估结果生成针对性练习建议。
  */
-@Service
 public class PracticeRecommendationService {
 
   private static final Comparator<RankedAssessment> FINAL_ASSESSMENT =
