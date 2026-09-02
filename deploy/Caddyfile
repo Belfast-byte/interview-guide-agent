@@ -1,4 +1,4 @@
-:80 {
+interviewpilot.me, www.interviewpilot.me {
   encode zstd gzip
 
   handle /api/* {
