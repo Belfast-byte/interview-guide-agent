@@ -97,7 +97,7 @@ class SpringAiInterviewDecisionModelTest {
         null,
         WorkingMemory.empty()
     );
-    return new DecisionModelContext(agentContext, WorkingMemory.empty(), List.of());
+    return new DecisionModelContext(agentContext, List.of());
   }
 
   private InterviewDecisionOutput output() {

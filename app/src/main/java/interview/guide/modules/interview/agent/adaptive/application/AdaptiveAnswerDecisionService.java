@@ -170,7 +170,7 @@ public class AdaptiveAnswerDecisionService {
         ? new AdaptiveInterviewTurn(
             turn.turnIndex(), turn.dimensionOrder(), turn.question(), turn.questionReason(),
             answer.content(), turn.responseType(), turn.responseContent(), turn.decisionReason(),
-            turn.provenance())
+            turn.provenance(), turn.adoptedRubrics(), turn.answerStatus(), turn.answerError())
         : turn).toList();
   }
 

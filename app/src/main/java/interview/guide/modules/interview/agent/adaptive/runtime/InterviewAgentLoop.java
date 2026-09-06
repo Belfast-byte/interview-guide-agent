@@ -101,7 +101,7 @@ public class InterviewAgentLoop {
       long deadlineNanos
   ) {
     DecisionModelContext modelContext = new DecisionModelContext(
-        context, memory, observations);
+        new AgentContext(context.session(), context.facts(), memory), observations);
     return deadlineExecutor.invoke(
         () -> model.decide(modelContext),
         deadlineNanos,

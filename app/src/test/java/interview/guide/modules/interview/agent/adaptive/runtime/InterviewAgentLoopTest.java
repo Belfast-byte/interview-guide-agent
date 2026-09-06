@@ -51,6 +51,11 @@ class InterviewAgentLoopTest {
 
     assertThat(decision.action()).isInstanceOf(AgentDecision.Ask.class);
     assertThat(requests).hasSize(3);
+    assertThat(requests.get(1).agentContext().workingMemory()).isEqualTo(memory("target-0", null));
+    assertThat(requests.get(2).agentContext().workingMemory()).isEqualTo(memory("target-1", 12L));
+    var json = new tools.jackson.databind.ObjectMapper().valueToTree(requests.get(2));
+    assertThat(json.has("workingMemory")).isFalse();
+    assertThat(json.path("agentContext").path("workingMemory").isObject()).isTrue();
     assertThat(requests.get(1).observations()).containsExactly(
         new DecisionObservation(
             "validation-0",

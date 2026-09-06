@@ -30,6 +30,39 @@ import org.junit.jupiter.api.Test;
 
 class AdaptiveAnswerDecisionServiceTest {
   @Test
+  @DisplayName("下一题上下文替换回答时保留量规快照和执行元数据")
+  void shouldPreserveTurnMetadataInDecisionContext() {
+    var plan = testPlan("session-1", new PlanProposal(List.of(
+        new DimensionProposal("缓存", "并发", "CACHE", 3, "java-backend"))));
+    var rubric = new AdoptedRubricSource("rubric:cache@v1", "cache", "v1", "历史量规正文");
+    var turn = new AdaptiveInterviewTurn(1, 0, "问题", "提问理由", null,
+        null, null, null, TurnProvenance.initial(), List.of(rubric),
+        AnswerProcessingStatus.PROCESSING, "已记录的错误");
+    var history = new AdaptiveInterviewHistory(testSession("session-1", 3).start(),
+        "candidate-1", "jd", "resume", "provider", List.of(turn));
+    var interview = new PlannedInterview(history, plan);
+    var answer = new CandidateAnswer(1, "已接受的回答");
+    var assessment = new AnswerAssessment(plan.dimension(0),
+        new AssessmentDecision("session-1", 1, DepthLevel.L1, 0.9, "证据不足", List.of(), List.of()), List.of());
+    var preparation = mock(AdaptiveAnswerPreparationService.class);
+    when(preparation.prepare(interview, answer)).thenReturn(assessment);
+    var assembler = mock(ContextAssembler.class);
+    var snapshots = mock(WorkingMemorySnapshotReader.class);
+    var loop = mock(InterviewAgentLoop.class);
+    var service = new AdaptiveAnswerDecisionService(preparation, assembler, snapshots, loop, new TargetBudgetPolicy());
+
+    service.decide(new AdaptiveAnswerDecisionService.AnswerDecisionRequest(
+        new MemoryOwner(null, "candidate-1"), interview, answer, Duration.ofSeconds(60), mock(AnswerEventSink.class)));
+
+    var input = org.mockito.ArgumentCaptor.forClass(ContextAssembler.AgentContextInput.class);
+    verify(assembler).agent(input.capture());
+    var copied = input.getValue().recentTurns().getFirst();
+    assertThat(copied.answer()).isEqualTo(answer.content());
+    assertThat(copied).usingRecursiveComparison().ignoringFields("answer").isEqualTo(turn);
+    assertThat(turn.answer()).isNull();
+  }
+
+  @Test
   @DisplayName("轮数耗尽仍评估最后回答，允许未覆盖维度且不再组装下一题上下文")
   void shouldFinishAfterLastAssessmentWithoutNextQuestionDependencies() {
     var plan = testPlan("session-1", new PlanProposal(List.of(
