@@ -1,13 +1,10 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import {
   AlertCircle,
   ArrowLeft,
   ArrowRight,
   Check,
-  Clock3,
-  Code2,
   Loader2,
-  Play,
   RefreshCw,
   Send,
 } from 'lucide-react';
@@ -19,10 +16,6 @@ import { extractPartialContent } from '../adaptiveInterviewStream';
 import type {
   AdaptiveInterviewDimension,
   AdaptiveInterviewSession,
-  PublicAlgorithmProblem,
-  SandboxExecution,
-  SandboxLanguage,
-  SandboxRunMode,
 } from '../../types/adaptiveInterview';
 
 export default function InterviewSessionPage() {
@@ -34,21 +27,10 @@ export default function InterviewSessionPage() {
   const [working, setWorking] = useState(false);
   const [recoveryPending, setRecoveryPending] = useState(false);
   const [error, setError] = useState('');
-  const [problemId, setProblemId] = useState('');
-  const [workloadType, setWorkloadType] = useState<'ALGORITHM' | 'PATCH'>('ALGORITHM');
-  const [problem, setProblem] = useState<PublicAlgorithmProblem | null>(null);
-  const [problemLoading, setProblemLoading] = useState(false);
-  const [language, setLanguage] = useState<SandboxLanguage>('JAVA');
-  const [runMode, setRunMode] = useState<SandboxRunMode>('SAMPLE');
-  const [source, setSource] = useState('');
-  const [submission, setSubmission] = useState<SandboxExecution | null>(null);
-  const [judging, setJudging] = useState(false);
-  const [judgeError, setJudgeError] = useState('');
   const [answerStage, setAnswerStage] = useState<'assessing' | 'generating' | null>(null);
   const [streamingQuestion, setStreamingQuestion] = useState('');
   // 当前查看的题号；null 表示跟随最新进度（待回答题 / 出题中）
   const [viewIndex, setViewIndex] = useState<number | null>(null);
-  const creationStreamActive = useRef(false);
 
   const loadSession = useCallback(async (id: string) => {
     setLoading(true);
@@ -64,7 +46,7 @@ export default function InterviewSessionPage() {
   }, []);
 
   useEffect(() => {
-    if (sessionId && !creationStreamActive.current) {
+    if (sessionId) {
       void loadSession(sessionId);
     }
   }, [loadSession, sessionId]);
@@ -81,7 +63,7 @@ export default function InterviewSessionPage() {
 
   // 页面刷新后无法重连原 POST 流，仅对这种恢复场景轮询 CREATED 会话。
   useEffect(() => {
-    if (!sessionId || session?.status !== 'CREATED' || creationStreamActive.current) return;
+    if (!sessionId || session?.status !== 'CREATED') return;
     const timer = window.setTimeout(() => void loadSession(sessionId), 2_000);
     return () => window.clearTimeout(timer);
   }, [loadSession, session?.status, sessionId]);
@@ -91,29 +73,6 @@ export default function InterviewSessionPage() {
       || (turn.answerStatus === undefined && turn.answer !== null)).length ?? 0,
     [session?.turns],
   );
-  const currentDimension = useMemo(
-    () => session?.dimensions.find(dimension => dimension.status === 'ACTIVE'),
-    [session?.dimensions],
-  );
-  const codeWorkbenchActive = Boolean(
-    currentDimension && /算法|数据结构|algorithm|项目|代码|优化/i.test(
-      `${currentDimension.dimension} ${currentDimension.focus}`,
-    ),
-  );
-
-  // 判题结果轮询
-  useEffect(() => {
-    if (!session || !submission || !['PENDING', 'RUNNING'].includes(submission.status)) return;
-    const timer = window.setTimeout(async () => {
-      try {
-        setSubmission(await adaptiveInterviewApi.getCodeSubmission(session.sessionId, submission.submissionId));
-      } catch (requestError) {
-        setJudgeError(getErrorMessage(requestError));
-      }
-    }, 2_000);
-    return () => window.clearTimeout(timer);
-  }, [session, submission]);
-
   const activeTurn = session?.turns.find(turn => turn.turnIndex === session.currentTurn);
 
   // 请求中断或页面刷新后，以服务端快照追踪执行租约，直到完成或可重试。
@@ -142,7 +101,7 @@ export default function InterviewSessionPage() {
   }, [sessionId, session, activeTurn?.answerStatus, working]);
 
   const submitAnswer = async (activeSession: AdaptiveInterviewSession, retryAnswer?: string) => {
-    if (working || recoveryPending || judging) return;
+    if (working || recoveryPending) return;
     const content = retryAnswer ?? answer.trim();
     if (!content) {
       setError('回答不能为空。请说明你的判断、做法和取舍。');
@@ -196,70 +155,6 @@ export default function InterviewSessionPage() {
       setAnswerStage(null);
       setViewIndex(null);
       setWorking(false);
-    }
-  };
-
-  const submitCode = async (activeSession: AdaptiveInterviewSession) => {
-    if (working || recoveryPending || judging) return;
-    if (!problemId.trim() || !source.trim()) {
-      setJudgeError(workloadType === 'PATCH' ? '请填写场景标识和补丁后再提交。' : '请填写题目标识和代码后再运行。');
-      return;
-    }
-    setJudging(true);
-    setJudgeError('');
-    try {
-      const turnIndex = activeSession.currentTurn;
-      if (workloadType === 'ALGORITHM' && runMode === 'SAMPLE') {
-        setSubmission(await adaptiveInterviewApi.submitCode(activeSession.sessionId, {
-          turnIndex,
-          problemId: problemId.trim(),
-          language,
-          source,
-          runMode,
-        }));
-      } else {
-        const updated = await adaptiveInterviewApi.submitAnswer(activeSession.sessionId, {
-          turnIndex,
-          answer: source,
-          codeSubmission: {
-            ...(workloadType === 'PATCH'
-              ? { scenarioId: problemId.trim() }
-              : { problemId: problemId.trim() }),
-            language,
-            runMode: workloadType === 'PATCH' ? 'FULL' : runMode,
-          },
-        });
-        setSession(updated);
-        setSubmission(await adaptiveInterviewApi.getLatestCodeSubmission(activeSession.sessionId, turnIndex));
-      }
-    } catch (requestError) {
-      setJudgeError(getErrorMessage(requestError));
-      try {
-        setSession(await adaptiveInterviewApi.get(activeSession.sessionId));
-      } catch {
-        setRecoveryPending(true);
-        setJudgeError(`${getErrorMessage(requestError)}；暂时无法读取处理状态，请刷新确认。`);
-      }
-    } finally {
-      setJudging(false);
-    }
-  };
-
-  const loadProblemVariant = async (activeSession: AdaptiveInterviewSession) => {
-    if (!problemId.trim()) {
-      setJudgeError('请先填写一个题目标识作为变体组入口。');
-      return;
-    }
-    setProblemLoading(true);
-    setJudgeError('');
-    try {
-      const selected = await adaptiveInterviewApi.selectProblemVariant(activeSession.sessionId, problemId.trim());
-      setProblem(selected);
-      setProblemId(selected.id);
-    } catch (requestError) {
-      setJudgeError(getErrorMessage(requestError));
-    } finally {
-      setProblemLoading(false);
     }
   };
 
@@ -472,7 +367,7 @@ export default function InterviewSessionPage() {
                         }
                       }}
                       rows={8}
-                      disabled={working || judging || recoveryPending}
+                      disabled={working || recoveryPending}
                       placeholder="说明判断依据、实施方式、边界条件和取舍。"
                       className="wk-input mt-2 resize-y leading-7"
                     />
@@ -481,7 +376,7 @@ export default function InterviewSessionPage() {
                       <button
                         type="button"
                         onClick={() => void submitAnswer(session)}
-                        disabled={working || judging || recoveryPending || !answer.trim()}
+                        disabled={working || recoveryPending || !answer.trim()}
                         className="wk-cta px-5 py-2.5 text-sm"
                       >
                         {working ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
@@ -505,7 +400,7 @@ export default function InterviewSessionPage() {
                         && viewedTurn.answerStatus === 'RETRYABLE' ? (
                         <div className="space-y-3">
                           <p className="text-sm text-wk-muted">{viewedTurn.answerError || '回答尚未处理完成，可以重试原答案。'}</p>
-                          <button type="button" disabled={working || judging || recoveryPending}
+                          <button type="button" disabled={working || recoveryPending}
                             onClick={() => void submitAnswer(session, viewedTurn.answer!)}
                             className="wk-cta px-5 py-2.5 text-sm">
                             <RefreshCw className="h-4 w-4" />重试原答案
@@ -525,35 +420,6 @@ export default function InterviewSessionPage() {
             )}
           </div>
 
-          {/* 代码判题工单 */}
-          {session.status === 'IN_PROGRESS' && codeWorkbenchActive && isAnswerPage && !recoveryPending && (
-            <CodeWorkbench
-              workloadType={workloadType}
-              problemId={problemId}
-              problem={problem}
-              problemLoading={problemLoading}
-              language={language}
-              runMode={runMode}
-              source={source}
-              submission={submission}
-              judging={judging}
-              error={judgeError}
-              onProblemIdChange={value => {
-                setProblemId(value);
-                setProblem(null);
-              }}
-              onWorkloadTypeChange={value => {
-                setWorkloadType(value);
-                setProblem(null);
-                if (value === 'PATCH') setRunMode('FULL');
-              }}
-              onLoadProblem={() => void loadProblemVariant(session)}
-              onLanguageChange={setLanguage}
-              onRunModeChange={setRunMode}
-              onSourceChange={setSource}
-              onRun={() => void submitCode(session)}
-            />
-          )}
         </section>
 
         {/* ===== 右栏 ===== */}
@@ -657,202 +523,6 @@ function CurrentFocus({ dimensions }: { dimensions: AdaptiveInterviewDimension[]
           {current.completedTurns}/{current.allocatedTurns}
         </span>
       </div>
-    </div>
-  );
-}
-
-/* ===== 代码判题工单：终端风墨块 ===== */
-interface CodeWorkbenchProps {
-  workloadType: 'ALGORITHM' | 'PATCH';
-  problemId: string;
-  problem: PublicAlgorithmProblem | null;
-  problemLoading: boolean;
-  language: SandboxLanguage;
-  runMode: SandboxRunMode;
-  source: string;
-  submission: SandboxExecution | null;
-  judging: boolean;
-  error: string;
-  onProblemIdChange: (value: string) => void;
-  onWorkloadTypeChange: (value: 'ALGORITHM' | 'PATCH') => void;
-  onLoadProblem: () => void;
-  onLanguageChange: (value: SandboxLanguage) => void;
-  onRunModeChange: (value: SandboxRunMode) => void;
-  onSourceChange: (value: string) => void;
-  onRun: () => void;
-}
-
-function CodeWorkbench(props: CodeWorkbenchProps) {
-  const running = props.judging
-    || props.submission?.status === 'PENDING'
-    || props.submission?.status === 'RUNNING';
-  const wbInput = 'w-full rounded-[3px] border border-white/15 bg-white/5 px-3 py-2.5 font-monosc text-xs text-[#EDEDE6] outline-none transition-colors placeholder:text-[#6E7A78] focus:border-cinnabar';
-  const wbSeg = (active: boolean) =>
-    `rounded-[3px] border px-3 py-2 text-xs font-semibold transition-colors ${
-      active ? 'border-cinnabar bg-cinnabar/15 text-[#F2B4A6]' : 'border-white/15 text-[#9A9A90] hover:border-white/30'
-    }`;
-
-  return (
-    <section className="mt-10 rounded border border-white/10 bg-[#141B1D] text-[#EDEDE6]">
-      <div className="flex flex-col gap-4 border-b border-white/10 px-5 py-4 sm:flex-row sm:items-center sm:justify-between">
-        <div className="flex items-center gap-3">
-          <Code2 className="h-4 w-4 text-cinnabar" />
-          <div>
-            <p className="font-monosc text-[10px] uppercase tracking-[0.18em] text-cinnabar">Judge docket</p>
-            <h2 className="mt-0.5 text-sm font-semibold">代码判题工单</h2>
-          </div>
-        </div>
-        <div className="flex items-center gap-2 font-monosc text-[10px] uppercase tracking-wider text-[#9A9A90]">
-          {['PENDING', 'RUNNING', 'DONE'].map((status, index) => {
-            const active = props.submission && (
-              props.submission.status === status
-              || (status === 'DONE' && props.submission.status === 'TIMEOUT_QUEUED')
-            );
-            return (
-              <span
-                key={status}
-                className={`rounded-[3px] border px-2 py-1 ${active ? 'border-cinnabar/60 bg-cinnabar/10 text-[#F2B4A6]' : 'border-white/15'}`}
-              >
-                {index + 1}. {status}
-              </span>
-            );
-          })}
-        </div>
-      </div>
-
-      <div className="grid gap-5 px-5 py-5 lg:grid-cols-[minmax(0,1fr)_230px]">
-        <div>
-          <label htmlFor="workbench-source" className="mb-2 block font-monosc text-[11px] uppercase tracking-wider text-[#9A9A90]">
-            {props.workloadType === 'PATCH' ? 'candidate patch' : 'candidate source'}
-          </label>
-          <textarea
-            id="workbench-source"
-            value={props.source}
-            onChange={event => props.onSourceChange(event.target.value)}
-            rows={15}
-            spellCheck={false}
-            placeholder={props.workloadType === 'PATCH' ? '在这里粘贴 unified diff 补丁…' : '在这里写出完整可运行代码…'}
-            className={`${wbInput} resize-y text-[13px] leading-6`}
-          />
-        </div>
-
-        <div className="space-y-4">
-          <div>
-            <span className="mb-2 block text-xs font-medium text-[#C9C9C0]">工作负载</span>
-            <div className="grid grid-cols-2 gap-2">
-              {(['ALGORITHM', 'PATCH'] as const).map(type => (
-                <button key={type} type="button" onClick={() => props.onWorkloadTypeChange(type)} className={wbSeg(props.workloadType === type)}>
-                  {type === 'ALGORITHM' ? '算法题' : '项目补丁'}
-                </button>
-              ))}
-            </div>
-          </div>
-
-          <label className="block">
-            <span className="mb-2 block text-xs font-medium text-[#C9C9C0]">
-              {props.workloadType === 'PATCH' ? '场景标识' : '题目标识'}
-            </span>
-            <input
-              value={props.problemId}
-              onChange={event => props.onProblemIdChange(event.target.value)}
-              placeholder={props.workloadType === 'PATCH' ? '例如 scenario-1' : '例如 two-sum'}
-              className={wbInput}
-            />
-          </label>
-
-          {props.workloadType === 'ALGORITHM' && (
-            <button
-              type="button"
-              onClick={props.onLoadProblem}
-              disabled={props.problemLoading || !props.problemId.trim()}
-              className="flex w-full items-center justify-center gap-2 rounded-[3px] border border-cinnabar/40 bg-cinnabar/10 px-3 py-2.5 text-xs font-semibold text-[#F2B4A6] transition-colors hover:bg-cinnabar/20 disabled:opacity-50"
-            >
-              {props.problemLoading ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <RefreshCw className="h-3.5 w-3.5" />}
-              载入未考察变体
-            </button>
-          )}
-
-          {props.problem && (
-            <div className="rounded-[3px] border border-white/15 bg-white/5 p-3">
-              <div className="flex items-center justify-between gap-2">
-                <p className="text-xs font-semibold">{props.problem.title}</p>
-                <span className="font-monosc text-[10px] text-cinnabar">{props.problem.difficulty}</span>
-              </div>
-              <p className="mt-2 whitespace-pre-wrap text-xs leading-5 text-[#9A9A90]">{props.problem.statement}</p>
-              <pre className="mt-3 overflow-x-auto rounded-[3px] bg-black/30 p-2 text-[10px] leading-4 text-[#6E7A78]">{props.problem.sampleCases}</pre>
-            </div>
-          )}
-
-          <label className="block">
-            <span className="mb-2 block text-xs font-medium text-[#C9C9C0]">语言</span>
-            <select
-              value={props.language}
-              onChange={event => props.onLanguageChange(event.target.value as SandboxLanguage)}
-              className={wbInput}
-            >
-              <option value="JAVA">Java</option>
-              <option value="PYTHON">Python</option>
-              <option value="CPP">C++</option>
-            </select>
-          </label>
-
-          {props.workloadType === 'ALGORITHM' && (
-            <div>
-              <span className="mb-2 block text-xs font-medium text-[#C9C9C0]">运行范围</span>
-              <div className="grid grid-cols-2 gap-2">
-                {(['SAMPLE', 'FULL'] as const).map(mode => (
-                  <button key={mode} type="button" onClick={() => props.onRunModeChange(mode)} className={wbSeg(props.runMode === mode)}>
-                    {mode === 'SAMPLE' ? '公开样例' : '完整判题'}
-                  </button>
-                ))}
-              </div>
-            </div>
-          )}
-
-          {props.submission && <JudgeResult execution={props.submission} />}
-
-          {props.error && (
-            <p role="alert" className="rounded-[3px] border border-cinnabar/40 bg-cinnabar/10 px-3 py-2 text-xs leading-5 text-[#F2B4A6]">
-              {props.error}
-            </p>
-          )}
-
-          <button
-            type="button"
-            onClick={props.onRun}
-            disabled={running || !props.problemId.trim() || !props.source.trim()}
-            className="inline-flex w-full items-center justify-center gap-2 rounded-[3px] bg-cinnabar px-4 py-3 text-sm font-bold text-white transition-colors hover:bg-cinnabar-deep disabled:cursor-not-allowed disabled:opacity-40"
-          >
-            {running ? <Clock3 className="h-4 w-4 animate-pulse" /> : <Play className="h-4 w-4" />}
-            {running
-              ? '判题进行中，可继续回答'
-              : props.workloadType === 'PATCH'
-                ? '提交补丁验证'
-                : props.runMode === 'SAMPLE' ? '运行公开样例' : '提交完整判题'}
-          </button>
-        </div>
-      </div>
-    </section>
-  );
-}
-
-function JudgeResult({ execution }: { execution: SandboxExecution }) {
-  const verdictColor = execution.verdict === 'AC'
-    ? 'text-[#5FBF8F]'
-    : execution.verdict
-      ? 'text-[#D9A441]'
-      : 'text-[#9A9A90]';
-  return (
-    <div className="rounded-[3px] border border-white/15 bg-white/5 p-3 font-monosc text-[11px] leading-5 text-[#9A9A90]">
-      <div className="flex items-center justify-between">
-        <span>#{execution.submissionSeq}</span>
-        <span className={verdictColor}>{execution.verdict ?? execution.status}</span>
-      </div>
-      {execution.total !== null && <p className="mt-2">cases {execution.passed}/{execution.total}</p>}
-      {execution.timeMs !== null && <p>time {execution.timeMs} ms · memory {execution.memoryKb} KB</p>}
-      {execution.firstFailedCase !== null && <p>first failed case #{execution.firstFailedCase}</p>}
-      {execution.policyViolation && <p className="mt-2 text-[#E8856F]">沙箱策略已阻止：{execution.policyViolation}</p>}
-      {execution.status === 'TIMEOUT_QUEUED' && <p className="mt-2 text-[#D9A441]">判题暂不可用，面试将改为代码走读。</p>}
     </div>
   );
 }
