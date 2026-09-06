@@ -1,5 +1,6 @@
 package interview.guide.modules.interview.agent.adaptive.application;
 
+import interview.guide.modules.interview.agent.adaptive.application.AdaptiveAnswerAssessmentService.AnswerAssessment;
 import interview.guide.modules.interview.agent.adaptive.core.event.CandidateAnswer;
 import interview.guide.modules.interview.agent.adaptive.planning.PlannedInterview;
 import org.springframework.stereotype.Service;

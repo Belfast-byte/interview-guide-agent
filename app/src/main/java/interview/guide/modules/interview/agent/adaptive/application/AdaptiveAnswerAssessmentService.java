@@ -7,12 +7,12 @@ import interview.guide.modules.interview.agent.adaptive.assessment.depth.DepthAs
 import interview.guide.modules.interview.agent.adaptive.assessment.evidence.AssessmentEvidenceCandidate;
 import interview.guide.modules.interview.agent.adaptive.assessment.evidence.AssessmentEvidenceValidator;
 import interview.guide.modules.interview.agent.adaptive.assessment.evidence.ValidatedAssessmentEvidence;
+import interview.guide.modules.interview.agent.adaptive.core.context.CoverageProjector;
 import interview.guide.modules.interview.agent.adaptive.core.event.CandidateAnswer;
 import interview.guide.modules.interview.agent.adaptive.planning.PlannedDimension;
 import interview.guide.modules.interview.agent.adaptive.planning.PlannedInterview;
 import interview.guide.modules.interview.skill.InterviewSkillService;
 import java.util.List;
-import interview.guide.modules.interview.agent.adaptive.core.context.CoverageProjector;
 import org.springframework.stereotype.Service;
 
 /** 只根据当前回答与当前 Target 量规生成正式评估事实。 */
@@ -62,5 +62,17 @@ public class AdaptiveAnswerAssessmentService {
             decision.resolvedGaps().stream().map(r -> r.evidenceQuote())).distinct().map(AssessmentEvidenceCandidate::quote).toList()
     );
     return new AnswerAssessment(dimension, decision, evidences);
+  }
+
+  /** 回答推进进入 Agent Loop 前的正式事实提案。 */
+  public record AnswerAssessment(
+      PlannedDimension dimension,
+      AssessmentDecision decision,
+      List<ValidatedAssessmentEvidence> evidences
+  ) {
+
+    public AnswerAssessment {
+      evidences = List.copyOf(evidences);
+    }
   }
 }

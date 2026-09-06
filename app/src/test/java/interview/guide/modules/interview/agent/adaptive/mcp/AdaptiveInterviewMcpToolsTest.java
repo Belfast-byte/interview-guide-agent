@@ -1,6 +1,11 @@
 package interview.guide.modules.interview.agent.adaptive.mcp;
 
 import static interview.guide.modules.interview.agent.adaptive.support.AdaptiveTestFixtures.EVALUATION_SETTINGS;
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.when;
 
 import interview.guide.common.exception.BusinessException;
 import interview.guide.common.exception.ErrorCode;
@@ -8,10 +13,13 @@ import interview.guide.modules.interview.agent.adaptive.application.AdaptiveInte
 import interview.guide.modules.interview.agent.adaptive.application.TenantInterviewCreationCommand;
 import interview.guide.modules.interview.agent.adaptive.assessment.report.AssessmentReportService;
 import interview.guide.modules.interview.agent.adaptive.assessment.report.EnterpriseAssessmentReport;
+import interview.guide.modules.interview.agent.adaptive.core.event.CandidateAnswer;
 import interview.guide.modules.interview.agent.adaptive.core.session.AdaptiveInterviewHistory;
 import interview.guide.modules.interview.agent.adaptive.core.session.AdaptiveInterviewSession;
 import interview.guide.modules.interview.agent.adaptive.core.session.AdaptiveSessionStatus;
-import interview.guide.modules.interview.agent.adaptive.core.event.CandidateAnswer;
+import interview.guide.modules.interview.agent.adaptive.mcp.AdaptiveInterviewMcpTools.McpCreateInterviewRequest;
+import interview.guide.modules.interview.agent.adaptive.mcp.AdaptiveInterviewMcpTools.McpInterviewStatusResponse;
+import interview.guide.modules.interview.agent.adaptive.mcp.AdaptiveInterviewMcpTools.McpSubmitAnswerRequest;
 import interview.guide.modules.interview.agent.adaptive.planning.InterviewPlan;
 import interview.guide.modules.interview.agent.adaptive.planning.PlannedInterview;
 import io.modelcontextprotocol.common.McpTransportContext;
@@ -25,12 +33,6 @@ import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.ai.mcp.annotation.context.McpSyncRequestContext;
 import org.springframework.ai.mcp.annotation.provider.tool.SyncMcpToolProvider;
-
-import static org.assertj.core.api.Assertions.assertThat;
-import static org.assertj.core.api.Assertions.assertThatThrownBy;
-import static org.mockito.Mockito.never;
-import static org.mockito.Mockito.verify;
-import static org.mockito.Mockito.when;
 
 @ExtendWith(MockitoExtension.class)
 class AdaptiveInterviewMcpToolsTest {
@@ -121,6 +123,10 @@ class AdaptiveInterviewMcpToolsTest {
         new McpSubmitAnswerRequest(1, "回答")
     );
 
+    var mapper = new tools.jackson.databind.ObjectMapper();
+    assertThat(mapper.valueToTree(response).path("sessionId").asText()).isEqualTo("session-a");
+    assertThat(mapper.readValue("{\"turnIndex\":1,\"answer\":\"回答\"}", McpSubmitAnswerRequest.class))
+        .isEqualTo(new McpSubmitAnswerRequest(1, "回答"));
     assertThat(response.sessionId()).isEqualTo("session-a");
     verify(auditService).record(
         principal,

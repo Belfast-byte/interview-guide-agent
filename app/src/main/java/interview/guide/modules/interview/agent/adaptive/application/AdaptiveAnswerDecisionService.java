@@ -1,5 +1,6 @@
 package interview.guide.modules.interview.agent.adaptive.application;
 
+import interview.guide.modules.interview.agent.adaptive.application.AdaptiveAnswerAssessmentService.AnswerAssessment;
 import interview.guide.modules.interview.agent.adaptive.application.TargetBudgetPolicy.BudgetDecision;
 import interview.guide.modules.interview.agent.adaptive.core.context.CoverageProjector;
 import interview.guide.modules.interview.agent.adaptive.core.context.CoverageView;
@@ -7,8 +8,8 @@ import interview.guide.modules.interview.agent.adaptive.core.context.MemoryOwner
 import interview.guide.modules.interview.agent.adaptive.core.context.WorkingMemory;
 import interview.guide.modules.interview.agent.adaptive.core.event.CandidateAnswer;
 import interview.guide.modules.interview.agent.adaptive.core.session.AdaptiveInterviewTurn;
-import interview.guide.modules.interview.agent.adaptive.memory.ContextAssembler;
 import interview.guide.modules.interview.agent.adaptive.memory.ContextAssembler.AgentContextInput;
+import interview.guide.modules.interview.agent.adaptive.memory.ContextAssembler;
 import interview.guide.modules.interview.agent.adaptive.persistence.session.WorkingMemorySnapshotReader;
 import interview.guide.modules.interview.agent.adaptive.planning.PlannedInterview;
 import interview.guide.modules.interview.agent.adaptive.runtime.AgentDecision;
@@ -186,4 +187,18 @@ public class AdaptiveAnswerDecisionService {
       BudgetDecision budget
   ) {}
 
+  /** 最终事务所需的 Assessor 正式事实与 Agent 最终决定。 */
+  public record AnswerProgressionDecision(
+      AnswerAssessment assessment,
+      AgentDecision agentDecision,
+      boolean targetBudgetExhausted
+  ) {
+
+    public AnswerProgressionDecision(
+        AnswerAssessment assessment,
+        AgentDecision agentDecision
+    ) {
+      this(assessment, agentDecision, false);
+    }
+  }
 }

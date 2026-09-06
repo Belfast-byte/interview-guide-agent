@@ -1,5 +1,6 @@
 package interview.guide.modules.interview.agent.adaptive.application;
 
+import interview.guide.modules.interview.agent.adaptive.application.AdaptiveAnswerAssessmentService.AnswerAssessment;
 import interview.guide.modules.interview.agent.adaptive.core.context.CoverageProjector;
 import interview.guide.modules.interview.agent.adaptive.core.context.CoverageView;
 import interview.guide.modules.interview.agent.adaptive.runtime.DecisionObservation;

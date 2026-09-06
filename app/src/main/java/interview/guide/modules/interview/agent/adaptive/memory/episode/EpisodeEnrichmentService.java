@@ -11,31 +11,34 @@ import org.springframework.stereotype.Service;
 @RequiredArgsConstructor
 public class EpisodeEnrichmentService {
 
-  private final EpisodeEnrichmentServiceDependencies dependencies;
+  private final EpisodeEnrichmentStore store;
+  private final EpisodeEnrichmentContextSource contextReader;
+  private final EpisodeEnrichmentGenerator generator;
+  private final EpisodeTagValidator tagValidator;
 
   public boolean enrich(long episodeId, String llmProvider) {
-    var claim = dependencies.store().claim(episodeId);
+    var claim = store.claim(episodeId);
     if (claim.isEmpty()) {
       return false;
     }
     try {
-      EpisodeEnrichmentRequest request = dependencies.contextReader().load(episodeId);
-      EpisodeEnrichmentProposal proposal = dependencies.generator().generate(
+      EpisodeEnrichmentRequest request = contextReader.load(episodeId);
+      EpisodeEnrichmentProposal proposal = generator.generate(
           request,
           llmProvider
       );
-      List<ValidatedEpisodeTag> tags = dependencies.tagValidator().validate(
+      List<ValidatedEpisodeTag> tags = tagValidator.validate(
           proposal.tags(),
           request.sourceFacts()
       );
-      return dependencies.store().complete(new EpisodeEnrichmentCompletion(
+      return store.complete(new EpisodeEnrichmentCompletion(
           episodeId,
           claim.orElseThrow().executionToken(),
           proposal.answerSummary(),
           tags, request, proposal.observation(), llmProvider
       ));
     } catch (RuntimeException error) {
-      dependencies.store().fail(episodeId, claim.orElseThrow().executionToken(), describe(error));
+      store.fail(episodeId, claim.orElseThrow().executionToken(), describe(error));
       throw error;
     }
   }

@@ -1,9 +1,12 @@
 package interview.guide.modules.interview.agent.adaptive.api;
 
-import interview.guide.modules.interview.agent.adaptive.core.context.TopicKey;
+import interview.guide.modules.interview.agent.adaptive.core.context.CapabilityTarget;
 import interview.guide.modules.interview.agent.adaptive.core.context.CoverageView.TargetCoverage;
+import interview.guide.modules.interview.agent.adaptive.core.context.DepthLevel;
+import interview.guide.modules.interview.agent.adaptive.core.context.TopicKey;
 import interview.guide.modules.interview.agent.adaptive.core.memory.TargetWorkStatus;
 import interview.guide.modules.interview.agent.adaptive.core.session.AdaptiveInterviewHistory;
+import interview.guide.modules.interview.agent.adaptive.core.session.AdaptiveInterviewTurn;
 import interview.guide.modules.interview.agent.adaptive.core.session.AdaptiveSessionStatus;
 import interview.guide.modules.interview.agent.adaptive.core.session.CandidateLevel;
 import interview.guide.modules.interview.agent.adaptive.core.session.SessionMode;
@@ -82,5 +85,64 @@ public record AdaptiveInterviewResponse(
         .filter(turn -> java.util.Objects.equals(turn.dimensionOrder(), coverage.target().identity().order()))
         .filter(turn -> turn.answerStatus() == interview.guide.modules.interview.agent.adaptive.core.session.AnswerProcessingStatus.COMPLETED)
         .count();
+  }
+
+  /**
+   * 自适应面试维度响应。
+   */
+  public record AdaptiveInterviewDimensionResponse(
+      int order,
+      String dimension,
+      String focus,
+      int allocatedTurns,
+      DepthLevel expectedDepth,
+      DepthLevel depthCeiling,
+      List<CapabilityTarget.EvidenceObjective> evidenceObjectives,
+      int completedTurns,
+      TargetWorkStatus status
+  ) {
+
+    static AdaptiveInterviewDimensionResponse from(
+        TargetCoverage coverage,
+        TargetWorkStatus displayStatus,
+        int assessedTurns
+    ) {
+      CapabilityTarget target = coverage.target();
+      return new AdaptiveInterviewDimensionResponse(
+          target.identity().order(),
+          target.identity().dimension(),
+          target.identity().focus(),
+          target.budget().turnBudget(),
+          target.depth().expected(),
+          target.depth().ceiling(),
+          target.evidenceObjectives(),
+          assessedTurns,
+          displayStatus
+      );
+    }
+  }
+
+  /**
+   * 自适应面试轮次响应。
+   */
+  public record AdaptiveInterviewTurnResponse(
+      int turnIndex,
+      Integer dimensionOrder,
+      String question,
+      String answer,
+      interview.guide.modules.interview.agent.adaptive.core.session.AnswerProcessingStatus answerStatus,
+      String answerError
+  ) {
+
+    static AdaptiveInterviewTurnResponse from(AdaptiveInterviewTurn turn) {
+      return new AdaptiveInterviewTurnResponse(
+          turn.turnIndex(),
+          turn.dimensionOrder(),
+          turn.question(),
+          turn.answer(),
+          turn.answerStatus(),
+          turn.answerError()
+      );
+    }
   }
 }

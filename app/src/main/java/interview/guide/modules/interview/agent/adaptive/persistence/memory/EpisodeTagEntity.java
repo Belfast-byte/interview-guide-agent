@@ -1,10 +1,10 @@
 package interview.guide.modules.interview.agent.adaptive.persistence.memory;
 
 import interview.guide.modules.interview.agent.adaptive.memory.episode.EpisodeTagCategory;
-import interview.guide.modules.interview.agent.adaptive.memory.episode.EpisodeTagFact;
 import interview.guide.modules.interview.agent.adaptive.memory.episode.EpisodeTagSource;
 import interview.guide.modules.interview.agent.adaptive.memory.episode.EpisodeTagSourceType;
 import interview.guide.modules.interview.agent.adaptive.memory.episode.EpisodeTagValue;
+import interview.guide.modules.interview.agent.adaptive.persistence.memory.EpisodeTagEntity.EpisodeTagFact;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.EnumType;
@@ -82,4 +82,11 @@ public class EpisodeTagEntity {
         new EpisodeTagSource(sourceType, sourceId)
     );
   }
+
+  public record EpisodeTagFact(
+      long id,
+      long episodeId,
+      EpisodeTagValue value,
+      EpisodeTagSource source
+  ) {}
 }

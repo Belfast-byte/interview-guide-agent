@@ -1,20 +1,20 @@
 package interview.guide.modules.interview.agent.adaptive.api;
 
 import static interview.guide.modules.interview.agent.adaptive.support.AdaptiveTestFixtures.EVALUATION_SETTINGS;
-
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.argThat;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
-import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.ArgumentMatchers.argThat;
 
 import interview.guide.common.exception.BusinessException;
 import interview.guide.common.security.AuthenticatedUser;
 import interview.guide.modules.auth.domain.UserRole;
 import interview.guide.modules.interview.agent.adaptive.algorithm.sandbox.SandboxLanguage;
 import interview.guide.modules.interview.agent.adaptive.algorithm.sandbox.SandboxRunMode;
+import interview.guide.modules.interview.agent.adaptive.api.SubmitAdaptiveAnswerRequest.CandidateCodeSubmissionRequest;
 import interview.guide.modules.interview.agent.adaptive.application.AdaptiveInterviewAnswerExecutor;
 import interview.guide.modules.interview.agent.adaptive.application.AdaptiveInterviewApplicationService;
 import interview.guide.modules.interview.agent.adaptive.application.AdaptiveInterviewHistoryService;
@@ -44,6 +44,31 @@ class AdaptiveInterviewControllerTest {
   @Mock private AssessmentReportService reportService;
   @Mock private AdaptiveInterviewAnswerExecutor answerExecutor;
   @InjectMocks private AdaptiveInterviewController controller;
+
+  @Test
+  @DisplayName("嵌套请求保留 JSON 结构及级联校验")
+  void nestedRequestsKeepJsonAndValidationContract() {
+    var mapper = new tools.jackson.databind.ObjectMapper();
+    var request = mapper.readValue("""
+        {"jd":"JD","resume":"简历","providerId":null,"mode":"PRACTICE",
+         "candidateLevel":"EXPERIENCED","practiceScope":[{"skillId":"java-backend","focusId":""}]}
+        """, CreateAdaptiveInterviewRequest.class);
+    assertThat(request.practiceScope().getFirst().skillId()).isEqualTo("java-backend");
+    try (var factory = jakarta.validation.Validation.buildDefaultValidatorFactory()) {
+      assertThat(factory.getValidator().validate(request))
+          .extracting(v -> v.getPropertyPath().toString())
+          .containsExactly("practiceScope[0].focusId");
+      var answer = mapper.readValue("""
+          {"turnIndex":1,"answer":"代码","codeSubmission":{
+           "problemId":"two-sum","scenarioId":null,"language":null,"runMode":"FULL"}}
+          """, SubmitAdaptiveAnswerRequest.class);
+      assertThat(factory.getValidator().validate(answer))
+          .extracting(v -> v.getPropertyPath().toString())
+          .contains("codeSubmission.language");
+      assertThat(mapper.valueToTree(answer).path("codeSubmission").path("problemId").asText())
+          .isEqualTo("two-sum");
+    }
+  }
 
   @Test
   @DisplayName("历史列表只使用认证主体中的候选人 ID")

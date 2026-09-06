@@ -6,7 +6,16 @@ import interview.guide.modules.interview.agent.adaptive.application.AdaptiveInte
 import interview.guide.modules.interview.agent.adaptive.application.TenantInterviewCreationCommand;
 import interview.guide.modules.interview.agent.adaptive.assessment.report.AssessmentReportService;
 import interview.guide.modules.interview.agent.adaptive.assessment.report.EnterpriseAssessmentReport;
+import interview.guide.modules.interview.agent.adaptive.core.context.CoverageView.TargetCoverage;
+import interview.guide.modules.interview.agent.adaptive.core.context.TopicKey;
 import interview.guide.modules.interview.agent.adaptive.core.event.CandidateAnswer;
+import interview.guide.modules.interview.agent.adaptive.core.memory.TargetWorkStatus;
+import interview.guide.modules.interview.agent.adaptive.core.session.AdaptiveInterviewHistory;
+import interview.guide.modules.interview.agent.adaptive.core.session.AdaptiveSessionStatus;
+import interview.guide.modules.interview.agent.adaptive.core.session.CandidateLevel;
+import interview.guide.modules.interview.agent.adaptive.core.session.InterviewSessionSettings;
+import interview.guide.modules.interview.agent.adaptive.core.session.PracticeScope;
+import interview.guide.modules.interview.agent.adaptive.core.session.SessionMode;
 import interview.guide.modules.interview.agent.adaptive.planning.PlannedInterview;
 import java.util.List;
 import java.util.function.Supplier;
@@ -252,6 +261,104 @@ public class AdaptiveInterviewMcpTools {
     }
     if (request.answer() == null || request.answer().isBlank()) {
       throw new BusinessException(ErrorCode.BAD_REQUEST, "回答不能为空");
+    }
+  }
+
+  /** MCP 创建面试参数。 */
+  public record McpCreateInterviewRequest(
+      String candidateId,
+      String jd,
+      String resume,
+      String llmProvider,
+      SessionMode mode,
+      CandidateLevel candidateLevel,
+      List<TopicKey> practiceScope
+  ) {
+
+    InterviewSessionSettings settings() {
+      return new InterviewSessionSettings(
+          mode,
+          candidateLevel,
+          new PracticeScope(practiceScope)
+      );
+    }
+  }
+
+  /** MCP 租户答题工具的不可变输入。 */
+  public record McpSubmitAnswerRequest(int turnIndex, String answer) {}
+
+  /**
+   * MCP 面试状态响应。
+   */
+  public record McpInterviewStatusResponse(
+      String sessionId,
+      AdaptiveSessionStatus status,
+      int currentTurn,
+      int maxTurns,
+      String currentQuestion
+  ) {
+
+    static McpInterviewStatusResponse from(PlannedInterview interview) {
+      var history = interview.history();
+      String question = history.session().status() == AdaptiveSessionStatus.COMPLETED
+          || history.turns().isEmpty()
+          ? null
+          : history.turns().getLast().question();
+      return new McpInterviewStatusResponse(
+          history.session().id(),
+          history.session().status(),
+          interview.coverage().askedTurns(),
+          history.session().maxTurns(),
+          question
+      );
+    }
+  }
+
+  /**
+   * MCP 面试维度响应。
+   */
+  public record McpInterviewDimensionResponse(
+      int order,
+      String dimension,
+      String focus,
+      int allocatedTurns,
+      int completedTurns,
+      TargetWorkStatus status
+  ) {
+
+    static McpInterviewDimensionResponse from(
+        TargetCoverage coverage,
+        AdaptiveInterviewHistory history
+    ) {
+      var target = coverage.target();
+      return new McpInterviewDimensionResponse(
+          target.identity().order(),
+          target.identity().dimension(),
+          target.identity().focus(),
+          target.budget().turnBudget(),
+          coverage.askedTurns(),
+          displayStatus(coverage, history)
+      );
+    }
+
+    private static TargetWorkStatus displayStatus(
+        TargetCoverage coverage,
+        AdaptiveInterviewHistory history
+    ) {
+      boolean current = history.session().status() == AdaptiveSessionStatus.IN_PROGRESS
+          && !history.turns().isEmpty()
+          && history.turns().getLast().dimensionOrder() != null
+          && history.turns().getLast().dimensionOrder() == targetOrder(coverage);
+      if (current) {
+        return TargetWorkStatus.ACTIVE;
+      }
+      return coverage.askedTurns() > 0
+          ? TargetWorkStatus.COMPLETED
+          : TargetWorkStatus.PENDING;
+    }
+
+    private static int targetOrder(TargetCoverage coverage) {
+      return coverage.target().identity().order();
     }
   }
 }

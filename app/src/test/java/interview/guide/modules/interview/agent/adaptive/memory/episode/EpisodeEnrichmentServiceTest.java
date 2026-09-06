@@ -12,8 +12,8 @@ import static org.mockito.Mockito.when;
 import interview.guide.common.exception.BusinessException;
 import interview.guide.common.exception.ErrorCode;
 import interview.guide.modules.interview.agent.adaptive.assessment.depth.AssessmentDecision;
-import interview.guide.modules.interview.agent.adaptive.core.context.DepthLevel;
 import interview.guide.modules.interview.agent.adaptive.assessment.evidence.EvidenceType;
+import interview.guide.modules.interview.agent.adaptive.core.context.DepthLevel;
 import interview.guide.modules.interview.agent.adaptive.core.context.MemoryOwner;
 import interview.guide.modules.interview.agent.adaptive.core.context.TopicKey;
 import interview.guide.modules.interview.agent.adaptive.core.session.SessionMode;
@@ -32,8 +32,8 @@ import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.data.jpa.test.autoconfigure.DataJpaTest;
-import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.context.annotation.Import;
+import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.transaction.support.TransactionSynchronizationManager;
@@ -46,7 +46,6 @@ import org.springframework.transaction.support.TransactionSynchronizationManager
     interview.guide.modules.interview.agent.adaptive.persistence.memory.JpaMemoryEvidenceService.class,
     interview.guide.modules.interview.agent.adaptive.application.AdaptiveAgentProperties.class,
     EpisodeEnrichmentPersistenceService.class,
-    EpisodeEnrichmentServiceDependencies.class,
     EpisodeEnrichmentService.class,
     EpisodeTagValidator.class
 })

@@ -1,23 +1,23 @@
 package interview.guide.modules.interview.agent.adaptive.api;
 
-import interview.guide.modules.interview.agent.adaptive.core.session.AnswerProcessingStatus;
-
 import static interview.guide.modules.interview.agent.adaptive.support.AdaptiveTestFixtures.EVALUATION_SETTINGS;
 import static interview.guide.modules.interview.agent.adaptive.support.AdaptiveTestFixtures.testDimension;
+import static org.assertj.core.api.Assertions.assertThat;
 
+import interview.guide.modules.interview.agent.adaptive.api.AdaptiveInterviewResponse.AdaptiveInterviewDimensionResponse;
+import interview.guide.modules.interview.agent.adaptive.api.AdaptiveInterviewResponse.AdaptiveInterviewTurnResponse;
 import interview.guide.modules.interview.agent.adaptive.core.context.DepthLevel;
 import interview.guide.modules.interview.agent.adaptive.core.session.AdaptiveInterviewHistory;
 import interview.guide.modules.interview.agent.adaptive.core.session.AdaptiveInterviewSession;
 import interview.guide.modules.interview.agent.adaptive.core.session.AdaptiveInterviewTurn;
 import interview.guide.modules.interview.agent.adaptive.core.session.AdaptiveSessionStatus;
-import interview.guide.modules.interview.agent.adaptive.planning.InterviewPlan;
+import interview.guide.modules.interview.agent.adaptive.core.session.AnswerProcessingStatus;
 import interview.guide.modules.interview.agent.adaptive.planning.DimensionProposal;
+import interview.guide.modules.interview.agent.adaptive.planning.InterviewPlan;
 import interview.guide.modules.interview.agent.adaptive.planning.PlannedInterview;
 import java.util.List;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
-
-import static org.assertj.core.api.Assertions.assertThat;
 
 class AdaptiveInterviewResponseTest {
 
@@ -65,6 +65,12 @@ class AdaptiveInterviewResponseTest {
 
     AdaptiveInterviewResponse response = AdaptiveInterviewResponse.from(interview);
 
+    var json = new tools.jackson.databind.ObjectMapper().valueToTree(response);
+    assertThat(json.path("turns").get(0).propertyNames()).containsExactlyInAnyOrder(
+        "turnIndex", "dimensionOrder", "question", "answer", "answerStatus", "answerError");
+    assertThat(json.path("dimensions").get(0).propertyNames()).containsExactlyInAnyOrder(
+        "order", "dimension", "focus", "allocatedTurns", "expectedDepth", "depthCeiling",
+        "evidenceObjectives", "completedTurns", "status");
     assertThat(response.currentQuestion()).isEqualTo("第一题？");
     assertThat(response.currentTurn()).isEqualTo(1);
     assertThat(response.mode()).isEqualTo(EVALUATION_SETTINGS.mode());

@@ -2,19 +2,17 @@ package interview.guide.modules.interview.agent.adaptive.core.session;
 
 import static interview.guide.modules.interview.agent.adaptive.support.AdaptiveTestFixtures.EVALUATION_SETTINGS;
 import static interview.guide.modules.interview.agent.adaptive.support.AdaptiveTestFixtures.testSession;
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 import interview.guide.common.exception.BusinessException;
-import interview.guide.modules.interview.agent.adaptive.core.action.AgentResponseType;
 import interview.guide.modules.interview.agent.adaptive.core.action.RespondAction;
-import interview.guide.modules.interview.agent.adaptive.core.event.CandidateAnswer;
 import interview.guide.modules.interview.agent.adaptive.core.context.TopicKey;
+import interview.guide.modules.interview.agent.adaptive.core.event.CandidateAnswer;
 import java.util.List;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
-
-import static org.assertj.core.api.Assertions.assertThat;
-import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 class AdaptiveInterviewSessionTest {
 
@@ -50,14 +48,13 @@ class AdaptiveInterviewSessionTest {
     void shouldAdvanceWhenAskingNextQuestion() {
       AdaptiveInterviewSession session = testSession("session-1", 6).start();
 
-      SessionTransition transition = session.apply(
+      AdaptiveInterviewSession nextSession = session.apply(
           new CandidateAnswer(1, "回答"),
           RespondAction.ask("下一题？", "需要继续验证")
       );
 
-      assertThat(transition.session().currentTurn()).isEqualTo(2);
-      assertThat(transition.session().status()).isEqualTo(AdaptiveSessionStatus.IN_PROGRESS);
-      assertThat(transition.appliedAction().type()).isEqualTo(AgentResponseType.ASK);
+      assertThat(nextSession.currentTurn()).isEqualTo(2);
+      assertThat(nextSession.status()).isEqualTo(AdaptiveSessionStatus.IN_PROGRESS);
     }
 
     @Test
@@ -65,14 +62,13 @@ class AdaptiveInterviewSessionTest {
     void shouldCompleteWithoutAdvancingTurn() {
       AdaptiveInterviewSession session = testSession("session-1", 2).start();
 
-      SessionTransition transition = session.apply(
+      AdaptiveInterviewSession nextSession = session.apply(
           new CandidateAnswer(1, "回答"),
           RespondAction.finish("面试结束。", "信息已经充分")
       );
 
-      assertThat(transition.session().status()).isEqualTo(AdaptiveSessionStatus.COMPLETED);
-      assertThat(transition.session().currentTurn()).isEqualTo(1);
-      assertThat(transition.appliedAction().content()).isEqualTo("面试结束。");
+      assertThat(nextSession.status()).isEqualTo(AdaptiveSessionStatus.COMPLETED);
+      assertThat(nextSession.currentTurn()).isEqualTo(1);
     }
 
     @Test
@@ -87,13 +83,13 @@ class AdaptiveInterviewSessionTest {
           EVALUATION_SETTINGS
       );
 
-      SessionTransition transition = session.apply(
+      AdaptiveInterviewSession nextSession = session.apply(
           new CandidateAnswer(3, "回答"),
           RespondAction.finish("核心考察点已覆盖。", "信息已经充分")
       );
 
-      assertThat(transition.session().status()).isEqualTo(AdaptiveSessionStatus.COMPLETED);
-      assertThat(transition.session().currentTurn()).isEqualTo(3);
+      assertThat(nextSession.status()).isEqualTo(AdaptiveSessionStatus.COMPLETED);
+      assertThat(nextSession.currentTurn()).isEqualTo(3);
     }
 
     @Test

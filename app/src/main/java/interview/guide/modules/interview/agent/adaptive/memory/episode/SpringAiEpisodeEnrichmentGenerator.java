@@ -1,13 +1,20 @@
 package interview.guide.modules.interview.agent.adaptive.memory.episode;
 
+import interview.guide.common.ai.LlmProviderRegistry;
+import interview.guide.common.ai.StructuredOutputInvoker;
 import interview.guide.modules.interview.agent.adaptive.application.AdaptiveAgentProperties;
 import interview.guide.modules.interview.agent.adaptive.memory.AbstractSpringAiMemoryGenerator;
+import interview.guide.modules.interview.agent.adaptive.observability.AdaptiveAgentTelemetry;
+import interview.guide.modules.interview.agent.adaptive.observability.AdaptiveInputTokenBudget;
+import interview.guide.modules.interview.agent.adaptive.role.AdaptiveModelOptionsFactory;
+import interview.guide.modules.interview.agent.adaptive.runtime.DeadlineExecutor;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import org.springframework.ai.chat.prompt.PromptTemplate;
 import org.springframework.ai.converter.BeanOutputConverter;
 import org.springframework.core.io.ResourceLoader;
 import org.springframework.stereotype.Component;
+import tools.jackson.databind.ObjectMapper;
 
 /**
  * 基于 Spring AI 的 Episode 结构化补全生成器。
@@ -23,18 +30,24 @@ public class SpringAiEpisodeEnrichmentGenerator
   private final BeanOutputConverter<EpisodeEnrichmentProposal> outputConverter;
 
   public SpringAiEpisodeEnrichmentGenerator(
-      EpisodeEnrichmentGeneratorDependencies dependencies,
+      LlmProviderRegistry llmProviderRegistry,
+      StructuredOutputInvoker structuredOutputInvoker,
+      ObjectMapper objectMapper,
+      AdaptiveAgentTelemetry telemetry,
+      AdaptiveInputTokenBudget inputTokenBudget,
+      DeadlineExecutor deadlineExecutor,
+      AdaptiveModelOptionsFactory modelOptionsFactory,
       AdaptiveAgentProperties properties,
       ResourceLoader resourceLoader
   ) throws IOException {
     super(
-        dependencies.llmProviderRegistry(),
-        dependencies.structuredOutputInvoker(),
-        dependencies.objectMapper(),
-        dependencies.telemetry(),
-        dependencies.inputTokenBudget(),
-        dependencies.deadlineExecutor(),
-        dependencies.modelOptionsFactory()
+        llmProviderRegistry,
+        structuredOutputInvoker,
+        objectMapper,
+        telemetry,
+        inputTokenBudget,
+        deadlineExecutor,
+        modelOptionsFactory
     );
     this.properties = properties;
     systemPromptTemplate = prompt(

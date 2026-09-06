@@ -9,7 +9,7 @@ public record RespondAction(
     String reason,
     QuestionProvenance questionProvenance,
     CodeQuestionProvenance codeProvenance
-) implements AgentAction {
+) {
 
   public static RespondAction ask(String question, String reason) {
     return new RespondAction(AgentResponseType.ASK, question, reason, null, null);

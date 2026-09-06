@@ -1,16 +1,17 @@
 package interview.guide.modules.interview.agent.adaptive.application;
 
-import interview.guide.modules.interview.agent.adaptive.core.context.MemoryOwner;
-import interview.guide.modules.interview.agent.adaptive.core.event.CandidateAnswer;
-import interview.guide.modules.interview.agent.adaptive.persistence.session.AdaptiveAnswerClaimService;
-import interview.guide.modules.interview.agent.adaptive.persistence.session.AdaptiveAnswerClaimService.ClaimResult;
-import interview.guide.modules.interview.agent.adaptive.persistence.session.AdaptiveAnswerTransactionService;
-import interview.guide.modules.interview.agent.adaptive.persistence.session.AdaptiveAnswerTransactionService.AnswerCommit;
-import interview.guide.modules.interview.agent.adaptive.persistence.session.AdaptiveAnswerTransactionService.CommitFacts;
-import interview.guide.modules.interview.agent.adaptive.planning.PlannedInterview;
-import java.time.Duration;
 import interview.guide.common.exception.BusinessException;
 import interview.guide.common.exception.ErrorCode;
+import interview.guide.modules.interview.agent.adaptive.application.AdaptiveAnswerDecisionService.AnswerProgressionDecision;
+import interview.guide.modules.interview.agent.adaptive.core.context.MemoryOwner;
+import interview.guide.modules.interview.agent.adaptive.core.event.CandidateAnswer;
+import interview.guide.modules.interview.agent.adaptive.persistence.session.AdaptiveAnswerClaimService.ClaimResult;
+import interview.guide.modules.interview.agent.adaptive.persistence.session.AdaptiveAnswerClaimService;
+import interview.guide.modules.interview.agent.adaptive.persistence.session.AdaptiveAnswerTransactionService.AnswerCommit;
+import interview.guide.modules.interview.agent.adaptive.persistence.session.AdaptiveAnswerTransactionService.CommitFacts;
+import interview.guide.modules.interview.agent.adaptive.persistence.session.AdaptiveAnswerTransactionService;
+import interview.guide.modules.interview.agent.adaptive.planning.PlannedInterview;
+import java.time.Duration;
 import org.springframework.stereotype.Service;
 
 /** answer claim 后在事务外评估/决策，再以一个短事务提交最终事实。 */

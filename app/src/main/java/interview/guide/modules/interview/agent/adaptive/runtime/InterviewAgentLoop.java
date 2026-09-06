@@ -1,17 +1,17 @@
 package interview.guide.modules.interview.agent.adaptive.runtime;
 
-import interview.guide.modules.interview.agent.adaptive.core.context.AgentContext;
-import interview.guide.modules.interview.agent.adaptive.core.context.WorkingMemory;
-import java.time.Duration;
-import java.util.HashSet;
-import java.util.Set;
-import java.util.Map;
 import interview.guide.common.exception.BusinessException;
 import interview.guide.common.exception.ErrorCode;
 import interview.guide.modules.interview.agent.adaptive.application.AdaptiveAgentProperties;
+import interview.guide.modules.interview.agent.adaptive.core.context.AgentContext;
+import interview.guide.modules.interview.agent.adaptive.core.context.WorkingMemory;
+import java.time.Duration;
 import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
+import java.util.Set;
 
 /** 在一次共享 deadline 内循环执行模型决策与请求级只读 Tool。 */
 public class InterviewAgentLoop {
@@ -45,14 +45,14 @@ public class InterviewAgentLoop {
       List<DecisionObservation> initialObservations,
       Duration timeout
   ) {
-    RuntimeDeadline deadline = RuntimeDeadline.start(timeout);
+    long deadlineNanos = System.nanoTime() + timeout.toNanos();
     List<DecisionObservation> observations = new ArrayList<>(initialObservations);
     WorkingMemory memory = context.workingMemory();
     int batchIndex = 0;
     int toolCalls = 0;
     Set<ToolRequestKey> executed = new HashSet<>();
     for (int step = 0; step < properties.getMaxDecisionSteps(); step++) {
-      AgentDecision decision = decide(context, memory, observations, deadline);
+      AgentDecision decision = decide(context, memory, observations, deadlineNanos);
       Optional<DecisionObservation> memoryRejection =
           validator.validateMemory(decision, context, observations);
       if (memoryRejection.isPresent()) {
@@ -83,7 +83,7 @@ public class InterviewAgentLoop {
         }
         if (!pending.isEmpty()) {
           observations.addAll(toolExecutor.execute(new ReadToolBatch(
-              context, pending, deadline.deadlineNanos(), batchIndex++)));
+              context, pending, deadlineNanos, batchIndex++)));
         }
         continue;
       }
@@ -98,13 +98,13 @@ public class InterviewAgentLoop {
       AgentContext context,
       WorkingMemory memory,
       List<DecisionObservation> observations,
-      RuntimeDeadline deadline
+      long deadlineNanos
   ) {
     DecisionModelContext modelContext = new DecisionModelContext(
-        context, memory, List.copyOf(observations));
+        context, memory, observations);
     return deadlineExecutor.invoke(
         () -> model.decide(modelContext),
-        deadline.deadlineNanos(),
+        deadlineNanos,
         "Interview Agent 决策"
     );
   }

@@ -2,16 +2,16 @@ package interview.guide.modules.interview.agent.adaptive.persistence.session;
 
 import interview.guide.common.exception.BusinessException;
 import interview.guide.common.exception.ErrorCode;
-import interview.guide.modules.interview.agent.adaptive.application.AnswerAssessment;
-import interview.guide.modules.interview.agent.adaptive.application.AnswerProgressionDecision;
+import interview.guide.modules.interview.agent.adaptive.application.AdaptiveAnswerAssessmentService.AnswerAssessment;
+import interview.guide.modules.interview.agent.adaptive.application.AdaptiveAnswerDecisionService.AnswerProgressionDecision;
 import interview.guide.modules.interview.agent.adaptive.application.PendingAssessmentReferences;
 import interview.guide.modules.interview.agent.adaptive.core.action.RespondAction;
 import interview.guide.modules.interview.agent.adaptive.core.context.CoverageProjector;
 import interview.guide.modules.interview.agent.adaptive.core.context.MemoryOwner;
 import interview.guide.modules.interview.agent.adaptive.core.context.WorkingMemory;
 import interview.guide.modules.interview.agent.adaptive.core.event.CandidateAnswer;
-import interview.guide.modules.interview.agent.adaptive.core.session.TurnProvenance;
 import interview.guide.modules.interview.agent.adaptive.core.session.AdoptedRubricSource;
+import interview.guide.modules.interview.agent.adaptive.core.session.TurnProvenance;
 import interview.guide.modules.interview.agent.adaptive.persistence.assessment.AdaptiveAgentAssessmentEntity;
 import interview.guide.modules.interview.agent.adaptive.persistence.assessment.AdaptiveAgentEvidenceEntity;
 import interview.guide.modules.interview.agent.adaptive.persistence.assessment.AssessmentProbeGapEntity;
@@ -166,7 +166,7 @@ public class AdaptiveAnswerTransactionService {
     RespondAction action = response(decision);
     commit.locked().answeredTurn().recordResponse(action);
     commit.locked().session().apply(
-        commit.locked().session().toDomain().apply(answer, action).session());
+        commit.locked().session().toDomain().apply(answer, action));
     if (!(decision.action() instanceof AgentDecision.Ask ask)) {
       return;
     }

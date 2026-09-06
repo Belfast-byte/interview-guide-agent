@@ -57,7 +57,7 @@ public record AdaptiveInterviewSession(
     );
   }
 
-  public SessionTransition apply(CandidateAnswer answer, RespondAction proposedAction) {
+  public AdaptiveInterviewSession apply(CandidateAnswer answer, RespondAction proposedAction) {
     assertCanAnswer(answer);
 
     AdaptiveSessionStatus nextStatus = proposedAction.type() == AgentResponseType.FINISH
@@ -67,31 +67,8 @@ public record AdaptiveInterviewSession(
         ? currentTurn + 1
         : currentTurn;
 
-    return new SessionTransition(
-        new AdaptiveInterviewSession(
-            id,
-            runtimeVersion,
-            nextStatus,
-            nextTurn,
-            maxTurns,
-            settings
-        ),
-        proposedAction
-    );
-  }
-
-  public AdaptiveInterviewSession advanceAfterAnswer() {
-    if (status != AdaptiveSessionStatus.IN_PROGRESS) {
-      throw new BusinessException(ErrorCode.BAD_REQUEST, "当前会话不能进入下一轮");
-    }
     return new AdaptiveInterviewSession(
-        id,
-        runtimeVersion,
-        status,
-        currentTurn + 1,
-        maxTurns,
-        settings
-    );
+        id, runtimeVersion, nextStatus, nextTurn, maxTurns, settings);
   }
 
   public void assertCanAnswer(CandidateAnswer answer) {

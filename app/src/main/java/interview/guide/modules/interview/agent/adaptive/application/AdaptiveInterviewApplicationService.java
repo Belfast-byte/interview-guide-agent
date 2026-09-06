@@ -3,7 +3,6 @@ package interview.guide.modules.interview.agent.adaptive.application;
 import interview.guide.common.exception.BusinessException;
 import interview.guide.common.exception.ErrorCode;
 import interview.guide.modules.interview.agent.adaptive.core.context.MemoryOwner;
-import interview.guide.modules.interview.agent.adaptive.planning.PlannerContext;
 import interview.guide.modules.interview.agent.adaptive.core.event.CandidateAnswer;
 import interview.guide.modules.interview.agent.adaptive.core.session.InterviewSessionSettings;
 import interview.guide.modules.interview.agent.adaptive.core.session.SessionMode;
@@ -14,10 +13,11 @@ import interview.guide.modules.interview.agent.adaptive.observability.AdaptiveAg
 import interview.guide.modules.interview.agent.adaptive.observability.AlgorithmInterviewTelemetry;
 import interview.guide.modules.interview.agent.adaptive.persistence.session.AdaptiveInterviewPersistenceService;
 import interview.guide.modules.interview.agent.adaptive.persistence.session.AdaptiveSessionCreation;
-import interview.guide.modules.interview.agent.adaptive.planning.InterviewPlan;
 import interview.guide.modules.interview.agent.adaptive.planning.InitialQuestionProposal;
+import interview.guide.modules.interview.agent.adaptive.planning.InterviewPlan;
 import interview.guide.modules.interview.agent.adaptive.planning.PlanProposal;
 import interview.guide.modules.interview.agent.adaptive.planning.PlannedInterview;
+import interview.guide.modules.interview.agent.adaptive.planning.PlannerContext;
 import interview.guide.modules.interview.agent.adaptive.planning.PlanningAgent;
 import interview.guide.modules.interview.agent.adaptive.planning.PlanningRequest;
 import interview.guide.modules.interview.agent.adaptive.planning.PlanningTaxonomy;
@@ -254,4 +254,36 @@ public class AdaptiveInterviewApplicationService {
     return persistenceService.getForTenant(tenantId, sessionId);
   }
 
+  private record AnswerSubmissionInput(
+      String tenantId,
+      String sessionId,
+      CandidateAnswer answer,
+      AnswerEventSink sink
+  ) {}
+
+  private record InterviewCreationInput(
+      String tenantId,
+      String candidateId,
+      String jd,
+      String resume,
+      String llmProviderId,
+      String llmProviderNameSnapshot,
+      String llmModelSnapshot,
+      InterviewSessionSettings settings
+  ) {
+
+    AdaptiveSessionCreation toSessionCreation(String sessionId) {
+      return new AdaptiveSessionCreation(
+          tenantId,
+          sessionId,
+          candidateId,
+          jd,
+          resume,
+          llmProviderId,
+          llmProviderNameSnapshot,
+          llmModelSnapshot,
+          settings
+      );
+    }
+  }
 }

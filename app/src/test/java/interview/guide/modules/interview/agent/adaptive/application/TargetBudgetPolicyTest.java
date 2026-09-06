@@ -3,6 +3,7 @@ package interview.guide.modules.interview.agent.adaptive.application;
 import static interview.guide.modules.interview.agent.adaptive.support.AdaptiveTestFixtures.testDimension;
 import static org.assertj.core.api.Assertions.assertThat;
 
+import interview.guide.modules.interview.agent.adaptive.application.AdaptiveAnswerAssessmentService.AnswerAssessment;
 import interview.guide.modules.interview.agent.adaptive.assessment.depth.AssessmentDecision;
 import interview.guide.modules.interview.agent.adaptive.core.context.CoverageView;
 import interview.guide.modules.interview.agent.adaptive.core.context.DepthLevel;

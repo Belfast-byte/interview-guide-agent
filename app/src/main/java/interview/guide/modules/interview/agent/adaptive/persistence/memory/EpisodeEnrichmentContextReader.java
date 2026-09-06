@@ -9,8 +9,12 @@ import interview.guide.modules.interview.agent.adaptive.memory.episode.EpisodeEn
 import interview.guide.modules.interview.agent.adaptive.memory.episode.EpisodeEvidenceFact;
 import interview.guide.modules.interview.agent.adaptive.memory.episode.EpisodeProbeGapFact;
 import interview.guide.modules.interview.agent.adaptive.persistence.assessment.AdaptiveAgentAssessmentEntity;
+import interview.guide.modules.interview.agent.adaptive.persistence.assessment.AdaptiveAgentAssessmentRepository;
+import interview.guide.modules.interview.agent.adaptive.persistence.assessment.AdaptiveAgentEvidenceRepository;
 import interview.guide.modules.interview.agent.adaptive.persistence.assessment.AssessmentProbeGapEntity;
+import interview.guide.modules.interview.agent.adaptive.persistence.assessment.AssessmentProbeGapRepository;
 import interview.guide.modules.interview.agent.adaptive.persistence.session.AdaptiveAgentTurnEntity;
+import interview.guide.modules.interview.agent.adaptive.persistence.session.AdaptiveAgentTurnRepository;
 import java.util.LinkedHashMap;
 import java.util.List;
 import lombok.RequiredArgsConstructor;
@@ -24,20 +28,24 @@ import org.springframework.transaction.annotation.Transactional;
 @RequiredArgsConstructor
 public class EpisodeEnrichmentContextReader implements EpisodeEnrichmentContextSource {
 
-  private final EpisodeEnrichmentRepositories repositories;
+  private final EpisodeFactRepository episodes;
+  private final AdaptiveAgentTurnRepository turns;
+  private final AdaptiveAgentAssessmentRepository assessments;
+  private final AdaptiveAgentEvidenceRepository evidences;
+  private final AssessmentProbeGapRepository gaps;
   private final interview.guide.modules.interview.agent.adaptive.persistence.memory.JpaMemoryEvidenceService memoryEvidence;
 
   @Transactional(readOnly = true)
   @Override
   public EpisodeEnrichmentRequest load(long episodeId) {
-    var episode = repositories.episodes().findById(episodeId)
+    var episode = episodes.findById(episodeId)
         .orElseThrow(() -> notFound("EpisodeFact 不存在"))
         .toDomain();
-    AdaptiveAgentTurnEntity turn = repositories.turns().findBySessionIdAndTurnIndex(
+    AdaptiveAgentTurnEntity turn = turns.findBySessionIdAndTurnIndex(
         episode.sessionId(),
         episode.turnIndex()
     ).orElseThrow(() -> notFound("Episode 对应轮次不存在"));
-    AdaptiveAgentAssessmentEntity assessment = repositories.assessments()
+    AdaptiveAgentAssessmentEntity assessment = assessments
         .findById(episode.assessmentId())
         .orElseThrow(() -> notFound("Episode 对应 Assessment 不存在"));
     return new EpisodeEnrichmentRequest(
@@ -49,7 +57,7 @@ public class EpisodeEnrichmentContextReader implements EpisodeEnrichmentContextS
         turn.answer(),
         assessment.depthLevel(),
         assessment.rationaleSummary(),
-        repositories.evidences().findByAssessmentIdOrderById(assessment.id()).stream()
+        evidences.findByAssessmentIdOrderById(assessment.id()).stream()
             .map(evidence -> new EpisodeEvidenceFact(
                 evidence.id(),
                 evidence.evidenceType(),
@@ -70,13 +78,13 @@ public class EpisodeEnrichmentContextReader implements EpisodeEnrichmentContextS
     if (turn.triggerType() != TurnTriggerType.ASSESSMENT_GAP) {
       return current;
     }
-    AdaptiveAgentAssessmentEntity source = repositories.assessments()
+    AdaptiveAgentAssessmentEntity source = assessments
         .findById(turn.sourceAssessmentId())
         .orElseThrow(() -> notFound("追问来源 Assessment 不存在"));
     if (!source.sessionId().equals(assessment.sessionId())) {
       throw notFound("追问来源 Assessment 不属于当前 session");
     }
-    AssessmentProbeGapEntity triggered = repositories.gaps()
+    AssessmentProbeGapEntity triggered = gaps
         .findById(turn.sourceProbeGapId())
         .orElseThrow(() -> notFound("追问来源 ProbeGap 不存在"));
     if (triggered.assessmentId() != source.id()) {
@@ -86,7 +94,7 @@ public class EpisodeEnrichmentContextReader implements EpisodeEnrichmentContextS
   }
 
   private List<EpisodeProbeGapFact> gapFacts(long assessmentId) {
-    return repositories.gaps()
+    return gaps
         .findByAssessmentIdOrderByGapOrderAscIdAsc(assessmentId)
         .stream()
         .map(this::toGapFact)

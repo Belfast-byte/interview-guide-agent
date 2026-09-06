@@ -1,14 +1,21 @@
 package interview.guide.modules.interview.agent.adaptive.application;
 
+import static interview.guide.modules.interview.agent.adaptive.support.AdaptiveTestFixtures.testPlan;
+import static interview.guide.modules.interview.agent.adaptive.support.AdaptiveTestFixtures.testSession;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.Mockito.*;
-import static interview.guide.modules.interview.agent.adaptive.support.AdaptiveTestFixtures.testPlan;
 
+import interview.guide.modules.interview.agent.adaptive.application.AdaptiveAnswerAssessmentService.AnswerAssessment;
 import interview.guide.modules.interview.agent.adaptive.assessment.depth.AssessmentDecision;
 import interview.guide.modules.interview.agent.adaptive.core.context.CoverageView;
 import interview.guide.modules.interview.agent.adaptive.core.context.DepthLevel;
 import interview.guide.modules.interview.agent.adaptive.core.context.MemoryOwner;
 import interview.guide.modules.interview.agent.adaptive.core.event.CandidateAnswer;
+import interview.guide.modules.interview.agent.adaptive.core.session.AdaptiveInterviewHistory;
+import interview.guide.modules.interview.agent.adaptive.core.session.AdaptiveInterviewTurn;
+import interview.guide.modules.interview.agent.adaptive.core.session.AdoptedRubricSource;
+import interview.guide.modules.interview.agent.adaptive.core.session.AnswerProcessingStatus;
+import interview.guide.modules.interview.agent.adaptive.core.session.TurnProvenance;
 import interview.guide.modules.interview.agent.adaptive.memory.ContextAssembler;
 import interview.guide.modules.interview.agent.adaptive.persistence.session.WorkingMemorySnapshotReader;
 import interview.guide.modules.interview.agent.adaptive.planning.DimensionProposal;
