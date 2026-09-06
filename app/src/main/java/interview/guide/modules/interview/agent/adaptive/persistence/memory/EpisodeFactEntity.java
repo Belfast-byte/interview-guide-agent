@@ -101,6 +101,23 @@ public class EpisodeFactEntity {
   @Column(name = "enrichment_error", columnDefinition = "TEXT")
   private String enrichmentError;
 
+  @Column(name = "enrichment_attempts", nullable = false)
+  private int enrichmentAttempts;
+
+  @Column(name = "enrichment_execution_token", length = 36)
+  private String enrichmentExecutionToken;
+
+  @Column(name = "enrichment_lease_until")
+  private LocalDateTime enrichmentLeaseUntil;
+
+  public String enrichmentExecutionToken() { return enrichmentExecutionToken; }
+
+  public boolean ownsEnrichment(String token) {
+    return token != null && token.equals(enrichmentExecutionToken)
+        && enrichmentStatus == EpisodeEnrichmentStatus.PROCESSING
+        && enrichmentLeaseUntil != null && enrichmentLeaseUntil.isAfter(LocalDateTime.now());
+  }
+
   @Version
   @Column(nullable = false)
   private long version;
@@ -210,11 +227,14 @@ public class EpisodeFactEntity {
     return id;
   }
 
-  public boolean claimEnrichment() {
+  public boolean claimEnrichment(java.time.Duration lease) {
     if (enrichmentStatus != EpisodeEnrichmentStatus.PENDING) {
       return false;
     }
     apply(EpisodeEnrichmentState.pending().claim());
+    enrichmentAttempts++;
+    enrichmentExecutionToken = java.util.UUID.randomUUID().toString();
+    enrichmentLeaseUntil = LocalDateTime.now().plus(lease);
     return true;
   }
 
@@ -232,12 +252,30 @@ public class EpisodeFactEntity {
   }
 
   public void retryEnrichment() {
+    enrichmentAttempts=0;
     apply(state().retry());
     answerSummary = null;
   }
 
+  public void requestReenrichment() {
+    if(enrichmentStatus==EpisodeEnrichmentStatus.PROCESSING)
+      throw new IllegalStateException("记忆仍在整理中");
+    enrichmentAttempts=0;
+    enrichmentExecutionToken=null;
+    enrichmentLeaseUntil=null;
+    apply(EpisodeEnrichmentState.pending());
+    answerSummary=null;
+  }
+
+  public boolean enrichmentLeaseExpired() {
+    return enrichmentLeaseUntil == null || !enrichmentLeaseUntil.isAfter(LocalDateTime.now());
+  }
+
   public void recoverStaleEnrichment() {
-    apply(state().recoverStaleProcessing());
+    enrichmentExecutionToken = null;
+    enrichmentLeaseUntil = null;
+    apply(enrichmentAttempts>=3 ? state().fail("记忆整理连续失效，请重试")
+        : state().recoverStaleProcessing());
     answerSummary = null;
   }
 

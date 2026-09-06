@@ -27,7 +27,7 @@ public class AdaptiveAnswerClaimService {
   }
 
   @Transactional
-  public ClaimResult claim(String sessionId, MemoryOwner owner, CandidateAnswer answer) {
+  public ClaimResult claim(String sessionId, MemoryOwner owner, CandidateAnswer answer, String executionToken, java.time.Duration lease) {
     AdaptiveAgentSessionEntity session = sessions.findLockedById(sessionId)
         .orElseThrow(() -> new BusinessException(
             ErrorCode.INTERVIEW_SESSION_NOT_FOUND, "Agent 面试会话不存在"));
@@ -35,17 +35,27 @@ public class AdaptiveAnswerClaimService {
     AdaptiveAgentTurnEntity turn = turns.findLockedBySessionIdAndTurnIndex(
             sessionId, answer.turnIndex())
         .orElseThrow(() -> new BusinessException(ErrorCode.NOT_FOUND, "面试轮次不存在"));
-    if (turn.answer() == null) {
-      session.toDomain().assertCanAnswer(answer);
-      turn.recordAnswer(answer);
-      return ClaimResult.NEW;
+    if (turn.answer() != null && !turn.candidateAnswer().equals(answer)) {
+      throw new BusinessException(ErrorCode.BAD_REQUEST, "当前轮次已提交不同回答");
     }
-    if (turn.candidateAnswer().equals(answer)) {
-      return assessments.findBySessionIdAndTurnIndex(sessionId, answer.turnIndex()).isPresent()
-          ? ClaimResult.COMMITTED
-          : ClaimResult.PENDING;
+    if (assessments.findBySessionIdAndTurnIndex(sessionId, answer.turnIndex()).isPresent()) {
+      return ClaimResult.COMMITTED;
     }
-    throw new BusinessException(ErrorCode.BAD_REQUEST, "当前轮次已提交不同回答");
+    session.toDomain().assertCanAnswer(answer);
+    if (turn.processing()) {
+      return ClaimResult.PENDING;
+    }
+    if (turn.answer() == null) turn.recordAnswer(answer);
+    turn.claimExecution(executionToken, lease);
+    return ClaimResult.NEW;
+  }
+
+  @Transactional
+  public void fail(String sessionId, MemoryOwner owner, int turnIndex, String token, String message) {
+    var session = sessions.findLockedById(sessionId).orElseThrow();
+    requireOwner(session, owner);
+    turns.findLockedBySessionIdAndTurnIndex(sessionId, turnIndex)
+        .ifPresent(turn -> turn.failExecution(token, message));
   }
 
   public enum ClaimResult {

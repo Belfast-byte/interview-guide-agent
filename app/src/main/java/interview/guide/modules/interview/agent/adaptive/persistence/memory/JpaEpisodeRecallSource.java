@@ -143,7 +143,7 @@ public class JpaEpisodeRecallSource implements EpisodeRecallSource {
     }
     List<ProbeGap> gaps = facts.gaps().getOrDefault(episode.assessmentId(), List.of());
     return gaps.isEmpty()
-        ? "该知识点尚未形成闭环证据"
+        ? null
         : gaps.stream().map(ProbeGap::missingPoint).collect(Collectors.joining("；"));
   }
 
@@ -169,7 +169,8 @@ public class JpaEpisodeRecallSource implements EpisodeRecallSource {
         facts.evidences().getOrDefault(assessment.id(), List.of()),
         facts.gaps().getOrDefault(assessment.id(), List.of()),
         episode.assistanceLevel(),
-        episode.closureStatus(),
+        facts.gaps().getOrDefault(assessment.id(), List.of()).isEmpty()
+            ? EpisodeClosureStatus.RESOLVED : EpisodeClosureStatus.UNRESOLVED,
         similarity(exposure, facts)
     );
   }
@@ -214,6 +215,7 @@ public class JpaEpisodeRecallSource implements EpisodeRecallSource {
       return Map.of();
     }
     return gapRepository.findByAssessmentIds(assessmentIds).stream()
+        .filter(g -> g.closedByAssessmentId()==null)
         .collect(Collectors.groupingBy(
             AssessmentProbeGapEntity::assessmentId,
             Collectors.mapping(AssessmentProbeGapEntity::toDomain, Collectors.toList())

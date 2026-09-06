@@ -58,7 +58,7 @@ public class CandidateMemoryQueryService {
     return topics.stream()
         .sorted(Comparator.comparing(TopicKey::skillId).thenComparing(TopicKey::focusId))
         .map(topic -> new CandidateMemoryQueryResult.TopicProfile(
-            topic, evaluations.get(topic), practices.get(topic)))
+            topic, evaluations.get(topic), practices.get(topic),stateSource.beliefs(owner,topic)))
         .toList();
   }
 

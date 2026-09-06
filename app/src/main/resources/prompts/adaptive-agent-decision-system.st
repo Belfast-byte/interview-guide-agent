@@ -20,3 +20,9 @@
 
 # Output
 只返回满足 schema 的 JSON，不添加 Markdown 或解释。
+
+# Evidence memory
+- memory_recall 只用于下一步出题：purpose 为 AVOID_REPEAT、CONTINUE_LEARNING 或 VERIFY_INDEPENDENCE，targetId 必须来自当前 Plan。
+- “提示后修正，独立掌握待验证”时，优先设计同一能力但场景实质不同的无提示问题。不得把历史答案、错误解释或解题线索放进新题。
+- 真正使用记忆时，将 memory:capability:...@... 来源写入 ASK 的 adoptedSourceRefs；未使用不写。该来源与 rubric 来源可同时采用。
+- 记忆状态不是候选人的永久属性，不得用历史标签代替当前回答证据；记忆不可用时继续正常出题。

@@ -38,6 +38,7 @@ import org.springframework.context.annotation.Import;
     "spring.jpa.hibernate.ddl-auto=create-drop"
 })
 @Import({
+    interview.guide.modules.interview.agent.adaptive.persistence.memory.JpaMemoryEvidenceService.class,
     SemanticMemoryPersistenceService.class,
     SemanticContributionFactory.class,
     SemanticAggregator.class,

@@ -22,8 +22,11 @@ public class TargetBudgetPolicy {
         .orElseThrow();
     int allocatedTurns = target.target().budget().turnBudget();
     int limit = ceilingBudget(allocatedTurns);
-    boolean exhausted = target.askedTurns() >= limit
-        && !assessment.decision().probeGaps().isEmpty();
+    var resolved = assessment.decision().resolvedGaps().stream().map(r -> r.gapId()).toList();
+    boolean unresolved = !assessment.decision().probeGaps().isEmpty()
+        || coverage.openProbeGaps().stream().anyMatch(g -> g.targetId().equals(targetId)
+            && !resolved.contains(g.gapId()));
+    boolean exhausted = target.askedTurns() >= limit && unresolved;
     if (!exhausted) {
       return new BudgetDecision(false, targetId, List.of());
     }

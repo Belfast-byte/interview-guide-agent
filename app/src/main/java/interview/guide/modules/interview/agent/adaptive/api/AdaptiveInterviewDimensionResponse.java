@@ -23,7 +23,8 @@ public record AdaptiveInterviewDimensionResponse(
 
   static AdaptiveInterviewDimensionResponse from(
       TargetCoverage coverage,
-      TargetWorkStatus displayStatus
+      TargetWorkStatus displayStatus,
+      int assessedTurns
   ) {
     CapabilityTarget target = coverage.target();
     return new AdaptiveInterviewDimensionResponse(
@@ -34,7 +35,7 @@ public record AdaptiveInterviewDimensionResponse(
         target.depth().expected(),
         target.depth().ceiling(),
         target.evidenceObjectives(),
-        coverage.askedTurns(),
+        assessedTurns,
         displayStatus
     );
   }

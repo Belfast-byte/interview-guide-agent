@@ -232,16 +232,26 @@ class CandidateLlmProviderServiceTest {
   }
 
   @Test
-  @DisplayName("未设置默认文本 Provider 时不能启动面试")
+  @DisplayName("未显式选择且无默认文本 Provider 时不能启动面试")
   void resolveChatProviderRequiresDefault() {
     when(settingRepository.findById(candidateId)).thenReturn(Optional.empty());
 
-    assertThatThrownBy(() -> service.resolveChatProvider(candidateId, "provider-1"))
+    assertThatThrownBy(() -> service.resolveChatProvider(candidateId, null))
         .isInstanceOf(BusinessException.class)
         .extracting(exception -> ((BusinessException) exception).getCode())
         .isEqualTo(ErrorCode.PROVIDER_DEFAULT_REQUIRED.getCode());
 
     verify(providerRepository, never()).findByIdAndCandidateId(any(), any());
+  }
+
+  @Test
+  @DisplayName("显式选择可用 Provider 不要求默认设置")
+  void resolveExplicitProviderWithoutDefault() {
+    when(providerRepository.findByIdAndCandidateId("provider-1", candidateId))
+        .thenReturn(Optional.of(provider("provider-1", false)));
+    assertThat(service.resolveChatProvider(candidateId, "provider-1"))
+        .isEqualTo(new CandidateChatProvider("provider-1", "我的 Provider", "chat-model"));
+    verify(settingRepository, never()).findById(any());
   }
 
   @Test

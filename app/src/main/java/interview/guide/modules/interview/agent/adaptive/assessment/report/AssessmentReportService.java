@@ -8,7 +8,6 @@ import interview.guide.modules.interview.agent.adaptive.core.session.AdaptiveSes
 import java.util.Comparator;
 import java.util.List;
 import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Transactional;
 
 /**
  * 评估报告服务，基于持久化评估结果确定性组装候选人报告。
@@ -60,9 +59,7 @@ public class AssessmentReportService {
   private List<ReportDimensionConclusion> conclusions(
       AssessmentReportFacts facts
   ) {
-    if (facts.status() != AdaptiveSessionStatus.COMPLETED
-        || facts.dimensions().stream()
-            .anyMatch(dimension -> dimension.assessments().isEmpty())) {
+    if (facts.status() != AdaptiveSessionStatus.COMPLETED) {
       throw new BusinessException(
           ErrorCode.INTERVIEW_NOT_COMPLETED,
           "面试评估尚未完成"
@@ -76,6 +73,10 @@ public class AssessmentReportService {
   private ReportDimensionConclusion conclusion(
       AssessmentReportDimensionFacts dimension
   ) {
+    if (dimension.assessments().isEmpty()) {
+      return new ReportDimensionConclusion(dimension.order(), dimension.dimension(),
+          dimension.focus(), null, null, "未考察：本场没有该维度的作答评估", List.of());
+    }
     AssessmentReportTurnFacts finalAssessment = finalAssessment(dimension);
     return new ReportDimensionConclusion(
         dimension.order(),
@@ -83,7 +84,8 @@ public class AssessmentReportService {
         dimension.focus(),
         finalAssessment.depthLevel(),
         finalAssessment.confidence(),
-        finalAssessment.rationale(),
+        finalAssessment.rationale() + (dimension.unresolvedGaps().isEmpty() ? ""
+            : "；证据不足：" + String.join("；", dimension.unresolvedGaps())),
         finalAssessment.evidences().stream()
             .map(ReportEvidenceReference::from)
             .toList()
@@ -106,9 +108,10 @@ public class AssessmentReportService {
   ) {
     DepthLevel weakestLevel = conclusions.stream()
         .map(ReportDimensionConclusion::depthLevel)
+        .filter(java.util.Objects::nonNull)
         .min(DepthLevel::compareTo)
-        .orElseThrow();
-    if (weakestLevel == DepthLevel.L4) {
+        .orElse(null);
+    if (weakestLevel == null || weakestLevel == DepthLevel.L4) {
       return List.of();
     }
     DepthLevel missingLevel = DepthLevel.values()[weakestLevel.ordinal() + 1];

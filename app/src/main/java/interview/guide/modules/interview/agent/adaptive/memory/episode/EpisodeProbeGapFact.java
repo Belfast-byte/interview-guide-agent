@@ -6,5 +6,8 @@ package interview.guide.modules.interview.agent.adaptive.memory.episode;
 public record EpisodeProbeGapFact(
     long id,
     String anchor,
-    String missingPoint
-) {}
+    String missingPoint,
+    Long closedByAssessmentId
+) {
+  public EpisodeProbeGapFact(long id,String anchor,String missingPoint) { this(id,anchor,missingPoint,null); }
+}

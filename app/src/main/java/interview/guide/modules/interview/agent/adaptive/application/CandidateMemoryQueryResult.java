@@ -21,8 +21,13 @@ public record CandidateMemoryQueryResult(
   public record TopicProfile(
       TopicKey topic,
       EvaluationSemanticState evaluation,
-      PracticeSemanticState practice
-  ) {}
+      PracticeSemanticState practice,
+      List<interview.guide.modules.interview.agent.adaptive.memory.observation.CapabilityBelief> beliefs
+  ) {
+    public TopicProfile(TopicKey topic,EvaluationSemanticState evaluation,PracticeSemanticState practice) {
+      this(topic,evaluation,practice,List.of());
+    }
+  }
 
   public record Episode(
       String sessionId,

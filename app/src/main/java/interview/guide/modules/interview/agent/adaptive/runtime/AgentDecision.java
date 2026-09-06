@@ -2,6 +2,8 @@ package interview.guide.modules.interview.agent.adaptive.runtime;
 
 import interview.guide.modules.interview.agent.adaptive.core.context.WorkingMemory;
 import java.util.List;
+import java.util.ArrayList;
+import java.util.Collections;
 
 /** 模型对本轮最终动作及完整 WorkingMemory 的提案。 */
 public record AgentDecision(
@@ -20,7 +22,7 @@ public record AgentDecision(
 
     public CallReadTools {
       if (calls != null) {
-        calls = List.copyOf(calls);
+        calls = calls == null ? null : Collections.unmodifiableList(new ArrayList<>(calls));
       }
     }
   }
@@ -34,7 +36,7 @@ public record AgentDecision(
 
     public QuestionDraft {
       if (adoptedSourceRefs != null) {
-        adoptedSourceRefs = List.copyOf(adoptedSourceRefs);
+        adoptedSourceRefs = adoptedSourceRefs == null ? null : Collections.unmodifiableList(new ArrayList<>(adoptedSourceRefs));
       }
     }
   }

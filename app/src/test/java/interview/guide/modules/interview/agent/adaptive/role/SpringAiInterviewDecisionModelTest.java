@@ -57,7 +57,7 @@ class SpringAiInterviewDecisionModelTest {
         providerRegistry,
         outputInvoker,
         prompt,
-        modelOptionsFactory
+        modelOptionsFactory, org.mockito.Mockito.mock(interview.guide.modules.interview.agent.adaptive.observability.AdaptiveInputTokenBudget.class)
     );
   }
 

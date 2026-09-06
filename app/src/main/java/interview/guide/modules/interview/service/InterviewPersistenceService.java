@@ -165,6 +165,53 @@ public class InterviewPersistenceService {
         return saved;
     }
     
+    /** 锁定会话后原子提交答案、位置、状态及待评估标记。 */
+    @Transactional(rollbackFor = Exception.class)
+    public void persistAnswer(String sessionId, int index, String answer, boolean advance) {
+        InterviewSessionEntity session = sessionRepository.findLockedBySessionId(sessionId)
+            .orElseThrow(() -> new BusinessException(ErrorCode.INTERVIEW_SESSION_NOT_FOUND));
+        if (session.getStatus() == InterviewSessionEntity.SessionStatus.COMPLETED
+            || session.getStatus() == InterviewSessionEntity.SessionStatus.EVALUATED) {
+            throw new BusinessException(ErrorCode.INTERVIEW_ALREADY_COMPLETED);
+        }
+        if (index != session.getCurrentQuestionIndex()) {
+            throw new BusinessException(ErrorCode.INTERVIEW_ANSWER_SAVE_FAILED, "题目位置已变化，请刷新会话");
+        }
+        List<InterviewQuestionDTO> questions = objectMapper.readValue(
+            session.getQuestionsJson(), new TypeReference<>() {});
+        if (index < 0 || index >= questions.size()) {
+            throw new BusinessException(ErrorCode.INTERVIEW_QUESTION_NOT_FOUND);
+        }
+        InterviewQuestionDTO question = questions.get(index);
+        saveAnswer(sessionId, index, question.question(), question.category(), answer, 0, null);
+        session.setStatus(InterviewSessionEntity.SessionStatus.IN_PROGRESS);
+        if (advance) {
+            session.setCurrentQuestionIndex(index + 1);
+            if (index + 1 == questions.size()) markCompleted(session);
+        }
+        sessionRepository.saveAndFlush(session);
+    }
+
+    @Transactional(rollbackFor = Exception.class)
+    public void completeInterview(String sessionId) {
+        InterviewSessionEntity session = sessionRepository.findLockedBySessionId(sessionId)
+            .orElseThrow(() -> new BusinessException(ErrorCode.INTERVIEW_SESSION_NOT_FOUND));
+        if (session.getStatus() == InterviewSessionEntity.SessionStatus.COMPLETED
+            || session.getStatus() == InterviewSessionEntity.SessionStatus.EVALUATED) {
+            throw new BusinessException(ErrorCode.INTERVIEW_ALREADY_COMPLETED);
+        }
+        markCompleted(session);
+        sessionRepository.saveAndFlush(session);
+    }
+
+    private void markCompleted(InterviewSessionEntity session) {
+        session.setStatus(InterviewSessionEntity.SessionStatus.COMPLETED);
+        session.setCompletedAt(LocalDateTime.now());
+        session.setEvaluateStatus(AsyncTaskStatus.PENDING);
+        session.setEvaluateDispatchPending(true);
+        session.setEvaluateError(null);
+    }
+
     /**
      * 保存面试报告
      */
@@ -173,8 +220,7 @@ public class InterviewPersistenceService {
         try {
             Optional<InterviewSessionEntity> sessionOpt = sessionRepository.findBySessionId(sessionId);
             if (sessionOpt.isEmpty()) {
-                log.warn("会话不存在: {}", sessionId);
-                return;
+                throw new BusinessException(ErrorCode.INTERVIEW_SESSION_NOT_FOUND);
             }
 
             InterviewSessionEntity session = sessionOpt.get();
@@ -184,6 +230,7 @@ public class InterviewPersistenceService {
             session.setImprovementsJson(objectMapper.writeValueAsString(report.improvements()));
             session.setReferenceAnswersJson(objectMapper.writeValueAsString(report.referenceAnswers()));
             session.setStatus(InterviewSessionEntity.SessionStatus.EVALUATED);
+            session.setEvaluateDispatchPending(false);
             session.setCompletedAt(LocalDateTime.now());
 
             sessionRepository.save(session);
@@ -243,7 +290,7 @@ public class InterviewPersistenceService {
                 sessionId, report.overallScore(), answersToSave.size());
 
         } catch (JacksonException e) {
-            log.error("序列化报告失败: {}", e.getMessage(), e);
+            throw new BusinessException(ErrorCode.INTERNAL_ERROR, "保存报告失败", e);
         }
     }
     

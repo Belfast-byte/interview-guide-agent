@@ -14,7 +14,7 @@ import type {
 import type { CandidateMemoryResponse } from '../types/candidateMemory';
 
 const BASE_PATH = '/api/adaptive-agent-interviews';
-const MODEL_CALL_TIMEOUT_MS = 45_000;
+const MODEL_CALL_TIMEOUT_MS = 75_000;
 const ANSWER_STREAM_TIMEOUT_MS = 75_000;
 const CREATION_STREAM_TIMEOUT_MS = 130_000;
 
@@ -95,6 +95,20 @@ export const adaptiveInterviewApi = {
     return consumeInterviewStream({
       url: `${BASE_PATH}/${sessionId}/answers/stream`,
       payload,
+      timeoutMillis: ANSWER_STREAM_TIMEOUT_MS,
+      callbacks: {
+        onStage: content => callbacks.onStage(content.trim() as AnswerStreamStage),
+        onDelta: callbacks.onDelta,
+        onDone: callbacks.onDone,
+        onError: callbacks.onError,
+      },
+    });
+  },
+
+  retryAnswerStream(sessionId: string, turnIndex: number, callbacks: SubmitAnswerStreamCallbacks): Promise<void> {
+    return consumeInterviewStream({
+      url: `${BASE_PATH}/${sessionId}/answers/${turnIndex}/retry/stream`,
+      payload: {},
       timeoutMillis: ANSWER_STREAM_TIMEOUT_MS,
       callbacks: {
         onStage: content => callbacks.onStage(content.trim() as AnswerStreamStage),

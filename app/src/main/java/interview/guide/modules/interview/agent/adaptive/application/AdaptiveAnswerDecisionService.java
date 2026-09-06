@@ -4,6 +4,7 @@ import interview.guide.modules.interview.agent.adaptive.application.TargetBudget
 import interview.guide.modules.interview.agent.adaptive.core.context.CoverageProjector;
 import interview.guide.modules.interview.agent.adaptive.core.context.CoverageView;
 import interview.guide.modules.interview.agent.adaptive.core.context.MemoryOwner;
+import interview.guide.modules.interview.agent.adaptive.core.context.WorkingMemory;
 import interview.guide.modules.interview.agent.adaptive.core.event.CandidateAnswer;
 import interview.guide.modules.interview.agent.adaptive.core.session.AdaptiveInterviewTurn;
 import interview.guide.modules.interview.agent.adaptive.memory.ContextAssembler;
@@ -42,12 +43,21 @@ public class AdaptiveAnswerDecisionService {
   }
 
   public AnswerProgressionDecision decide(AnswerDecisionRequest request) {
+    long deadline = System.nanoTime() + request.deadline().toNanos();
+    request.sink().onStage(AnswerEventSink.AnswerStage.ASSESSING);
     AnswerAssessment assessment = preparation.prepare(request.interview(), request.answer());
     BudgetDecision budget = budgetPolicy.evaluate(request.interview().coverage(), assessment);
+    if (request.interview().coverage().remainingTurns() == 0) {
+      // 最后一轮评估仍需提交；结束无需再加载下一题上下文或调用决策模型。
+      var finish = new AgentDecision(
+          WorkingMemory.empty(),
+          new AgentDecision.Finish("已达到本场最大轮次"));
+      return new AnswerProgressionDecision(assessment, finish, budget.exhausted());
+    }
+    request.sink().onStage(AnswerEventSink.AnswerStage.GENERATING);
     var context = context(request, assessment, budget);
-    AgentDecision decision = request.interview().coverage().remainingTurns() == 0
-        ? new AgentDecision(context.workingMemory(), new AgentDecision.Finish("已达到本场最大轮次"))
-        : agentLoop.run(context, budget.observations(), request.deadline());
+    AgentDecision decision = agentLoop.run(
+        context, budget.observations(), Duration.ofNanos(Math.max(0, deadline - System.nanoTime())));
     return new AnswerProgressionDecision(assessment, decision, budget.exhausted());
   }
 
@@ -102,12 +112,10 @@ public class AdaptiveAnswerDecisionService {
       CoverageUpdate update
   ) {
     String targetId = CoverageProjector.targetId(update.assessment().dimension().order());
-    if (update.budget().exhausted()) {
-      return current.openProbeGaps().stream()
-          .filter(gap -> !gap.targetId().equals(targetId))
-          .toList();
-    }
-    List<CoverageView.OpenProbeGap> gaps = new ArrayList<>(current.openProbeGaps());
+    var resolved = update.assessment().decision().resolvedGaps().stream()
+        .map(r -> r.gapId()).toList();
+    List<CoverageView.OpenProbeGap> gaps = new ArrayList<>(current.openProbeGaps().stream()
+        .filter(g -> !resolved.contains(g.gapId())).toList());
     var proposedGaps = update.assessment().decision().probeGaps();
     for (int index = 0; index < proposedGaps.size(); index++) {
       var gap = proposedGaps.get(index);
@@ -169,7 +177,8 @@ public class AdaptiveAnswerDecisionService {
       MemoryOwner owner,
       PlannedInterview interview,
       CandidateAnswer answer,
-      Duration deadline
+      Duration deadline,
+      AnswerEventSink sink
   ) {}
 
   private record CoverageUpdate(

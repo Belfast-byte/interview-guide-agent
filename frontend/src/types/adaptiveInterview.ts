@@ -31,6 +31,8 @@ export interface AdaptiveInterviewTurn {
   dimensionOrder: number;
   question: string;
   answer: string | null;
+  answerStatus?: 'WAITING' | 'PROCESSING' | 'RETRYABLE' | 'COMPLETED';
+  answerError?: string | null;
 }
 
 export interface AdaptiveInterviewSession {
@@ -144,8 +146,8 @@ export interface AdaptiveDimensionConclusion {
   order: number;
   dimension: string;
   focus: string;
-  depthLevel: AdaptiveDepthLevel;
-  confidence: number;
+  depthLevel: AdaptiveDepthLevel | null;
+  confidence: number | null;
   rationale: string;
   evidences: AdaptiveEvidenceReference[];
 }

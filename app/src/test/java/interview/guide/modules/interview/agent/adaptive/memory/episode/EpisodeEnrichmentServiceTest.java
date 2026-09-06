@@ -43,6 +43,8 @@ import org.springframework.transaction.support.TransactionSynchronizationManager
     "spring.jpa.hibernate.ddl-auto=create-drop"
 })
 @Import({
+    interview.guide.modules.interview.agent.adaptive.persistence.memory.JpaMemoryEvidenceService.class,
+    interview.guide.modules.interview.agent.adaptive.application.AdaptiveAgentProperties.class,
     EpisodeEnrichmentPersistenceService.class,
     EpisodeEnrichmentServiceDependencies.class,
     EpisodeEnrichmentService.class,

@@ -25,6 +25,33 @@ import org.springframework.web.bind.annotation.RestController;
 public class CandidateMemoryController {
 
   private final CandidateMemoryQueryService queryService;
+  private final interview.guide.modules.interview.agent.adaptive.persistence.memory.JpaMemoryEvidenceService memoryEvidence;
+
+  @GetMapping("/observations/{revisionId}")
+  public Result<java.util.List<interview.guide.modules.interview.agent.adaptive.persistence.memory.MemoryObservationRevision>> audit(
+      @AuthenticationPrincipal AuthenticatedUser principal,
+      @org.springframework.web.bind.annotation.PathVariable long revisionId) {
+    return Result.success(memoryEvidence.audit(new MemoryOwner(null,principal.candidateId().toString()),revisionId));
+  }
+
+  @org.springframework.web.bind.annotation.PostMapping("/observations/{revisionId}/retract")
+  public Result<Void> retract(@AuthenticationPrincipal AuthenticatedUser principal,
+      @org.springframework.web.bind.annotation.PathVariable long revisionId,
+      @jakarta.validation.Valid @org.springframework.web.bind.annotation.RequestBody Retraction input) {
+    memoryEvidence.retract(new MemoryOwner(null,principal.candidateId().toString()),revisionId,input.reason());
+    return Result.success();
+  }
+
+  @org.springframework.web.bind.annotation.PostMapping("/observations/{revisionId}/rebuild")
+  public Result<Void> rebuild(@AuthenticationPrincipal AuthenticatedUser principal,
+      @org.springframework.web.bind.annotation.PathVariable long revisionId) {
+    memoryEvidence.rebuild(new MemoryOwner(null,principal.candidateId().toString()),revisionId);
+    return Result.success();
+  }
+
+  public record Retraction(@jakarta.validation.constraints.NotBlank
+      @jakarta.validation.constraints.Size(max=500) String reason) {}
+
 
   @GetMapping
   public Result<CandidateMemoryResponse> get(

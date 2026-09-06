@@ -12,12 +12,18 @@ public record AssessmentProposal(
     double confidence,
     String rationaleSummary,
     List<String> evidenceQuotes,
-    List<ProbeGap> probeGaps
+    List<ProbeGap> probeGaps,
+    List<GapResolution> resolvedGaps
 ) {
 
   public AssessmentProposal {
     evidenceQuotes = List.copyOf(evidenceQuotes);
     probeGaps = List.copyOf(probeGaps);
+    resolvedGaps = resolvedGaps == null ? List.of() : List.copyOf(resolvedGaps);
+  }
+
+  public AssessmentProposal(DepthLevel depthLevel, double confidence, String rationaleSummary, List<String> evidenceQuotes, List<ProbeGap> probeGaps) {
+    this(depthLevel, confidence, rationaleSummary, evidenceQuotes, probeGaps, List.of());
   }
 
   public AssessmentProposal(

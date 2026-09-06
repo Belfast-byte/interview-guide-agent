@@ -56,13 +56,9 @@ class AdaptiveInterviewCreationServiceTest {
     PlannedInterview completed = mock(PlannedInterview.class);
     when(persistence.get("session-1")).thenReturn(initialized, completed);
 
-    service.initialize(run);
-    service.complete(run);
+    service.create(run);
 
-    verify(transactions).initialize(run.creation(), run.plan());
-    verify(transactions).publishFirstTurn(
-        new AdaptiveCreationTransactionService.InitialTurnCommit(
-            "session-1", run.plan(), run.decision()));
+    verify(transactions).create(run.creation(), run.plan(), run.decision());
   }
 
   @Test
@@ -77,10 +73,10 @@ class AdaptiveInterviewCreationServiceTest {
     );
     var run = run(invalid);
 
-    assertThatThrownBy(() -> service.initialize(run))
+    assertThatThrownBy(() -> service.create(run))
         .isInstanceOf(BusinessException.class)
         .hasMessageContaining("action.ask.question.content");
-    verify(transactions, never()).initialize(run.creation(), run.plan());
+    verify(transactions, never()).create(run.creation(), run.plan(), run.decision());
   }
 
   private AdaptiveInterviewCreationService.InitialAgentRun run(AgentDecision decision) {

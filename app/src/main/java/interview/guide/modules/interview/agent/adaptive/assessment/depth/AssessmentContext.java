@@ -12,11 +12,15 @@ public record AssessmentContext(
     String focus,
     String question,
     String answer,
-    List<String> rubric
+    List<String> rubric,
+    List<interview.guide.modules.interview.agent.adaptive.core.session.AdoptedRubricSource> adoptedRubrics,
+    List<interview.guide.modules.interview.agent.adaptive.core.context.CoverageView.OpenProbeGap> openGaps
 ) {
 
   public AssessmentContext {
     rubric = List.copyOf(rubric);
+    adoptedRubrics = List.copyOf(adoptedRubrics);
+    openGaps = List.copyOf(openGaps);
   }
 
   public static AssessmentContext currentAnswer(
@@ -30,7 +34,7 @@ public record AssessmentContext(
         focus,
         question,
         answer,
-        Arrays.stream(DepthLevel.values()).map(DepthLevel::rubricLine).toList()
+        Arrays.stream(DepthLevel.values()).map(DepthLevel::rubricLine).toList(), List.of(), List.of()
     );
   }
 }

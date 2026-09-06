@@ -53,11 +53,24 @@ public class AdaptiveInterviewApplicationService {
     return create(resolveCandidateInput(command));
   }
 
-  public PlannedInterview createForCandidateStreaming(
+  public void createForCandidateStreaming(
       CandidateInterviewCreationCommand command,
       InterviewCreationEventSink sink
   ) {
-    return createStreaming(resolveCandidateInput(command), sink);
+    try {
+      creationExecutor.submit(() -> {
+        try {
+          PlannedInterview completed = create(resolveCandidateInput(command));
+          sink.onCreated(completed);
+          sink.onCompleted(completed);
+        } catch (Exception e) {
+          log.error("自适应面试创建失败", e);
+          sink.onFailed(readableFailure(e));
+        }
+      });
+    } catch (RejectedExecutionException e) {
+      sink.onFailed("创建队列已满，请稍后重试");
+    }
   }
 
   private InterviewCreationInput resolveCandidateInput(
@@ -94,49 +107,7 @@ public class AdaptiveInterviewApplicationService {
 
   private PlannedInterview create(InterviewCreationInput input) {
     String sessionId = UUID.randomUUID().toString();
-    AdaptiveInterviewCreationService.InitialAgentRun run = initializeCreation(sessionId, input);
-    PlannedInterview initialized = creationService.initialize(run);
-    try {
-      submitCreation(run, InterviewCreationEventSink.noop());
-    } catch (RejectedExecutionException e) {
-      throw new BusinessException(ErrorCode.INTERNAL_ERROR, "自适应面试创建任务提交失败", e);
-    }
-    return initialized;
-  }
-
-  private PlannedInterview createStreaming(
-      InterviewCreationInput input,
-      InterviewCreationEventSink sink
-  ) {
-    String sessionId = UUID.randomUUID().toString();
-    AdaptiveInterviewCreationService.InitialAgentRun run = initializeCreation(sessionId, input);
-    PlannedInterview initialized = creationService.initialize(run);
-    sink.onCreated(initialized);
-    try {
-      submitCreation(run, sink);
-    } catch (RejectedExecutionException e) {
-      sink.onFailed("创建队列已满，请稍后重试");
-    }
-    return initialized;
-  }
-
-  private void submitCreation(
-      AdaptiveInterviewCreationService.InitialAgentRun run,
-      InterviewCreationEventSink sink
-  ) {
-    creationExecutor.submit(() -> {
-      try {
-        PlannedInterview completed = creationService.complete(run);
-        if (sink.deltaSink() != null) {
-          sink.deltaSink().accept(completed.history().turns().getFirst().question());
-        }
-        sink.onCompleted(completed);
-      } catch (Exception e) {
-        String message = readableFailure(e);
-        log.error("自适应面试创建失败: sessionId={}", run.creation().sessionId(), e);
-        sink.onFailed(message);
-      }
-    });
+    return creationService.create(initializeCreation(sessionId, input));
   }
 
   private AdaptiveInterviewCreationService.InitialAgentRun initializeCreation(
@@ -216,6 +187,12 @@ public class AdaptiveInterviewApplicationService {
   ) {
     persistenceService.requireCandidateSession(candidateId, sessionId);
     return submitAnswer(new AnswerSubmissionInput(null, sessionId, answer, sink));
+  }
+
+  public PlannedInterview retryAnswerStreaming(String candidateId, String sessionId, int turnIndex,
+      AnswerEventSink sink) {
+    var answer = persistenceService.answerForCandidate(candidateId, sessionId, turnIndex);
+    return submitAnswerStreaming(candidateId, sessionId, answer, sink);
   }
 
   private PlannedInterview submitAnswer(AnswerSubmissionInput input) {

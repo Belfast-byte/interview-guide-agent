@@ -3,6 +3,7 @@ package interview.guide.modules.interview.agent.adaptive.role;
 import interview.guide.common.ai.LlmProviderRegistry;
 import interview.guide.common.ai.StructuredOutputInvoker;
 import interview.guide.common.exception.ErrorCode;
+import interview.guide.modules.interview.agent.adaptive.observability.AdaptiveInputTokenBudget;
 import interview.guide.modules.interview.agent.adaptive.runtime.AgentDecision;
 import interview.guide.modules.interview.agent.adaptive.runtime.DecisionModelContext;
 import interview.guide.modules.interview.agent.adaptive.runtime.InterviewDecisionModel;
@@ -20,23 +21,27 @@ public class SpringAiInterviewDecisionModel implements InterviewDecisionModel {
   private final StructuredOutputInvoker outputInvoker;
   private final InterviewDecisionPrompt prompt;
   private final AdaptiveModelOptionsFactory modelOptionsFactory;
+  private final AdaptiveInputTokenBudget inputTokenBudget;
 
   public SpringAiInterviewDecisionModel(
       LlmProviderRegistry providerRegistry,
       StructuredOutputInvoker outputInvoker,
       InterviewDecisionPrompt prompt,
-      AdaptiveModelOptionsFactory modelOptionsFactory
+      AdaptiveModelOptionsFactory modelOptionsFactory,
+      AdaptiveInputTokenBudget inputTokenBudget
   ) {
     this.providerRegistry = providerRegistry;
     this.outputInvoker = outputInvoker;
     this.prompt = prompt;
     this.modelOptionsFactory = modelOptionsFactory;
+    this.inputTokenBudget = inputTokenBudget;
   }
 
   @Override
   public AgentDecision decide(DecisionModelContext context) {
     var identity = context.agentContext().session().identity();
     InterviewDecisionPrompt.PreparedPrompt prepared = prompt.prepare(context);
+    inputTokenBudget.verify("interview_agent", prepared.system(), prepared.user());
     ChatClient client = providerRegistry.getPlainChatClient(identity.llmProvider())
         .mutate()
         .defaultOptions(modelOptionsFactory.interviewer(List.of()))

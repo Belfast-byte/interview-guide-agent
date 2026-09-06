@@ -20,7 +20,7 @@ import java.util.List;
 import java.util.Optional;
 import org.springframework.stereotype.Service;
 
-/** 校验一次创建提案，并用两个短事务保存计划与首题。 */
+/** 校验一次创建提案，并用一个短事务保存计划与首题。 */
 @Service
 public class AdaptiveInterviewCreationService {
 
@@ -41,15 +41,9 @@ public class AdaptiveInterviewCreationService {
     this.validator = validator;
   }
 
-  public PlannedInterview initialize(InitialAgentRun run) {
+  public PlannedInterview create(InitialAgentRun run) {
     validate(run);
-    transactions.initialize(run.creation(), run.plan());
-    return persistenceService.get(run.creation().sessionId());
-  }
-
-  public PlannedInterview complete(InitialAgentRun run) {
-    transactions.publishFirstTurn(new InitialTurnCommit(
-        run.creation().sessionId(), run.plan(), run.decision()));
+    transactions.create(run.creation(), run.plan(), run.decision());
     return persistenceService.get(run.creation().sessionId());
   }
 

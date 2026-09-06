@@ -18,7 +18,6 @@ import interview.guide.modules.interview.agent.adaptive.planning.PlannedIntervie
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.Min;
 import java.util.Locale;
-import java.util.function.Consumer;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
@@ -112,7 +111,7 @@ public class AdaptiveInterviewController {
   }
 
   /**
-   * 流式提交文本回答：SSE 推送阶段事件（assessing/generating）与决策增量文本，
+   * 流式提交文本回答：SSE 推送阶段事件（assessing/generating），
    * 完成时推送权威会话状态（done），失败推送 error 事件。代码提交回答走同步接口。
    */
   @PostMapping(
@@ -150,6 +149,32 @@ public class AdaptiveInterviewController {
     return emitter;
   }
 
+  /** 重试从数据库读取原始回答，保留代码提交参数与幂等身份。 */
+  @PostMapping(value = "/{sessionId}/answers/{turnIndex}/retry/stream",
+      produces = MediaType.TEXT_EVENT_STREAM_VALUE)
+  @RateLimit(dimension = RateLimit.Dimension.GLOBAL, count = 10)
+  @RateLimit(dimension = RateLimit.Dimension.IP, count = 10)
+  public SseEmitter retryAnswerStream(
+      @PathVariable String sessionId,
+      @PathVariable int turnIndex,
+      @AuthenticationPrincipal AuthenticatedUser principal
+  ) {
+    SseEmitter emitter = new SseEmitter(ANSWER_STREAM_TIMEOUT_MILLIS);
+    SseAnswerEventSink sink = new SseAnswerEventSink(emitter);
+    answerExecutor.execute(() -> {
+      try {
+        sink.onDone(applicationService.retryAnswerStreaming(
+            candidateId(principal), sessionId, turnIndex, sink));
+      } catch (BusinessException e) {
+        sink.onError(e.getCode(), e.getMessage());
+      } catch (Exception e) {
+        log.error("重试答题推进失败: sessionId={}", sessionId, e);
+        sink.onError(ErrorCode.AI_SERVICE_ERROR.getCode(), "面试推进失败，请重试");
+      }
+    });
+    return emitter;
+  }
+
   private static CandidateAnswer toCandidateAnswer(SubmitAdaptiveAnswerRequest request) {
     return new CandidateAnswer(
         request.turnIndex(),
@@ -179,9 +204,11 @@ public class AdaptiveInterviewController {
       sender.send("stage", stage.name().toLowerCase(Locale.ROOT));
     }
 
+    private final long deadline = System.nanoTime() + java.time.Duration.ofSeconds(60).toNanos();
+
     @Override
-    public Consumer<String> deltaSink() {
-      return delta -> sender.send("delta", delta);
+    public long deadlineNanos() {
+      return deadline;
     }
 
     private void onDone(PlannedInterview interview) {

@@ -9,7 +9,9 @@ public record AdaptiveInterviewTurnResponse(
     int turnIndex,
     Integer dimensionOrder,
     String question,
-    String answer
+    String answer,
+    interview.guide.modules.interview.agent.adaptive.core.session.AnswerProcessingStatus answerStatus,
+    String answerError
 ) {
 
   static AdaptiveInterviewTurnResponse from(AdaptiveInterviewTurn turn) {
@@ -17,7 +19,9 @@ public record AdaptiveInterviewTurnResponse(
         turn.turnIndex(),
         turn.dimensionOrder(),
         turn.question(),
-        turn.answer()
+        turn.answer(),
+        turn.answerStatus(),
+        turn.answerError()
     );
   }
 }

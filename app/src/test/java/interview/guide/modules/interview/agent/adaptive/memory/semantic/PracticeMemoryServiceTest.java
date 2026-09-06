@@ -32,7 +32,8 @@ class PracticeMemoryServiceTest {
         .extracting(PracticePlanningTopic::topic)
         .containsExactly(REDIS);
     assertThat(memory.topics().getFirst().status().evaluatedAbility())
-        .isEqualTo(EvaluatedAbility.COMPETENT);
+        .isNull();
+    org.mockito.Mockito.verify(source, org.mockito.Mockito.never()).findByOwner(OWNER);
   }
 
   private EvaluationSemanticState evaluation(TopicKey topic) {

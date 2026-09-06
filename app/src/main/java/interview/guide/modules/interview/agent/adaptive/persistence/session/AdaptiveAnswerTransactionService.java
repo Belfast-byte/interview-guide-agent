@@ -38,14 +38,24 @@ public class AdaptiveAnswerTransactionService {
   private final AdaptiveAssessmentRepositories assessments;
   private final AdaptiveAnswerSideEffects sideEffects;
 
+  private final RubricSnapshotResolver rubricSnapshots;
+  private final interview.guide.modules.interview.agent.adaptive.persistence.memory.JpaMemoryEvidenceService memoryEvidence;
+  private final interview.guide.modules.interview.agent.adaptive.rubric.RubricGenerationStore rubricGeneration;
+
   public AdaptiveAnswerTransactionService(
       AdaptiveAnswerCoreRepositories core,
       AdaptiveAssessmentRepositories assessments,
-      AdaptiveAnswerSideEffects sideEffects
+      AdaptiveAnswerSideEffects sideEffects,
+      RubricSnapshotResolver rubricSnapshots,
+      interview.guide.modules.interview.agent.adaptive.persistence.memory.JpaMemoryEvidenceService memoryEvidence,
+      interview.guide.modules.interview.agent.adaptive.rubric.RubricGenerationStore rubricGeneration
   ) {
     this.core = core;
     this.assessments = assessments;
     this.sideEffects = sideEffects;
+    this.rubricSnapshots = rubricSnapshots;
+    this.memoryEvidence = memoryEvidence;
+    this.rubricGeneration = rubricGeneration;
   }
 
   @Transactional
@@ -58,6 +68,7 @@ public class AdaptiveAnswerTransactionService {
     }
     session.toDomain().assertCanAnswer(answer);
     AdaptiveAgentTurnEntity answeredTurn = lockedAnsweredTurn(sessionId, answer);
+    answeredTurn.requireExecution(commit.executionToken());
     SavedAssessment saved = saveAssessmentFacts(
         sessionId, answer, commit.facts().progression());
     saveCodeFact(saved.assessment(), answeredTurn, sessionId);
@@ -65,6 +76,11 @@ public class AdaptiveAnswerTransactionService {
     String answeredTargetId = CoverageProjector.targetId(assessment.dimension().order());
     sideEffects.saveEpisode(session, answeredTurn, new EpisodeAssessment(
         saved.assessment(), assessment.dimension(), answeredTargetId));
+    if (answeredTurn.toDomain().adoptedRubrics().stream().noneMatch(
+        r -> r.body() != null && !r.body().isBlank())) {
+      rubricGeneration.enqueue(sessionId, answer.turnIndex(),
+          assessment.dimension().dimension(), assessment.dimension().focus(), answeredTurn.question());
+    }
     applyDecision(new DecisionCommit(
         commit,
         new LockedFacts(session, answeredTurn),
@@ -117,10 +133,8 @@ public class AdaptiveAnswerTransactionService {
             assessment, sessionId, answer.turnIndex(), evidence))
         .toList();
     List<AssessmentProbeGapEntity> savedGaps = assessments.saveGaps(gaps);
-    if (progression.targetBudgetExhausted()) {
-      assessments.closeOpenGaps(
-          sessionId, proposed.dimension().order(), assessment);
-    }
+    assessments.resolveGaps(sessionId, proposed.dimension().order(), assessment,
+        proposed.decision().resolvedGaps());
     return new SavedAssessment(
         assessment,
         savedGaps,
@@ -180,11 +194,12 @@ public class AdaptiveAnswerTransactionService {
             action,
             provenance,
             memory,
-            ask.question().adoptedSourceRefs().stream()
-                .map(AdoptedRubricSource::fromReference)
-                .toList()
+            rubricSnapshots.resolve(ask.question().adoptedSourceRefs().stream()
+                .filter(ref -> ref.startsWith("rubric:")).toList())
         ))
     );
+    nextTurn.recordMemorySources(memoryEvidence.adopt(commit.commit().owner(),
+        target.topic(),ask.question().adoptedSourceRefs()));
     sideEffects.saveExposure(new QuestionExposureInput(
         commit.locked().session(), nextTurn, new QuestionTarget(target, action)));
   }
@@ -247,7 +262,8 @@ public class AdaptiveAnswerTransactionService {
   public record AnswerCommit(
       MemoryOwner owner,
       PlannedInterview interview,
-      CommitFacts facts
+      CommitFacts facts,
+      String executionToken
   ) {}
 
   public record CommitFacts(

@@ -45,7 +45,8 @@ public class EpisodeEnrichmentRecoveryPersistence
             EpisodeEnrichmentStatus.PROCESSING,
             processingCutoff
         );
-    stale.forEach(EpisodeFactEntity::recoverStaleEnrichment);
+    stale.stream().filter(EpisodeFactEntity::enrichmentLeaseExpired)
+        .forEach(EpisodeFactEntity::recoverStaleEnrichment);
     episodeRepository.flush();
     return episodeRepository.findMissingEnrichmentJobs(
         EpisodeEnrichmentStatus.PENDING

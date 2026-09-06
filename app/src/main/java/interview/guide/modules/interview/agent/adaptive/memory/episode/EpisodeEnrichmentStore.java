@@ -7,9 +7,11 @@ import java.util.Optional;
  */
 public interface EpisodeEnrichmentStore {
 
-  Optional<EpisodeFact> claim(long episodeId);
+  Optional<Claim> claim(long episodeId);
 
-  void complete(EpisodeEnrichmentCompletion completion);
+  record Claim(EpisodeFact episode, String executionToken) {}
 
-  void fail(long episodeId, String error);
+  boolean complete(EpisodeEnrichmentCompletion completion);
+
+  void fail(long episodeId, String executionToken, String error);
 }

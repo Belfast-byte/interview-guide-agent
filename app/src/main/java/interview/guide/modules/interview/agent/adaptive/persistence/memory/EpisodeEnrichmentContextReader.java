@@ -25,6 +25,7 @@ import org.springframework.transaction.annotation.Transactional;
 public class EpisodeEnrichmentContextReader implements EpisodeEnrichmentContextSource {
 
   private final EpisodeEnrichmentRepositories repositories;
+  private final interview.guide.modules.interview.agent.adaptive.persistence.memory.JpaMemoryEvidenceService memoryEvidence;
 
   @Transactional(readOnly = true)
   @Override
@@ -56,7 +57,8 @@ public class EpisodeEnrichmentContextReader implements EpisodeEnrichmentContextS
                 evidence.codeAnchor()
             ))
             .toList(),
-        loadGaps(turn, assessment)
+        loadGaps(turn, assessment),
+        memoryEvidence.context(episode,turn)
     );
   }
 
@@ -103,7 +105,7 @@ public class EpisodeEnrichmentContextReader implements EpisodeEnrichmentContextS
 
   private EpisodeProbeGapFact toGapFact(AssessmentProbeGapEntity entity) {
     ProbeGap gap = entity.toDomain();
-    return new EpisodeProbeGapFact(entity.id(), gap.anchor(), gap.missingPoint());
+    return new EpisodeProbeGapFact(entity.id(), gap.anchor(), gap.missingPoint(),entity.closedByAssessmentId());
   }
 
   private BusinessException notFound(String message) {

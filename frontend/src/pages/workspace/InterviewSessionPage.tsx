@@ -12,7 +12,7 @@ import {
   Send,
 } from 'lucide-react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
-import { adaptiveInterviewApi } from '../../api/adaptiveInterview';
+import { adaptiveInterviewApi, type SubmitAnswerStreamCallbacks } from '../../api/adaptiveInterview';
 import { getErrorMessage } from '../../api/request';
 import { ROUTES } from '../../constants/routes';
 import { extractPartialContent } from '../adaptiveInterviewStream';
@@ -32,6 +32,7 @@ export default function InterviewSessionPage() {
   const [answer, setAnswer] = useState('');
   const [loading, setLoading] = useState(true);
   const [working, setWorking] = useState(false);
+  const [recoveryPending, setRecoveryPending] = useState(false);
   const [error, setError] = useState('');
   const [problemId, setProblemId] = useState('');
   const [workloadType, setWorkloadType] = useState<'ALGORITHM' | 'PATCH'>('ALGORITHM');
@@ -54,6 +55,7 @@ export default function InterviewSessionPage() {
     setError('');
     try {
       setSession(await adaptiveInterviewApi.get(id));
+      setRecoveryPending(false);
     } catch (requestError) {
       setError(getErrorMessage(requestError));
     } finally {
@@ -72,6 +74,11 @@ export default function InterviewSessionPage() {
     setViewIndex(null);
   }, [sessionId]);
 
+  // 手动刷新或后台轮询推进到下一题时，旧题草稿不能带入新题。
+  useEffect(() => {
+    setAnswer('');
+  }, [session?.sessionId, session?.currentTurn]);
+
   // 页面刷新后无法重连原 POST 流，仅对这种恢复场景轮询 CREATED 会话。
   useEffect(() => {
     if (!sessionId || session?.status !== 'CREATED' || creationStreamActive.current) return;
@@ -80,7 +87,8 @@ export default function InterviewSessionPage() {
   }, [loadSession, session?.status, sessionId]);
 
   const completedTurns = useMemo(
-    () => session?.turns.filter(turn => turn.answer !== null).length ?? 0,
+    () => session?.turns.filter(turn => turn.answerStatus === 'COMPLETED'
+      || (turn.answerStatus === undefined && turn.answer !== null)).length ?? 0,
     [session?.turns],
   );
   const currentDimension = useMemo(
@@ -106,8 +114,36 @@ export default function InterviewSessionPage() {
     return () => window.clearTimeout(timer);
   }, [session, submission]);
 
-  const submitAnswer = async (activeSession: AdaptiveInterviewSession) => {
-    const content = answer.trim();
+  const activeTurn = session?.turns.find(turn => turn.turnIndex === session.currentTurn);
+
+  // 请求中断或页面刷新后，以服务端快照追踪执行租约，直到完成或可重试。
+  useEffect(() => {
+    if (!sessionId || working || session?.status !== 'IN_PROGRESS'
+      || activeTurn?.answerStatus !== 'PROCESSING') return;
+    let cancelled = false;
+    let timer: number;
+    const poll = async () => {
+      try {
+        const updated = await adaptiveInterviewApi.get(sessionId);
+        if (!cancelled) {
+          setSession(updated);
+          setRecoveryPending(false);
+          setError('');
+        }
+      } catch (requestError) {
+        if (!cancelled) {
+          setError(getErrorMessage(requestError));
+          timer = window.setTimeout(() => void poll(), 2_000);
+        }
+      }
+    };
+    timer = window.setTimeout(() => void poll(), 2_000);
+    return () => { cancelled = true; window.clearTimeout(timer); };
+  }, [sessionId, session, activeTurn?.answerStatus, working]);
+
+  const submitAnswer = async (activeSession: AdaptiveInterviewSession, retryAnswer?: string) => {
+    if (working || recoveryPending || judging) return;
+    const content = retryAnswer ?? answer.trim();
     if (!content) {
       setError('回答不能为空。请说明你的判断、做法和取舍。');
       return;
@@ -117,49 +153,54 @@ export default function InterviewSessionPage() {
     setError('');
     setAnswerStage('assessing');
     setStreamingQuestion('');
-    // 乐观更新：回答立即写入当前轮，清空输入框；失败时回滚
-    setSession(prev => prev === null ? prev : {
-      ...prev,
-      turns: prev.turns.map(turn =>
-        turn.turnIndex === activeSession.currentTurn ? { ...turn, answer: content } : turn),
-    });
-    setAnswer('');
-
+    let streamFailure: Error | null = null;
     let rawDecision = '';
-    await adaptiveInterviewApi.submitAnswerStream(activeSession.sessionId, {
-      turnIndex: activeSession.currentTurn,
-      answer: content,
-    }, {
-      onStage: setAnswerStage,
-      onDelta: delta => {
-        rawDecision += delta;
-        setStreamingQuestion(extractPartialContent(rawDecision));
-      },
-      onDone: updated => {
+    try {
+      const callbacks: SubmitAnswerStreamCallbacks = {
+        onStage: setAnswerStage,
+        onDelta: delta => {
+          rawDecision += delta;
+          setStreamingQuestion(extractPartialContent(rawDecision));
+        },
+        onDone: updated => {
+          setSession(updated);
+          setAnswer('');
+        },
+        onError: streamError => { streamFailure = streamError; },
+      };
+      if (retryAnswer !== undefined) {
+        await adaptiveInterviewApi.retryAnswerStream(activeSession.sessionId, activeSession.currentTurn, callbacks);
+      } else {
+        await adaptiveInterviewApi.submitAnswerStream(activeSession.sessionId, {
+          turnIndex: activeSession.currentTurn, answer: content,
+        }, callbacks);
+      }
+      if (streamFailure) throw streamFailure;
+    } catch (requestError) {
+      setError(getErrorMessage(requestError));
+      // 不能回滚已领取的答案：后台可能仍在处理，或已经完成提交。
+      try {
+        const updated = await adaptiveInterviewApi.get(activeSession.sessionId);
         setSession(updated);
-        setStreamingQuestion('');
-        setAnswerStage(null);
-        setViewIndex(null);
-      },
-      onError: streamError => {
-        setSession(prev => prev === null ? prev : {
-          ...prev,
-          turns: prev.turns.map(turn =>
-            turn.turnIndex === activeSession.currentTurn && turn.answer === content
-              ? { ...turn, answer: null }
-              : turn),
-        });
-        setAnswer(content);
-        setStreamingQuestion('');
-        setAnswerStage(null);
-        setViewIndex(null);
-        setError(getErrorMessage(streamError));
-      },
-    });
-    setWorking(false);
+        setRecoveryPending(false);
+        if (updated.currentTurn !== activeSession.currentTurn || updated.status === 'COMPLETED'
+          || updated.turns.some(turn => turn.turnIndex === activeSession.currentTurn && turn.answer !== null)) {
+          setAnswer('');
+        }
+      } catch {
+        setRecoveryPending(true);
+        setError(`${getErrorMessage(requestError)}；暂时无法读取处理状态，请刷新确认。`);
+      }
+    } finally {
+      setStreamingQuestion('');
+      setAnswerStage(null);
+      setViewIndex(null);
+      setWorking(false);
+    }
   };
 
   const submitCode = async (activeSession: AdaptiveInterviewSession) => {
+    if (working || recoveryPending || judging) return;
     if (!problemId.trim() || !source.trim()) {
       setJudgeError(workloadType === 'PATCH' ? '请填写场景标识和补丁后再提交。' : '请填写题目标识和代码后再运行。');
       return;
@@ -193,6 +234,12 @@ export default function InterviewSessionPage() {
       }
     } catch (requestError) {
       setJudgeError(getErrorMessage(requestError));
+      try {
+        setSession(await adaptiveInterviewApi.get(activeSession.sessionId));
+      } catch {
+        setRecoveryPending(true);
+        setJudgeError(`${getErrorMessage(requestError)}；暂时无法读取处理状态，请刷新确认。`);
+      }
     } finally {
       setJudging(false);
     }
@@ -425,7 +472,7 @@ export default function InterviewSessionPage() {
                         }
                       }}
                       rows={8}
-                      disabled={working}
+                      disabled={working || judging || recoveryPending}
                       placeholder="说明判断依据、实施方式、边界条件和取舍。"
                       className="wk-input mt-2 resize-y leading-7"
                     />
@@ -434,7 +481,7 @@ export default function InterviewSessionPage() {
                       <button
                         type="button"
                         onClick={() => void submitAnswer(session)}
-                        disabled={working || !answer.trim()}
+                        disabled={working || judging || recoveryPending || !answer.trim()}
                         className="wk-cta px-5 py-2.5 text-sm"
                       >
                         {working ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
@@ -454,10 +501,23 @@ export default function InterviewSessionPage() {
                       <p className="whitespace-pre-wrap text-sm leading-7 text-ink-soft">{viewedTurn.answer}</p>
                     </div>
                     <div className="ml-6 flex justify-end">
-                      <button type="button" disabled className="wk-cta px-5 py-2.5 text-sm">
-                        <Check className="h-4 w-4" />
-                        已提交
-                      </button>
+                      {session.status === 'IN_PROGRESS' && viewedTurn.turnIndex === session.currentTurn
+                        && viewedTurn.answerStatus === 'RETRYABLE' ? (
+                        <div className="space-y-3">
+                          <p className="text-sm text-wk-muted">{viewedTurn.answerError || '回答尚未处理完成，可以重试原答案。'}</p>
+                          <button type="button" disabled={working || judging || recoveryPending}
+                            onClick={() => void submitAnswer(session, viewedTurn.answer!)}
+                            className="wk-cta px-5 py-2.5 text-sm">
+                            <RefreshCw className="h-4 w-4" />重试原答案
+                          </button>
+                        </div>
+                      ) : (
+                        <button type="button" disabled className="wk-cta px-5 py-2.5 text-sm">
+                          {viewedTurn.answerStatus === 'PROCESSING'
+                            ? <Loader2 className="h-4 w-4 animate-spin" /> : <Check className="h-4 w-4" />}
+                          {viewedTurn.answerStatus === 'PROCESSING' ? '回答处理中' : '已提交'}
+                        </button>
+                      )}
                     </div>
                   </>
                 ) : null}
@@ -466,7 +526,7 @@ export default function InterviewSessionPage() {
           </div>
 
           {/* 代码判题工单 */}
-          {session.status === 'IN_PROGRESS' && codeWorkbenchActive && viewingLive && (
+          {session.status === 'IN_PROGRESS' && codeWorkbenchActive && isAnswerPage && !recoveryPending && (
             <CodeWorkbench
               workloadType={workloadType}
               problemId={problemId}

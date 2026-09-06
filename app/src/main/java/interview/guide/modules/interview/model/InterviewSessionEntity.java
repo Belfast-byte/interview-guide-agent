@@ -266,6 +266,12 @@ public class InterviewSessionEntity {
         return evaluateStatus;
     }
 
+    @Column(name = "evaluate_dispatch_pending", nullable = false)
+    private boolean evaluateDispatchPending;
+
+    public boolean isEvaluateDispatchPending() { return evaluateDispatchPending; }
+    public void setEvaluateDispatchPending(boolean pending) { evaluateDispatchPending = pending; }
+
     public void setEvaluateStatus(AsyncTaskStatus evaluateStatus) {
         this.evaluateStatus = evaluateStatus;
     }

@@ -52,9 +52,11 @@ import org.springframework.test.context.bean.override.mockito.MockitoBean;
 @DataJpaTest(showSql = false, properties = {
     "spring.flyway.enabled=false",
     "spring.jpa.hibernate.ddl-auto=create-drop",
-    "app.interview.adaptive-agent.episode-enrichment-processing-timeout=0s"
+    "app.interview.adaptive-agent.episode-enrichment-processing-timeout=5m"
 })
 @Import({
+    interview.guide.modules.interview.agent.adaptive.persistence.memory.JpaMemoryEvidenceService.class,
+    interview.guide.modules.interview.agent.adaptive.application.AdaptiveAgentProperties.class,
     AdaptiveAgentProperties.class,
     EpisodeEnrichmentDispatcher.class,
     EpisodeEnrichmentRecoveryService.class,
@@ -79,7 +81,7 @@ class EpisodeEnrichmentRecoveryIntegrationTest {
   @Autowired private EpisodeTagRepository tagRepository;
   @Autowired private AdaptiveAgentSessionRepository sessionRepository;
   @Autowired private AdaptiveAgentAssessmentRepository assessmentRepository;
-  @MockitoBean private AdaptiveInterviewAnswerExecutor executor;
+  @MockitoBean private EpisodeEnrichmentExecutor executor;
   @MockitoBean private EpisodeEnrichmentService enrichmentService;
   @MockitoBean private SemanticMemoryPersistenceService semanticMemory;
   private CandidateMemoryEnrichmentController controller;
@@ -98,9 +100,8 @@ class EpisodeEnrichmentRecoveryIntegrationTest {
     RejectedExecutionException rejection = new RejectedExecutionException("queue full");
     doThrow(rejection).when(executor).execute(any(Runnable.class));
 
-    assertThatThrownBy(() -> dispatcher.onRequested(
-        new EpisodeEnrichmentRequested(episode.id(), "caller-provider")
-    )).isSameAs(rejection);
+    dispatcher.onRequested(new EpisodeEnrichmentRequested(episode.id(), "caller-provider"));
+    verify(enrichmentService, never()).enrich(episode.id(), PROVIDER);
     assertStatus(EpisodeEnrichmentStatus.PENDING);
 
     executeSubmittedTask();
@@ -112,8 +113,11 @@ class EpisodeEnrichmentRecoveryIntegrationTest {
   @Test
   @DisplayName("超时 PROCESSING 原子恢复为 PENDING 后重新投递")
   void shouldRecoverAndDispatchStaleProcessing() {
-    persistenceService.claim(episode.id());
+    var executionToken = persistenceService.claim(episode.id()).orElseThrow().executionToken();
     assertStatus(EpisodeEnrichmentStatus.PROCESSING);
+    org.springframework.test.util.ReflectionTestUtils.setField(episodeRepository.findById(episode.id()).orElseThrow(),
+        "enrichmentLeaseUntil", java.time.LocalDateTime.now().minusMinutes(1));
+    episodeRepository.flush();
     executeSubmittedTask();
 
     recoveryService.recover();
@@ -125,8 +129,8 @@ class EpisodeEnrichmentRecoveryIntegrationTest {
   @Test
   @DisplayName("FAILED 不自动恢复且显式 retry 后立即投递")
   void shouldDispatchOnlyAfterExplicitRetry() {
-    persistenceService.claim(episode.id());
-    persistenceService.fail(episode.id(), "model unavailable");
+    var executionToken = persistenceService.claim(episode.id()).orElseThrow().executionToken();
+    persistenceService.fail(episode.id(), executionToken, "model unavailable");
     executeSubmittedTask();
 
     recoveryService.recover();
@@ -141,8 +145,8 @@ class EpisodeEnrichmentRecoveryIntegrationTest {
   @Test
   @DisplayName("候选人不能重试其他 owner 的 FAILED Episode")
   void shouldRejectRetryAcrossOwner() {
-    persistenceService.claim(episode.id());
-    persistenceService.fail(episode.id(), "model unavailable");
+    var executionToken = persistenceService.claim(episode.id()).orElseThrow().executionToken();
+    persistenceService.fail(episode.id(), executionToken, "model unavailable");
 
     assertThatThrownBy(() -> controller.retry(
         principal(OTHER_CANDIDATE_ID),

@@ -36,7 +36,9 @@ import org.springframework.test.context.bean.override.mockito.MockitoBean;
     "spring.flyway.enabled=false",
     "spring.jpa.hibernate.ddl-auto=create-drop"
 })
-@Import(EpisodeEnrichmentPersistenceService.class)
+@Import({EpisodeEnrichmentPersistenceService.class,
+    interview.guide.modules.interview.agent.adaptive.persistence.memory.JpaMemoryEvidenceService.class,
+    interview.guide.modules.interview.agent.adaptive.application.AdaptiveAgentProperties.class})
 class EpisodeEnrichmentPersistenceTest {
 
   @Autowired
@@ -95,10 +97,10 @@ class EpisodeEnrichmentPersistenceTest {
   @DisplayName("完成时在一个事务内替换摘要和规范化标签")
   void shouldReplaceEnrichmentPayload() {
     tagRepository.saveAndFlush(tag(EpisodeTagValue.error(ErrorPattern.CONFUSES_CONCEPTS)));
-    service.claim(episode.id());
+    var executionToken = service.claim(episode.id()).orElseThrow().executionToken();
 
     service.complete(new EpisodeEnrichmentCompletion(
-        episode.id(),
+        episode.id(), executionToken,
         "候选人给出了版本号方案并说明了失败边界。",
         List.of(validatedTag())
     ));
@@ -116,8 +118,8 @@ class EpisodeEnrichmentPersistenceTest {
   @Test
   @DisplayName("失败明确落库且不会被普通 claim 重试")
   void shouldPersistFailureWithoutImplicitRetry() {
-    service.claim(episode.id());
-    service.fail(episode.id(), "LLM unavailable");
+    var executionToken = service.claim(episode.id()).orElseThrow().executionToken();
+    service.fail(episode.id(), executionToken, "LLM unavailable");
 
     assertThat(service.claim(episode.id())).isEmpty();
     assertThat(reload()).satisfies(fact -> {
@@ -131,14 +133,35 @@ class EpisodeEnrichmentPersistenceTest {
   @Test
   @DisplayName("空摘要不能伪装为 enrichment 成功")
   void shouldRejectBlankSummary() {
-    service.claim(episode.id());
+    var executionToken = service.claim(episode.id()).orElseThrow().executionToken();
 
     assertThatThrownBy(() -> service.complete(new EpisodeEnrichmentCompletion(
-        episode.id(),
+        episode.id(), executionToken,
         " ",
         List.of()
     ))).isInstanceOf(IllegalArgumentException.class)
         .hasMessageContaining("answerSummary");
+  }
+
+  @Test
+  void lateWorkerCannotCompleteOrEraseNewResult() {
+    var oldToken=service.claim(episode.id()).orElseThrow().executionToken();
+    episodeRepository.findLockedById(episode.id()).orElseThrow().recoverStaleEnrichment();
+    var newToken=service.claim(episode.id()).orElseThrow().executionToken();
+    assertThat(service.complete(new EpisodeEnrichmentCompletion(episode.id(),oldToken,"old",List.of()))).isFalse();
+    assertThat(service.complete(new EpisodeEnrichmentCompletion(episode.id(),newToken,"new",List.of(validatedTag())))).isTrue();
+    service.fail(episode.id(),oldToken,"late error");
+    assertThat(reload().answerSummary()).isEqualTo("new");
+    assertThat(tagRepository.findByEpisodeIdOrderById(episode.id())).hasSize(1);
+  }
+
+  @Test
+  void expiredLeaseCannotCommitEvenBeforeReclaim() {
+    var token=service.claim(episode.id()).orElseThrow().executionToken();
+    var entity=episodeRepository.findLockedById(episode.id()).orElseThrow();
+    org.springframework.test.util.ReflectionTestUtils.setField(entity,"enrichmentLeaseUntil",java.time.LocalDateTime.now().minusSeconds(1));
+    assertThat(service.complete(new EpisodeEnrichmentCompletion(episode.id(),token,"stale",List.of()))).isFalse();
+    assertThat(reload().answerSummary()).isNull();
   }
 
   private AssessmentDecision assessment() {

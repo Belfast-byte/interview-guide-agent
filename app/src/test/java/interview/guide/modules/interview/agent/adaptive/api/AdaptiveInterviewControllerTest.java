@@ -94,6 +94,30 @@ class AdaptiveInterviewControllerTest {
   }
 
   @Test
+  @DisplayName("重试使用认证候选人与服务器保存的回答，并在排队前建立 deadline")
+  void retryUsesAuthenticatedCandidateAndQueuedDeadline() {
+    UUID candidateId = UUID.randomUUID();
+    AuthenticatedUser principal = new AuthenticatedUser(candidateId, UserRole.CANDIDATE);
+    long started = System.nanoTime();
+    var emitter = controller.retryAnswerStream("session-1", 1, principal);
+    assertThat(emitter.getTimeout()).isEqualTo(75_000L);
+    var task = org.mockito.ArgumentCaptor.forClass(Runnable.class);
+    verify(answerExecutor).execute(task.capture());
+    long queued = System.nanoTime();
+    when(applicationService.retryAnswerStreaming(any(), any(), org.mockito.ArgumentMatchers.eq(1), any()))
+        .thenThrow(new BusinessException(interview.guide.common.exception.ErrorCode.AI_SERVICE_TIMEOUT, "超时"));
+    task.getValue().run();
+    var sink = org.mockito.ArgumentCaptor.forClass(
+        interview.guide.modules.interview.agent.adaptive.application.AnswerEventSink.class);
+    verify(applicationService).retryAnswerStreaming(
+        org.mockito.ArgumentMatchers.eq(candidateId.toString()), org.mockito.ArgumentMatchers.eq("session-1"),
+        org.mockito.ArgumentMatchers.eq(1), sink.capture());
+    assertThat(sink.getValue().deadlineNanos()).isBetween(
+        started + java.time.Duration.ofSeconds(60).toNanos(),
+        queued + java.time.Duration.ofSeconds(60).toNanos());
+  }
+
+  @Test
   @DisplayName("流式创建只使用认证主体并注册创建事件 sink")
   void streamCreationUsesAuthenticatedCandidate() {
     UUID candidateId = UUID.randomUUID();

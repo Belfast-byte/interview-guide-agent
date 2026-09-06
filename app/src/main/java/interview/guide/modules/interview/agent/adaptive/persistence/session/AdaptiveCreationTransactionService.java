@@ -17,7 +17,7 @@ import interview.guide.modules.interview.agent.adaptive.runtime.AgentDecision;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-/** 创建链的两个短事务：保存计划，以及原子发布首题与 Snapshot。 */
+/** 原子保存创建计划、首题及其来源；模型调用在事务外完成。 */
 @Service
 public class AdaptiveCreationTransactionService {
 
@@ -25,14 +25,27 @@ public class AdaptiveCreationTransactionService {
   private final QuestionExposurePersistence exposurePersistence;
   private final QuestionIdentityFactory identityFactory;
 
+  private final RubricSnapshotResolver rubricSnapshots;
+  private final interview.guide.modules.interview.agent.adaptive.persistence.memory.JpaMemoryEvidenceService memoryEvidence;
+
   public AdaptiveCreationTransactionService(
       AdaptiveCreationRepositories repositories,
       QuestionExposurePersistence exposurePersistence,
-      QuestionIdentityFactory identityFactory
+      QuestionIdentityFactory identityFactory,
+      RubricSnapshotResolver rubricSnapshots,
+      interview.guide.modules.interview.agent.adaptive.persistence.memory.JpaMemoryEvidenceService memoryEvidence
   ) {
     this.repositories = repositories;
     this.exposurePersistence = exposurePersistence;
     this.identityFactory = identityFactory;
+    this.rubricSnapshots = rubricSnapshots;
+    this.memoryEvidence = memoryEvidence;
+  }
+
+  @Transactional
+  public void create(AdaptiveSessionCreation creation, InterviewPlan plan, AgentDecision decision) {
+    initialize(creation, plan);
+    publishFirstTurn(new InitialTurnCommit(creation.sessionId(), plan, decision));
   }
 
   @Transactional
@@ -69,11 +82,13 @@ public class AdaptiveCreationTransactionService {
             action,
             TurnProvenance.initial(),
             commit.decision().workingMemory(),
-            ask.question().adoptedSourceRefs().stream()
-                .map(AdoptedRubricSource::fromReference)
-                .toList()
+            rubricSnapshots.resolve(ask.question().adoptedSourceRefs().stream()
+                .filter(ref -> ref.startsWith("rubric:")).toList())
         ))
     );
+    turn.recordMemorySources(memoryEvidence.adopt(
+        new interview.guide.modules.interview.agent.adaptive.core.context.MemoryOwner(session.tenantId(),session.candidateId()),
+        target.topic(),ask.question().adoptedSourceRefs()));
     exposurePersistence.save(session, turn, new QuestionPublication(
         action, identityFactory.create(target.target(), action), null, null));
   }

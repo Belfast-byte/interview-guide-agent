@@ -13,7 +13,11 @@ import org.springframework.stereotype.Component;
 @ConfigurationProperties(prefix = "app.interview.adaptive-agent")
 public class AdaptiveAgentProperties {
 
-  private Duration deadline = Duration.ofSeconds(30);
+  private Duration deadline = Duration.ofSeconds(60);
+
+  public Duration getDeadline() {
+    return deadline.compareTo(Duration.ofSeconds(60)) > 0 ? Duration.ofSeconds(60) : deadline;
+  }
   private Duration plannerDeadline = Duration.ofSeconds(30);
   private Duration briefDeadline = Duration.ofSeconds(20);
   private Duration claimDeadline = Duration.ofSeconds(20);
@@ -22,6 +26,8 @@ public class AdaptiveAgentProperties {
   private Duration episodeEnrichmentProcessingTimeout = Duration.ofMinutes(5);
   private Duration actionIntentExecutionTimeout = Duration.ofMinutes(2);
   private int maxInputTokens = 12_000;
+  private int maxDecisionSteps = 8;
+  private int maxReadToolCalls = 8;
   private int plannerMaxOutputTokens = 2_048;
   private int interviewerMaxOutputTokens = 1_024;
   private int structuredMaxOutputTokens = 2_048;

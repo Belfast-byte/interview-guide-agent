@@ -19,8 +19,15 @@ public record EpisodeEnrichmentRequest(
     DepthLevel depthLevel,
     String assessmentSummary,
     List<EpisodeEvidenceFact> evidences,
-    List<EpisodeProbeGapFact> probeGaps
+    List<EpisodeProbeGapFact> probeGaps,
+    interview.guide.modules.interview.agent.adaptive.memory.observation.MemoryObservationContext memory
 ) {
+
+  public EpisodeEnrichmentRequest(long episodeId, String sessionId, int turnIndex, TopicKey topic,
+      String question, String answer, DepthLevel depthLevel, String assessmentSummary,
+      List<EpisodeEvidenceFact> evidences, List<EpisodeProbeGapFact> probeGaps) {
+    this(episodeId,sessionId,turnIndex,topic,question,answer,depthLevel,assessmentSummary,evidences,probeGaps,null);
+  }
 
   public EpisodeEnrichmentRequest {
     evidences = List.copyOf(evidences);

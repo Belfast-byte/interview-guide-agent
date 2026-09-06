@@ -36,7 +36,8 @@ public record CandidateMemoryResponse(
       String skillId,
       String focusId,
       EvaluationTrackResponse evaluation,
-      PracticeTrackResponse practice
+      PracticeTrackResponse practice,
+      List<interview.guide.modules.interview.agent.adaptive.memory.observation.CapabilityBelief> beliefs
   ) {
 
     private static TopicProfileResponse from(CandidateMemoryQueryResult.TopicProfile source) {
@@ -44,7 +45,7 @@ public record CandidateMemoryResponse(
           source.topic().skillId(),
           source.topic().focusId(),
           EvaluationTrackResponse.from(source.evaluation()),
-          PracticeTrackResponse.from(source.practice())
+          PracticeTrackResponse.from(source.practice()),source.beliefs()
       );
     }
   }

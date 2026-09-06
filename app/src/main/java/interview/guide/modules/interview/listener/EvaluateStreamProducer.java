@@ -38,7 +38,17 @@ public class EvaluateStreamProducer extends AbstractStreamProducer<String> {
      * @param sessionId 面试会话ID
      */
     public void sendEvaluateTask(String sessionId) {
-        sendTask(sessionId);
+        transactionalExecutor.runRequiresNew(() -> {
+            var session = sessionRepository.findLockedBySessionId(sessionId).orElse(null);
+            if (session == null || !session.isEvaluateDispatchPending()) return;
+            if (sendTask(sessionId)) {
+                session.setEvaluateDispatchPending(false);
+                session.setEvaluateError(null);
+            } else {
+                session.setEvaluateError("评估任务投递失败，等待自动重试");
+            }
+            sessionRepository.save(session);
+        });
     }
 
     @Override
@@ -66,20 +76,19 @@ public class EvaluateStreamProducer extends AbstractStreamProducer<String> {
 
     @Override
     protected void onSendFailed(String sessionId, String error) {
-        transactionalExecutor.runRequiresNew(
-            () -> updateEvaluateStatus(sessionId, AsyncTaskStatus.FAILED, truncateError(error)));
+        // 当前投递事务保留待投递标记；不能开启新事务争抢同一行锁。
+        log.warn("评估任务等待重新投递: sessionId={}", sessionId);
     }
 
-    /**
-     * 更新评估状态
-     */
-    private void updateEvaluateStatus(String sessionId, AsyncTaskStatus status, String error) {
-        sessionRepository.findBySessionId(sessionId).ifPresent(session -> {
-            session.setEvaluateStatus(status);
-            if (error != null) {
-                session.setEvaluateError(error.length() > 500 ? error.substring(0, 500) : error);
+    @org.springframework.scheduling.annotation.Scheduled(fixedDelayString = "${app.interview.evaluation-dispatch-delay:30000}")
+    public void recoverPendingDispatches() {
+        for (String sessionId : sessionRepository.findPendingEvaluationDispatch(
+                org.springframework.data.domain.PageRequest.of(0, 32))) {
+            try {
+                sendEvaluateTask(sessionId);
+            } catch (RuntimeException error) {
+                log.warn("评估任务重新投递失败: sessionId={}", sessionId, error);
             }
-            sessionRepository.save(session);
-        });
+        }
     }
 }

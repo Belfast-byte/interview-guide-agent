@@ -61,7 +61,7 @@ class RubricSearchLoopTest {
             Map.of("rubric", "按边界事实评分"),
             List.of(new AdoptableSource(
                 SOURCE_REF, "rubric", "question:1:rubric", "v1")))),
-        new DeadlineExecutor()
+        new DeadlineExecutor(), new interview.guide.modules.interview.agent.adaptive.application.AdaptiveAgentProperties()
     );
   }
 

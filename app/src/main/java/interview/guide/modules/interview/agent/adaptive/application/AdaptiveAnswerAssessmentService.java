@@ -1,7 +1,5 @@
 package interview.guide.modules.interview.agent.adaptive.application;
 
-import interview.guide.common.exception.BusinessException;
-import interview.guide.common.exception.ErrorCode;
 import interview.guide.modules.interview.agent.adaptive.assessment.depth.AssessmentContext;
 import interview.guide.modules.interview.agent.adaptive.assessment.depth.AssessmentDecision;
 import interview.guide.modules.interview.agent.adaptive.assessment.depth.AssessmentRequest;
@@ -14,6 +12,7 @@ import interview.guide.modules.interview.agent.adaptive.planning.PlannedDimensio
 import interview.guide.modules.interview.agent.adaptive.planning.PlannedInterview;
 import interview.guide.modules.interview.skill.InterviewSkillService;
 import java.util.List;
+import interview.guide.modules.interview.agent.adaptive.core.context.CoverageProjector;
 import org.springframework.stereotype.Service;
 
 /** 只根据当前回答与当前 Target 量规生成正式评估事实。 */
@@ -42,24 +41,25 @@ public class AdaptiveAnswerAssessmentService {
         new AssessmentRequest(
             history.session().id(),
             answer.turnIndex(),
-            AssessmentContext.currentAnswer(
-                dimension.dimension(),
-                dimension.focus(),
-                answeredTurn.question(),
-                answer.content()
+            new AssessmentContext(
+                dimension.dimension(), dimension.focus(), answeredTurn.question(), answer.content(),
+                AssessmentContext.currentAnswer(dimension.dimension(), dimension.focus(),
+                    answeredTurn.question(), answer.content()).rubric(),
+                answeredTurn.adoptedRubrics().stream()
+                    .filter(r -> r.body() != null && !r.body().isBlank()).toList(),
+                interview.coverage().openProbeGaps().stream().filter(g -> g.targetId().equals(
+                    CoverageProjector.targetId(dimension.order()))).toList()
             ),
             skillService.buildEvaluationReferenceSection(dimension.suggestedSkill())
         ),
         history.llmProvider()
     );
-    if (decision.depthLevel().ordinal() > dimension.depthCeiling().ordinal()) {
-      throw new BusinessException(ErrorCode.AI_SERVICE_ERROR, "评估深度超过 Plan 上限");
-    }
     List<ValidatedAssessmentEvidence> evidences = evidenceValidator.validate(
         history.session().id(),
         answer.turnIndex(),
         answer.content(),
-        decision.evidenceQuotes().stream().map(AssessmentEvidenceCandidate::quote).toList()
+        java.util.stream.Stream.concat(decision.evidenceQuotes().stream(),
+            decision.resolvedGaps().stream().map(r -> r.evidenceQuote())).distinct().map(AssessmentEvidenceCandidate::quote).toList()
     );
     return new AnswerAssessment(dimension, decision, evidences);
   }

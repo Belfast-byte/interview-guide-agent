@@ -122,6 +122,28 @@ public class AdaptiveAgentTurnEntity {
   @Column(name = "adopted_rubrics_json", nullable = false, columnDefinition = "TEXT")
   private List<AdoptedRubricSource> adoptedRubrics;
 
+  @Column(name = "adopted_memory_refs", columnDefinition = "TEXT")
+  private String adoptedMemoryRefs;
+
+  public void recordMemorySources(java.util.List<String> references) {
+    adoptedMemoryRefs = new tools.jackson.databind.ObjectMapper().writeValueAsString(references);
+  }
+
+  public java.util.List<String> memorySources() {
+    return adoptedMemoryRefs == null ? java.util.List.of() :
+        java.util.List.copyOf(new tools.jackson.databind.ObjectMapper().readValue(adoptedMemoryRefs,
+            new tools.jackson.core.type.TypeReference<java.util.List<String>>() {}));
+  }
+
+  @Column(name = "answer_execution_token", length = 36)
+  private String answerExecutionToken;
+
+  @Column(name = "answer_lease_until")
+  private LocalDateTime answerLeaseUntil;
+
+  @Column(name = "answer_error", length = 500)
+  private String answerError;
+
   @Column(name = "created_at", nullable = false)
   private LocalDateTime createdAt;
 
@@ -180,7 +202,44 @@ public class AdaptiveAgentTurnEntity {
     }
   }
 
+  public boolean processing() {
+    return responseType == null && answerExecutionToken != null && answerLeaseUntil != null
+        && answerLeaseUntil.isAfter(LocalDateTime.now(java.time.ZoneOffset.UTC));
+  }
+
+  public void claimExecution(String token, java.time.Duration lease) {
+    answerExecutionToken = token;
+    answerLeaseUntil = LocalDateTime.now(java.time.ZoneOffset.UTC).plus(lease);
+    answerError = null;
+  }
+
+  public void requireExecution(String token) {
+    if (!java.util.Objects.equals(answerExecutionToken, token) || !processing()) {
+      throw new interview.guide.common.exception.BusinessException(
+          interview.guide.common.exception.ErrorCode.BAD_REQUEST, "回答处理已过期或被其他请求接管");
+    }
+  }
+
+  public void failExecution(String token, String message) {
+    if (responseType == null && java.util.Objects.equals(answerExecutionToken, token)) {
+      answerExecutionToken = null;
+      answerLeaseUntil = null;
+      answerError = message == null ? "回答处理失败，请重试" : message.substring(0, Math.min(500, message.length()));
+    }
+  }
+
+  private interview.guide.modules.interview.agent.adaptive.core.session.AnswerProcessingStatus answerStatus() {
+    var status = interview.guide.modules.interview.agent.adaptive.core.session.AnswerProcessingStatus.class;
+    if (responseType != null) return interview.guide.modules.interview.agent.adaptive.core.session.AnswerProcessingStatus.COMPLETED;
+    if (answer == null) return interview.guide.modules.interview.agent.adaptive.core.session.AnswerProcessingStatus.WAITING;
+    return processing() ? interview.guide.modules.interview.agent.adaptive.core.session.AnswerProcessingStatus.PROCESSING
+        : interview.guide.modules.interview.agent.adaptive.core.session.AnswerProcessingStatus.RETRYABLE;
+  }
+
   public void recordResponse(RespondAction action) {
+    answerExecutionToken = null;
+    answerLeaseUntil = null;
+    answerError = null;
     responseType = action.type();
     responseContent = action.content();
     decisionReason = action.reason();
@@ -205,7 +264,9 @@ public class AdaptiveAgentTurnEntity {
         responseContent,
         decisionReason,
         provenance(),
-        adoptedRubrics
+        adoptedRubrics,
+        answerStatus(),
+        answerError
     );
   }
 

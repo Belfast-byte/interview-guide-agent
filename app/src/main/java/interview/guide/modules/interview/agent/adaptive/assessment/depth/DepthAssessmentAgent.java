@@ -35,12 +35,25 @@ public class DepthAssessmentAgent {
         proposal.confidence(),
         proposal.rationaleSummary().trim(),
         proposal.evidenceQuotes(),
-        proposal.probeGaps()
+        proposal.probeGaps(),
+        proposal.resolvedGaps()
     );
   }
 
   private void validate(AssessmentProposal proposal, AssessmentRequest request) {
     validateCompleteness(proposal);
+    var allowed = request.context().openGaps().stream().map(g -> g.gapId()).toList();
+    var seen = new java.util.HashSet<Long>();
+    for (var resolution : proposal.resolvedGaps()) {
+      if (resolution == null || !allowed.contains(resolution.gapId())
+          || !seen.add(resolution.gapId()) || resolution.reason() == null
+          || resolution.reason().isBlank() || resolution.reason().length() > 500
+          || resolution.evidenceQuote() == null || resolution.evidenceQuote().isBlank()
+          || !AnswerTextNormalizer.normalize(request.context().answer()).contains(
+              AnswerTextNormalizer.normalize(resolution.evidenceQuote()))) {
+        throw new BusinessException(ErrorCode.AI_SERVICE_ERROR, "缺口关闭必须引用当前回答并指向开放缺口");
+      }
+    }
     validateEvidenceQuotes(proposal);
     validateProbeGaps(proposal.probeGaps(), request.context().answer());
   }

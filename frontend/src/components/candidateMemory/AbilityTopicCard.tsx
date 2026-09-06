@@ -1,3 +1,4 @@
+import EvidenceMemoryPanel from './EvidenceMemoryPanel';
 import { BrainCircuit, Dumbbell, Tags } from 'lucide-react';
 import type {
   CandidateMemoryStablePattern,
@@ -43,10 +44,14 @@ export default function AbilityTopicCard({ topic }: { topic: CandidateMemoryTopi
           {topic.focusId}
         </h3>
       </header>
+      <EvidenceMemoryPanel beliefs={topic.beliefs} />
+      <details className="mt-4">
+        <summary className="text-xs">历史统计与旧标签（不作当前能力结论）</summary>
       <div className="mt-5 grid gap-4 xl:grid-cols-2">
         <EvaluationPanel topic={topic} />
         <PracticePanel topic={topic} />
       </div>
+      </details>
     </article>
   );
 }

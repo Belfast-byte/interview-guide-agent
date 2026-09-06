@@ -29,7 +29,7 @@ final class PendingFactReferenceResolver {
         memory.deliberation().hypotheses().stream()
             .map(hypothesis -> resolve(hypothesis, evidenceIds)).toList(),
         memory.deliberation().nextProbeIntent(),
-        memory.deliberation().adoptedObservationRefs()
+        List.of()
     );
     return new WorkingMemory(memory.basedOnTurnIndex(), focus, deliberation);
   }

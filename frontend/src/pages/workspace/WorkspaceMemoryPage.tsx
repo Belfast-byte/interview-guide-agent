@@ -1,3 +1,4 @@
+import EvidenceMemoryPanel from '../../components/candidateMemory/EvidenceMemoryPanel';
 import { AlertCircle, ArrowRight } from 'lucide-react';
 import { useCallback, useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
@@ -191,6 +192,10 @@ function TopicSection({ topic }: { topic: CandidateMemoryTopic }) {
       <header className="flex flex-wrap items-baseline gap-x-4 gap-y-2">
         <span className="font-monosc text-[11px] tracking-wider text-cinnabar">{topic.skillId}</span>
         <h3 className="font-serifsc text-[17px] font-bold text-ink">{topic.focusId}</h3>
+      </header>
+      <EvidenceMemoryPanel beliefs={topic.beliefs} />
+      <details className="mt-5">
+        <summary className="cursor-pointer text-xs text-wk-muted">历史统计与旧标签（不作当前能力结论）</summary>
         <span className="ml-auto flex gap-1.5">
           {topic.evaluation && (
             <span className="wk-tag" style={TAG_TONES[ABILITY_TONES[topic.evaluation.ability]]}>
@@ -203,11 +208,11 @@ function TopicSection({ topic }: { topic: CandidateMemoryTopic }) {
             </span>
           )}
         </span>
-      </header>
       <div className="mt-6 grid gap-8 md:grid-cols-2">
         <EvaluationTrack topic={topic} />
         <PracticeTrack topic={topic} />
       </div>
+      </details>
     </article>
   );
 }

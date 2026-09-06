@@ -7,5 +7,10 @@ import java.util.List;
  */
 public record EpisodeEnrichmentProposal(
     String answerSummary,
-    List<EpisodeTagProposal> tags
-) {}
+    List<EpisodeTagProposal> tags,
+    interview.guide.modules.interview.agent.adaptive.memory.observation.MemoryObservationProposal observation
+) {
+  public EpisodeEnrichmentProposal(String answerSummary,List<EpisodeTagProposal> tags) {
+    this(answerSummary,tags,null);
+  }
+}

@@ -8,8 +8,7 @@ import java.util.concurrent.TimeUnit;
 import org.springframework.stereotype.Component;
 
 /**
- * 答题链路的后台执行器：显式配置的线程池，
- * 承载 SSE 流式答题任务与维度记忆（小结/声明）的异步生成任务。
+ * 答题链路专用执行器，只承载 SSE 答题与重试，不接收后台记忆任务。
  */
 @Component
 public class AdaptiveInterviewAnswerExecutor implements Executor {

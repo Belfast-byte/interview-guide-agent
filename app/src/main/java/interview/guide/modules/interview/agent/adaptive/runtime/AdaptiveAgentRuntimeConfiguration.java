@@ -20,8 +20,9 @@ public class AdaptiveAgentRuntimeConfiguration {
       InterviewDecisionModel model,
       AgentDecisionValidator validator,
       ReadToolExecutor toolExecutor,
-      DeadlineExecutor deadlineExecutor
+      DeadlineExecutor deadlineExecutor,
+      interview.guide.modules.interview.agent.adaptive.application.AdaptiveAgentProperties properties
   ) {
-    return new InterviewAgentLoop(model, validator, toolExecutor, deadlineExecutor);
+    return new InterviewAgentLoop(model, validator, toolExecutor, deadlineExecutor, properties);
   }
 }

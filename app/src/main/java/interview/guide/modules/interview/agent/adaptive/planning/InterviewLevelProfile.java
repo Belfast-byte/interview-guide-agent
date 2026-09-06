@@ -4,7 +4,7 @@ import interview.guide.modules.interview.agent.adaptive.core.context.CapabilityT
 import interview.guide.modules.interview.agent.adaptive.core.context.DepthLevel;
 import interview.guide.modules.interview.agent.adaptive.core.session.CandidateLevel;
 
-/** 招聘阶段对应的默认深度。 */
+/** 招聘阶段对应的提问目标与难度上限；不限制回答实际表现的 L0–L4 评级。 */
 public record InterviewLevelProfile(
     DepthLevel expectedDepth,
     DepthLevel depthCeiling

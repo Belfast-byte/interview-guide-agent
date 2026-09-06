@@ -34,6 +34,7 @@ import org.springframework.context.annotation.Import;
     "spring.jpa.hibernate.ddl-auto=create-drop"
 })
 @Import({
+    interview.guide.modules.interview.agent.adaptive.persistence.memory.JpaMemoryEvidenceService.class,
     CandidateMemoryQueryService.class,
     JpaSemanticStateSource.class,
     SemanticStateProjector.class,
@@ -54,7 +55,7 @@ class CandidateMemoryControllerTest {
 
   @BeforeEach
   void setUp() {
-    controller = new CandidateMemoryController(queryService);
+    controller = new CandidateMemoryController(queryService, org.mockito.Mockito.mock(interview.guide.modules.interview.agent.adaptive.persistence.memory.JpaMemoryEvidenceService.class));
   }
 
   @Test

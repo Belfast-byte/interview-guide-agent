@@ -40,13 +40,16 @@ class AdaptiveAssessmentRepositories {
     return gaps.saveAllAndFlush(entities);
   }
 
-  void closeOpenGaps(
-      String sessionId,
-      int dimensionOrder,
-      AdaptiveAgentAssessmentEntity closingAssessment
-  ) {
-    gaps.findOpenForTarget(sessionId, dimensionOrder)
-        .forEach(gap -> gap.closeByBudget(closingAssessment));
+  void resolveGaps(String sessionId, int dimensionOrder,
+      AdaptiveAgentAssessmentEntity closingAssessment,
+      List<interview.guide.modules.interview.agent.adaptive.assessment.depth.GapResolution> resolutions) {
+    var open = gaps.findOpenForTarget(sessionId, dimensionOrder).stream()
+        .collect(java.util.stream.Collectors.toMap(AssessmentProbeGapEntity::id, g -> g));
+    for (var resolution : resolutions) {
+      var gap = open.remove(resolution.gapId());
+      if (gap == null) throw new IllegalStateException("待关闭缺口不属于当前维度或已关闭");
+      gap.closeByEvidence(closingAssessment, resolution.evidenceQuote(), resolution.reason());
+    }
   }
 
   List<AdaptiveAgentEvidenceEntity> saveEvidences(

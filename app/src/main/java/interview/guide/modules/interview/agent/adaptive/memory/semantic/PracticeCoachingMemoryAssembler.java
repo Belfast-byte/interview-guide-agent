@@ -38,7 +38,8 @@ public class PracticeCoachingMemoryAssembler {
     return Map.of(
         "topic", topic.topic(),
         "status", status(topic.status()),
-        "stablePatterns", topic.stablePatterns()
+        "stablePatterns", topic.stablePatterns(),
+        "beliefs",topic.beliefs()
     );
   }
 

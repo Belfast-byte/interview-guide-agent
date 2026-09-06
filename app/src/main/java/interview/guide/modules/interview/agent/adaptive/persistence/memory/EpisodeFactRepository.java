@@ -42,13 +42,19 @@ public interface EpisodeFactRepository extends JpaRepository<EpisodeFactEntity, 
       FROM EpisodeFactEntity episode
       WHERE episode.enrichmentStatus = :status
         AND episode.answerSummary IS NULL
-        AND episode.updatedAt < :cutoff
+        AND (episode.enrichmentLeaseUntil <= CURRENT_TIMESTAMP
+             OR (episode.enrichmentLeaseUntil IS NULL AND episode.updatedAt < :cutoff))
       ORDER BY episode.updatedAt ASC, episode.id ASC
       """)
   List<EpisodeFactEntity> findMissingEnrichmentBefore(
       @Param("status") EpisodeEnrichmentStatus status,
-      @Param("cutoff") LocalDateTime cutoff
+      @Param("cutoff") LocalDateTime cutoff,
+      org.springframework.data.domain.Pageable page
   );
+
+  default List<EpisodeFactEntity> findMissingEnrichmentBefore(EpisodeEnrichmentStatus status, LocalDateTime cutoff) {
+    return findMissingEnrichmentBefore(status,cutoff,org.springframework.data.domain.PageRequest.of(0,32));
+  }
 
   @Query("""
       SELECT episode.id AS episodeId,
@@ -61,8 +67,13 @@ public interface EpisodeFactRepository extends JpaRepository<EpisodeFactEntity, 
       ORDER BY episode.updatedAt ASC, episode.id ASC
       """)
   List<EpisodeEnrichmentJobProjection> findMissingEnrichmentJobs(
-      @Param("status") EpisodeEnrichmentStatus status
+      @Param("status") EpisodeEnrichmentStatus status,
+      org.springframework.data.domain.Pageable page
   );
+
+  default List<EpisodeEnrichmentJobProjection> findMissingEnrichmentJobs(EpisodeEnrichmentStatus status) {
+    return findMissingEnrichmentJobs(status,org.springframework.data.domain.PageRequest.of(0,32));
+  }
 
   @Query("""
       SELECT episode.id AS episodeId,

@@ -37,7 +37,7 @@ class ToolGatewayTest {
       String expectedField
   ) {
     AtomicInteger executions = new AtomicInteger();
-    ToolGateway gateway = new ToolGateway(List.of(new ValidatingTool(executions)));
+    ToolGateway gateway = new ToolGateway(List.of(new ValidatingTool(executions)), new interview.guide.modules.interview.agent.adaptive.runtime.DeadlineExecutor());
 
     List<DecisionObservation> observations = gateway.execute(batch(
         context(allowlist), List.of(call("rubric_search", arguments)), 0));
@@ -55,7 +55,7 @@ class ToolGatewayTest {
   @DisplayName("调用按模型顺序串行执行且同步终态形成可区分 Observation")
   void shouldPreserveOrderAndMapResults() {
     List<String> order = new ArrayList<>();
-    ToolGateway gateway = new ToolGateway(List.of(new ResultTool(order)));
+    ToolGateway gateway = new ToolGateway(List.of(new ResultTool(order)), new interview.guide.modules.interview.agent.adaptive.runtime.DeadlineExecutor());
     List<ReadToolCall> calls = List.of(
         call("result_tool", Map.of("mode", "success")),
         call("result_tool", Map.of("mode", "empty")),
@@ -83,7 +83,7 @@ class ToolGatewayTest {
   @DisplayName("共享绝对 deadline 耗尽后终止批次且不 dispatch 后续调用")
   void shouldStopWhenSharedDeadlineIsExhausted() {
     AtomicInteger executions = new AtomicInteger();
-    ToolGateway gateway = new ToolGateway(List.of(new ValidatingTool(executions)));
+    ToolGateway gateway = new ToolGateway(List.of(new ValidatingTool(executions)), new interview.guide.modules.interview.agent.adaptive.runtime.DeadlineExecutor());
     ReadToolBatch batch = new ReadToolBatch(
         context(List.of("rubric_search")),
         List.of(

@@ -23,6 +23,13 @@ public interface InterviewSessionRepository extends JpaRepository<InterviewSessi
      */
     Optional<InterviewSessionEntity> findBySessionId(String sessionId);
 
+    @org.springframework.data.jpa.repository.Lock(jakarta.persistence.LockModeType.PESSIMISTIC_WRITE)
+    @Query("select s from InterviewSessionEntity s where s.sessionId = :sessionId")
+    Optional<InterviewSessionEntity> findLockedBySessionId(@Param("sessionId") String sessionId);
+
+    @Query("select s.sessionId from InterviewSessionEntity s where s.evaluateDispatchPending = true order by s.id")
+    List<String> findPendingEvaluationDispatch(org.springframework.data.domain.Pageable pageable);
+
     Optional<InterviewSessionEntity> findBySessionIdAndCandidateId(String sessionId, UUID candidateId);
 
     /**

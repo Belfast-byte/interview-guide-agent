@@ -112,17 +112,14 @@ public class CandidateLlmProviderService {
       UUID candidateId,
       String requestedProviderId
   ) {
-    CandidateLlmSettingEntity setting = settingRepository.findById(candidateId)
-        .filter(candidateSetting -> candidateSetting.getDefaultChatProviderId() != null)
-        .orElseThrow(() -> new BusinessException(
-            ErrorCode.PROVIDER_DEFAULT_REQUIRED,
-            "请先设置默认文本 Provider"
-        ));
     String selectedId = trimOrNull(requestedProviderId);
-    LlmProviderEntity provider = getOwned(
-        candidateId,
-        selectedId == null ? setting.getDefaultChatProviderId() : selectedId
-    );
+    if (selectedId == null) {
+      selectedId = settingRepository.findById(candidateId)
+          .map(CandidateLlmSettingEntity::getDefaultChatProviderId)
+          .orElseThrow(() -> new BusinessException(
+              ErrorCode.PROVIDER_DEFAULT_REQUIRED, "请选择文本 Provider 或设置默认文本 Provider"));
+    }
+    LlmProviderEntity provider = getOwned(candidateId, selectedId);
     if (!provider.isEnabled()) {
       throw new BusinessException(ErrorCode.PROVIDER_NOT_FOUND, "Provider 不存在或不可用");
     }

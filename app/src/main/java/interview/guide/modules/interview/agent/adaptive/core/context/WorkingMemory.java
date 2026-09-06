@@ -1,6 +1,8 @@
 package interview.guide.modules.interview.agent.adaptive.core.context;
 
 import java.util.List;
+import java.util.ArrayList;
+import java.util.Collections;
 
 /** Agent 在相邻 Turn 之间保留的短期注意力，只保存引用和短期认知。 */
 public record WorkingMemory(
@@ -24,7 +26,7 @@ public record WorkingMemory(
   ) {
 
     public Focus {
-      gapPriorities = List.copyOf(gapPriorities);
+      gapPriorities = gapPriorities == null ? null : Collections.unmodifiableList(new ArrayList<>(gapPriorities));
     }
   }
 
@@ -35,8 +37,8 @@ public record WorkingMemory(
   ) {
 
     public Deliberation {
-      hypotheses = List.copyOf(hypotheses);
-      adoptedObservationRefs = List.copyOf(adoptedObservationRefs);
+      hypotheses = hypotheses == null ? null : Collections.unmodifiableList(new ArrayList<>(hypotheses));
+      adoptedObservationRefs = adoptedObservationRefs == null ? null : Collections.unmodifiableList(new ArrayList<>(adoptedObservationRefs));
     }
   }
 
@@ -54,8 +56,8 @@ public record WorkingMemory(
   ) {
 
     public EvidenceLinks {
-      supportingEvidenceIds = List.copyOf(supportingEvidenceIds);
-      contradictingEvidenceIds = List.copyOf(contradictingEvidenceIds);
+      supportingEvidenceIds = supportingEvidenceIds == null ? null : Collections.unmodifiableList(new ArrayList<>(supportingEvidenceIds));
+      contradictingEvidenceIds = contradictingEvidenceIds == null ? null : Collections.unmodifiableList(new ArrayList<>(contradictingEvidenceIds));
     }
   }
 }

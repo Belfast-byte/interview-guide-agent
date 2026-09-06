@@ -14,12 +14,18 @@ public record AssessmentDecision(
     double confidence,
     String rationaleSummary,
     List<String> evidenceQuotes,
-    List<ProbeGap> probeGaps
+    List<ProbeGap> probeGaps,
+    List<GapResolution> resolvedGaps
 ) {
 
   public AssessmentDecision {
     evidenceQuotes = List.copyOf(evidenceQuotes);
     probeGaps = List.copyOf(probeGaps);
+    resolvedGaps = resolvedGaps == null ? List.of() : List.copyOf(resolvedGaps);
+  }
+
+  public AssessmentDecision(String sessionId, int turnIndex, DepthLevel depthLevel, double confidence, String rationaleSummary, List<String> evidenceQuotes, List<ProbeGap> probeGaps) {
+    this(sessionId, turnIndex, depthLevel, confidence, rationaleSummary, evidenceQuotes, probeGaps, List.of());
   }
 
   public AssessmentDecision(

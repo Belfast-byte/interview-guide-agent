@@ -16,8 +16,21 @@ public record AdaptiveInterviewTurn(
     String responseContent,
     String decisionReason,
     TurnProvenance provenance,
-    List<AdoptedRubricSource> adoptedRubrics
+    List<AdoptedRubricSource> adoptedRubrics,
+    AnswerProcessingStatus answerStatus,
+    String answerError
 ) {
+
+  public AdaptiveInterviewTurn(int turnIndex, Integer dimensionOrder, String question,
+      String questionReason, String answer, AgentResponseType responseType,
+      String responseContent, String decisionReason, TurnProvenance provenance,
+      List<AdoptedRubricSource> adoptedRubrics) {
+    this(turnIndex, dimensionOrder, question, questionReason, answer, responseType,
+        responseContent, decisionReason, provenance, adoptedRubrics,
+        responseType != null ? AnswerProcessingStatus.COMPLETED
+            : answer == null ? AnswerProcessingStatus.WAITING : AnswerProcessingStatus.RETRYABLE,
+        null);
+  }
 
   public AdaptiveInterviewTurn {
     provenance.validateForTurn(turnIndex);

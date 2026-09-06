@@ -25,6 +25,8 @@ import org.springframework.context.annotation.Import;
     "spring.jpa.hibernate.ddl-auto=create-drop"
 })
 @Import({
+    interview.guide.modules.interview.agent.adaptive.persistence.memory.JpaMemoryEvidenceService.class,
+    interview.guide.modules.interview.agent.adaptive.persistence.session.RubricSnapshotResolver.class,
     AdaptiveCreationRepositories.class,
     AdaptiveCreationTransactionService.class,
     QuestionExposurePersistence.class,

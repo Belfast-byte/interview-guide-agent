@@ -104,6 +104,36 @@ class AssessmentReportServiceTest {
     assertThat(report.dimensions().getFirst().depthLevel()).isEqualTo(DepthLevel.L1);
   }
 
+  @Test
+  @DisplayName("全部未考察时两种报告不评级，不推断弱项")
+  void shouldKeepUnassessedSeparateFromL0() {
+    var facts = new AssessmentReportFacts("session-1", "candidate-1", AdaptiveSessionStatus.COMPLETED,
+        List.of(new AssessmentReportDimensionFacts(0, "数据库", "索引", List.of())), List.of(), List.of());
+    var service = new AssessmentReportService(new StubFactsSource(facts));
+    var report = service.candidateReport("session-1");
+    assertThat(report.dimensions()).singleElement().satisfies(conclusion -> {
+      assertThat(conclusion.depthLevel()).isNull();
+      assertThat(conclusion.confidence()).isNull();
+      assertThat(conclusion.evidences()).isEmpty();
+      assertThat(conclusion.rationale()).contains("未考察");
+    });
+    assertThat(report.weakPoints()).isEmpty();
+    assertThat(service.enterpriseReport("tenant-a", "session-1").dimensionMatrix())
+        .isEqualTo(report.dimensions());
+  }
+
+  @Test
+  @DisplayName("未考察维度不参与最低等级计算")
+  void shouldFindWeakPointsOnlyAmongAssessedDimensions() {
+    var facts = new AssessmentReportFacts("session-1", "candidate-1", AdaptiveSessionStatus.COMPLETED,
+        List.of(new AssessmentReportDimensionFacts(0, "数据库", "索引", List.of()),
+            new AssessmentReportDimensionFacts(1, "架构设计", "取舍", List.of(
+                assessment(1, DepthLevel.L3, "说明权衡", "比较了成本")))), List.of(), List.of());
+    var report = new AssessmentReportService(new StubFactsSource(facts)).candidateReport("session-1");
+    assertThat(report.weakPoints()).containsExactly(new CandidateWeakPoint(
+        "架构设计", DepthLevel.L3, DepthLevel.L4, DepthLevel.L4.typicalPerformance()));
+  }
+
   private AssessmentReportFacts completedFacts() {
     return new AssessmentReportFacts(
         "session-1",

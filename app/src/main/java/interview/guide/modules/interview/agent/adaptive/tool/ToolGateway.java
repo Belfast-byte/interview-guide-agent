@@ -3,6 +3,7 @@ package interview.guide.modules.interview.agent.adaptive.tool;
 import interview.guide.common.exception.BusinessException;
 import interview.guide.common.exception.ErrorCode;
 import interview.guide.modules.interview.agent.adaptive.runtime.DecisionObservation;
+import interview.guide.modules.interview.agent.adaptive.runtime.DeadlineExecutor;
 import interview.guide.modules.interview.agent.adaptive.runtime.DecisionObservation.Kind;
 import interview.guide.modules.interview.agent.adaptive.runtime.ReadToolBatch;
 import interview.guide.modules.interview.agent.adaptive.runtime.ReadToolCall;
@@ -25,7 +26,10 @@ public class ToolGateway implements ReadToolExecutor {
 
   private final Map<String, ReadOnlyAgentTool> tools;
 
-  public ToolGateway(List<ReadOnlyAgentTool> tools) {
+  private final DeadlineExecutor deadlineExecutor;
+
+  public ToolGateway(List<ReadOnlyAgentTool> tools, DeadlineExecutor deadlineExecutor) {
+    this.deadlineExecutor = deadlineExecutor;
     this.tools = tools.stream().collect(Collectors.toUnmodifiableMap(
         ReadOnlyAgentTool::name,
         Function.identity()
@@ -37,7 +41,11 @@ public class ToolGateway implements ReadToolExecutor {
     List<DecisionObservation> observations = new ArrayList<>(batch.calls().size());
     for (int callIndex = 0; callIndex < batch.calls().size(); callIndex++) {
       requireTimeRemaining(batch.deadlineNanos());
-      observations.add(executeCall(batch, batch.calls().get(callIndex), callIndex));
+      final int index = callIndex;
+      observations.add(deadlineExecutor.invoke(
+          () -> executeCall(batch, batch.calls().get(index), index),
+          batch.deadlineNanos(), "只读工具 " + batch.calls().get(index).toolName()));
+      requireTimeRemaining(batch.deadlineNanos());
     }
     return List.copyOf(observations);
   }

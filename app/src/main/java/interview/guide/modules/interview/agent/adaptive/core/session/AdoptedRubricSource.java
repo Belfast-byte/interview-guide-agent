@@ -1,7 +1,11 @@
 package interview.guide.modules.interview.agent.adaptive.core.session;
 
 /** 下一题实际采用的 rubric 条目与不可变版本。 */
-public record AdoptedRubricSource(String reference, String entryId, String version) {
+public record AdoptedRubricSource(String reference, String entryId, String version, String body) {
+
+  public AdoptedRubricSource(String reference, String entryId, String version) {
+    this(reference, entryId, version, null);
+  }
 
   private static final String PREFIX = "rubric:";
 

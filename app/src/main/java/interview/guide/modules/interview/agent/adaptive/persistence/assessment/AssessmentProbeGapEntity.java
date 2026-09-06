@@ -116,6 +116,20 @@ public class AssessmentProbeGapEntity {
     return closedByAssessment == null ? null : closedByAssessment.id();
   }
 
+  @Column(name = "closure_evidence_quote", columnDefinition = "TEXT")
+  private String closureEvidenceQuote;
+
+  @Column(name = "closure_summary", length = 500)
+  private String closureSummary;
+
+  public void closeByEvidence(AdaptiveAgentAssessmentEntity assessment, String quote, String reason) {
+    if (closedByAssessment != null) throw new IllegalStateException("缺口已关闭");
+    closedByAssessment = assessment;
+    closureReason = ProbeGapClosureReason.EVIDENCE_RESOLVED;
+    closureEvidenceQuote = quote;
+    closureSummary = reason;
+  }
+
   public void closeByBudget(AdaptiveAgentAssessmentEntity assessment) {
     closedByAssessment = assessment;
     closureReason = ProbeGapClosureReason.BUDGET_EXHAUSTED;

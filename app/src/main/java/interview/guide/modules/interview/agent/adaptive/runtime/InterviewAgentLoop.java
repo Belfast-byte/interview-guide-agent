@@ -3,6 +3,12 @@ package interview.guide.modules.interview.agent.adaptive.runtime;
 import interview.guide.modules.interview.agent.adaptive.core.context.AgentContext;
 import interview.guide.modules.interview.agent.adaptive.core.context.WorkingMemory;
 import java.time.Duration;
+import java.util.HashSet;
+import java.util.Set;
+import java.util.Map;
+import interview.guide.common.exception.BusinessException;
+import interview.guide.common.exception.ErrorCode;
+import interview.guide.modules.interview.agent.adaptive.application.AdaptiveAgentProperties;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
@@ -14,17 +20,20 @@ public class InterviewAgentLoop {
   private final AgentDecisionValidator validator;
   private final ReadToolExecutor toolExecutor;
   private final DeadlineExecutor deadlineExecutor;
+  private final AdaptiveAgentProperties properties;
 
   public InterviewAgentLoop(
       InterviewDecisionModel model,
       AgentDecisionValidator validator,
       ReadToolExecutor toolExecutor,
-      DeadlineExecutor deadlineExecutor
+      DeadlineExecutor deadlineExecutor,
+      AdaptiveAgentProperties properties
   ) {
     this.model = model;
     this.validator = validator;
     this.toolExecutor = toolExecutor;
     this.deadlineExecutor = deadlineExecutor;
+    this.properties = properties;
   }
 
   public AgentDecision run(AgentContext context, Duration timeout) {
@@ -40,7 +49,9 @@ public class InterviewAgentLoop {
     List<DecisionObservation> observations = new ArrayList<>(initialObservations);
     WorkingMemory memory = context.workingMemory();
     int batchIndex = 0;
-    while (true) {
+    int toolCalls = 0;
+    Set<ToolRequestKey> executed = new HashSet<>();
+    for (int step = 0; step < properties.getMaxDecisionSteps(); step++) {
       AgentDecision decision = decide(context, memory, observations, deadline);
       Optional<DecisionObservation> memoryRejection =
           validator.validateMemory(decision, context, observations);
@@ -56,13 +67,32 @@ public class InterviewAgentLoop {
         continue;
       }
       if (decision.action() instanceof AgentDecision.CallReadTools calls) {
-        observations.addAll(toolExecutor.execute(new ReadToolBatch(
-            context, calls.calls(), deadline.deadlineNanos(), batchIndex++)));
+        List<ReadToolCall> pending = new ArrayList<>();
+        for (ReadToolCall call : calls.calls()) {
+          if (!executed.add(new ToolRequestKey(call.toolName(), call.arguments()))) {
+            observations.add(new DecisionObservation("duplicate-" + step + "-" + observations.size(),
+                DecisionObservation.Kind.VALIDATION_REJECTION, "action.callReadTools.calls",
+                "相同工具和参数已执行，请使用已有结果或调整请求，不要重复调用", call.toolName(), Map.of(), List.of()));
+          } else {
+            pending.add(call);
+          }
+        }
+        toolCalls += pending.size();
+        if (toolCalls > properties.getMaxReadToolCalls()) {
+          throw new BusinessException(ErrorCode.AI_SERVICE_ERROR, "本轮工具调用次数已达上限，请重试");
+        }
+        if (!pending.isEmpty()) {
+          observations.addAll(toolExecutor.execute(new ReadToolBatch(
+              context, pending, deadline.deadlineNanos(), batchIndex++)));
+        }
         continue;
       }
       return decision;
     }
+    throw new BusinessException(ErrorCode.AI_SERVICE_ERROR, "本轮模型决策次数已达上限，请重试");
   }
+
+  private record ToolRequestKey(String name, Map<String, Object> arguments) {}
 
   private AgentDecision decide(
       AgentContext context,

@@ -8,14 +8,26 @@ import java.util.Collection;
 public class WorkingMemoryValidator {
 
   public void validate(WorkingMemory memory, WorkingMemoryReferences references) {
+    require(memory != null && memory.focus() != null && memory.deliberation() != null,
+        "WorkingMemory 必须包含 focus 和 deliberation");
+    require(memory.focus().gapPriorities() != null
+        && memory.deliberation().hypotheses() != null
+        && memory.deliberation().adoptedObservationRefs() != null,
+        "WorkingMemory 数组字段不能为空");
     WorkingMemoryReferences.ContextIds ids = references.contextIds();
     requireAllowed(memory.basedOnTurnIndex(), ids.turnIndexes(), "Turn");
     requireAllowed(memory.focus().activeTargetId(), ids.targetIds(), "Target");
     requireAllowed(memory.focus().activeGapId(), ids.gapIds(), "Gap");
     for (WorkingMemory.GapPriority priority : memory.focus().gapPriorities()) {
+      require(priority != null, "Gap priority 不能为空");
       requireAllowed(priority.gapId(), ids.gapIds(), "Gap");
     }
     for (WorkingMemory.Hypothesis hypothesis : memory.deliberation().hypotheses()) {
+      require(hypothesis != null && hypothesis.evidenceLinks() != null,
+          "Hypothesis 必须包含 evidenceLinks");
+      require(hypothesis.evidenceLinks().supportingEvidenceIds() != null
+          && hypothesis.evidenceLinks().contradictingEvidenceIds() != null,
+          "Evidence 引用数组不能为空");
       hypothesis.evidenceLinks().supportingEvidenceIds()
           .forEach(id -> requireAllowed(id, references.evidenceIds(), "Evidence"));
       hypothesis.evidenceLinks().contradictingEvidenceIds()
@@ -23,6 +35,12 @@ public class WorkingMemoryValidator {
     }
     memory.deliberation().adoptedObservationRefs()
         .forEach(ref -> requireAllowed(ref, references.observationRefs(), "Observation"));
+  }
+
+  private static void require(boolean valid, String message) {
+    if (!valid) {
+      throw new BusinessException(ErrorCode.AI_SERVICE_ERROR, message);
+    }
   }
 
   private static <T> void requireAllowed(T value, Collection<T> allowed, String type) {

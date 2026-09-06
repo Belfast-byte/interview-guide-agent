@@ -9,5 +9,11 @@ public record AssessmentReportDimensionFacts(
     int order,
     String dimension,
     String focus,
-    List<AssessmentReportTurnFacts> assessments
-) {}
+    List<AssessmentReportTurnFacts> assessments,
+    List<String> unresolvedGaps
+) {
+  public AssessmentReportDimensionFacts(int order, String dimension, String focus,
+      List<AssessmentReportTurnFacts> assessments) {
+    this(order, dimension, focus, assessments, List.of());
+  }
+}

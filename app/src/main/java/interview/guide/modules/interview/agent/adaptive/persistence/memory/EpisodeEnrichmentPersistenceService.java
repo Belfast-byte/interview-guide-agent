@@ -21,31 +21,46 @@ public class EpisodeEnrichmentPersistenceService implements EpisodeEnrichmentSto
 
   private final EpisodeFactRepository episodeRepository;
   private final EpisodeTagRepository tagRepository;
+  private final interview.guide.modules.interview.agent.adaptive.persistence.memory.JpaMemoryEvidenceService memoryEvidence;
+  private final org.springframework.beans.factory.ObjectProvider<interview.guide.modules.interview.agent.adaptive.memory.episode.EpisodeEnrichmentContextSource> contextSource;
+  private final interview.guide.modules.interview.agent.adaptive.application.AdaptiveAgentProperties properties;
 
   @Transactional
   @Override
-  public Optional<EpisodeFact> claim(long episodeId) {
+  public Optional<EpisodeEnrichmentStore.Claim> claim(long episodeId) {
     EpisodeFactEntity episode = findLocked(episodeId);
-    if (!episode.claimEnrichment()) {
+    if (!episode.claimEnrichment(properties.getEpisodeEnrichmentProcessingTimeout())) {
       return Optional.empty();
     }
-    return Optional.of(episodeRepository.saveAndFlush(episode).toDomain());
+    episodeRepository.saveAndFlush(episode);
+    return Optional.of(new EpisodeEnrichmentStore.Claim(episode.toDomain(), episode.enrichmentExecutionToken()));
   }
 
   @Transactional
   @Override
-  public void complete(EpisodeEnrichmentCompletion completion) {
+  public boolean complete(EpisodeEnrichmentCompletion completion) {
     EpisodeFactEntity episode = findLocked(completion.episodeId());
+    if (!episode.ownsEnrichment(completion.executionToken())) return false;
+    if (completion.input()!=null && completion.input().memory()!=null) {
+      var current=contextSource.getObject().load(completion.episodeId());
+      if (!memoryEvidence.fingerprint(current).equals(memoryEvidence.fingerprint(completion.input()))) {
+        episode.recoverStaleEnrichment();
+        return false;
+      }
+      memoryEvidence.append(episode,completion);
+    }
     episode.completeEnrichment(completion.answerSummary());
     tagRepository.deleteByEpisodeId(completion.episodeId());
     tagRepository.saveAllAndFlush(toEntities(episode, completion.tags()));
     episodeRepository.saveAndFlush(episode);
+    return true;
   }
 
   @Transactional
   @Override
-  public void fail(long episodeId, String error) {
+  public void fail(long episodeId, String executionToken, String error) {
     EpisodeFactEntity episode = findLocked(episodeId);
+    if (!episode.ownsEnrichment(executionToken)) return;
     episode.failEnrichment(error);
     tagRepository.deleteByEpisodeId(episodeId);
     episodeRepository.saveAndFlush(episode);

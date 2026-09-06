@@ -57,7 +57,20 @@ export interface PracticeMemoryTrack {
   };
 }
 
+export interface CapabilityBelief {
+  capabilityKey: string;
+  objective: string;
+  state: string;
+  needsVerification: boolean;
+  independentOpportunities: number;
+  revision: string;
+  evidenceRevisionIds: number[];
+  latestObservation: string;
+  updatedAt: string;
+}
+
 export interface CandidateMemoryTopic {
+  beliefs?: CapabilityBelief[];
   skillId: string;
   focusId: string;
   evaluation: EvaluationMemoryTrack | null;

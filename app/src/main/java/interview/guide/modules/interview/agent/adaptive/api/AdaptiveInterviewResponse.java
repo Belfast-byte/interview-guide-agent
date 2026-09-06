@@ -51,7 +51,7 @@ public record AdaptiveInterviewResponse(
         history.llmModelSnapshot(),
         interview.coverage().targets().stream()
             .map(target -> AdaptiveInterviewDimensionResponse.from(
-                target, displayStatus(history, target)))
+                target, displayStatus(history, target), assessedTurns(history, target)))
             .toList(),
         history.turns().stream()
             .map(AdaptiveInterviewTurnResponse::from)
@@ -70,8 +70,17 @@ public record AdaptiveInterviewResponse(
     if (current) {
       return TargetWorkStatus.ACTIVE;
     }
-    return coverage.askedTurns() > 0
-        ? TargetWorkStatus.COMPLETED
-        : TargetWorkStatus.PENDING;
+    if (coverage.askedTurns() == 0) return TargetWorkStatus.PENDING;
+    boolean fullyAssessed = assessedTurns(history, coverage) == coverage.askedTurns();
+    if (fullyAssessed && coverage.openGapIds().isEmpty()) return TargetWorkStatus.COMPLETED;
+    return history.session().status() == AdaptiveSessionStatus.COMPLETED
+        ? TargetWorkStatus.EXHAUSTED : TargetWorkStatus.ACTIVE;
+  }
+
+  private static int assessedTurns(AdaptiveInterviewHistory history, TargetCoverage coverage) {
+    return (int) history.turns().stream()
+        .filter(turn -> java.util.Objects.equals(turn.dimensionOrder(), coverage.target().identity().order()))
+        .filter(turn -> turn.answerStatus() == interview.guide.modules.interview.agent.adaptive.core.session.AnswerProcessingStatus.COMPLETED)
+        .count();
   }
 }

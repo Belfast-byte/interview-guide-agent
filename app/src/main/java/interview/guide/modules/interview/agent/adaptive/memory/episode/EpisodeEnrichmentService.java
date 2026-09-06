@@ -14,7 +14,8 @@ public class EpisodeEnrichmentService {
   private final EpisodeEnrichmentServiceDependencies dependencies;
 
   public boolean enrich(long episodeId, String llmProvider) {
-    if (dependencies.store().claim(episodeId).isEmpty()) {
+    var claim = dependencies.store().claim(episodeId);
+    if (claim.isEmpty()) {
       return false;
     }
     try {
@@ -27,14 +28,14 @@ public class EpisodeEnrichmentService {
           proposal.tags(),
           request.sourceFacts()
       );
-      dependencies.store().complete(new EpisodeEnrichmentCompletion(
+      return dependencies.store().complete(new EpisodeEnrichmentCompletion(
           episodeId,
+          claim.orElseThrow().executionToken(),
           proposal.answerSummary(),
-          tags
+          tags, request, proposal.observation(), llmProvider
       ));
-      return true;
     } catch (RuntimeException error) {
-      dependencies.store().fail(episodeId, describe(error));
+      dependencies.store().fail(episodeId, claim.orElseThrow().executionToken(), describe(error));
       throw error;
     }
   }

@@ -17,6 +17,13 @@ public class JpaSemanticStateSource implements SemanticStateSource {
   private final SemanticContributionRepository contributionRepository;
   private final EpisodeTagRepository tagRepository;
   private final SemanticStateProjector projector;
+  private final interview.guide.modules.interview.agent.adaptive.persistence.memory.JpaMemoryEvidenceService memoryEvidence;
+
+  @Override
+  public List<interview.guide.modules.interview.agent.adaptive.memory.observation.CapabilityBelief>
+      beliefs(MemoryOwner owner, interview.guide.modules.interview.agent.adaptive.core.context.TopicKey topic) {
+    return memoryEvidence.beliefs(owner,topic);
+  }
 
   @Override
   public List<SemanticState> findByOwner(MemoryOwner owner) {

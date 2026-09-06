@@ -7,9 +7,18 @@ import java.util.List;
  */
 public record EpisodeEnrichmentCompletion(
     long episodeId,
+    String executionToken,
     String answerSummary,
-    List<ValidatedEpisodeTag> tags
+    List<ValidatedEpisodeTag> tags,
+    EpisodeEnrichmentRequest input,
+    interview.guide.modules.interview.agent.adaptive.memory.observation.MemoryObservationProposal observation,
+    String provider
 ) {
+
+  public EpisodeEnrichmentCompletion(long episodeId,String executionToken,String answerSummary,
+      List<ValidatedEpisodeTag> tags) {
+    this(episodeId,executionToken,answerSummary,tags,null,null,null);
+  }
 
   public EpisodeEnrichmentCompletion {
     tags = List.copyOf(tags);

@@ -126,7 +126,7 @@ class InterviewAgentLoopTest {
         model,
         new AgentDecisionValidator(new WorkingMemoryValidator()),
         batch -> List.of(),
-        new DeadlineExecutor()
+        new DeadlineExecutor(), new interview.guide.modules.interview.agent.adaptive.application.AdaptiveAgentProperties()
     );
   }
 

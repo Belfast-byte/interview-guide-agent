@@ -17,7 +17,7 @@ import org.springframework.stereotype.Component;
  */
 @Component
 public class ContextAssembler {
-  private static final List<String> ALLOWED_READ_TOOLS = List.of("rubric_search");
+  private static final List<String> ALLOWED_READ_TOOLS = List.of("rubric_search", "memory_recall");
 
   private final InterviewSkillService skillService;
 

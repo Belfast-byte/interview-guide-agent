@@ -1,5 +1,7 @@
 package interview.guide.modules.interview.agent.adaptive.api;
 
+import interview.guide.modules.interview.agent.adaptive.core.session.AnswerProcessingStatus;
+
 import static interview.guide.modules.interview.agent.adaptive.support.AdaptiveTestFixtures.EVALUATION_SETTINGS;
 import static interview.guide.modules.interview.agent.adaptive.support.AdaptiveTestFixtures.testDimension;
 
@@ -70,7 +72,8 @@ class AdaptiveInterviewResponseTest {
     assertThat(response.candidateLevel()).isEqualTo(EVALUATION_SETTINGS.candidateLevel());
     assertThat(response.practiceScope()).isEmpty();
     assertThat(response.turns()).containsExactly(
-        new AdaptiveInterviewTurnResponse(1, 0, "第一题？", null)
+        new AdaptiveInterviewTurnResponse(1, 0, "第一题？", null,
+            AnswerProcessingStatus.WAITING, null)
     );
     assertThat(response.dimensions()).extracting(AdaptiveInterviewDimensionResponse::dimension)
         .containsExactly("专业基础");

@@ -39,6 +39,7 @@ public class JpaAssessmentReportFactsSource
   private final AdaptiveAgentEvidenceRepository evidenceRepository;
   private final PracticeRecordRepository practiceRecordRepository;
   private final AlgorithmEvidenceSource algorithmEvidenceSource;
+  private final AssessmentProbeGapRepository gapRepository;
 
   public JpaAssessmentReportFactsSource(
       AdaptiveAgentSessionRepository sessionRepository,
@@ -47,7 +48,8 @@ public class JpaAssessmentReportFactsSource
       AdaptiveAgentAssessmentRepository assessmentRepository,
       AdaptiveAgentEvidenceRepository evidenceRepository,
       PracticeRecordRepository practiceRecordRepository,
-      AlgorithmEvidenceSource algorithmEvidenceSource
+      AlgorithmEvidenceSource algorithmEvidenceSource,
+      AssessmentProbeGapRepository gapRepository
   ) {
     this.sessionRepository = sessionRepository;
     this.planRepository = planRepository;
@@ -56,6 +58,7 @@ public class JpaAssessmentReportFactsSource
     this.evidenceRepository = evidenceRepository;
     this.practiceRecordRepository = practiceRecordRepository;
     this.algorithmEvidenceSource = algorithmEvidenceSource;
+    this.gapRepository = gapRepository;
   }
 
   @Override
@@ -98,6 +101,8 @@ public class JpaAssessmentReportFactsSource
         .stream()
         .collect(Collectors.groupingBy(evidence -> evidence.assessment().id()));
 
+    var openGaps = gapRepository.findSessionGaps(session.id()).stream()
+        .filter(g -> g.closedByAssessmentId() == null).toList();
     List<AssessmentReportDimensionFacts> dimensions = planRepository
         .findBySessionIdOrderByDimensionOrder(session.id()).stream()
         .map(plan -> new AssessmentReportDimensionFacts(
@@ -113,7 +118,9 @@ public class JpaAssessmentReportFactsSource
                     evidenceByAssessment,
                     algorithmEvidences
                 ))
-                .toList()
+                .toList(),
+            openGaps.stream().filter(g -> g.assessmentDimensionOrder() == plan.dimensionOrder())
+                .map(g -> g.toDomain().missingPoint()).distinct().toList()
         ))
         .toList();
     return new AssessmentReportFacts(
@@ -149,7 +156,7 @@ public class JpaAssessmentReportFactsSource
         assessment.depthLevel(),
         assessment.confidence(),
         assessment.rationaleSummary(),
-        evidenceByAssessment.get(assessment.id()).stream()
+        evidenceByAssessment.getOrDefault(assessment.id(), List.of()).stream()
             .filter(evidence -> evidence.evidenceType() != EvidenceType.CODE_FACT)
             .filter(evidence -> evidence.evidenceType() != EvidenceType.TOOL_RESULT
                 || evidence.sandboxExecutionId() != null)

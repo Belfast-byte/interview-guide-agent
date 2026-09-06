@@ -93,7 +93,7 @@ export default function InterviewSetupPage() {
   const companyLabel = COMPANY_OPTIONS.find(option => option.skillId === skillId)?.value ?? '';
   const hasDefaultProvider = providers.some(provider => provider.defaultChatProvider);
   const practiceReady = mode === 'EVALUATION' || Boolean(skillId && focusId);
-  const ready = Boolean(jd.trim() && resume.trim() && providerId && hasDefaultProvider && practiceReady);
+  const ready = Boolean(jd.trim() && resume.trim() && providerId && practiceReady);
   const submitDisabled = working || providersLoading || !ready;
 
   const selectSkill = (nextSkillId: string) => {

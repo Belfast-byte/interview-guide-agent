@@ -96,14 +96,14 @@ export default function InterviewReportPage() {
               评估报告
             </h1>
             <p className="mt-2 max-w-[40em] text-sm leading-6 text-wk-muted">
-              每个结论都锚定到面试中的原始回答或工具执行结果，可逐条回看。
+              已评估维度展示实际表现与可用证据；未考察维度不作评级。
             </p>
             <p className="mt-3 font-monosc text-[11px] tracking-wider text-wk-muted">
               SESSION {report.sessionId}
             </p>
           </div>
           <div className="wk-seal flex-none" data-ready="true">
-            已评估
+            已生成
           </div>
         </div>
       </header>
@@ -124,13 +124,13 @@ export default function InterviewReportPage() {
                 </span>
                 <h2 className="font-serifsc text-lg font-bold text-ink">{dimension.dimension}</h2>
                 <span className="ml-auto font-monosc text-[11px] text-wk-muted">
-                  置信度 {Math.round(dimension.confidence * 100)}%
+                  {dimension.confidence === null ? '未考察' : `置信度 ${Math.round(dimension.confidence * 100)}%`}
                 </span>
               </div>
               <p className="mt-1.5 pl-8 text-[13px] text-wk-muted">{dimension.focus}</p>
 
               <div className="mt-4 pl-8">
-                <DepthRuler level={dimension.depthLevel} />
+                {dimension.depthLevel === null ? <p className="text-sm text-wk-muted">未考察，不作评级</p> : <DepthRuler level={dimension.depthLevel} />}
               </div>
 
               <p className="mt-4 pl-8 text-sm leading-7 text-ink-soft">{dimension.rationale}</p>
@@ -203,7 +203,9 @@ export default function InterviewReportPage() {
 
           {report.weakPoints.length === 0 && report.practiceRecommendations.length === 0 && (
             <p className="text-sm leading-6 text-wk-muted">
-              没有暴露明显薄弱点。可以回到 <Link to={ROUTES.workspace} className="text-cinnabar underline">新的面试</Link> 换更深的维度再跑一场。
+              {report.dimensions.some(dimension => dimension.depthLevel === null)
+                ? '本场包含未考察维度，现有评估不足以判断这些维度的薄弱点。'
+                : '已评估维度没有暴露明显薄弱点。'}可以回到 <Link to={ROUTES.workspace} className="text-cinnabar underline">新的面试</Link> 换更深的维度再跑一场。
             </p>
           )}
         </aside>
