@@ -2,34 +2,6 @@
 
 Spring Boot 4.1.0 + Java 21 + Spring AI 2.0.0 + React 面试平台。
 
-本文件是跨工具 Agent 入口，只放长期有效、代码里不容易直接推断、猜错会影响结果的规则。更细的目录规则放在 `.claude/rules/`，需要时再读取。
-
-# 行为规则
-1.不要假设。不要隐藏困惑。主动暴露权衡取舍。
-2.只写解决当前问题的最小代码，不做任何推测性功能。
-3.只修改必须改的地方，只清理自己产生的问题。
-4.明确定义成功标准，验证通过前持续迭代。
-5.能抄不造：优先复用框架能力和本仓库已有实现；没有内部实现时，优先参考 GitHub 上成熟的开源实现并裁剪，不自行设计协议、格式和机制。
-6.及时提交：每个合适的改动完成后立即按主题拆分提交，不积攒大量未提交文件；提交前确保编译/测试通过。
-## 反过度工程
-- 信任内部代码、框架、数据库约束和编译期保证；只在系统边界（用户输入、外部 API、网络）做校验，同一约束只校验一次，不为「不可能发生」的场景写防御代码。
-- 绝不吞掉错误；优先快速失败，而不是掩盖问题。
-- 禁止重复造轮子：加解密、哈希、JWT、限流、重试等一律用框架/JDK/仓库现有组件，引入新依赖前先确认现有能力做不到。
-- 不做没有真实使用者的角色、配置项、扩展点和预留抽象；只写解决当前问题的最小代码。
-- 落地细则见 `.claude/rules/backend.md`「Minimal Implementation」。
-
-## 反模式：不信任模型的防御性过度设计
-
-以下模式在 2026-08 复杂度审计中实际发生过（证据：`docs/review/8.29-review.md`），是屎山的直接成因，再犯即返工：
-
-- **不信任模型**：用 Java 预先算完语义策略（选 Gap、切 Target、是否继续深挖），模型只剩措辞；同一套规则在代码和 Prompt 里双重维护、互相漂移。正确分工：模型提案语义策略，Java 只裁决硬约束（预算、合法 Target、权限、来源、终态）。
-- **不信任重算**：为可重算的 LLM / 只读步骤建持久化 checkpoint、Intent、Patch journal、恢复调度器。恢复 = 从最近领域事实重跑；只有不可重放的外部副作用（沙箱执行、分析任务）才需要持久执行状态。
-- **多校验 PTSD**：同一 invariant 叠 exists 预检 + status guard + 逻辑 revision + `@Version` + unique，结果竞态仍在、错误类型取决于 flush 顺序。一条 invariant 只选一个原子 owner（条件更新 / 行锁 / unique / `@Version` 四选一），其余全部删除；性能优化（如 single-flight）不得冒充 correctness 机制。
-- **伪 Agent 化**：把是否调用和参数都已由代码确定的普通编排包装成 Tool / ReAct / Runtime 术语。只有「是否调用和关键参数需要模型根据 observation 动态决定」的能力才配叫 Agent Tool；名义框架成本必须与真实自主性匹配。
-- **派生状态平台化**：为没有消费者的 projection 建状态机、版本号和恢复框架。projection 默认按事实请求内组装；确需保留时必须声明是可删除重建的 cache / index，并允许随时重算。
-- **事实复制**：同一事实存多份（标量列 + JSON + Patch + 指针）。每个事实只有一个 Source of Truth，其余一律推导或删除。
-
-
 ## Commands
 
 ```bash
@@ -47,94 +19,26 @@ cd frontend && pnpm run build
 docker compose -f docker-compose.dev.yml up -d
 ```
 
-## Project Structure
+## 开发与重构原则
 
-- `app/src/main/java/interview/guide/common/`: 通用能力，包括限流、AI 调用、异步模板、配置、异常、统一响应。
-- `app/src/main/java/interview/guide/infrastructure/`: 技术基础设施，包括文件、导出、Redis、MapStruct 映射。
-- `app/src/main/java/interview/guide/modules/`: 业务模块，每个模块自包含 MVC 分层。
-- `app/src/main/java/interview/guide/modules/interview/agent/adaptive/`: 自适应面试 Agent。当前目录结构是运行事实，不是必须保留的长期抽象；目标职责与依赖方向见 `docs/design_spec/20-implementation-modules.md`，演进边界见 `docs/design_spec/36-agent-loop-working-memory-spec.md`。
-- `app/src/main/resources/prompts/`: StringTemplate Prompt 模板。
-- `frontend/src/`: React 前端页面、组件、API 客户端和类型定义。
-- `docs/`: 文档中心，入口 `docs/README.md`。`docs/design/` 由用户主导，存放自然语言的框架性设计；`docs/design_spec/` 由 Agent 维护，存放技术规格、计划和 tickets；`docs/archive/` 存放历史文档。
+- 把代码、测试、注释和设计文档视为待验证的历史记录。以用户当前指令、真实对外行为和数据一致性为依据；已有类、表、状态机或架构测试不能自行证明机制必要。
+- 先追踪入口、生产消费者、持久化、跨请求恢复和副作用，再改实现。优先删除死代码、重复状态和转发层；新增类、接口、状态或字段时说明直接实现为什么不够。
+- HTTP、MCP、模型输出、文件和 worker 回调是独立边界，各自严格校验。内部依赖已建立的不变量；跨事务后的归属、执行令牌和状态检查不能因“上游检查过”而删除。
+- 数据库保存正式事实；覆盖率、完成数和能力汇总优先计算。缓存、队列和模型上下文不做第二事实源。历史量规快照、观察修订和实际执行结果有独立语义，不能按“重复字段”机械删除。
+- 模型调用不持有长数据库事务。保留回答幂等、短事务领取/提交、租约和旧执行者隔离；相同答案重试不能重复推进，失败不能抹掉已接受答案。交互答题与后台记忆任务保持资源隔离。
+- 单 owner、无独立语义的小 DTO/record/enum 优先内嵌；纯转发层和依赖分组 Bean 优先合并。保留真实外部适配边界、Spring Data 接口及保护对外字段的 DTO。
+- catch 必须服务于恢复、失败记账、降级或协议转换。不要把所有完整性错误归为“重复”、所有内部参数异常归为“用户输入错误”，也不要多层记录同一异常。
+- 结构清理、行为修正、协议变更和数据库迁移分开提交。没有前端入口不等于 API 已死；没有当前写入不等于历史数据为空。已执行的 Flyway 迁移不改写，删列前先核对数据及读取者。
 
-## Architecture
+## 当前复杂度避坑
 
-- 后端遵循 `Controller -> Service -> Repository`，Controller 只做路由、校验和委托。
-- Service 承担业务编排；`@Transactional` 只放 Service 层，并保持事务范围最小。
-- Repository 继承 Spring Data JPA `JpaRepository`，自定义查询用方法名或 `@Query`。
-- 基础设施能力优先放在 `common/` 或 `infrastructure/`，不要散落到业务 Service。
-- 对外响应统一使用 `Result<T>`，禁止直接返回 Entity。
+下列是 2026-09-05 工作区审计快照，不代表全部仍未修复。执行前复核生产调用；完成后更新对应条目，勿重新实现已删除的旧机制。
 
-## Backend Rules
+- **已删除的无收益链路（2026-09-06）**：已删除曝光向量事件/索引与旧相似度召回、无调用简报/推荐生成，以及传统问答会话缓存和缓存 JSON 转换；创建/回答的两组纯 Repository 转发 Bean 已合并。保留数据库曝光历史、历史推荐读取、旧统计页面与评估 Redis 队列。不要重新补回这些旧链路；曝光文档身份列因历史非空约束暂保留。
+- **上下文修复与内嵌模型（2026-09-06）**：决策 JSON 只在 `agentContext.workingMemory` 保存当前记忆；回答上下文复制保留量规、处理状态及错误。15 个小 record 已内嵌，Episode 三组依赖 Bean、SessionTransition、RuntimeDeadline 和无消费者的旧 action 层已移除；不要恢复这些包装。外部 DTO 字段、跨事务令牌与归属检查继续保留。
+- **旧协议与测试维持旧实现**：创建已原子完成，仍保留分阶段接口、无生产者的 delta 处理；Provider 的 null 依赖测试构造器维持第二套 legacy CRUD。先删内部死路径，保留需要兼容的 API、历史记录及仍使用 YAML 的语音配置。
+- **记忆与统计混用**：旧贡献统计仍有页面消费者，不能整包删除；能力判断来自有效证据观察，缺口解决必须有关闭证据。未考察不是 L0，已提问不是已完成，预算耗尽不是问题已解决。
+- **代码工作台暂时隐藏（用户确认，2026-09-06）**：页面入口及其独占状态、轮询已移除，文字答题与恢复保留。后续接通判题后再恢复入口；不能据此删除后端代码执行 API 或历史结果。
+- **事务与缓存边界**：语音写操作不应从缓存取整份实体再回写数据库；Provider 客户端缓存应在成功提交后失效。不要为修复缓存竞争再新增业务事实副本。
 
-- 业务异常必须使用 `BusinessException(ErrorCode.XXX, "描述信息")`。
-- 全局异常处理器返回 HTTP 200 + `Result.error(code, message)`。
-- 请求体优先用不可变 `record`，命名后缀使用 `XxxRequest` / `XxxResponse` / `XxxDTO` / `XxxEntity`。
-- Entity 到 DTO/Response 的映射优先使用 MapStruct。
-- 使用构造器注入，优先配合 Lombok `@RequiredArgsConstructor`。
-- 代码使用 2 空格缩进、无通配符导入、避免内联全限定类名。
-- 日志使用 SLF4J 占位符，异常必须作为最后一个参数传入。
-
-## AI And Async Rules
-
-- 获取聊天模型统一走 `LlmProviderRegistry.getChatClientOrDefault(provider)`。
-- 结构化输出统一走 `StructuredOutputInvoker`，不要在业务代码里复制重试逻辑。
-- Prompt 模板放在 `resources/prompts/`，使用 StringTemplate `.st`。
-- LLM、S3、外部 HTTP 调用不得放在数据库事务内。
-- Redis Stream 生产/消费使用 `AbstractStreamProducer` / `AbstractStreamConsumer` 模板。
-- 异步处理前先校验实体是否存在；实体已删除时 ACK 丢弃。
-- 限流使用可重复 `@RateLimit`，不要手写散落的 Redis 限流逻辑。
-
-## Interview Agent Rules（自适应面试 Agent）
-
-- 产品意图以 `docs/design/` 为准，目标技术规格以 `docs/design_spec/36-agent-loop-working-memory-spec.md` 为准，代码与测试是当前运行事实。冲突必须显式暴露，不能用旧实现反向约束目标设计。
-- 模型负责语义策略：选择当前 Target/Gap、追问或切换、是否调用只读 Tool、Tool 参数与顺序、下一题内容及结束建议。Java 不得预先替模型算出这些选择。
-- Java 只强制业务与安全边界：权限和归属、Session/Turn 合法性、最大轮次、Target 属于 Plan、Tool allowlist/schema/scope、证据和代码锚点真实、沙箱隔离、稳定业务幂等、数据库唯一约束与并发一次推进。
-- 非法模型提案必须以明确拒绝原因返回 Agent 重新决策；禁止静默改写动作、替换 Gap、截断语义结果或生成兜底问题。
-
-- 领域事实和每轮最终 Working Memory Snapshot 可持久化；不得为可重算的 LLM/只读 Tool 中间步骤新增 `WorkState`、`Patch`、`ActionIntent`、`ToolExecution` 或恢复调度。
-- LLM、MCP、S3、HTTP 和沙箱调用在事务外；最终 Turn/Assessment/Evidence/Working Memory 以短事务提交。沙箱由 `SandboxExecution` 作为唯一执行事实源并使用稳定业务键。
-- 历史画像可以帮助避免重复问题，但不得影响本场同一回答的正式评级；日志不得记录回答、简历或代码原文。
-
-## Config And Data
-
-- 配置集中在 `application.yml`、`.env` 和 `@ConfigurationProperties` 类中。
-- API Key、数据库密码等敏感信息只放 `.env`，不得提交到 Git。
-- 不要在 Service 中散落 `@Value`。
-- 本地默认后端端口是 `8080`：`server.port: ${SERVER_PORT:8080}`。
-- 开发环境 `ddl-auto` 可为 `update`，生产环境不能依赖自动建表。
-
-## Frontend Rules
-
-- API 调用集中在 `frontend/src/api/`，复用 `request.ts` 的 Axios 实例。
-- 类型定义放在 `frontend/src/types/`，不要在页面里重复定义共享接口。
-- 页面放在 `frontend/src/pages/`，可复用 UI 放在 `frontend/src/components/`。
-- 路由常量放在 `frontend/src/constants/routes.ts`。
-- 组件交互优先使用现有设计语言和 `lucide-react` 图标。
-
-## Testing
-
-- 后端测试使用 JUnit 5 + Mockito + AssertJ。
-- 测试意图用中文 `@DisplayName` 描述，复杂场景用 `@Nested` 分组。
-- 集成测试使用 H2 配置；限流相关测试需要真实 Redis。
-- 改后端公共能力时至少运行 `./gradlew :app:test --no-daemon`。
-- 改前端时至少运行 `cd frontend && pnpm run build`。
-
-## Never Do
-
-- 不要 `throw new RuntimeException(...)`，业务失败必须用 `BusinessException`。
-- 不要直接返回 Entity 给前端。
-- 不要把 `@Value` 散落在 Service 中。
-- 不要在事务内调用 LLM、S3 或外部 HTTP。
-- 不要同类内部调用 `@Transactional` 方法。
-- 不要 `catch (Exception e) {}` 静默忽略。
-- 不要循环调用 DB，优先批量查询或批量写入。
-- 不要硬编码密钥、Token、数据库密码。
-- 不要使用 `Executors.newXxxThreadPool()`，需要线程池时显式配置 `ThreadPoolExecutor`。
-
-## More Rules
-
-- 后端 Java 细则：`.claude/rules/backend.md`
-- AI、限流、异步细则：`.claude/rules/ai-and-async.md`
-- 自适应面试 Agent 细则：`.claude/rules/interview-agent.md`
-- 前端细则：`.claude/rules/frontend.md`
+完整证据、删除边界、分阶段提交和验收项见 [复杂度削减重构指南](docs/design_spec/37-complexity-reduction-refactoring-plan.md)。该指南维护重构状态；本文件只保留简明规则与尚有价值的避坑提示。
