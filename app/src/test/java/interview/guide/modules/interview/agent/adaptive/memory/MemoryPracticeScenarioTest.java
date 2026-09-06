@@ -4,23 +4,13 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 import interview.guide.modules.interview.agent.adaptive.core.context.DepthLevel;
 import interview.guide.modules.interview.agent.adaptive.core.context.MemoryOwner;
-import interview.guide.modules.interview.agent.adaptive.core.context.ProbeGap;
 import interview.guide.modules.interview.agent.adaptive.core.context.TopicKey;
 import interview.guide.modules.interview.agent.adaptive.core.session.PracticeScope;
-import interview.guide.modules.interview.agent.adaptive.core.session.SessionMode;
-import interview.guide.modules.interview.agent.adaptive.memory.semantic.PracticeCoachingContext;
 import interview.guide.modules.interview.agent.adaptive.memory.episode.EpisodeAssistanceLevel;
-import interview.guide.modules.interview.agent.adaptive.memory.episode.EpisodeClosureStatus;
-import interview.guide.modules.interview.agent.adaptive.memory.episode.EpisodeRecallSource;
-import interview.guide.modules.interview.agent.adaptive.memory.episode.EvaluationRecallView;
-import interview.guide.modules.interview.agent.adaptive.memory.episode.PracticeDiagnosticView;
 import interview.guide.modules.interview.agent.adaptive.memory.semantic.PracticeAggregate;
-import interview.guide.modules.interview.agent.adaptive.memory.semantic.PracticeCoachingMemoryAssembler;
-import interview.guide.modules.interview.agent.adaptive.memory.semantic.PracticeCoachingRequest;
 import interview.guide.modules.interview.agent.adaptive.memory.semantic.PracticeContribution;
 import interview.guide.modules.interview.agent.adaptive.memory.semantic.PracticeMastery;
 import interview.guide.modules.interview.agent.adaptive.memory.semantic.PracticeMemoryService;
-import interview.guide.modules.interview.agent.adaptive.memory.semantic.PracticeMemorySession;
 import interview.guide.modules.interview.agent.adaptive.memory.semantic.PracticeOutcome;
 import interview.guide.modules.interview.agent.adaptive.memory.semantic.PracticePlanningMemory;
 import interview.guide.modules.interview.agent.adaptive.memory.semantic.PracticeResult;
@@ -46,17 +36,11 @@ class MemoryPracticeScenarioTest {
   private static final TopicKey REDIS_CLUSTER = new TopicKey("redis", "cluster");
 
   @Test
-  @DisplayName("练习只在 scope 内选择弱项并以完整诊断追问后更新练习轨")
-  void shouldConsumeScopedDiagnosticsAndRecordAssistedMastery() {
+  @DisplayName("练习规划限定 scope，提示后作答只更新为辅助掌握")
+  void shouldPlanWithinScopeAndRecordAssistedMastery() {
     PracticeMemoryService memory = memoryService();
     PracticePlanningMemory planning = memory.planning(
         OWNER, new PracticeScope(List.of(REDIS_PERSISTENCE)));
-    PracticeCoachingContext coaching = assembler(memory).assemble(new PracticeCoachingRequest(
-        new PracticeMemorySession("practice-1", SessionMode.PRACTICE),
-        REDIS_PERSISTENCE,
-        "fork COW"
-    ));
-
     PracticeContribution retest = new PracticeContribution(
         new SemanticSource(12L, OWNER, REDIS_PERSISTENCE,
             LocalDateTime.of(2026, 8, 28, 12, 0)),
@@ -68,9 +52,6 @@ class MemoryPracticeScenarioTest {
 
     assertThat(planning.topics()).extracting(topic -> topic.topic())
         .containsExactly(REDIS_PERSISTENCE);
-    assertThat(coaching.episodes().getFirst())
-        .containsEntry("answer", "只说 fork，没有解释父子进程写时复制")
-        .containsEntry("assistanceLevel", EpisodeAssistanceLevel.HINT);
     assertThat(updated.mastery()).isEqualTo(PracticeMastery.ASSISTED);
     assertThat(updated.statistics().completed(EpisodeAssistanceLevel.HINT)).isEqualTo(1);
     assertThat(updated.transfer().status()).isEqualTo(TransferStatus.NOT_REEVALUATED);
@@ -80,14 +61,6 @@ class MemoryPracticeScenarioTest {
     PracticeSemanticState selected = state(REDIS_PERSISTENCE, PracticeMastery.UNRESOLVED);
     PracticeSemanticState outsideScope = state(REDIS_CLUSTER, PracticeMastery.INDEPENDENT);
     return new PracticeMemoryService(owner -> List.of(selected, outsideScope));
-  }
-
-  private PracticeCoachingMemoryAssembler assembler(PracticeMemoryService memory) {
-    return new PracticeCoachingMemoryAssembler(
-        memory,
-        new ScenarioEpisodeRecallSource(),
-        sessionId -> OWNER
-    );
   }
 
   private PracticeSemanticState state(TopicKey topic, PracticeMastery mastery) {
@@ -111,35 +84,4 @@ class MemoryPracticeScenarioTest {
     );
   }
 
-  private static final class ScenarioEpisodeRecallSource implements EpisodeRecallSource {
-
-    @Override
-    public List<EvaluationRecallView> evaluation(
-        String sessionId,
-        TopicKey topic,
-        String question
-    ) {
-      return List.of();
-    }
-
-    @Override
-    public List<PracticeDiagnosticView> practice(
-        String sessionId,
-        TopicKey topic,
-        String question
-    ) {
-      return List.of(new PracticeDiagnosticView(
-          11L, 10L, REDIS_PERSISTENCE,
-          "BGSAVE 时为什么内存突增？",
-          "只说 fork，没有解释父子进程写时复制",
-          DepthLevel.L1,
-          0.9,
-          List.of("说出了 fork"),
-          List.of(new ProbeGap("fork", "解释 COW 页复制条件")),
-          EpisodeAssistanceLevel.HINT,
-          EpisodeClosureStatus.UNRESOLVED,
-          0.92
-      ));
-    }
-  }
 }

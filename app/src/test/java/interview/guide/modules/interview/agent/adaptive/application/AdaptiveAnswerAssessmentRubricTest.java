@@ -24,7 +24,7 @@ class AdaptiveAnswerAssessmentRubricTest {
           TurnProvenance.initial(),adopted ? List.of(rubric) : List.of());
       var session=AdaptiveInterviewSession.create("s",plan.maxTurns(),EVALUATION_SETTINGS);
       var history=new AdaptiveInterviewHistory(session,"candidate","","","provider",List.of(turn));
-      var interview=new PlannedInterview(history,plan,List.of());
+      var interview=new PlannedInterview(history,plan);
       var captured=new AtomicReference<AssessmentRequest>();
       var assessor=new AdaptiveAnswerAssessmentService(new DepthAssessmentAgent((r,p) -> {
         captured.set(r);

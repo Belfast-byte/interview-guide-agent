@@ -267,8 +267,7 @@ class AdaptiveInterviewMcpToolsTest {
             null,
             List.of()
         ),
-        new InterviewPlan(sessionId, 0, List.of()),
-        List.of()
+        new InterviewPlan(sessionId, 0, List.of())
     );
   }
 

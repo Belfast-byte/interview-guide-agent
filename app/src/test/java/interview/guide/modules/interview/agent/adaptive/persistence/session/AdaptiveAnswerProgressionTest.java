@@ -68,9 +68,7 @@ import org.springframework.test.context.bean.override.mockito.MockitoBean;
     tools.jackson.databind.ObjectMapper.class,
     interview.guide.modules.interview.agent.adaptive.rubric.RubricGenerationStore.class,
     interview.guide.modules.interview.agent.adaptive.persistence.session.RubricSnapshotResolver.class,
-    AdaptiveCreationRepositories.class,
     AdaptiveCreationTransactionService.class,
-    AdaptiveAnswerCoreRepositories.class,
     AdaptiveAssessmentRepositories.class,
     AdaptiveAnswerTransactionService.class,
     AdaptiveAnswerClaimService.class,
@@ -291,7 +289,7 @@ class AdaptiveAnswerProgressionTest {
         List.of(),
         List.of()
     ));
-    return new PlannedInterview(history, plan, coverage, List.of());
+    return new PlannedInterview(history, plan, coverage);
   }
 
   private AnswerProgressionDecision progression(InterviewPlan plan) {

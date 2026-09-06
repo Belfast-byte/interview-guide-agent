@@ -34,7 +34,8 @@ import org.springframework.transaction.annotation.Transactional;
 @Service
 public class AdaptiveAnswerTransactionService {
 
-  private final AdaptiveAnswerCoreRepositories core;
+  private final AdaptiveAgentSessionRepository sessions;
+  private final AdaptiveAgentTurnRepository turns;
   private final AdaptiveAssessmentRepositories assessments;
   private final AdaptiveAnswerSideEffects sideEffects;
 
@@ -43,14 +44,16 @@ public class AdaptiveAnswerTransactionService {
   private final interview.guide.modules.interview.agent.adaptive.rubric.RubricGenerationStore rubricGeneration;
 
   public AdaptiveAnswerTransactionService(
-      AdaptiveAnswerCoreRepositories core,
+      AdaptiveAgentSessionRepository sessions,
+      AdaptiveAgentTurnRepository turns,
       AdaptiveAssessmentRepositories assessments,
       AdaptiveAnswerSideEffects sideEffects,
       RubricSnapshotResolver rubricSnapshots,
       interview.guide.modules.interview.agent.adaptive.persistence.memory.JpaMemoryEvidenceService memoryEvidence,
       interview.guide.modules.interview.agent.adaptive.rubric.RubricGenerationStore rubricGeneration
   ) {
-    this.core = core;
+    this.sessions = sessions;
+    this.turns = turns;
     this.assessments = assessments;
     this.sideEffects = sideEffects;
     this.rubricSnapshots = rubricSnapshots;
@@ -89,7 +92,7 @@ public class AdaptiveAnswerTransactionService {
   }
 
   private AdaptiveAgentSessionEntity lockedSession(String sessionId, MemoryOwner owner) {
-    AdaptiveAgentSessionEntity session = core.lockedSession(sessionId)
+    AdaptiveAgentSessionEntity session = sessions.findLockedById(sessionId)
         .orElseThrow(() -> new BusinessException(
             ErrorCode.INTERVIEW_SESSION_NOT_FOUND, "Agent 面试会话不存在"));
     if (!Objects.equals(session.tenantId(), owner.tenantId())
@@ -103,7 +106,7 @@ public class AdaptiveAnswerTransactionService {
       String sessionId,
       CandidateAnswer answer
   ) {
-    AdaptiveAgentTurnEntity turn = core.lockedTurn(sessionId, answer.turnIndex())
+    AdaptiveAgentTurnEntity turn = turns.findLockedBySessionIdAndTurnIndex(sessionId, answer.turnIndex())
         .orElseThrow(() -> new BusinessException(ErrorCode.NOT_FOUND, "面试轮次不存在"));
     if (!turn.candidateAnswer().equals(answer)) {
       throw new BusinessException(ErrorCode.BAD_REQUEST, "回答 claim 与提交事实不一致");
@@ -186,7 +189,7 @@ public class AdaptiveAnswerTransactionService {
     PlannedInterview interview = commit.commit().interview();
     PlannedDimension target = target(interview.plan(), ask.targetId());
     TurnProvenance provenance = provenance(commit, ask, gapIds);
-    AdaptiveAgentTurnEntity nextTurn = core.saveTurn(
+    AdaptiveAgentTurnEntity nextTurn = turns.saveAndFlush(
         new AdaptiveAgentTurnEntity(new AdaptiveTurnCreation(
             interview.history().session().id(),
             answer.turnIndex() + 1,

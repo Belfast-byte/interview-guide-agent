@@ -21,20 +21,6 @@ public interface QuestionExposureRepository
       ORDER BY exposure.askedAt DESC, exposure.id DESC
       """)
   List<QuestionExposureEntity> findByOwnerAndTopic(
-      @Param("owner") MemoryOwner owner,
-      @Param("topic") TopicKey topic
-  );
-  @Query("""
-      SELECT exposure
-      FROM QuestionExposureEntity exposure
-      WHERE exposure.candidateId = :#{#owner.candidateId}
-        AND ((:#{#owner.tenantId} IS NULL AND exposure.tenantId IS NULL)
-          OR exposure.tenantId = :#{#owner.tenantId})
-        AND exposure.skillId = :#{#topic.skillId}
-        AND exposure.focusId = :#{#topic.focusId}
-      ORDER BY exposure.askedAt DESC, exposure.id DESC
-      """)
-  List<QuestionExposureEntity> findByOwnerAndTopic(
       @Param("owner") MemoryOwner owner, @Param("topic") TopicKey topic,
       org.springframework.data.domain.Pageable pageable);
 

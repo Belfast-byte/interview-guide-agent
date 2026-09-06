@@ -63,8 +63,7 @@ public class AdaptiveInterviewPersistenceService {
     return new PlannedInterview(
         history,
         plan,
-        coverageQueryService.load(plan, history.turns()),
-        List.of()
+        coverageQueryService.load(plan, history.turns())
     );
   }
 

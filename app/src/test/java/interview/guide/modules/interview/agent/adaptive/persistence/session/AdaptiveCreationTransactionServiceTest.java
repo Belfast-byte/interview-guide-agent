@@ -3,6 +3,7 @@ package interview.guide.modules.interview.agent.adaptive.persistence.session;
 import static interview.guide.modules.interview.agent.adaptive.support.AdaptiveTestFixtures.EVALUATION_SETTINGS;
 import static interview.guide.modules.interview.agent.adaptive.support.AdaptiveTestFixtures.testPlan;
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 import interview.guide.modules.interview.agent.adaptive.core.context.WorkingMemory;
 import interview.guide.modules.interview.agent.adaptive.core.session.AdaptiveSessionStatus;
@@ -12,6 +13,7 @@ import interview.guide.modules.interview.agent.adaptive.planning.DimensionPropos
 import interview.guide.modules.interview.agent.adaptive.planning.InterviewPlan;
 import interview.guide.modules.interview.agent.adaptive.planning.PlanProposal;
 import interview.guide.modules.interview.agent.adaptive.runtime.AgentDecision;
+import interview.guide.common.exception.BusinessException;
 import jakarta.persistence.EntityManager;
 import java.util.List;
 import org.junit.jupiter.api.DisplayName;
@@ -19,6 +21,8 @@ import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.data.jpa.test.autoconfigure.DataJpaTest;
 import org.springframework.context.annotation.Import;
+import org.springframework.transaction.annotation.Propagation;
+import org.springframework.transaction.annotation.Transactional;
 
 @DataJpaTest(showSql = false, properties = {
     "spring.flyway.enabled=false",
@@ -27,7 +31,6 @@ import org.springframework.context.annotation.Import;
 @Import({
     interview.guide.modules.interview.agent.adaptive.persistence.memory.JpaMemoryEvidenceService.class,
     interview.guide.modules.interview.agent.adaptive.persistence.session.RubricSnapshotResolver.class,
-    AdaptiveCreationRepositories.class,
     AdaptiveCreationTransactionService.class,
     QuestionExposurePersistence.class,
     QuestionIdentityFactory.class
@@ -52,12 +55,8 @@ class AdaptiveCreationTransactionServiceTest {
     InterviewPlan plan = plan();
     AdaptiveSessionCreation creation = creation();
     AgentDecision decision = decision();
-    service.initialize(creation, plan);
-
-    var commit = new AdaptiveCreationTransactionService.InitialTurnCommit(
-        creation.sessionId(), plan, decision);
-    service.publishFirstTurn(commit);
-    service.publishFirstTurn(commit);
+    service.create(creation, plan, decision);
+    service.create(creation, plan, decision);
     entityManager.flush();
     entityManager.clear();
 
@@ -75,6 +74,24 @@ class AdaptiveCreationTransactionServiceTest {
       assertThat(turn.workingMemory()).isEqualTo(decision.workingMemory());
     });
     assertThat(exposureCount).isEqualTo(1);
+  }
+
+  @Test
+  @Transactional(propagation = Propagation.NOT_SUPPORTED)
+  @DisplayName("创建首题失败时，计划和会话一起回滚")
+  void shouldRollbackSessionAndPlanWhenFirstTurnFails() {
+    var invalidDecision = new AgentDecision(decision().workingMemory(),
+        new AgentDecision.Finish("首题不能直接结束"));
+
+    assertThatThrownBy(() -> service.create(creation(), plan(), invalidDecision))
+        .isInstanceOf(BusinessException.class)
+        .hasMessageContaining("首轮 Agent 决策必须为 ASK");
+
+    assertThat(sessionRepository.findById("session-1")).isEmpty();
+    assertThat(turnRepository.findBySessionIdOrderByTurnIndex("session-1")).isEmpty();
+    assertThat(entityManager.createQuery(
+        "select count(p) from AdaptiveAgentPlanEntity p where p.sessionId = :sessionId", Long.class)
+        .setParameter("sessionId", "session-1").getSingleResult()).isZero();
   }
 
   private AdaptiveSessionCreation creation() {

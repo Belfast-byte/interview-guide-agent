@@ -89,8 +89,6 @@ public interface EpisodeFactRepository extends JpaRepository<EpisodeFactEntity, 
 
   long countBySessionId(String sessionId);
 
-  List<EpisodeFactEntity> findByTurnIdIn(List<Long> turnIds);
-
   List<EpisodeFactEntity> findByTenantIdIsNullAndCandidateIdOrderByCreatedAtDescIdDesc(
       String candidateId
   );

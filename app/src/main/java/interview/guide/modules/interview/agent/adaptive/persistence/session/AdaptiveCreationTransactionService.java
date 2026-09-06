@@ -11,6 +11,7 @@ import interview.guide.modules.interview.agent.adaptive.memory.episode.QuestionI
 import interview.guide.modules.interview.agent.adaptive.memory.episode.QuestionPublication;
 import interview.guide.modules.interview.agent.adaptive.persistence.memory.QuestionExposurePersistence;
 import interview.guide.modules.interview.agent.adaptive.persistence.plan.AdaptiveAgentPlanEntity;
+import interview.guide.modules.interview.agent.adaptive.persistence.plan.AdaptiveAgentPlanRepository;
 import interview.guide.modules.interview.agent.adaptive.planning.InterviewPlan;
 import interview.guide.modules.interview.agent.adaptive.planning.PlannedDimension;
 import interview.guide.modules.interview.agent.adaptive.runtime.AgentDecision;
@@ -21,7 +22,9 @@ import org.springframework.transaction.annotation.Transactional;
 @Service
 public class AdaptiveCreationTransactionService {
 
-  private final AdaptiveCreationRepositories repositories;
+  private final AdaptiveAgentSessionRepository sessions;
+  private final AdaptiveAgentPlanRepository plans;
+  private final AdaptiveAgentTurnRepository turns;
   private final QuestionExposurePersistence exposurePersistence;
   private final QuestionIdentityFactory identityFactory;
 
@@ -29,13 +32,17 @@ public class AdaptiveCreationTransactionService {
   private final interview.guide.modules.interview.agent.adaptive.persistence.memory.JpaMemoryEvidenceService memoryEvidence;
 
   public AdaptiveCreationTransactionService(
-      AdaptiveCreationRepositories repositories,
+      AdaptiveAgentSessionRepository sessions,
+      AdaptiveAgentPlanRepository plans,
+      AdaptiveAgentTurnRepository turns,
       QuestionExposurePersistence exposurePersistence,
       QuestionIdentityFactory identityFactory,
       RubricSnapshotResolver rubricSnapshots,
       interview.guide.modules.interview.agent.adaptive.persistence.memory.JpaMemoryEvidenceService memoryEvidence
   ) {
-    this.repositories = repositories;
+    this.sessions = sessions;
+    this.plans = plans;
+    this.turns = turns;
     this.exposurePersistence = exposurePersistence;
     this.identityFactory = identityFactory;
     this.rubricSnapshots = rubricSnapshots;
@@ -50,23 +57,23 @@ public class AdaptiveCreationTransactionService {
 
   @Transactional
   public void initialize(AdaptiveSessionCreation creation, InterviewPlan plan) {
-    if (repositories.session(creation.sessionId()).isPresent()) {
+    if (sessions.findById(creation.sessionId()).isPresent()) {
       return;
     }
     AdaptiveInterviewSession session = AdaptiveInterviewSession.create(
         creation.sessionId(), plan.maxTurns(), creation.settings());
-    repositories.saveSession(new AdaptiveAgentSessionEntity(session, creation));
-    repositories.savePlans(plan.dimensions().stream()
+    sessions.save(new AdaptiveAgentSessionEntity(session, creation));
+    plans.saveAll(plan.dimensions().stream()
         .map(dimension -> new AdaptiveAgentPlanEntity(plan.sessionId(), dimension))
         .toList());
   }
 
   @Transactional
   public void publishFirstTurn(InitialTurnCommit commit) {
-    if (repositories.turn(commit.sessionId(), 1).isPresent()) {
+    if (turns.findBySessionIdAndTurnIndex(commit.sessionId(), 1).isPresent()) {
       return;
     }
-    AdaptiveAgentSessionEntity session = repositories.session(commit.sessionId())
+    AdaptiveAgentSessionEntity session = sessions.findById(commit.sessionId())
         .orElseThrow(() -> new BusinessException(
             ErrorCode.INTERVIEW_SESSION_NOT_FOUND, "Agent 面试会话不存在"));
     AgentDecision.Ask ask = requireAsk(commit.decision());
@@ -74,7 +81,7 @@ public class AdaptiveCreationTransactionService {
     RespondAction action = RespondAction.ask(
         ask.question().content(), ask.question().decisionSummary());
     session.apply(session.toDomain().start());
-    AdaptiveAgentTurnEntity turn = repositories.saveTurn(
+    AdaptiveAgentTurnEntity turn = turns.saveAndFlush(
         new AdaptiveAgentTurnEntity(new AdaptiveTurnCreation(
             commit.sessionId(),
             1,

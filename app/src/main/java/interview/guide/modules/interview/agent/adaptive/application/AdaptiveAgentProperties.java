@@ -19,7 +19,6 @@ public class AdaptiveAgentProperties {
     return deadline.compareTo(Duration.ofSeconds(60)) > 0 ? Duration.ofSeconds(60) : deadline;
   }
   private Duration plannerDeadline = Duration.ofSeconds(30);
-  private Duration briefDeadline = Duration.ofSeconds(20);
   private Duration claimDeadline = Duration.ofSeconds(20);
   private Duration assessmentDeadline = Duration.ofSeconds(20);
   private Duration episodeEnrichmentDeadline = Duration.ofSeconds(20);
@@ -44,10 +43,6 @@ public class AdaptiveAgentProperties {
       "classpath:prompts/adaptive-agent-planner-system.st";
   private String plannerUserPromptPath =
       "classpath:prompts/adaptive-agent-planner-user.st";
-  private String briefSystemPromptPath =
-      "classpath:prompts/adaptive-agent-dimension-brief-system.st";
-  private String briefUserPromptPath =
-      "classpath:prompts/adaptive-agent-dimension-brief-user.st";
   private String claimSystemPromptPath =
       "classpath:prompts/adaptive-agent-claim-extraction-system.st";
   private String claimUserPromptPath =

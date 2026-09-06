@@ -3,7 +3,6 @@ package interview.guide.modules.interview.agent.adaptive.planning;
 import interview.guide.modules.interview.agent.adaptive.core.context.CoverageFacts;
 import interview.guide.modules.interview.agent.adaptive.core.context.CoverageProjector;
 import interview.guide.modules.interview.agent.adaptive.core.context.CoverageView;
-import interview.guide.modules.interview.agent.adaptive.core.context.DimensionBrief;
 import interview.guide.modules.interview.agent.adaptive.core.session.AdaptiveInterviewHistory;
 import java.util.List;
 
@@ -13,20 +12,14 @@ import java.util.List;
 public record PlannedInterview(
     AdaptiveInterviewHistory history,
     InterviewPlan plan,
-    CoverageView coverage,
-    List<DimensionBrief> dimensionBriefs
+    CoverageView coverage
 ) {
-
-  public PlannedInterview {
-    dimensionBriefs = List.copyOf(dimensionBriefs);
-  }
 
   public PlannedInterview(
       AdaptiveInterviewHistory history,
-      InterviewPlan plan,
-      List<DimensionBrief> dimensionBriefs
+      InterviewPlan plan
   ) {
-    this(history, plan, minimumCoverage(history, plan), dimensionBriefs);
+    this(history, plan, minimumCoverage(history, plan));
   }
 
   private static CoverageView minimumCoverage(
