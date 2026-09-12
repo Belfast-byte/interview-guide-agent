@@ -14,7 +14,7 @@
 - 只读 Tool 和未提交 ASK 可重算，不持久化 Intent/Execution/Recovery；
 - WorkState/Patch/ActionIntent 不再是目标架构，SandboxExecution 继续作为副作用事实源。
 
-Java 业务代码改错题以 [40-java-code-repair-spec.md](./40-java-code-repair-spec.md) 为当前设计提案，尚未实施。旧 Pi / MCP 仓库分析专项已撤回，相关接入与部署路线不再建设；历史审计记录和现存 API 的权限说明保留其原有事实语义。
+Java 业务代码改错题以 [40-java-code-repair-spec.md](./40-java-code-repair-spec.md) 为当前实现规格，验收记录见 [41 号 tickets](./41-java-code-repair-tickets.md)。旧 Pi / MCP 仓库分析专项已撤回，相关接入与部署路线不再建设；历史审计记录和现存 API 的权限说明保留其原有事实语义。
 
 ## 文档索引
 
@@ -35,5 +35,6 @@ Java 业务代码改错题以 [40-java-code-repair-spec.md](./40-java-code-repai
 | [36-agent-loop-working-memory-spec.md](./36-agent-loop-working-memory-spec.md) | Agent Loop、Tool、Working Memory 与删旧迁移 | Loop 规则继续适用；记忆目标以 38 为准 |
 | [37-complexity-reduction-refactoring-plan.md](./37-complexity-reduction-refactoring-plan.md) | 复杂度削减重构指南 | 记录实际实施状态与历史边界 |
 | [38-memory-business-reuse-spec.md](./38-memory-business-reuse-spec.md) | 三层记忆业务复用规格 | 当前记忆规格，业务代码已实现；验证边界见 37 |
-| [39-interview-agent-tools-spec.md](./39-interview-agent-tools-spec.md) | 面试 Agent 内部工具扩展规格 | 设计提案，未实施；材料、题库、评估读取与 40 联动，新增按轮次读取代码任务设计 |
-| [40-java-code-repair-spec.md](./40-java-code-repair-spec.md) | Java 业务代码改错题规格 | 设计提案，未实施；含题型、模式、schema、编辑器、持久化及 39 号工具联动 |
+| [39-interview-agent-tools-spec.md](./39-interview-agent-tools-spec.md) | 面试 Agent 内部工具扩展规格 | 已实施材料、题库、评估和代码任务四个只读工具；knowledge_search 仍为候选 |
+| [40-java-code-repair-spec.md](./40-java-code-repair-spec.md) | Java 业务代码改错题规格 | 已实施题型、模式、schema、编辑器、持久化及 39 号工具联动 |
+| [41-java-code-repair-tickets.md](./41-java-code-repair-tickets.md) | Java 改错题实施 tickets | 基线、提交、验收证据及真实模型抽样限制 |

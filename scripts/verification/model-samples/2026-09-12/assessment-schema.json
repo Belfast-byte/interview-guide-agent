@@ -1,0 +1,108 @@
+{
+  "$schema" : "https://json-schema.org/draft/2020-12/schema",
+  "$defs" : {
+    "SourceQuote" : {
+      "type" : "object",
+      "properties" : {
+        "quote" : {
+          "type" : "string"
+        },
+        "source" : {
+          "type" : "string",
+          "enum" : [ "ANSWER_TEXT", "SUBMITTED_CODE" ]
+        },
+        "startOffset" : {
+          "type" : [ "integer", "null" ],
+          "format" : "int32"
+        }
+      },
+      "required" : [ "quote", "source" ],
+      "additionalProperties" : false
+    }
+  },
+  "type" : "object",
+  "properties" : {
+    "codeReview" : {
+      "type" : [ "object", "null" ],
+      "properties" : {
+        "checks" : {
+          "type" : "array",
+          "items" : {
+            "type" : "object",
+            "properties" : {
+              "checkId" : {
+                "type" : "string"
+              },
+              "reason" : {
+                "type" : "string"
+              },
+              "result" : {
+                "type" : "string",
+                "enum" : [ "SATISFIED", "NOT_SATISFIED", "UNDETERMINED" ]
+              }
+            },
+            "required" : [ "checkId", "reason", "result" ],
+            "additionalProperties" : false
+          }
+        }
+      },
+      "required" : [ "checks" ],
+      "additionalProperties" : false
+    },
+    "confidence" : {
+      "type" : "number",
+      "format" : "double"
+    },
+    "depthLevel" : {
+      "type" : "string",
+      "enum" : [ "L0", "L1", "L2", "L3", "L4" ]
+    },
+    "evidenceQuotes" : {
+      "type" : "array",
+      "items" : {
+        "$ref" : "#/$defs/SourceQuote"
+      }
+    },
+    "probeGaps" : {
+      "type" : "array",
+      "items" : {
+        "type" : "object",
+        "properties" : {
+          "anchor" : {
+            "$ref" : "#/$defs/SourceQuote"
+          },
+          "missingPoint" : {
+            "type" : "string"
+          }
+        },
+        "required" : [ "anchor", "missingPoint" ],
+        "additionalProperties" : false
+      }
+    },
+    "rationaleSummary" : {
+      "type" : "string"
+    },
+    "resolvedGaps" : {
+      "type" : "array",
+      "items" : {
+        "type" : "object",
+        "properties" : {
+          "evidenceQuote" : {
+            "$ref" : "#/$defs/SourceQuote"
+          },
+          "gapId" : {
+            "type" : "integer",
+            "format" : "int64"
+          },
+          "reason" : {
+            "type" : "string"
+          }
+        },
+        "required" : [ "evidenceQuote", "gapId", "reason" ],
+        "additionalProperties" : false
+      }
+    }
+  },
+  "required" : [ "confidence", "depthLevel", "evidenceQuotes", "probeGaps", "rationaleSummary", "resolvedGaps" ],
+  "additionalProperties" : false
+}

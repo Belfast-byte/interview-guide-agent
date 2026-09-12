@@ -1,0 +1,119 @@
+{
+  "$schema" : "https://json-schema.org/draft/2020-12/schema",
+  "type" : "object",
+  "properties" : {
+    "dimensions" : {
+      "type" : "array",
+      "items" : {
+        "type" : "object",
+        "properties" : {
+          "dimension" : {
+            "type" : "string"
+          },
+          "focus" : {
+            "type" : "string"
+          },
+          "focusId" : {
+            "type" : "string"
+          },
+          "suggestedSkill" : {
+            "type" : "string"
+          },
+          "suggestedTurns" : {
+            "type" : "integer",
+            "format" : "int32"
+          }
+        },
+        "required" : [ "dimension", "focus", "focusId", "suggestedSkill", "suggestedTurns" ],
+        "additionalProperties" : false
+      }
+    },
+    "initialQuestion" : {
+      "type" : "object",
+      "properties" : {
+        "adoptedEpisodeRefs" : {
+          "type" : "array",
+          "items" : {
+            "type" : "string"
+          }
+        },
+        "codeTask" : {
+          "type" : [ "object", "null" ],
+          "properties" : {
+            "assumptions" : {
+              "type" : "array",
+              "items" : {
+                "type" : "string"
+              }
+            },
+            "initialCode" : {
+              "type" : "string"
+            },
+            "requirements" : {
+              "type" : "array",
+              "items" : {
+                "type" : "string"
+              }
+            },
+            "reviewGuide" : {
+              "type" : "object",
+              "properties" : {
+                "checks" : {
+                  "type" : "array",
+                  "items" : {
+                    "type" : "object",
+                    "properties" : {
+                      "acceptance" : {
+                        "type" : "string"
+                      },
+                      "defect" : {
+                        "type" : "string"
+                      },
+                      "id" : {
+                        "type" : "string"
+                      },
+                      "trigger" : {
+                        "type" : "string"
+                      }
+                    },
+                    "required" : [ "acceptance", "defect", "id", "trigger" ],
+                    "additionalProperties" : false
+                  }
+                }
+              },
+              "required" : [ "checks" ],
+              "additionalProperties" : false
+            }
+          },
+          "required" : [ "assumptions", "initialCode", "requirements", "reviewGuide" ],
+          "additionalProperties" : false
+        },
+        "codeTaskTurnIndex" : {
+          "type" : [ "integer", "null" ],
+          "format" : "int32"
+        },
+        "content" : {
+          "type" : "string"
+        },
+        "decisionSummary" : {
+          "type" : "string"
+        },
+        "nextProbeIntent" : {
+          "type" : "string"
+        },
+        "questionType" : {
+          "type" : "string",
+          "enum" : [ "TEXT", "CODE_REPAIR" ]
+        },
+        "targetOrder" : {
+          "type" : "integer",
+          "format" : "int32"
+        }
+      },
+      "required" : [ "adoptedEpisodeRefs", "content", "decisionSummary", "nextProbeIntent", "questionType", "targetOrder" ],
+      "additionalProperties" : false
+    }
+  },
+  "required" : [ "dimensions", "initialQuestion" ],
+  "additionalProperties" : false
+}

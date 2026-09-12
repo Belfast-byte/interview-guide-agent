@@ -1,0 +1,16 @@
+{
+  "case": "wrong-instance-lock",
+  "requestedModel": "deepseek-v4-pro",
+  "returnedModel": "deepseek-v4-pro",
+  "reasoningEffort": "low",
+  "stopReason": "end_turn",
+  "usage": {
+    "input_tokens": 3045,
+    "cache_creation_input_tokens": 0,
+    "cache_read_input_tokens": 0,
+    "output_tokens": 2773,
+    "service_tier": "standard"
+  },
+  "elapsedSeconds": 46.99,
+  "rawText": "{\n  \"confidence\": 0.9,\n  \"depthLevel\": \"L1\",\n  \"rationaleSummary\": \"提交代码通过方法级 synchronized 试图解决并发，但 synchronized 只能保证单 JVM 内互斥，无法跨多实例共享数据库保护，未使用原子条件扣减，未真正修复超卖缺陷，仅停留在表面并发控制手段。\",\n  \"evidenceQuotes\": [\n    {\n      \"source\": \"SUBMITTED_CODE\",\n      \"quote\": \"synchronized void reserve\"\n    }\n  ],\n  \"probeGaps\": [\n    {\n      \"anchor\": {\n        \"source\": \"SUBMITTED_CODE\",\n        \"quote\": \"synchronized void reserve\"\n      },\n      \"missingPoint\": \"未说明 synchronized 只能保护单实例内并发，对于多实例共享数据库的库存扣减，应使用数据库原子条件更新（如 stocks.tryReserve）或等价跨实例机制。\"\n    }\n  ],\n  \"resolvedGaps\": [],\n  \"codeReview\": {\n    \"checks\": [\n      {\n        \"checkId\": \"C1\",\n        \"result\": \"NOT_SATISFIED\",\n        \"reason\": \"提交代码仅添加 synchronized 方法锁，该方法锁无法跨多个服务实例互斥，读取与写回操作仍可能并发执行，未达到数据库共享约束或等价原子扣减要求。\"\n      },\n      {\n        \"checkId\": \"C2\",\n        \"result\": \"SATISFIED\",\n        \"reason\": \"代码保留了库存不足检查逻辑：当 available < quantity 时抛出 IllegalStateException，并且仅在不抛异常时才执行 setAvailable 扣减，单次调用语义上库存不足时不改变库存。\"\n      }\n    ]\n  }\n}"
+}

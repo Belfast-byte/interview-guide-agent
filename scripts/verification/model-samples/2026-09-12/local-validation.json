@@ -1,0 +1,47 @@
+[
+  {
+    "case": "planner",
+    "schema": "PASS",
+    "semanticChecks": {
+      "newCodeTask": true,
+      "visibleContent": "请检查并修复以下Java代码，确保在多个服务实例并发扣减同一商品库存时不会出现库存为负数的情况，并且同一业务订单（orderId）的重复调用不会导致重复扣减。请直接修改代码并说明你的修改点。",
+      "manualReviewRequired": true
+    }
+  },
+  {
+    "case": "correct",
+    "schema": "PASS",
+    "semanticChecks": {
+      "checkResults": {
+        "C1": "SATISFIED",
+        "C2": "SATISFIED"
+      },
+      "exactSourceQuotes": 3,
+      "depthLevel": "L2"
+    }
+  },
+  {
+    "case": "wrong-instance-lock",
+    "schema": "PASS",
+    "semanticChecks": {
+      "checkResults": {
+        "C1": "NOT_SATISFIED",
+        "C2": "SATISFIED"
+      },
+      "exactSourceQuotes": 2,
+      "depthLevel": "L1"
+    }
+  },
+  {
+    "case": "partial-no-rejection",
+    "schema": "PASS",
+    "semanticChecks": {
+      "checkResults": {
+        "C1": "SATISFIED",
+        "C2": "NOT_SATISFIED"
+      },
+      "exactSourceQuotes": 2,
+      "depthLevel": "L2"
+    }
+  }
+]

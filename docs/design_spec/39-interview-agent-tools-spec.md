@@ -1,6 +1,6 @@
 # 面试 Agent 内部工具扩展规格
 
-> 状态：设计提案，未实施；本次仅记录工具设计，不代表工具已注册或通过运行验证。
+> 状态：材料、题库、代码任务和正式评估四个只读工具已接入决策 Loop；验收记录见 [41 号 tickets](./41-java-code-repair-tickets.md)。
 > 更新：2026-09-12。
 > 依据：内部工具选型及 Java 业务代码改错题联动讨论；优先复用现有业务数据，暂不考虑 MCP。
 > 上游：[面试 Agent 的运行方式](../design/03-agent-loop-and-working-memory.md)、[36 号 Loop 规格](./36-agent-loop-working-memory-spec.md)、[38 号记忆业务复用规格](./38-memory-business-reuse-spec.md)。
@@ -11,11 +11,11 @@
 
 优先设计 `interview_material_read` 和 `question_search`，其次考虑 `assessment_read`。这三个工具有现成的数据基础；“可以接入”指可以复用现有查询和工具执行链，不代表只添加工具名称就完成业务闭环。
 
-Java 业务代码改错题与上述工具共用一条决策 Loop；本规格定义材料、素材、旧任务和评估的按需读取，[40 号规格](./40-java-code-repair-spec.md) 定义题目、提交及正式评估。新增 `code_task_read` 设计，用于回看本场较早的代码任务和提交；它依赖 40 号规格的正式事实，不能宣称当前即可启用。
+Java 业务代码改错题与上述工具共用一条决策 Loop；本规格定义材料、素材、旧任务和评估的按需读取，[40 号规格](./40-java-code-repair-spec.md) 定义题目、提交及正式评估。`code_task_read` 已基于 40 号规格的正式事实接入，用于回看本场较早的代码任务和指定提交。
 
 `knowledge_search` 仍为有前置条件的候选项。本规格不扩展 MCP 或判题入口，不恢复已删除的推荐生成、曝光向量召回、记忆整理和后台补偿链路。
 
-本轮只调整规格及文档索引。代码实现、数据库迁移、模型质量验证均未开展。
+工具与 Java 改错题共同实施；`knowledge_search` 仍未实施。工具参数、会话归属、指定轮次和实际采用来源均有自动化检查。
 
 ## 2. 当前代码事实
 
@@ -23,15 +23,15 @@ Java 业务代码改错题与上述工具共用一条决策 Loop；本规格定�
 
 | 现状 | 对工具设计的意义 | 代码依据 |
 | --- | --- | --- |
-| 主循环白名单只有 `rubric_search`、`memory_recall` | 新工具需要注册、参数说明及实际消费者 | [ContextAssembler][context-assembler] |
+| 主循环保留 `rubric_search`、`memory_recall` 并注册本规格四个工具 | 模型按需调用，参数与 owner 边界严格校验 | [ContextAssembler][context-assembler] |
 | 决策上下文包含计划覆盖、问答、固定 Skill 和 WorkingMemory，不含简历/JD 原文 | 材料读取有明确的信息增量 | [AgentContext][agent-context] |
 | Session 已保存简历/JD，历史读取会带出两者 | 材料工具可以直接读取本场已保存文本 | [会话读取][session-reader] |
 | 已有 `interview_question` 向量索引及 ACTIVE 题库记录 | 问题检索无需新建索引生产链 | [题目索引][question-indexer]、[题库实体][question-entity] |
 | 题库题目 `skillId` 固定为 `knowledge-base` | 不能直接用计划的职位 Skill ID 过滤题库 | [题库实体][question-entity] |
 | Coverage 主要提供等级、gap 内容和 Evidence ID，正式评估另有理由与证据详情 | 评估详情读取有增量，但比材料和题库检索优先级低 | [CoverageView][coverage-view]、[评估仓储][assessment-repository]、[证据仓储][evidence-repository] |
 | 本轮评估在下一题决策完成后统一提交，决策中有临时负 ID | 不能将本轮未提交引用直接用于数据库查询 | [回答决策][answer-decision]、[临时引用][pending-references] |
-| 下一题提交处理 Episode 引用和 Rubric 快照；题库来源尚未接通 | 新工具结果中的来源 ID 不等于已完成持久化 | [回答提交][answer-transaction] |
-| Turn 尚无 40 号规格的任务根引用与独立代码答案 | `code_task_read` 须在代码题事实落库后接入，不能读取旧仓库分析产物充当新任务 | [Turn 实体][turn-entity] |
+| 下一题将本次 ASK 实际采用的 Episode、Question、Rubric 引用保存到 WorkingMemory；量规另存快照 | 不继承上一题来源，不把仅检索过的结果算作采用 | [回答提交][answer-transaction] |
+| Turn 已保存任务根引用和独立代码答案 | `code_task_read` 按指定轮次读取原任务与提交，不使用旧仓库分析产物 | [Turn 实体][turn-entity] |
 
 ## 3. 工具选择原则与优先级
 

@@ -1,0 +1,16 @@
+{
+  "case": "correct",
+  "requestedModel": "deepseek-v4-pro",
+  "returnedModel": "deepseek-v4-pro",
+  "reasoningEffort": "low",
+  "stopReason": "end_turn",
+  "usage": {
+    "input_tokens": 3033,
+    "cache_creation_input_tokens": 0,
+    "cache_read_input_tokens": 0,
+    "output_tokens": 2266,
+    "service_tier": "standard"
+  },
+  "elapsedSeconds": 30.43,
+  "rawText": "{\n  \"codeReview\": {\n    \"checks\": [\n      {\n        \"checkId\": \"C1\",\n        \"reason\": \"代码改为调用 stocks.tryReserve(skuId, quantity) 原子条件扣减，避免先读后写导致的超卖，符合数据库共享约束或等价机制。\",\n        \"result\": \"SATISFIED\"\n      },\n      {\n        \"checkId\": \"C2\",\n        \"reason\": \"当 tryReserve 返回 0 表示库存不足时，代码抛出 IllegalStateException(\\\"库存不足\\\")，且没有其他写操作改变库存，符合明确拒绝且不改变库存。\",\n        \"result\": \"SATISFIED\"\n      }\n    ]\n  },\n  \"confidence\": 0.95,\n  \"depthLevel\": \"L2\",\n  \"evidenceQuotes\": [\n    {\n      \"source\": \"SUBMITTED_CODE\",\n      \"quote\": \"stocks.tryReserve(skuId, quantity)\"\n    },\n    {\n      \"source\": \"SUBMITTED_CODE\",\n      \"quote\": \"== 0\"\n    },\n    {\n      \"source\": \"SUBMITTED_CODE\",\n      \"quote\": \"throw new IllegalStateException(\\\"库存不足\\\")\"\n    }\n  ],\n  \"probeGaps\": [],\n  \"resolvedGaps\": [],\n  \"rationaleSummary\": \"提交代码使用 tryReserve 原子条件扣减并判断返回值，库存不足时抛出异常且不变更库存，修复了并发超卖缺陷。\"\n}"
+}

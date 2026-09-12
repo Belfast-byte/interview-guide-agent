@@ -1,0 +1,15 @@
+{
+  "case": "planner",
+  "requestedModel": "deepseek-v4-pro",
+  "returnedModel": "deepseek-v4-pro",
+  "stopReason": "max_tokens",
+  "usage": {
+    "input_tokens": 1910,
+    "cache_creation_input_tokens": 0,
+    "cache_read_input_tokens": 0,
+    "output_tokens": 8192,
+    "service_tier": "standard"
+  },
+  "elapsedSeconds": 122.21,
+  "rawText": ""
+}

@@ -1,0 +1,16 @@
+{
+  "case": "partial-no-rejection",
+  "requestedModel": "deepseek-v4-pro",
+  "returnedModel": "deepseek-v4-pro",
+  "reasoningEffort": "low",
+  "stopReason": "end_turn",
+  "usage": {
+    "input_tokens": 3009,
+    "cache_creation_input_tokens": 0,
+    "cache_read_input_tokens": 0,
+    "output_tokens": 1482,
+    "service_tier": "standard"
+  },
+  "elapsedSeconds": 23.04,
+  "rawText": "{\n  \"confidence\": 0.95,\n  \"depthLevel\": \"L2\",\n  \"rationaleSummary\": \"提交代码改用原子条件扣减 tryReserve，修复了并发超卖的原子性问题，但忽略了返回值，导致库存不足时未明确拒绝，只完成了一半修复。\",\n  \"evidenceQuotes\": [\n    {\n      \"source\": \"SUBMITTED_CODE\",\n      \"quote\": \"stocks.tryReserve(skuId, quantity);\"\n    }\n  ],\n  \"probeGaps\": [\n    {\n      \"anchor\": {\n        \"source\": \"SUBMITTED_CODE\",\n        \"quote\": \"stocks.tryReserve(skuId, quantity);\"\n      },\n      \"missingPoint\": \"未判断 tryReserve 返回 0 的情况，库存不足时方法静默返回，没有抛出异常或明确拒绝。\"\n    }\n  ],\n  \"resolvedGaps\": [],\n  \"codeReview\": {\n    \"checks\": [\n      {\n        \"checkId\": \"C1\",\n        \"result\": \"SATISFIED\",\n        \"reason\": \"使用 stocks.tryReserve(skuId, quantity) 原子条件扣减，依赖数据库共享约束保证扣减原子性，满足 C1 要求。\"\n      },\n      {\n        \"checkId\": \"C2\",\n        \"result\": \"NOT_SATISFIED\",\n        \"reason\": \"代码忽略 tryReserve 的返回值，当库存不足时该方法返回 0，但当前实现不抛出异常也不做任何明确拒绝，静默结束，不满足“明确拒绝且不扣减”的要求，尽管库存未被扣减，但没有对外明确拒绝。\"\n      }\n    ]\n  }\n}"
+}

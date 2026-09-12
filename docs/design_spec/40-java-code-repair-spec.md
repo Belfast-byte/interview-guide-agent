@@ -1,6 +1,6 @@
 # Java 业务代码改错题规格
 
-> 状态：设计提案，未实施；本次只修改文档，未完成代码、迁移或模型质量验证。
+> 状态：代码、增量迁移和页面已实施；验收证据及真实模型抽样限制见 [实施 tickets](./41-java-code-repair-tickets.md)。
 > 更新：2026-09-12。
 > 依据：用户确认只根据 JD 和简历生成业务代码题，只支持 Java；与文字题混合，由 Agent 选择；练习可看反馈继续修改，评估提交后进入追问；代码交给模型审阅，不实际运行。
 > 上游：[36 号 Loop 规格](./36-agent-loop-working-memory-spec.md)、[38 号记忆业务复用规格](./38-memory-business-reuse-spec.md)。工具联动以 [39 号规格](./39-interview-agent-tools-spec.md) §4、§6.3 为准，与本文联合设计。
@@ -212,7 +212,7 @@ WorkingMemory 只记录本场 gap 和已有事实引用，不复制任务、代�
 
 ## 7. 前端交互
 
-在现有 [InterviewSessionPage][session-page] 按题型渲染，延续工作区纸灰、墨色和现有字体。代码编辑区使用项目已有 IBM Plex Mono；编辑器拟采用 CodeMirror 6 和其 merge 扩展，实施时锁定兼容依赖并验证 Java 高亮与 diff。
+在现有 [InterviewSessionPage][session-page] 按题型渲染，延续工作区纸灰、墨色和现有字体。代码编辑区使用项目已有 IBM Plex Mono；编辑器采用已锁定版本的 CodeMirror 6 和 merge 扩展，支持 Java 高亮与 diff。
 
 - 桌面左侧显示业务场景、要求与假设，右侧为可编辑代码；窄屏按题面、代码、提交顺序纵向排列，代码区独立横向滚动。
 - 初始加载原始代码；练习修订加载同任务最近一次正式提交。提供“原始代码 / 当前修改 / 差异”切换，差异以原始题目为基线，保留修改说明输入框。
@@ -221,15 +221,15 @@ WorkingMemory 只记录本场 gap 和已有事实引用，不复制任务、代�
 - 正式历史提交只读并带对应反馈；练习的新轮次允许继续编辑，评估追问显示提交代码和文字输入框。不可通过切换编辑器覆盖上一轮答案。
 - 创建、恢复、会话历史、Episode 页面和报告保持同样的题型展示与字段权限；反馈引用可定位到对应说明或代码，不把初始错误代码高亮成候选人错误。
 
-## 8. 实施切片与当前缺口
+## 8. 实施切片与交付范围
 
-以下是后续实现范围，不表示本次已交付。小 DTO / record / enum 优先由其唯一 owner 内嵌；复用现有装配与查询接口，不增加纯转发层或通用任务框架。
+以下切片已实施，逐项验收记录见 [41 号 tickets](./41-java-code-repair-tickets.md)。小 DTO / record / enum 优先由其唯一 owner 内嵌；复用现有装配与查询接口，不增加纯转发层或通用任务框架。
 
-| 切片 | 改动入口与实际缺口 | 出口 |
+| 切片 | 实现入口 | 出口 |
 | --- | --- | --- |
-| CR-1 题型与事实 | [首题提案][initial-question]、[Turn 与状态][turn-entity]、[请求][answer-request]、[候选人响应][interview-response]；当前没有改错任务和独立代码答案 | 增量迁移、题目联合契约、答案领取 / 恢复及公开 DTO 完整 |
-| CR-2 模型、工具与评估 | Planner、[决策上下文][agent-context]、39 号工具契约、[评估提案][assessment-proposal]及[证据校验][evidence-validator]；当前决策缺材料，代码工具与来源定位尚未接通 | 首题及后续题均可生成；材料 / 素材 / 旧代码 / 评估按需读取，代码评审与 gap 证据可追溯 |
-| CR-3 页面与读取 | [会话页][session-page]、[Episode 查询][episode-query]及报告；当前仅投影文字问答，页面没有代码编辑器和草稿持久化 | 编辑 / diff / 草稿恢复、练习修订、评估追问和历史展示贯通 |
+| CR-1 题型与事实 | [首题提案][initial-question]、[Turn 与状态][turn-entity]、[请求][answer-request]、[候选人响应][interview-response]；新增改错任务和独立代码答案 | 增量迁移、题目联合契约、答案领取 / 恢复及公开 DTO 完整 |
+| CR-2 模型、工具与评估 | Planner、[决策上下文][agent-context]、39 号工具契约、[评估提案][assessment-proposal]及[证据校验][evidence-validator]；接通按需材料、代码工具及来源定位 | 首题及后续题均可生成；材料 / 素材 / 旧代码 / 评估按需读取，代码评审与 gap 证据可追溯 |
+| CR-3 页面与读取 | [会话页][session-page]、[Episode 查询][episode-query]及报告；补齐代码投影、编辑器和草稿持久化 | 编辑 / diff / 草稿恢复、练习修订、评估追问和历史展示贯通 |
 | CR-4 验收 | 下表中的契约、并发、权限与模型场景；真实模型抽样独立于确定性测试 | 没有执行副作用、参考泄漏、答案覆盖或历史画像污染评分 |
 
 各切片内将结构整理、行为变更和数据库迁移分开提交。CR-1 完成后接入 `code_task_read` 及 `assessment_read.codeReview`；材料和题库工具可按 39 号规格独立实现，CR-2 联调时必须贯通实际采用来源的保存与恢复。本能力不以 MCP、分析 worker 或算法沙箱上线为前置。

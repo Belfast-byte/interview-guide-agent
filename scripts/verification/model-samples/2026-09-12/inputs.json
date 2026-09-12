@@ -1,0 +1,166 @@
+{
+  "planner": {
+    "interview": {
+      "jd": "合成JD：Java 21后端，负责订单库存，关注多实例并发一致性。",
+      "resume": "合成简历：参与订单服务开发，使用Java及关系数据库，无真实个人数据。",
+      "mode": "EVALUATION",
+      "candidateLevel": "EXPERIENCED",
+      "practiceScope": [],
+      "skillCatalog": [
+        {
+          "skillId": "java-backend",
+          "focusIds": [
+            "JAVA"
+          ]
+        }
+      ]
+    }
+  },
+  "correct": {
+    "dimension": "并发一致性",
+    "focus": "多实例库存预留",
+    "question": "合成题：修复共享库存预留缺陷。",
+    "answer": null,
+    "rubric": [
+      "L0 无有效证据",
+      "L1 术语和表面描述",
+      "L2 机制与因果",
+      "L3 权衡边界",
+      "L4 系统性判断"
+    ],
+    "adoptedRubrics": [],
+    "openGaps": [],
+    "priorTurns": [],
+    "codeTaskContext": {
+      "task": {
+        "initialCode": "void reserve(long skuId, int quantity) {\n    int available = stocks.findAvailable(skuId);\n    if (available < quantity) throw new IllegalStateException(\"库存不足\");\n    stocks.setAvailable(skuId, available - quantity);\n}",
+        "requirements": [
+          "成功预留总量不得超过库存",
+          "库存不足时明确拒绝且不扣减"
+        ],
+        "assumptions": [
+          "合成验收示例：多个服务实例共享数据库",
+          "skuId存在，quantity已经校验为正整数",
+          "findAvailable和setAvailable各是独立数据库语句",
+          "stocks.tryReserve(skuId, quantity)原子条件扣减，返回受影响行数，0表示库存不足"
+        ],
+        "reviewGuide": {
+          "checks": [
+            {
+              "id": "C1",
+              "defect": "读取与写回分离可能超卖",
+              "trigger": "多个实例并发预留",
+              "acceptance": "数据库共享约束或等价机制保证扣减原子性"
+            },
+            {
+              "id": "C2",
+              "defect": "修复仍需拒绝库存不足",
+              "trigger": "库存小于预留量",
+              "acceptance": "明确拒绝且不改变库存"
+            }
+          ]
+        }
+      },
+      "submittedCode": "void reserve(long skuId, int quantity) {\n    if (stocks.tryReserve(skuId, quantity) == 0) {\n        throw new IllegalStateException(\"库存不足\");\n    }\n}",
+      "priorReviews": []
+    }
+  },
+  "wrong-instance-lock": {
+    "dimension": "并发一致性",
+    "focus": "多实例库存预留",
+    "question": "合成题：修复共享库存预留缺陷。",
+    "answer": null,
+    "rubric": [
+      "L0 无有效证据",
+      "L1 术语和表面描述",
+      "L2 机制与因果",
+      "L3 权衡边界",
+      "L4 系统性判断"
+    ],
+    "adoptedRubrics": [],
+    "openGaps": [],
+    "priorTurns": [],
+    "codeTaskContext": {
+      "task": {
+        "initialCode": "void reserve(long skuId, int quantity) {\n    int available = stocks.findAvailable(skuId);\n    if (available < quantity) throw new IllegalStateException(\"库存不足\");\n    stocks.setAvailable(skuId, available - quantity);\n}",
+        "requirements": [
+          "成功预留总量不得超过库存",
+          "库存不足时明确拒绝且不扣减"
+        ],
+        "assumptions": [
+          "合成验收示例：多个服务实例共享数据库",
+          "skuId存在，quantity已经校验为正整数",
+          "findAvailable和setAvailable各是独立数据库语句",
+          "stocks.tryReserve(skuId, quantity)原子条件扣减，返回受影响行数，0表示库存不足"
+        ],
+        "reviewGuide": {
+          "checks": [
+            {
+              "id": "C1",
+              "defect": "读取与写回分离可能超卖",
+              "trigger": "多个实例并发预留",
+              "acceptance": "数据库共享约束或等价机制保证扣减原子性"
+            },
+            {
+              "id": "C2",
+              "defect": "修复仍需拒绝库存不足",
+              "trigger": "库存小于预留量",
+              "acceptance": "明确拒绝且不改变库存"
+            }
+          ]
+        }
+      },
+      "submittedCode": "synchronized void reserve(long skuId, int quantity) {\n    int available = stocks.findAvailable(skuId);\n    if (available < quantity) throw new IllegalStateException(\"库存不足\");\n    stocks.setAvailable(skuId, available - quantity);\n}",
+      "priorReviews": []
+    }
+  },
+  "partial-no-rejection": {
+    "dimension": "并发一致性",
+    "focus": "多实例库存预留",
+    "question": "合成题：修复共享库存预留缺陷。",
+    "answer": null,
+    "rubric": [
+      "L0 无有效证据",
+      "L1 术语和表面描述",
+      "L2 机制与因果",
+      "L3 权衡边界",
+      "L4 系统性判断"
+    ],
+    "adoptedRubrics": [],
+    "openGaps": [],
+    "priorTurns": [],
+    "codeTaskContext": {
+      "task": {
+        "initialCode": "void reserve(long skuId, int quantity) {\n    int available = stocks.findAvailable(skuId);\n    if (available < quantity) throw new IllegalStateException(\"库存不足\");\n    stocks.setAvailable(skuId, available - quantity);\n}",
+        "requirements": [
+          "成功预留总量不得超过库存",
+          "库存不足时明确拒绝且不扣减"
+        ],
+        "assumptions": [
+          "合成验收示例：多个服务实例共享数据库",
+          "skuId存在，quantity已经校验为正整数",
+          "findAvailable和setAvailable各是独立数据库语句",
+          "stocks.tryReserve(skuId, quantity)原子条件扣减，返回受影响行数，0表示库存不足"
+        ],
+        "reviewGuide": {
+          "checks": [
+            {
+              "id": "C1",
+              "defect": "读取与写回分离可能超卖",
+              "trigger": "多个实例并发预留",
+              "acceptance": "数据库共享约束或等价机制保证扣减原子性"
+            },
+            {
+              "id": "C2",
+              "defect": "修复仍需拒绝库存不足",
+              "trigger": "库存小于预留量",
+              "acceptance": "明确拒绝且不改变库存"
+            }
+          ]
+        }
+      },
+      "submittedCode": "void reserve(long skuId, int quantity) {\n    stocks.tryReserve(skuId, quantity);\n}",
+      "priorReviews": []
+    }
+  }
+}

@@ -1,0 +1,16 @@
+{
+  "case": "correct",
+  "requestedModel": "deepseek-v4-pro",
+  "returnedModel": "deepseek-v4-pro",
+  "reasoningEffort": "low",
+  "stopReason": "end_turn",
+  "usage": {
+    "input_tokens": 3031,
+    "cache_creation_input_tokens": 0,
+    "cache_read_input_tokens": 0,
+    "output_tokens": 2495,
+    "service_tier": "standard"
+  },
+  "elapsedSeconds": 34.3,
+  "rawText": "{\n  \"codeReview\": {\n    \"checks\": [\n      {\n        \"checkId\": \"C1\",\n        \"reason\": \"使用 stocks.tryReserve(skuId, quantity) 原子条件扣减，替换了原先读取与写回分离的流程，在数据库层保证扣减原子性，满足共享数据库多实例并发下的约束。\",\n        \"result\": \"SATISFIED\"\n      },\n      {\n        \"checkId\": \"C2\",\n        \"reason\": \"tryReserve 返回 0 表示库存不足时抛出 IllegalStateException，且未执行任何额外写操作，不会改变库存，满足明确拒绝且不扣减的要求。\",\n        \"result\": \"SATISFIED\"\n      }\n    ]\n  },\n  \"confidence\": 0.85,\n  \"depthLevel\": \"L2\",\n  \"evidenceQuotes\": [\n    {\n      \"source\": \"SUBMITTED_CODE\",\n      \"quote\": \"stocks.tryReserve(skuId, quantity) == 0\",\n      \"startOffset\": 49\n    },\n    {\n      \"source\": \"SUBMITTED_CODE\",\n      \"quote\": \"throw new IllegalStateException(\\\"库存不足\\\");\",\n      \"startOffset\": 99\n    }\n  ],\n  \"probeGaps\": [],\n  \"rationaleSummary\": \"提交代码用原子条件扣减 tryReserve 替换了先查询后写回，并在返回 0 时抛异常拒绝且不改变库存，修复了并发超卖与库存不足校验问题，但未给出任何文字说明机制与边界。\",\n  \"resolvedGaps\": []\n}"
+}

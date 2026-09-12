@@ -9,15 +9,15 @@
 
 | Ticket | 范围 | 依赖 | 状态 | 验收出口 |
 | --- | --- | --- | --- | --- |
-| CR-00 | 基线、调用链审计、任务拆分 | 无 | IN_PROGRESS | 记录真实入口、消费者及基线检查结果 |
-| CR-01 | 题型联合契约与原始任务事实 | CR-00 | TODO | 首题和后续 ASK 使用相同字段组合；根任务冻结；严格校验引用 |
-| CR-02 | 八个增量数据库字段与约束 | CR-01 | TODO | 新迁移保留旧沙箱及历史数据；同场引用与题型约束通过 PostgreSQL 验证 |
-| CR-03 | 代码答案领取、幂等、失败恢复 | CR-01、CR-02 | TODO | 仅代码也可提交；同 payload 重试复用；不同 payload 冲突；旧执行者隔离 |
-| CR-04 | Planner、决策上下文、材料及历史读取工具 | CR-01、CR-03 | TODO | 首题和后续题可生成；按需读取；当前未提交审阅直接传递；工具来源保存与恢复 |
-| CR-05 | 逐项审阅与 SourceQuote 定位 | CR-02、CR-03 | TODO | 每项恰好一次；等价解法及无法判断有明确语义；UTF-16 精确定位及 gap 关闭同源 |
-| CR-06 | 公开 DTO、SSE、Episode 与报告 | CR-04、CR-05 | TODO | 私有参考不泄漏；评估中隐藏详细反馈；历史提交、评级、证据同源 |
-| CR-07 | Java 编辑器、diff、草稿与模式交互 | CR-06 | TODO | 练习新轮修订；评估文字追问；刷新和失败保留草稿；历史只读 |
-| CR-08 | 集成验收与真实模型抽样 | CR-07 | TODO | 并发恢复、数据库迁移、公开权限、页面构建与交互检查；如实记录真实模型验证结果 |
+| CR-00 | 基线、调用链审计、任务拆分 | 无 | DONE | 记录真实入口、消费者及基线检查结果 |
+| CR-01 | 题型联合契约与原始任务事实 | CR-00 | DONE | 首题和后续 ASK 使用相同字段组合；根任务冻结；严格校验引用 |
+| CR-02 | 八个增量数据库字段与约束 | CR-01 | DONE | 新迁移保留旧沙箱及历史数据；同场引用与题型约束通过 PostgreSQL 验证 |
+| CR-03 | 代码答案领取、幂等、失败恢复 | CR-01、CR-02 | DONE | 仅代码也可提交；同 payload 重试复用；不同 payload 冲突；旧执行者隔离 |
+| CR-04 | Planner、决策上下文、材料及历史读取工具 | CR-01、CR-03 | DONE | 首题和后续题可生成；按需读取；当前未提交审阅直接传递；工具来源保存与恢复 |
+| CR-05 | 逐项审阅与 SourceQuote 定位 | CR-02、CR-03 | DONE | 每项恰好一次；等价解法及无法判断有明确语义；UTF-16 精确定位及 gap 关闭同源 |
+| CR-06 | 公开 DTO、SSE、Episode 与报告 | CR-04、CR-05 | DONE | 私有参考不泄漏；评估中隐藏详细反馈；历史提交、评级、证据同源 |
+| CR-07 | Java 编辑器、diff、草稿与模式交互 | CR-06 | DONE | 练习新轮修订；评估文字追问；刷新和失败保留草稿；历史只读 |
+| CR-08 | 集成验收与真实模型抽样 | CR-07 | IN_PROGRESS | 并发恢复、数据库迁移、公开权限、页面构建与交互检查；如实记录真实模型验证结果 |
 
 ## 实施边界
 
@@ -30,4 +30,42 @@
 
 ## 调用链与验证记录
 
-待 CR-00 核对后补齐。
+- 基线编译：`timeout 60s ./gradlew :app:compileJava :app:compileTestJava --no-daemon`，21 秒通过。首次沙箱执行因用户 Gradle 缓存只读失败，授权执行后成功；尚未运行基线单测。
+- 创建：`InitialQuestionProposal → AgentDecision.Ask → AdaptiveCreationTransactionService → AdaptiveAgentTurnEntity`。
+- 回答：HTTP / MCP → `CandidateAnswer → AdaptiveAnswerClaimService → Assessor / Loop → AdaptiveAnswerTransactionService`。
+- 恢复：`AdaptiveInterviewPersistenceService` 读取正式答案，实体负责执行令牌、租约及回答状态。
+- 基线候选人响应仅投影文字；现已贯通公开任务、正式代码、模式反馈、Episode、报告和 MCP，原始评估参考不进入候选人 DTO。
+- 原模型 schema 由 Spring AI BeanOutputConverter 从 record 生成，修改 DTO 同时修改提示词和调用方测试。
+
+## 当前验收记录
+
+- CR-01/02：事实实现 `fbc2428`；迁移独立提交 `4a81b95`。原任务 JSON 往返、根引用、代码原文和旧文字题回归通过。
+- CR-02：`scripts/verification/verify_code_repair_migration.py` 使用 `/tmp` 原生 PostgreSQL 12.22 临时集群，19 项真实增量约束检查通过；不代表完整历史 Flyway 链或生产版本演练。
+- CR-03：`CodeRepairTransactionTest` 6 项通过，使用真实 JPA 服务和不同 token 双线程领取/提交；包括失败与过期恢复、不同 payload 冲突、练习修订、评估边界、跨场/链引用拒绝。
+- CR-05：逐项审阅、UTF-16 精确引用、gap 关闭 locator、历史空 locator 及练习已公开前文验证通过；CODE → TEXT → CODE 的文字反馈也进入下一次练习评分上下文。
+- CR-06：公共集成检查 21 秒通过，覆盖 API/Episode 模式权限、原始参考隔离、旧文字 gap 被后续代码关闭时的延迟公开、报告证据和严格解析错误隐私；MCP/HTTP 定向 31 项通过。
+- CR-04：四个工具已注册；严格参数与 owner 校验、按指定轮次读取、当前请求内审阅投影、本题采用来源保存及跨请求恢复均已接通。真实抽样发现的 schema 可空字段问题已通过声明注解修复，仍拒绝未知字段、额外 JSON 和无效引用。
+- CR-07：最终 31 项前端交互测试通过，生产构建通过。原始材料、未提交草稿与正式提交明确区分；已公开文字追问反馈在练习 Episode 中保留，评估报告反馈不会冒充提前提示。
+- 所有后端验证命令均带 `timeout 60s`；联合回归结果和提交记录见下方。
+
+## CR-08 尚未完成的真实验证
+
+[完整报告与合成样例](../../scripts/verification/code-repair-validation.md)保留成功和失败响应。三个真实模型评估通过 schema、实际 Java 领域校验和原文引用检查，能区分完整修复、单实例锁错误和遗漏拒绝。首题通过结构与领域校验，但人工发现 JPQL 字段错误、依赖和隔离前提不清；已修正提示词，最新版本尚未通过真实质量复测。
+
+最后一次向 DeepSeek 发送最新生产提示词、安全指令及 schema 的请求被自动审批拒绝，理由是未获对该具体外部目的地披露内部实现内容的明确授权。已停止外发；此项不标记 DONE。
+
+模型来自环境 provider 的 Anthropic 兼容接口，未走应用配置的 Spring AI 完整链路。首题 81.17 秒、评估 23.04～46.99 秒，部分超过 application.yml 的 Planner 60 秒 / Assessment 30 秒默认值。没有更改业务超时，真实应用端到端质量及延迟尚未验收。
+
+PostgreSQL 验证只覆盖 V20261007 增量与相关历史列；完整 Flyway/JPA PostgreSQL 测试因未提供环境数据库连接而跳过。前端构建存在原有 Browserslist 数据与 CSS `:where` 警告，不影响本次构建通过。
+
+## 最终本地回归与提交
+
+- 后端：`timeout 60s ./gradlew :app:test --tests 'interview.guide.modules.interview.agent.adaptive.*' --tests 'interview.guide.common.ai.StructuredOutputInvokerTest' --no-daemon`，32 秒；338 项，337 通过、0 失败、1 项完整 PostgreSQL 环境测试跳过。
+- 前端：`cd frontend && pnpm run test:code-repair`，31 项通过；`pnpm run build` 通过。
+- 测试结构拆分后：`timeout 60s ./gradlew :app:test --tests '*AdaptiveAnswerProgressionTest' --tests '*AdaptiveAnswerReportProgressionTest' --no-daemon`，20 秒，7 项通过。
+- `git diff --check`、新增验证脚本语法和文档链接检查通过；本次改动后的 Java/TypeScript/Python 源文件均不超过 300 行。
+- `eeaf361`：模型契约、逐项审阅、精确证据、内部工具、API/MCP 与读取权限。
+- `8031db3`：Java 编辑器、diff、草稿、练习/评估交互、历史与报告。
+- `5beda83`：答案推进测试按职责拆分，独立于行为提交。
+
+CR-00～CR-07 已完成。CR-08 保留进行中，任务 CSV 同步保留；不能将真实模型质量复测的审批阻断或应用端到端验证缺失记作通过。
