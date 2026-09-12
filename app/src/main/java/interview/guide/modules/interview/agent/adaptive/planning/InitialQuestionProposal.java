@@ -1,5 +1,8 @@
 package interview.guide.modules.interview.agent.adaptive.planning;
 
+import interview.guide.modules.interview.agent.adaptive.core.session.CodeRepairTask;
+import interview.guide.modules.interview.agent.adaptive.core.session.CodeRepairTask.QuestionType;
+
 import interview.guide.common.exception.BusinessException;
 import interview.guide.common.exception.ErrorCode;
 import interview.guide.modules.interview.agent.adaptive.core.context.CoverageProjector;
@@ -13,7 +16,10 @@ public record InitialQuestionProposal(
     String content,
     String decisionSummary,
     String nextProbeIntent,
-    List<String> adoptedEpisodeRefs
+    List<String> adoptedEpisodeRefs,
+    QuestionType questionType,
+    CodeRepairTask codeTask,
+    Integer codeTaskTurnIndex
 ) {
 
   public AgentDecision toDecision(InterviewPlan plan, List<String> availableEpisodeRefs) {
@@ -25,6 +31,14 @@ public record InitialQuestionProposal(
     if (adoptedEpisodeRefs == null || !availableEpisodeRefs.containsAll(adoptedEpisodeRefs)) {
       throw new BusinessException(ErrorCode.AI_SERVICE_ERROR, "首题 Episode 引用不在提供的历史中");
     }
+    var question = new AgentDecision.QuestionDraft(content, decisionSummary, adoptedEpisodeRefs,
+        questionType, codeTask, codeTaskTurnIndex);
+    try {
+      interview.guide.modules.interview.agent.adaptive.runtime.CodeQuestionValidator.validateShape(question);
+      if (codeTaskTurnIndex != null) throw new IllegalArgumentException("首题不能引用旧任务");
+    } catch (IllegalArgumentException e) {
+      throw new BusinessException(ErrorCode.AI_SERVICE_ERROR, e.getMessage());
+    }
     String targetId = CoverageProjector.targetId(targetOrder);
     WorkingMemory memory = new WorkingMemory(
         null,
@@ -34,7 +48,7 @@ public record InitialQuestionProposal(
     return new AgentDecision(memory, new AgentDecision.Ask(
         targetId,
         null,
-        new AgentDecision.QuestionDraft(content, decisionSummary, adoptedEpisodeRefs)
+        question
     ));
   }
 }

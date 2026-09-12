@@ -160,6 +160,7 @@ public class AdaptiveAnswerTransactionService {
       AgentDecision.Ask ask,
       RespondAction action
   ) {
+    validateCodeTaskReference(commit, ask);
     Map<Long, Long> gapIds = gapIds(commit.saved().gaps());
     Map<Long, Long> evidenceIds = evidenceIds(commit.saved().evidences());
     WorkingMemory memory = PendingFactReferenceResolver.resolve(
@@ -187,9 +188,23 @@ public class AdaptiveAnswerTransactionService {
         commit.locked().session(), nextTurn, new QuestionTarget(target, action)));
   }
 
+  private void validateCodeTaskReference(DecisionCommit commit, AgentDecision.Ask ask) {
+    Integer root = ask.question().codeTaskTurnIndex();
+    if (root == null) return;
+    var session = commit.locked().session();
+    if (ask.question().questionType()
+        == interview.guide.modules.interview.agent.adaptive.core.session.CodeRepairTask.QuestionType.CODE_REPAIR
+        && session.toDomain().settings().mode()
+        != interview.guide.modules.interview.agent.adaptive.core.session.SessionMode.PRACTICE) {
+      throw new IllegalArgumentException("评估模式不允许修改已提交任务");
+    }
+    turns.requireOriginalCodeTask(commit.commit().interview().history().session().id(), root);
+  }
+
   private RespondAction response(AgentDecision decision) {
     if (decision.action() instanceof AgentDecision.Ask ask) {
-      return RespondAction.ask(ask.question().content(), ask.question().decisionSummary());
+      return RespondAction.ask(ask.question().content(), ask.question().decisionSummary())
+        .withCodeTask(ask.question().questionType(), ask.question().codeTask(), ask.question().codeTaskTurnIndex());
     }
     AgentDecision.Finish finish = (AgentDecision.Finish) decision.action();
     return RespondAction.finish("面试已结束。", finish.decisionSummary());

@@ -1,5 +1,7 @@
 package interview.guide.modules.interview.agent.adaptive.planning;
 
+import interview.guide.modules.interview.agent.adaptive.core.session.CodeRepairTask.QuestionType;
+
 import static interview.guide.modules.interview.agent.adaptive.support.AdaptiveTestFixtures.testPlan;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
@@ -20,8 +22,8 @@ class InitialQuestionProposalTest {
         1,
         "请说明一次线上缓存一致性问题的定位过程。",
         "优先验证岗位核心实践",
-        "验证问题定位与取舍", List.of()
-    );
+        "验证问题定位与取舍", List.of(),
+        QuestionType.TEXT, null, null);
 
     AgentDecision decision = proposal.toDecision(plan, List.of());
 
@@ -34,8 +36,8 @@ class InitialQuestionProposalTest {
         new AgentDecision.QuestionDraft(
             "请说明一次线上缓存一致性问题的定位过程。",
             "优先验证岗位核心实践",
-            List.of()
-        )
+            List.of(),
+        QuestionType.TEXT, null, null)
     ));
   }
 
@@ -43,7 +45,7 @@ class InitialQuestionProposalTest {
   @DisplayName("创建 Agent 选择 Plan 外 Target 时明确失败")
   void shouldRejectTargetOutsidePlan() {
     InitialQuestionProposal proposal = new InitialQuestionProposal(
-        2, "问题", "理由", "意图", List.of());
+        2, "问题", "理由", "意图", List.of(), QuestionType.TEXT, null, null);
 
     assertThatThrownBy(() -> proposal.toDecision(plan(), List.of()))
         .isInstanceOf(BusinessException.class)
@@ -60,7 +62,7 @@ class InitialQuestionProposalTest {
   @Test
   void storesUsedEpisodeInInitialWorkingMemory() {
     var proposal = new InitialQuestionProposal(0, "换库存场景解释锁竞争", "参考上次不足",
-        "验证底层机制", List.of("episode:7"));
+        "验证底层机制", List.of("episode:7"), QuestionType.TEXT, null, null);
     var decision = proposal.toDecision(plan(), List.of("episode:7"));
     assertThat(decision.workingMemory().deliberation().adoptedObservationRefs())
         .containsExactly("episode:7");

@@ -37,7 +37,8 @@ class AdaptiveAnswerDecisionServiceTest {
     var rubric = new AdoptedRubricSource("rubric:cache@v1", "cache", "v1", "历史量规正文");
     var turn = new AdaptiveInterviewTurn(1, 0, "问题", "提问理由", null,
         null, null, null, TurnProvenance.initial(), List.of(rubric),
-        AnswerProcessingStatus.PROCESSING, "已记录的错误");
+        AnswerProcessingStatus.PROCESSING, "已记录的错误",
+        interview.guide.modules.interview.agent.adaptive.core.session.CodeRepairTask.QuestionType.TEXT, null, null, null);
     var history = new AdaptiveInterviewHistory(testSession("session-1", 3).start(),
         "candidate-1", "jd", "resume", "provider", List.of(turn));
     var interview = new PlannedInterview(history, plan);

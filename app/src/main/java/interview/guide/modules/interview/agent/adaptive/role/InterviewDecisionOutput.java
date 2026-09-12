@@ -1,5 +1,8 @@
 package interview.guide.modules.interview.agent.adaptive.role;
 
+import interview.guide.modules.interview.agent.adaptive.core.session.CodeRepairTask;
+import interview.guide.modules.interview.agent.adaptive.core.session.CodeRepairTask.QuestionType;
+
 import interview.guide.modules.interview.agent.adaptive.core.context.WorkingMemory;
 import interview.guide.modules.interview.agent.adaptive.runtime.AgentDecision;
 import interview.guide.modules.interview.agent.adaptive.runtime.ReadToolCall;
@@ -71,11 +74,15 @@ record InterviewDecisionOutput(
   record QuestionOutput(
       String content,
       String decisionSummary,
-      List<String> adoptedSourceRefs
+      List<String> adoptedSourceRefs,
+      QuestionType questionType,
+      CodeRepairTask codeTask,
+      Integer codeTaskTurnIndex
   ) {
 
     AgentDecision.QuestionDraft toDomain() {
-      return new AgentDecision.QuestionDraft(content, decisionSummary, adoptedSourceRefs);
+      return new AgentDecision.QuestionDraft(content, decisionSummary, adoptedSourceRefs,
+          questionType, codeTask, codeTaskTurnIndex);
     }
   }
 

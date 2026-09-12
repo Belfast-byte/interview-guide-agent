@@ -1,5 +1,7 @@
 package interview.guide.modules.interview.agent.adaptive.tool;
 
+import interview.guide.modules.interview.agent.adaptive.core.session.CodeRepairTask.QuestionType;
+
 import static org.assertj.core.api.Assertions.assertThat;
 
 import interview.guide.modules.interview.agent.adaptive.core.context.AgentContext;
@@ -85,7 +87,7 @@ class RubricSearchLoopTest {
       return new AgentDecision(memory, new AgentDecision.Ask(
           "target-0",
           null,
-          new AgentDecision.QuestionDraft("发生写冲突时如何处理？", "验证并发边界", List.of(SOURCE_REF))
+          new AgentDecision.QuestionDraft("发生写冲突时如何处理？", "验证并发边界", List.of(SOURCE_REF), QuestionType.TEXT, null, null)
       ));
     };
   }

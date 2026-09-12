@@ -1,5 +1,7 @@
 package interview.guide.modules.interview.agent.adaptive.role;
 
+import interview.guide.modules.interview.agent.adaptive.core.session.CodeRepairTask.QuestionType;
+
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
@@ -104,8 +106,8 @@ class SpringAiInterviewDecisionModelTest {
     var question = new InterviewDecisionOutput.QuestionOutput(
         "请介绍一次并发冲突处理。",
         "验证并发处理能力",
-        List.of()
-    );
+        List.of(),
+        QuestionType.TEXT, null, null);
     var ask = new InterviewDecisionOutput.AskOutput("target-1", null, question);
     var action = new InterviewDecisionOutput.ActionOutput("ASK", ask, null, null);
     return new InterviewDecisionOutput(WorkingMemory.empty(), action);

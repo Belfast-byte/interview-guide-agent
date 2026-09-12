@@ -60,8 +60,8 @@ public class AdaptiveCreationTransactionService {
             ErrorCode.INTERVIEW_SESSION_NOT_FOUND, "Agent 面试会话不存在"));
     AgentDecision.Ask ask = requireAsk(commit.decision());
     PlannedDimension target = target(commit.plan(), ask.targetId());
-    RespondAction action = RespondAction.ask(
-        ask.question().content(), ask.question().decisionSummary());
+    RespondAction action = RespondAction.ask(ask.question().content(), ask.question().decisionSummary())
+        .withCodeTask(ask.question().questionType(), ask.question().codeTask(), ask.question().codeTaskTurnIndex());
     session.apply(session.toDomain().start());
     AdaptiveAgentTurnEntity turn = turns.saveAndFlush(
         new AdaptiveAgentTurnEntity(new AdaptiveTurnCreation(

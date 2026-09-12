@@ -74,6 +74,9 @@ public class AdaptiveAgentTurnEntity {
   @Column(name = "code_fact_usage", length = 24)
   private CodeFactUsage codeFactUsage;
 
+  @jakarta.persistence.Embedded
+  private CodeRepairTurnFields codeRepair;
+
   @Column(columnDefinition = "TEXT")
   private String answer;
 
@@ -139,6 +142,7 @@ public class AdaptiveAgentTurnEntity {
     this.turnIndex = creation.turnIndex();
     this.dimensionOrder = creation.dimensionOrder();
     applyQuestion(creation.questionAction());
+    codeRepair = new CodeRepairTurnFields(creation.questionAction(), turnIndex);
     applyProvenance(creation.provenance());
     this.workingMemory = creation.workingMemory();
     this.adoptedRubrics = creation.adoptedRubrics();
@@ -172,6 +176,7 @@ public class AdaptiveAgentTurnEntity {
   }
 
   public void recordAnswer(CandidateAnswer candidateAnswer) {
+    codeRepair.recordAnswer(candidateAnswer);
     answer = candidateAnswer.content();
     CandidateCodeSubmission submission = candidateAnswer.codeSubmission();
     if (submission != null) {
@@ -210,7 +215,7 @@ public class AdaptiveAgentTurnEntity {
 
   private interview.guide.modules.interview.agent.adaptive.core.session.AnswerProcessingStatus answerStatus() {
     if (responseType != null) return interview.guide.modules.interview.agent.adaptive.core.session.AnswerProcessingStatus.COMPLETED;
-    if (answer == null) return interview.guide.modules.interview.agent.adaptive.core.session.AnswerProcessingStatus.WAITING;
+    if (!hasAnswer()) return interview.guide.modules.interview.agent.adaptive.core.session.AnswerProcessingStatus.WAITING;
     return processing() ? interview.guide.modules.interview.agent.adaptive.core.session.AnswerProcessingStatus.PROCESSING
         : interview.guide.modules.interview.agent.adaptive.core.session.AnswerProcessingStatus.RETRYABLE;
   }
@@ -229,13 +234,15 @@ public class AdaptiveAgentTurnEntity {
         ? null
         : new CandidateCodeSubmission(
             codeProblemId, codeScenarioId, codeLanguage, codeRunMode);
-    return new CandidateAnswer(turnIndex, answer, submission);
+    return new CandidateAnswer(turnIndex, answer, submission, codeRepair.submittedCode() == null
+        ? null : new CandidateAnswer.CodeRepairAnswer(codeRepair.submittedCode()));
   }
 
   public AdaptiveInterviewTurn toDomain() {
     return new AdaptiveInterviewTurn(turnIndex, dimensionOrder, question, questionReason,
         answer, responseType, responseContent, decisionReason, provenance(), adoptedRubrics,
-        answerStatus(), answerError);
+        answerStatus(), answerError, codeRepair.questionType(), codeRepair.codeTask(),
+        codeRepair.codeTaskTurnIndex(), codeRepair.submittedCode());
   }
 
   private TurnProvenance provenance() {
@@ -260,25 +267,19 @@ public class AdaptiveAgentTurnEntity {
     createdAt = LocalDateTime.now();
   }
 
-  public int turnIndex() {
-    return turnIndex;
-  }
+  public int turnIndex() { return turnIndex; }
 
-  public long id() {
-    return id;
-  }
+  public long id() { return id; }
 
-  public int dimensionOrder() {
-    return dimensionOrder;
-  }
+  public int dimensionOrder() { return dimensionOrder; }
 
-  public String question() {
-    return question;
-  }
+  public String question() { return question; }
 
-  public String answer() {
-    return answer;
-  }
+  public boolean hasAnswer() { return answer != null || codeRepair.submittedCode() != null; }
+
+  public CodeRepairTurnFields codeRepair() { return codeRepair; }
+
+  public String answer() { return answer; }
 
   public String codeSourceId() {
     return codeSourceId;

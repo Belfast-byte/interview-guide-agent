@@ -1,5 +1,7 @@
 package interview.guide.modules.interview.agent.adaptive.persistence.session;
 
+import interview.guide.modules.interview.agent.adaptive.core.session.CodeRepairTask.QuestionType;
+
 import interview.guide.common.exception.BusinessException;
 import interview.guide.modules.interview.agent.adaptive.algorithm.evidence.AlgorithmEvidenceSource;
 import interview.guide.modules.interview.agent.adaptive.application.AdaptiveAnswerAssessmentService.AnswerAssessment;
@@ -327,7 +329,7 @@ class AdaptiveAnswerProgressionTest {
     AgentDecision decision = new AgentDecision(memory, new AgentDecision.Ask(
         "target-0",
         PendingAssessmentReferences.gapId(0),
-        new AgentDecision.QuestionDraft("版本号如何推进？", "验证冲突细节", List.of())
+        new AgentDecision.QuestionDraft("版本号如何推进？", "验证冲突细节", List.of(), QuestionType.TEXT, null, null)
     ));
     return new AnswerProgressionDecision(assessed, decision);
   }
@@ -338,7 +340,7 @@ class AdaptiveAnswerProgressionTest {
         new AgentDecision.Ask(
             "target-0",
             null,
-            new AgentDecision.QuestionDraft("如何处理缓存并发更新？", "验证基础", List.of())
+            new AgentDecision.QuestionDraft("如何处理缓存并发更新？", "验证基础", List.of(), QuestionType.TEXT, null, null)
         )
     );
   }

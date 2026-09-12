@@ -18,14 +18,22 @@ public record AdaptiveInterviewTurn(
     TurnProvenance provenance,
     List<AdoptedRubricSource> adoptedRubrics,
     AnswerProcessingStatus answerStatus,
-    String answerError
+    String answerError,
+    CodeRepairTask.QuestionType questionType,
+    CodeRepairTask codeTask,
+    Integer codeTaskTurnIndex,
+    String submittedCode
 ) {
 
   /** 评估与历史召回共用原始问答上下文，不携带评分或候选人画像。 */
-  public record AnswerContext(int turnIndex, String question, String answer) {}
+  public record AnswerContext(int turnIndex, String question, String answer, String submittedCode) {
+    public AnswerContext(int turnIndex, String question, String answer) {
+      this(turnIndex, question, answer, null);
+    }
+  }
 
   public AnswerContext answerContext() {
-    return new AnswerContext(turnIndex, question, answer);
+    return new AnswerContext(turnIndex, question, answer, submittedCode);
   }
 
   public AdaptiveInterviewTurn(int turnIndex, Integer dimensionOrder, String question,
@@ -36,7 +44,7 @@ public record AdaptiveInterviewTurn(
         responseContent, decisionReason, provenance, adoptedRubrics,
         responseType != null ? AnswerProcessingStatus.COMPLETED
             : answer == null ? AnswerProcessingStatus.WAITING : AnswerProcessingStatus.RETRYABLE,
-        null);
+        null, CodeRepairTask.QuestionType.TEXT, null, null, null);
   }
 
   public AdaptiveInterviewTurn {

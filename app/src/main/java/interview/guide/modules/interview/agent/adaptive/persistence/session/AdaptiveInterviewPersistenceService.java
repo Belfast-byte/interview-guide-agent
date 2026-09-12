@@ -89,7 +89,7 @@ public class AdaptiveInterviewPersistenceService {
       String candidateId, String sessionId, int turnIndex) {
     sessionRepository.findByIdAndCandidateIdAndTenantIdIsNull(sessionId, candidateId).orElseThrow(this::notFound);
     var turn = turnRepository.findBySessionIdAndTurnIndex(sessionId, turnIndex).orElseThrow(this::notFound);
-    if (turn.answer() == null) throw new BusinessException(ErrorCode.BAD_REQUEST, "当前轮次尚未提交答案");
+    if (!turn.hasAnswer()) throw new BusinessException(ErrorCode.BAD_REQUEST, "当前轮次尚未提交答案");
     return turn.candidateAnswer();
   }
 

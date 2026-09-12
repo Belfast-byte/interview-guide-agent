@@ -1,5 +1,7 @@
 package interview.guide.modules.interview.agent.adaptive.application;
 
+import interview.guide.modules.interview.agent.adaptive.core.session.CodeRepairTask.QuestionType;
+
 import static interview.guide.modules.interview.agent.adaptive.support.AdaptiveTestFixtures.EVALUATION_SETTINGS;
 import static interview.guide.modules.interview.agent.adaptive.support.AdaptiveTestFixtures.testPlan;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
@@ -70,7 +72,7 @@ class AdaptiveInterviewCreationServiceTest {
         WorkingMemory.empty(),
         new AgentDecision.Ask(
             "target-0", null,
-            new AgentDecision.QuestionDraft("", "理由", List.of())
+            new AgentDecision.QuestionDraft("", "理由", List.of(), QuestionType.TEXT, null, null)
         )
     );
     var run = run(invalid, List.of());
@@ -86,8 +88,8 @@ class AdaptiveInterviewCreationServiceTest {
   void shouldCreateWithTrustedPlanningHistory() {
     var available = List.of("episode:7", "episode:8");
     var adopted = new InitialQuestionProposal(
-        0, "换一个场景验证并发更新。", "参考上次回答", "验证冲突处理", List.of("episode:7")
-    ).toDecision(plan(), available);
+        0, "换一个场景验证并发更新。", "参考上次回答", "验证冲突处理", List.of("episode:7"),
+        QuestionType.TEXT, null, null).toDecision(plan(), available);
     var run = run(adopted, available);
 
     service.create(run);
@@ -103,7 +105,7 @@ class AdaptiveInterviewCreationServiceTest {
     var memory = includeInMemory ? WorkingMemory.empty().withEpisodeReferences(forged)
         : WorkingMemory.empty();
     var decision = new AgentDecision(memory, new AgentDecision.Ask("target-0", null,
-        new AgentDecision.QuestionDraft("请展开说明。", "验证边界", forged)));
+        new AgentDecision.QuestionDraft("请展开说明。", "验证边界", forged, QuestionType.TEXT, null, null)));
     var run = run(decision, List.of("episode:7"));
 
     assertThatThrownBy(() -> service.create(run))
@@ -125,8 +127,8 @@ class AdaptiveInterviewCreationServiceTest {
 
   private AgentDecision decision() {
     return new InitialQuestionProposal(
-        0, "请说明缓存并发更新的冲突处理。", "验证并发边界", "验证冲突处理", List.of()
-    ).toDecision(plan(), List.of());
+        0, "请说明缓存并发更新的冲突处理。", "验证并发边界", "验证冲突处理", List.of(),
+        QuestionType.TEXT, null, null).toDecision(plan(), List.of());
   }
 
   private InterviewPlan plan() {

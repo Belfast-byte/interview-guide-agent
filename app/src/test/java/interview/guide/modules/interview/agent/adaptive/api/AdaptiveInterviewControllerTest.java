@@ -109,7 +109,7 @@ class AdaptiveInterviewControllerTest {
             null,
             SandboxLanguage.JAVA,
             SandboxRunMode.FULL
-        )
+        ), null
     );
 
     assertThatThrownBy(() -> controller.submitAnswerStream("session-1", principal, request))

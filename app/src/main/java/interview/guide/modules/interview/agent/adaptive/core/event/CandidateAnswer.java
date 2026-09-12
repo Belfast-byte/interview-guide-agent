@@ -6,8 +6,19 @@ package interview.guide.modules.interview.agent.adaptive.core.event;
 public record CandidateAnswer(
     int turnIndex,
     String content,
-    CandidateCodeSubmission codeSubmission
+    CandidateCodeSubmission codeSubmission,
+    CodeRepairAnswer codeRepair
 ) {
+
+  public record CodeRepairAnswer(String code) {}
+
+  public CandidateAnswer {
+    content = content == null || content.isBlank() ? null : content;
+  }
+
+  public CandidateAnswer(int turnIndex, String content, CandidateCodeSubmission codeSubmission) {
+    this(turnIndex, content, codeSubmission, null);
+  }
 
   public CandidateAnswer(int turnIndex, String content) {
     this(turnIndex, content, null);

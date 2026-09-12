@@ -1,5 +1,7 @@
 package interview.guide.modules.interview.agent.adaptive.persistence.session;
 
+import interview.guide.modules.interview.agent.adaptive.core.session.CodeRepairTask.QuestionType;
+
 import interview.guide.common.exception.BusinessException;
 import interview.guide.modules.interview.agent.adaptive.core.context.WorkingMemory;
 import interview.guide.modules.interview.agent.adaptive.core.session.AdaptiveSessionStatus;
@@ -91,6 +93,26 @@ class AdaptiveCreationTransactionServiceTest {
         .setParameter("sessionId", "session-1").getSingleResult()).isZero();
   }
 
+  @Test
+  void persistsOriginalCodeTaskAndPrivateGuideWithoutChangingSource() {
+    var task = new interview.guide.modules.interview.agent.adaptive.core.session.CodeRepairTask(
+        "void reserve() {}\n", List.of("不超卖"), List.of("共享数据库"),
+        new interview.guide.modules.interview.agent.adaptive.core.session.CodeRepairTask.ReviewGuide(List.of(
+            new interview.guide.modules.interview.agent.adaptive.core.session.CodeRepairTask.Check(
+                "C1", "非原子操作", "并发请求", "原子扣减"))));
+    var codeDecision = new AgentDecision(decision().workingMemory(), new AgentDecision.Ask(
+        "target-0", null, new AgentDecision.QuestionDraft("修复库存", "考察并发", List.of(),
+        QuestionType.CODE_REPAIR, task, null)));
+    service.create(creation(), plan(), codeDecision);
+    entityManager.flush();
+    entityManager.clear();
+    var restored = turnRepository.requireOriginalCodeTask("session-1", 1);
+    assertThat(restored.codeRepair().codeTask()).isEqualTo(task);
+    assertThat(restored.codeRepair().codeTaskTurnIndex()).isEqualTo(1);
+    assertThatThrownBy(() -> turnRepository.requireOriginalCodeTask("another-session", 1))
+        .hasMessageContaining("不属于本场");
+  }
+
   private AdaptiveSessionCreation creation() {
     return new AdaptiveSessionCreation(
         null,
@@ -127,8 +149,8 @@ class AdaptiveCreationTransactionServiceTest {
         new AgentDecision.QuestionDraft(
             "请说明缓存并发更新的冲突处理。",
             "验证候选人的并发边界理解",
-            List.of()
-        )
+            List.of(),
+        QuestionType.TEXT, null, null)
     ));
   }
 }

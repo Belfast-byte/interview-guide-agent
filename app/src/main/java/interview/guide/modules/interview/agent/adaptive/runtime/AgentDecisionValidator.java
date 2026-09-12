@@ -102,6 +102,11 @@ public class AgentDecisionValidator {
     if (summary.isPresent()) {
       return summary;
     }
+    try {
+      CodeQuestionValidator.validate(ask.question(), context);
+    } catch (IllegalArgumentException e) {
+      return rejection("action.ask.question", e.getMessage());
+    }
     return validateAdoptedSources(ask.question().adoptedSourceRefs(), context, observations);
   }
 

@@ -186,7 +186,8 @@ public class AdaptiveInterviewController {
                 request.codeSubmission().scenarioId(),
                 request.codeSubmission().language().name(),
                 request.codeSubmission().runMode().name()
-            )
+            ),
+        request.codeRepair() == null ? null : new CandidateAnswer.CodeRepairAnswer(request.codeRepair().code())
     );
   }
 

@@ -1,5 +1,7 @@
 package interview.guide.modules.interview.agent.adaptive.runtime;
 
+import interview.guide.modules.interview.agent.adaptive.core.session.CodeRepairTask.QuestionType;
+
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
@@ -170,8 +172,8 @@ class InterviewAgentLoopTest {
             new AgentDecision.QuestionDraft(
                 "请具体说明并发更新时的冲突处理。",
                 "验证候选人的并发边界理解",
-                List.of()
-            )
+                List.of(),
+        QuestionType.TEXT, null, null)
         )
     );
   }
@@ -182,7 +184,7 @@ class InterviewAgentLoopTest {
         new AgentDecision.Ask(
             "target-1",
             12L,
-            new AgentDecision.QuestionDraft("请展开说明。", "验证细节", List.of(sourceRef))
+            new AgentDecision.QuestionDraft("请展开说明。", "验证细节", List.of(sourceRef), QuestionType.TEXT, null, null)
         )
     );
   }

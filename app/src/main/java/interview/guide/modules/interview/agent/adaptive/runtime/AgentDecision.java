@@ -1,5 +1,8 @@
 package interview.guide.modules.interview.agent.adaptive.runtime;
 
+import interview.guide.modules.interview.agent.adaptive.core.session.CodeRepairTask;
+import interview.guide.modules.interview.agent.adaptive.core.session.CodeRepairTask.QuestionType;
+
 import interview.guide.modules.interview.agent.adaptive.core.context.WorkingMemory;
 import java.util.List;
 import java.util.ArrayList;
@@ -31,7 +34,10 @@ public record AgentDecision(
   public record QuestionDraft(
       String content,
       String decisionSummary,
-      List<String> adoptedSourceRefs
+      List<String> adoptedSourceRefs,
+      QuestionType questionType,
+      CodeRepairTask codeTask,
+      Integer codeTaskTurnIndex
   ) {
 
     public QuestionDraft {

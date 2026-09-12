@@ -1,5 +1,7 @@
 package interview.guide.modules.interview.agent.adaptive.application;
 
+import interview.guide.modules.interview.agent.adaptive.core.session.CodeRepairTask.QuestionType;
+
 import interview.guide.common.exception.BusinessException;
 import interview.guide.modules.interview.agent.adaptive.core.context.MemoryOwner;
 import interview.guide.modules.interview.agent.adaptive.core.context.TopicKey;
@@ -91,7 +93,7 @@ class PracticeCreationHistoryTest {
   private PlanProposal proposal(String adopted) {
     return new PlanProposal(List.of(new DimensionProposal(
         "并发控制", "并发更新", TOPIC.focusId(), 2, TOPIC.skillId())),
-        new InitialQuestionProposal(0, "换场景验证并发。", "参考原回答", "验证边界", List.of(adopted)));
+        new InitialQuestionProposal(0, "换场景验证并发。", "参考原回答", "验证边界", List.of(adopted), QuestionType.TEXT, null, null));
   }
 
   private AdaptiveInterviewApplicationService application() {

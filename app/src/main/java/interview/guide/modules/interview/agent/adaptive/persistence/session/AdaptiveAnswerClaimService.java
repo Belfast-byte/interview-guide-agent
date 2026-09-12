@@ -35,7 +35,8 @@ public class AdaptiveAnswerClaimService {
     AdaptiveAgentTurnEntity turn = turns.findLockedBySessionIdAndTurnIndex(
             sessionId, answer.turnIndex())
         .orElseThrow(() -> new BusinessException(ErrorCode.NOT_FOUND, "面试轮次不存在"));
-    if (turn.answer() != null && !turn.candidateAnswer().equals(answer)) {
+    turn.codeRepair().validateAnswer(answer);
+    if (turn.hasAnswer() && !turn.candidateAnswer().equals(answer)) {
       throw new BusinessException(ErrorCode.BAD_REQUEST, "当前轮次已提交不同回答");
     }
     if (assessments.findBySessionIdAndTurnIndex(sessionId, answer.turnIndex()).isPresent()) {
@@ -45,7 +46,7 @@ public class AdaptiveAnswerClaimService {
     if (turn.processing()) {
       return ClaimResult.PENDING;
     }
-    if (turn.answer() == null) turn.recordAnswer(answer);
+    if (!turn.hasAnswer()) turn.recordAnswer(answer);
     turn.claimExecution(executionToken, lease);
     return ClaimResult.NEW;
   }

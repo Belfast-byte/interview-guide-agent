@@ -14,9 +14,22 @@ import jakarta.validation.constraints.Size;
  */
 public record SubmitAdaptiveAnswerRequest(
     @Min(value = 1, message = "轮次必须从 1 开始") int turnIndex,
-    @NotBlank(message = "回答不能为空") String answer,
-    @Valid CandidateCodeSubmissionRequest codeSubmission
+    String answer,
+    @Valid CandidateCodeSubmissionRequest codeSubmission,
+    @Valid CodeRepairAnswerRequest codeRepair
 ) {
+
+  public record CodeRepairAnswerRequest(@NotBlank(message = "提交代码不能为空") String code) {}
+
+  @AssertTrue(message = "代码改错与旧代码执行提交互斥")
+  public boolean hasSingleCodeProtocol() {
+    return codeRepair == null || codeSubmission == null;
+  }
+
+  @AssertTrue(message = "回答或代码不能为空")
+  public boolean hasAnswer() {
+    return codeRepair != null || (answer != null && !answer.isBlank());
+  }
 
   /**
    * 候选人代码提交请求。

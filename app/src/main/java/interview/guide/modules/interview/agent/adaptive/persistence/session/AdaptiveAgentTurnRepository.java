@@ -17,6 +17,16 @@ public interface AdaptiveAgentTurnRepository
       int turnIndex
   );
 
+  default AdaptiveAgentTurnEntity requireOriginalCodeTask(String sessionId, int turnIndex) {
+    var turn = findBySessionIdAndTurnIndex(sessionId, turnIndex)
+        .orElseThrow(() -> new IllegalArgumentException("代码任务不属于本场会话"));
+    var code = turn.codeRepair();
+    if (code.codeTask() == null || !java.util.Objects.equals(code.codeTaskTurnIndex(), turnIndex)) {
+      throw new IllegalArgumentException("代码任务引用必须指向原始轮次");
+    }
+    return turn;
+  }
+
   @Lock(LockModeType.PESSIMISTIC_WRITE)
   Optional<AdaptiveAgentTurnEntity> findLockedBySessionIdAndTurnIndex(
       String sessionId,

@@ -1,5 +1,7 @@
 package interview.guide.modules.interview.agent.adaptive.runtime;
 
+import interview.guide.modules.interview.agent.adaptive.core.session.CodeRepairTask.QuestionType;
+
 import interview.guide.modules.interview.agent.adaptive.core.context.AgentContext;
 import interview.guide.modules.interview.agent.adaptive.core.context.CoverageView;
 import interview.guide.modules.interview.agent.adaptive.core.context.WorkingMemory;
@@ -47,6 +49,6 @@ class EpisodeReferenceTest {
 
   private AgentDecision decision(WorkingMemory memory, String reference) {
     return new AgentDecision(memory, new AgentDecision.Ask("target-0", null,
-        new AgentDecision.QuestionDraft("换库存场景说明锁竞争", "验证当前不足", List.of(reference))));
+        new AgentDecision.QuestionDraft("换库存场景说明锁竞争", "验证当前不足", List.of(reference), QuestionType.TEXT, null, null)));
   }
 }
