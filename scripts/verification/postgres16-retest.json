@@ -1,0 +1,28 @@
+{
+  "databaseVersion": "PostgreSQL 16.14",
+  "image": "pgvector/pgvector:pg16",
+  "isolation": "disposable Docker container; independent databases using public schema",
+  "migrationTest": {
+    "tests": 1,
+    "failures": 0,
+    "skipped": 0,
+    "elapsedSeconds": 16.92,
+    "emptyDatabaseMigrations": 57,
+    "upgradeBaseline": "20260926",
+    "baselineMigrations": 46,
+    "upgradeMigrations": 11,
+    "finalVersion": "20261007",
+    "jpaValidate": "passed on both paths"
+  },
+  "adaptiveRegression": {
+    "tests": 338,
+    "failures": 0,
+    "errors": 0,
+    "skipped": 0,
+    "elapsedSeconds": 33.59
+  },
+  "backendTestTimeoutSeconds": 60,
+  "cleanup": "temporary containers and their volumes removed",
+  "developmentDatabaseModified": false,
+  "liveModelRequests": 0
+}

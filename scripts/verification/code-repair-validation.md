@@ -54,11 +54,26 @@
 - 参考的机制说明也需更准确：给定先读、校验、写回序列在正数量下可能丢失扣减、造成超卖，不能直接据此推断写出负库存。
 - 本次 39.90 秒低于 YAML 的 Planner 60 秒默认值，但只是环境 provider 的一次观测，没有补齐应用端到端验证，也不改变此前评估超时样例的结果。
 
-原始响应、合成输入、脚本结果、Java 校验输出及人工审阅结论保存在 `model-samples/2026-09-12/approved-planner/`。未编译或运行生成的业务代码。CR-08 继续保留未完成状态，原因为题目质量及应用链路验证缺口，已不再是外发审批阻断。
+原始响应、合成输入、脚本结果、Java 校验输出及人工审阅结论保存在 `model-samples/2026-09-12/approved-planner/`。未编译或运行生成的业务代码。CR-08 继续保留未完成状态，原因为题目质量及应用模型链路验证缺口，已不再是外发审批或 PostgreSQL 环境阻断。
+
+## Docker PostgreSQL 16 复测
+
+Docker 启动后，使用本地 `pgvector/pgvector:pg16` 镜像创建临时实例，实际版本 PostgreSQL 16.14。端口只绑定本机随机端口，测试凭据随机生成；未向开发数据库写入，临时容器及其数据卷已清理。
+
+第一次真正执行 `PostgresAgentSchemaMigrationTest` 发现测试隔离方式不符合历史迁移：测试使用随机 schema，而 V20260723 显式检查 `public.vector_store`，导致重复建表。已将测试改为每条路径使用独立临时数据库、沿用生产 `public` schema，历史迁移文件未改写。测试连接账号需要 CREATEDB 权限及扩展安装权限。
+
+定向检查 16.92 秒通过；随后带 PostgreSQL 环境的完整自适应模块和 StrictInvoker 联合回归 **338 项全部通过，0 失败、0 跳过，33.59 秒**。两次 Gradle 执行均使用 `timeout 60s`：
+
+- 空库执行全部 **57 个迁移**到 V20261007，Flyway 校验和全实体 JPA validate 通过。
+- 升级路径先执行 46 个迁移到 V20260926，再执行剩余 **11 个迁移**到 V20261007，Flyway 校验和全实体 JPA validate 通过。
+
+复现入口为已有 `PostgresAgentSchemaMigrationTest`：设置隔离 PostgreSQL 实例的 `POSTGRES_SCHEMA_TEST_URL`、`POSTGRES_SCHEMA_TEST_USER`、`POSTGRES_SCHEMA_TEST_PASSWORD`，运行 `timeout 60s ./gradlew :app:test --tests '*PostgresAgentSchemaMigrationTest' --no-daemon`。测试会自动创建和删除两条路径的临时数据库。
+
+本次没有执行新的外部模型请求。应用 `.env` 引用的 provider 配置文件仍不存在，Docker 启动本身未补齐应用模型调用配置；模型质量与真实应用端到端缺口仍按前文保留。
 
 ## 产物与复现
 
-原生数据库验证：`verify_code_repair_migration.py`、`code_repair_migration.sql`。SQL 使用迁移前四张表的相关列 fixture，实际加载 V20261007；覆盖旧文字/沙箱值不变、历史 locator null、根自引用、同场引用、跨场外键拒绝、错误组合和仅代码答案。它不是完整历史 Flyway 链或生产 PostgreSQL 版本的演练；根与引用链的语义检查由应用边界负责。
+原生数据库验证：`verify_code_repair_migration.py`、`code_repair_migration.sql`。SQL 使用迁移前四张表的相关列 fixture，实际加载 V20261007；覆盖旧文字/沙箱值不变、历史 locator null、根自引用、同场引用、跨场外键拒绝、错误组合和仅代码答案。该脚本本身不是完整历史 Flyway 链或 PostgreSQL 16 的演练；完整链已在下述 Docker 复测中补齐。根与引用链的语义检查由应用边界负责。
 
 ```bash
 LD_LIBRARY_PATH=/tmp/code-repair-pg-packages/runtime/usr/lib/x86_64-linux-gnu \

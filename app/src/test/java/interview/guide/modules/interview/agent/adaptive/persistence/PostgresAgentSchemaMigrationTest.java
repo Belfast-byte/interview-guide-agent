@@ -1,5 +1,6 @@
 package interview.guide.modules.interview.agent.adaptive.persistence;
 
+import java.net.URI;
 import java.util.Map;
 import java.util.UUID;
 import javax.sql.DataSource;
@@ -20,6 +21,8 @@ import static org.assertj.core.api.Assertions.assertThat;
 @EnabledIfEnvironmentVariable(named = "POSTGRES_SCHEMA_TEST_PASSWORD", matches = ".+")
 class PostgresAgentSchemaMigrationTest {
 
+  private static final String PRODUCTION_SCHEMA = "public";
+
   private static final MigrationVersion PRE_SCHEMA_CLEANUP_VERSION =
       MigrationVersion.fromVersion("20260926");
 
@@ -27,27 +30,29 @@ class PostgresAgentSchemaMigrationTest {
   @DisplayName("PostgreSQL 空库和遗留 Agent 基线均可迁移并通过 JPA validate")
   void shouldMigrateEmptyAndExistingSchemas() {
     DatabaseConfig config = DatabaseConfig.fromEnvironment();
-    verifySchema(config, migrationSchema("empty"), null);
-    verifySchema(config, migrationSchema("upgrade"), PRE_SCHEMA_CLEANUP_VERSION);
+    verifyDatabase(config, migrationDatabase("empty"), null);
+    verifyDatabase(config, migrationDatabase("upgrade"), PRE_SCHEMA_CLEANUP_VERSION);
   }
 
-  private void verifySchema(
+  /** 历史迁移显式引用 public；测试账号需 CREATEDB，以独立数据库隔离两条路径。 */
+  private void verifyDatabase(
       DatabaseConfig config,
-      String schema,
+      String database,
       MigrationVersion initialTarget
   ) {
-    DataSource dataSource = dataSource(config);
-    JdbcTemplate jdbc = new JdbcTemplate(dataSource);
-    jdbc.execute("CREATE SCHEMA " + schema);
+    JdbcTemplate admin = new JdbcTemplate(dataSource(config));
+    // database 仅来自本类固定前缀与 UUID，DDL 标识符不接受外部输入。
+    admin.execute("CREATE DATABASE " + database);
     try {
+      DataSource dataSource = dataSource(config.withDatabase(database));
       if (initialTarget != null) {
-        migrate(dataSource, schema, initialTarget);
+        migrate(dataSource, PRODUCTION_SCHEMA, initialTarget);
       }
-      Flyway flyway = migrate(dataSource, schema, null);
+      Flyway flyway = migrate(dataSource, PRODUCTION_SCHEMA, null);
       assertThat(flyway.validateWithResult().validationSuccessful).isTrue();
-      validateJpa(dataSource, schema);
+      validateJpa(dataSource, PRODUCTION_SCHEMA);
     } finally {
-      jdbc.execute("DROP SCHEMA " + schema + " CASCADE");
+      admin.execute("DROP DATABASE " + database);
     }
   }
 
@@ -88,12 +93,20 @@ class PostgresAgentSchemaMigrationTest {
     return new DriverManagerDataSource(config.url(), config.user(), config.password());
   }
 
-  private String migrationSchema(String prefix) {
-    return "agent_schema_" + prefix + "_"
+  private String migrationDatabase(String prefix) {
+    return "agent_migration_" + prefix + "_"
         + UUID.randomUUID().toString().replace("-", "");
   }
 
   private record DatabaseConfig(String url, String user, String password) {
+
+    private DatabaseConfig withDatabase(String database) {
+      URI endpoint = URI.create(url.substring("jdbc:".length()));
+      String query = endpoint.getRawQuery() == null ? "" : "?" + endpoint.getRawQuery();
+      String databaseUrl = "jdbc:" + endpoint.getScheme() + "://"
+          + endpoint.getRawAuthority() + "/" + database + query;
+      return new DatabaseConfig(databaseUrl, user, password);
+    }
 
     private static DatabaseConfig fromEnvironment() {
       return new DatabaseConfig(
