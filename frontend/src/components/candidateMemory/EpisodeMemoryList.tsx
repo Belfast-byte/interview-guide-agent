@@ -1,3 +1,4 @@
+import CodeRepairHistory from '../codeRepair/CodeRepairHistory';
 import type { CandidateMemoryEpisode, CandidateMemoryEpisodePage } from '../../types/candidateMemory';
 import { formatDateTime } from '../../utils/date';
 
@@ -49,11 +50,16 @@ export function EpisodeMemoryDetail({ episode }: { episode: CandidateMemoryEpiso
             {episode.priorTurns.map(turn => (
               <div key={turn.turnIndex} className="mb-3 whitespace-pre-wrap">
                 <p>第 {turn.turnIndex} 轮：{turn.question}</p><p className="mt-1">回答：{turn.answer}</p>
+                {turn.feedbackRationale != null && <div className="mt-2 border-l-2 border-line pl-3">
+                  <p className="text-xs">当时已公开的反馈</p><p className="mt-1 text-ink-soft">{turn.feedbackRationale}</p>
+                </div>}
+                <CodeRepairHistory turn={turn} />
               </div>
             ))}
           </div>
         )}
         <p className="mt-3 whitespace-pre-wrap leading-7 text-ink-soft">{episode.answer}</p>
+        <CodeRepairHistory turn={episode} />
       </details>
       <p className="text-xs text-wk-muted">{episode.sessionMode === 'PRACTICE' ? '练习' : '评估'} · 来源会话 {episode.sessionId}</p>
     </div>

@@ -1,3 +1,5 @@
+import type { CodeRepairFields, QuoteLocator } from './codeRepair';
+
 export type AdaptiveSessionStatus = 'CREATED' | 'IN_PROGRESS' | 'COMPLETED' | 'FAILED';
 export type AdaptiveDimensionStatus = 'PENDING' | 'ACTIVE' | 'COMPLETED' | 'EXHAUSTED';
 export type AdaptiveDepthLevel = 'L0' | 'L1' | 'L2' | 'L3' | 'L4';
@@ -26,7 +28,7 @@ export interface AdaptiveInterviewDimension {
   status: AdaptiveDimensionStatus;
 }
 
-export interface AdaptiveInterviewTurn {
+export interface AdaptiveInterviewTurn extends CodeRepairFields {
   turnIndex: number;
   dimensionOrder: number;
   question: string;
@@ -81,7 +83,8 @@ export interface AdaptiveInterviewHistoryPage {
 
 export interface SubmitAdaptiveAnswerRequest {
   turnIndex: number;
-  answer: string;
+  answer?: string | null;
+  codeRepair?: { code: string };
   codeSubmission?: {
     problemId?: string;
     scenarioId?: string;
@@ -91,6 +94,8 @@ export interface SubmitAdaptiveAnswerRequest {
 }
 
 export interface AdaptiveEvidenceReference {
+  submittedCode?: string | null;
+  quoteLocator?: QuoteLocator | null;
   type: 'QUOTE' | 'TOOL_RESULT';
   turnIndex: number;
   question: string;

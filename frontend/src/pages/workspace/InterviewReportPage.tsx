@@ -1,3 +1,6 @@
+import ReportRecommendations from './interview/ReportRecommendations';
+import ReportCodeReviews from './interview/ReportCodeReviews';
+import ReportEvidence from './interview/ReportEvidence';
 import { useCallback, useEffect, useState } from 'react';
 import { AlertCircle, ArrowLeft, Loader2, RefreshCw } from 'lucide-react';
 import { Link, useParams } from 'react-router-dom';
@@ -41,43 +44,51 @@ export default function InterviewReportPage() {
     if (sessionId) void loadReport(sessionId);
   }, [loadReport, sessionId]);
 
-  if (loading && !report) {
-    return (
-      <div className="flex min-h-[50vh] items-center justify-center">
-        <p className="flex items-center gap-3 font-monosc text-xs tracking-wider text-wk-muted">
-          <Loader2 className="h-4 w-4 animate-spin text-cinnabar" />
-          正在组装可追溯报告…
-        </p>
-      </div>
-    );
-  }
-
-  if (!report) {
-    return (
-      <div className="pt-16">
-        <div className="wk-error max-w-xl">
-          <AlertCircle className="mt-0.5 h-4 w-4 flex-none" />
-          <span>{error || '报告不存在。'}</span>
-        </div>
-        <div className="mt-4 flex gap-3">
-          {sessionId && (
-            <button type="button" onClick={() => void loadReport(sessionId)} className="wk-btn-ghost">
-              <RefreshCw className="h-3.5 w-3.5" />
-              重新加载
-            </button>
-          )}
-          <Link to={ROUTES.workspaceHistory} className="wk-btn-ghost">
-            <ArrowLeft className="h-3.5 w-3.5" />
-            返回面试记录
-          </Link>
-        </div>
-      </div>
-    );
-  }
+  if (!report) return <ReportUnavailable loading={loading} error={error} sessionId={sessionId} loadReport={loadReport} />;
 
   return (
     <div className="pb-24">
       {/* ===== 页首：评估档案 ===== */}
+      <ReportHeader report={report} />
+
+      <div className="mt-10 grid items-start gap-10 lg:grid-cols-[7fr_5fr]">
+        {/* ===== 左：维度结论 ===== */}
+        <ReportDimensions report={report} />
+
+        {/* ===== 右：薄弱点 + 练习建议 ===== */}
+        <ReportRecommendations report={report} />
+      </div>
+      <ReportCodeReviews sessionId={report.sessionId} />
+    </div>
+  );
+}
+
+/* ===== 深度刻度尺：L0–L4 五档 ===== */
+function DepthRuler({ level }: { level: AdaptiveDepthLevel }) {
+  const activeIndex = DEPTH_ORDER.indexOf(level);
+  return (
+    <div>
+      <div className="flex items-center gap-1.5" role="img" aria-label={`深度等级 ${level} ${DEPTH_LABELS[level]}`}>
+        {DEPTH_ORDER.map((tick, index) => (
+          <span
+            key={tick}
+            className="h-[10px] w-8 rounded-[1px]"
+            style={{
+              background: index <= activeIndex && level !== 'L0'
+                ? 'var(--cinnabar)'
+                : 'var(--line)',
+            }}
+          />
+        ))}
+        <span className="ml-2 font-monosc text-xs font-medium text-cinnabar">{level}</span>
+      </div>
+      <p className="mt-1.5 font-monosc text-[11px] tracking-wider text-wk-muted">{DEPTH_LABELS[level]}</p>
+    </div>
+  );
+}
+
+function ReportHeader({ report }: { report: AdaptiveAssessmentReport }) {
+  return (
       <header className="wk-rise pt-10">
         <Link
           to={ROUTES.workspaceHistory}
@@ -107,12 +118,22 @@ export default function InterviewReportPage() {
           </div>
         </div>
       </header>
+  );
+}
 
-      <div className="mt-10 grid items-start gap-10 lg:grid-cols-[7fr_5fr]">
-        {/* ===== 左：维度结论 ===== */}
+function ReportDimensions({ report }: { report: AdaptiveAssessmentReport }) {
+  return (
         <div>
           <p className="wk-label mb-2">Dimension conclusions · {report.dimensions.length} 个维度</p>
           {report.dimensions.map((dimension, index) => (
+            <DimensionConclusion key={dimension.order} dimension={dimension} index={index} />
+          ))}
+        </div>
+  );
+}
+
+function DimensionConclusion({ dimension, index }: { dimension: AdaptiveAssessmentReport["dimensions"][number]; index: number }) {
+  return (
             <section
               key={dimension.order}
               className="wk-rise border-t border-ink py-7 first-of-type:border-ink [&+section]:border-line"
@@ -138,102 +159,49 @@ export default function InterviewReportPage() {
               {dimension.evidences.length > 0 && (
                 <div className="mt-4 space-y-2.5 pl-8">
                   {dimension.evidences.map((evidence, evidenceIndex) => (
-                    <blockquote
-                      key={`${evidence.turnIndex}-${evidenceIndex}`}
-                      className="border-l-2 border-line bg-raised px-4 py-3"
-                    >
-                      <p className="mb-1 font-monosc text-[10px] uppercase tracking-[0.12em] text-wk-muted">
-                        {evidence.type === 'QUOTE' ? `回答原文 · Q${String(evidence.turnIndex).padStart(2, '0')}` : `工具结果 · ${evidence.toolResult?.toolName ?? ''}`}
-                      </p>
-                      <p className="text-[13px] leading-6 text-ink-soft">
-                        {evidence.quote ?? evidence.toolResult?.output}
-                      </p>
-                    </blockquote>
+                    <ReportEvidence key={`${evidence.turnIndex}-${evidenceIndex}`} evidence={evidence} />
                   ))}
                 </div>
               )}
             </section>
-          ))}
-        </div>
-
-        {/* ===== 右：薄弱点 + 练习建议 ===== */}
-        <aside className="space-y-10 lg:sticky lg:top-20">
-          {report.weakPoints.length > 0 && (
-            <div>
-              <p className="wk-label mb-3">薄弱点 · 待补强</p>
-              <ul className="border-t border-line">
-                {report.weakPoints.map(weakPoint => (
-                  <li key={weakPoint.dimension} className="border-b border-dashed border-line py-4">
-                    <div className="flex items-baseline justify-between gap-3">
-                      <p className="text-sm font-semibold text-ink">{weakPoint.dimension}</p>
-                      <span className="font-monosc text-[11px] text-cinnabar">
-                        {weakPoint.demonstratedLevel} → {weakPoint.missingLevel}
-                      </span>
-                    </div>
-                    <p className="mt-1.5 text-[13px] leading-6 text-wk-muted">{weakPoint.missingCapability}</p>
-                  </li>
-                ))}
-              </ul>
-            </div>
-          )}
-
-          {report.practiceRecommendations.length > 0 && (
-            <div>
-              <p className="wk-label mb-3">练习建议</p>
-              <div className="space-y-4">
-                {report.practiceRecommendations.map(practice => (
-                  <article key={practice.questionSourceId} className="wk-docket">
-                    <div className="flex items-center justify-between gap-3">
-                      <p className="font-monosc text-[10.5px] uppercase tracking-[0.12em] text-cinnabar">
-                        练习 · {practice.dimension}
-                      </p>
-                      <span className="wk-tag" style={{ background: 'color-mix(in srgb, var(--ink) 7%, transparent)', color: 'var(--ink-soft)' }}>
-                        {practice.questionDifficulty}
-                      </span>
-                    </div>
-                    <p className="mt-3 text-sm font-medium leading-7 text-ink">{practice.question}</p>
-                    {practice.status === 'COMPLETED' && (
-                      <p className="mt-3 font-monosc text-[10.5px] tracking-wider text-[#2F6B4F]">✓ 已完成</p>
-                    )}
-                  </article>
-                ))}
-              </div>
-            </div>
-          )}
-
-          {report.weakPoints.length === 0 && report.practiceRecommendations.length === 0 && (
-            <p className="text-sm leading-6 text-wk-muted">
-              {report.dimensions.some(dimension => dimension.depthLevel === null)
-                ? '本场包含未考察维度，现有评估不足以判断这些维度的薄弱点。'
-                : '已评估维度没有暴露明显薄弱点。'}可以回到 <Link to={ROUTES.workspace} className="text-cinnabar underline">新的面试</Link> 换更深的维度再跑一场。
-            </p>
-          )}
-        </aside>
-      </div>
-    </div>
   );
 }
 
-/* ===== 深度刻度尺：L0–L4 五档 ===== */
-function DepthRuler({ level }: { level: AdaptiveDepthLevel }) {
-  const activeIndex = DEPTH_ORDER.indexOf(level);
-  return (
-    <div>
-      <div className="flex items-center gap-1.5" role="img" aria-label={`深度等级 ${level} ${DEPTH_LABELS[level]}`}>
-        {DEPTH_ORDER.map((tick, index) => (
-          <span
-            key={tick}
-            className="h-[10px] w-8 rounded-[1px]"
-            style={{
-              background: index <= activeIndex && level !== 'L0'
-                ? 'var(--cinnabar)'
-                : 'var(--line)',
-            }}
-          />
-        ))}
-        <span className="ml-2 font-monosc text-xs font-medium text-cinnabar">{level}</span>
+function ReportUnavailable({ loading, error, sessionId, loadReport }: {
+  loading: boolean; error: string; sessionId?: string; loadReport: (id: string) => Promise<void>;
+}) {
+  if (loading) {
+    return (
+      <div className="flex min-h-[50vh] items-center justify-center">
+        <p className="flex items-center gap-3 font-monosc text-xs tracking-wider text-wk-muted">
+          <Loader2 className="h-4 w-4 animate-spin text-cinnabar" />
+          正在组装可追溯报告…
+        </p>
       </div>
-      <p className="mt-1.5 font-monosc text-[11px] tracking-wider text-wk-muted">{DEPTH_LABELS[level]}</p>
-    </div>
-  );
+    );
+  }
+
+  {
+    return (
+      <div className="pt-16">
+        <div className="wk-error max-w-xl">
+          <AlertCircle className="mt-0.5 h-4 w-4 flex-none" />
+          <span>{error || '报告不存在。'}</span>
+        </div>
+        <div className="mt-4 flex gap-3">
+          {sessionId && (
+            <button type="button" onClick={() => void loadReport(sessionId)} className="wk-btn-ghost">
+              <RefreshCw className="h-3.5 w-3.5" />
+              重新加载
+            </button>
+          )}
+          <Link to={ROUTES.workspaceHistory} className="wk-btn-ghost">
+            <ArrowLeft className="h-3.5 w-3.5" />
+            返回面试记录
+          </Link>
+        </div>
+      </div>
+    );
+  }
+
 }

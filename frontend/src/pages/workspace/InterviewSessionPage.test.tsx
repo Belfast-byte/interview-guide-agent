@@ -6,6 +6,7 @@ import { adaptiveInterviewApi } from '../../api/adaptiveInterview';
 import type { AdaptiveInterviewSession } from '../../types/adaptiveInterview';
 import InterviewSessionPage from './InterviewSessionPage';
 
+vi.mock('../../auth/AuthContext', () => ({ useAuth: () => ({ user: { candidateId: 'candidate' } }) }));
 vi.mock('../../api/adaptiveInterview', () => ({ adaptiveInterviewApi: { get: vi.fn(), submitAnswerStream: vi.fn(), retryAnswerStream: vi.fn() } }));
 const snapshot = (status: 'WAITING' | 'PROCESSING' | 'RETRYABLE' = 'RETRYABLE'): AdaptiveInterviewSession => ({
   sessionId: 'audit', runtimeVersion: 'v2', status: 'IN_PROGRESS', currentTurn: 1, maxTurns: 2,
@@ -19,7 +20,7 @@ function mount() {
     <Route path="/session/:sessionId" element={<InterviewSessionPage />} />
   </Routes></MemoryRouter>);
 }
-beforeEach(() => vi.resetAllMocks());
+beforeEach(() => { vi.resetAllMocks(); sessionStorage.clear(); });
 afterEach(cleanup);
 
 it('刷新后允许重试已保存的原答案，保留原文且不开放编辑', async () => {

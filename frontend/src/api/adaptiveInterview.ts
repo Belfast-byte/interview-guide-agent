@@ -84,8 +84,8 @@ export const adaptiveInterviewApi = {
   },
 
   /**
-   * 流式提交文本回答：SSE 推送阶段事件与题目增量文本，完成时回调权威会话。
-   * 代码提交回答请使用同步的 submitAnswer。
+   * 流式提交文字回答或代码改错：SSE 推送阶段事件与题目增量文本，完成时回调权威会话。
+   * 旧沙箱代码提交回答仍使用同步的 submitAnswer。
    */
   submitAnswerStream(
     sessionId: string,

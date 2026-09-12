@@ -1,3 +1,4 @@
+import type { CodeRepairFields } from './codeRepair';
 import type { AdaptiveDepthLevel } from './adaptiveInterview';
 
 export interface CandidateMemoryGap {
@@ -9,7 +10,7 @@ export interface CandidateMemoryGap {
   closureSummary: string | null;
 }
 
-export interface CandidateMemoryEpisode {
+export interface CandidateMemoryEpisode extends CodeRepairFields {
   episodeId: number;
   sessionId: string;
   turnIndex: number;
@@ -20,10 +21,10 @@ export interface CandidateMemoryEpisode {
   answer: string;
   depthLevel: AdaptiveDepthLevel;
   expectedDepth: AdaptiveDepthLevel | null;
-  rationaleSummary: string;
+  rationaleSummary: string | null;
   gaps: CandidateMemoryGap[];
   triggerType: 'PLANNED' | 'ASSESSMENT_GAP' | 'AGENT_DECISION';
-  priorTurns: { turnIndex: number; question: string; answer: string }[];
+  priorTurns: (CodeRepairFields & { turnIndex: number; question: string; answer: string; feedbackRationale?: string | null })[];
   createdAt: string;
 }
 

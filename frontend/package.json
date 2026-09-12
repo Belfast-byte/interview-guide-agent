@@ -8,11 +8,17 @@
     "build": "tsc && vite build",
     "preview": "vite preview",
     "test:stream": "node --test src/pages/adaptiveInterviewStream.test.ts",
-    "test:candidate-memory": "vitest run src/components/candidateMemory/EpisodeMemoryList.test.tsx"
+    "test:candidate-memory": "vitest run src/components/candidateMemory/EpisodeMemoryList.test.tsx",
+    "test:code-repair": "vitest run src/pages/workspace/InterviewCodeRepair.test.tsx src/pages/workspace/InterviewSessionPage.test.tsx src/pages/workspace/InterviewReportPage.test.tsx src/pages/workspace/interview/useAnswerDraft.test.tsx src/components/codeRepair/CodeReviewFeedback.test.tsx src/components/candidateMemory/EpisodeMemoryList.test.tsx src/components/codeRepair/CodeRepairHistory.test.tsx"
   },
   "dependencies": {
+    "@codemirror/lang-java": "6.0.2",
+    "@codemirror/merge": "^6.12.2",
+    "@codemirror/state": "^6.7.4",
+    "@codemirror/view": "^6.43.11",
     "@tailwindcss/postcss": "^4.1.18",
     "axios": "^1.7.7",
+    "codemirror": "^6.0.2",
     "dayjs": "^1.11.20",
     "framer-motion": "^12.23.26",
     "lucide-react": "^0.468.0",

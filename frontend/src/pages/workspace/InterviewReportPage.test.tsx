@@ -6,8 +6,8 @@ import { adaptiveInterviewApi } from '../../api/adaptiveInterview';
 import type { AdaptiveAssessmentReport } from '../../types/adaptiveInterview';
 import InterviewReportPage from './InterviewReportPage';
 
-vi.mock('../../api/adaptiveInterview', () => ({ adaptiveInterviewApi: { getReport: vi.fn() } }));
-beforeEach(() => vi.resetAllMocks());
+vi.mock('../../api/adaptiveInterview', () => ({ adaptiveInterviewApi: { getReport: vi.fn(), get: vi.fn() } }));
+beforeEach(() => { vi.resetAllMocks(); vi.mocked(adaptiveInterviewApi.get).mockResolvedValue({ turns: [] } as unknown as Awaited<ReturnType<typeof adaptiveInterviewApi.get>>); });
 afterEach(cleanup);
 function mount(report: AdaptiveAssessmentReport) {
   vi.mocked(adaptiveInterviewApi.getReport).mockResolvedValue(report);
