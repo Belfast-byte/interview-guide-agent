@@ -6,5 +6,6 @@ package interview.guide.modules.interview.agent.adaptive.assessment.evidence;
 public record ValidatedAssessmentEvidence(
     EvidenceType type,
     String quote,
-    String sandboxExecutionId
+    String sandboxExecutionId,
+    interview.guide.modules.interview.agent.adaptive.core.context.SourceQuote.Locator quoteLocator
 ) {}

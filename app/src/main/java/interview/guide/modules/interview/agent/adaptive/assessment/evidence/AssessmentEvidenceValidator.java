@@ -2,37 +2,25 @@ package interview.guide.modules.interview.agent.adaptive.assessment.evidence;
 
 import interview.guide.common.exception.BusinessException;
 import interview.guide.common.exception.ErrorCode;
-import java.util.ArrayList;
+import interview.guide.modules.interview.agent.adaptive.core.context.SourceQuote.AnswerSources;
 import java.util.List;
 import org.springframework.stereotype.Service;
 
-/**
- * 评估证据校验器，校验逐字引用是否真实存在于回答原文中。
- * 匹配前对全半角和空白做归一化；引用不命中时明确拒绝整份正式提案。
- */
+/** 逐字验证本轮答案与代码证据，不归一化代码空白或伪造位置。 */
 @Service
 public class AssessmentEvidenceValidator {
-
-  public List<ValidatedAssessmentEvidence> validate(
-      String sessionId,
-      int turnIndex,
-      String answer,
-      List<AssessmentEvidenceCandidate> candidates
-  ) {
-    String normalizedAnswer = AnswerTextNormalizer.normalize(answer);
-    List<ValidatedAssessmentEvidence> validated = new ArrayList<>();
-    for (AssessmentEvidenceCandidate candidate : candidates.stream().distinct().toList()) {
-      String quote = candidate.quote();
-      if (quote == null || quote.isBlank()
-          || !normalizedAnswer.contains(AnswerTextNormalizer.normalize(quote))) {
-        throw new BusinessException(
-            ErrorCode.AI_SERVICE_ERROR,
-            "评估证据引用未命中回答原文: sessionId=%s, turnIndex=%d"
-                .formatted(sessionId, turnIndex)
-        );
-      }
-      validated.add(new ValidatedAssessmentEvidence(EvidenceType.QUOTE, quote, null));
+  public List<ValidatedAssessmentEvidence> validate(AnswerSources sources,
+      List<AssessmentEvidenceCandidate> candidates) {
+    try {
+      return candidates.stream().map(candidate -> validateQuote(candidate, sources)).distinct().toList();
+    } catch (IllegalArgumentException e) {
+      throw new BusinessException(ErrorCode.AI_SERVICE_ERROR, "评估证据引用未命中回答原文: " + e.getMessage(), e);
     }
-    return List.copyOf(validated);
+  }
+
+  private ValidatedAssessmentEvidence validateQuote(AssessmentEvidenceCandidate candidate, AnswerSources sources) {
+    if (candidate == null || candidate.quote() == null) throw new IllegalArgumentException("引用不能为空");
+    var quote = candidate.quote().resolve(sources);
+    return new ValidatedAssessmentEvidence(EvidenceType.QUOTE, quote.quote(), null, quote.locator());
   }
 }

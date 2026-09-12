@@ -1,5 +1,14 @@
 package interview.guide.modules.interview.agent.adaptive.memory.episode;
 
+import interview.guide.modules.interview.agent.adaptive.persistence.session.AdaptiveAgentSessionRepository;
+import interview.guide.modules.interview.agent.adaptive.persistence.session.AdaptiveAgentSessionEntity;
+import interview.guide.modules.interview.agent.adaptive.persistence.session.AdaptiveSessionCreation;
+import interview.guide.modules.interview.agent.adaptive.core.session.AdaptiveInterviewSession;
+import interview.guide.modules.interview.agent.adaptive.core.session.InterviewSessionSettings;
+import interview.guide.modules.interview.agent.adaptive.core.session.CandidateLevel;
+import interview.guide.modules.interview.agent.adaptive.core.session.PracticeScope;
+
+import interview.guide.modules.interview.agent.adaptive.core.context.SourceQuote;
 import interview.guide.modules.interview.agent.adaptive.assessment.depth.AssessmentDecision;
 import interview.guide.modules.interview.agent.adaptive.core.action.RespondAction;
 import interview.guide.modules.interview.agent.adaptive.core.context.DepthLevel;
@@ -36,6 +45,7 @@ class EpisodeFactRepositoryTest {
   private static final MemoryOwner OWNER = new MemoryOwner(null, "candidate-1");
   private static final TopicKey TOPIC = new TopicKey("java-backend", "CONCURRENCY");
   @Autowired private EpisodeFactRepository episodes;
+  @Autowired private AdaptiveAgentSessionRepository sessions;
   @Autowired private EpisodeQueryService query;
   @Autowired private AdaptiveAgentAssessmentRepository assessments;
   @Autowired private AdaptiveAgentTurnRepository turns;
@@ -46,7 +56,7 @@ class EpisodeFactRepositoryTest {
     var saved = save(new Sample(OWNER, "session-1", TOPIC, DepthLevel.L1));
     var assessment = assessments.findById(query.latest(OWNER).getFirst().assessmentId()).orElseThrow();
     gaps.saveAndFlush(new AssessmentProbeGapEntity(assessment, 1,
-        new ProbeGap("synchronized 保证互斥", "没有解释底层监视器与竞争机制")));
+        new ProbeGap(new SourceQuote(SourceQuote.Source.ANSWER_TEXT, "synchronized 保证互斥", 0), "没有解释底层监视器与竞争机制")));
 
     assertThat(query.recent(OWNER, TOPIC, PageRequest.of(0, 5))).singleElement().satisfies(view -> {
       assertThat(view.episodeId()).isEqualTo(saved.id());
@@ -93,6 +103,7 @@ class EpisodeFactRepositoryTest {
 
   @Test
   void retainsPriorQuestionAndAnswerEvenWithoutOldEpisodeIndex() {
+    saveSession(new Sample(OWNER, "hinted", TOPIC, DepthLevel.L2));
     var parent = turn("hinted", 1);
     var followUp = turn("hinted", 2);
     var assessment = assessment("hinted", 2, DepthLevel.L2);
@@ -110,9 +121,10 @@ class EpisodeFactRepositoryTest {
   void readsExistingClosureEvidenceWithoutChangingOldAnswerGrade() {
     var old = save(new Sample(OWNER, "old", TOPIC, DepthLevel.L1));
     var first = assessments.findById(query.latest(OWNER).getFirst().assessmentId()).orElseThrow();
-    var gap = gaps.saveAndFlush(new AssessmentProbeGapEntity(first, 1, new ProbeGap("互斥", "锁竞争机制")));
+    var gap = gaps.saveAndFlush(new AssessmentProbeGapEntity(first, 1, new ProbeGap(new SourceQuote(SourceQuote.Source.ANSWER_TEXT, "互斥", 0), "锁竞争机制")));
+    turn("old", 2, "竞争失败的线程会阻塞等待");
     var second = assessment("old", 2, DepthLevel.L3);
-    gap.closeByEvidence(second, "竞争失败的线程会阻塞等待", "补充了竞争过程");
+    gap.closeByEvidence(second, new SourceQuote(SourceQuote.Source.ANSWER_TEXT, "竞争失败的线程会阻塞等待", 0), "补充了竞争过程");
     gaps.flush();
 
     assertThat(query.latest(OWNER)).singleElement().satisfies(view -> {
@@ -136,6 +148,7 @@ class EpisodeFactRepositoryTest {
   }
 
   private EpisodeFactEntity save(Sample sample) {
+    saveSession(sample);
     var turn = turn(sample.session(), 1);
     var assessment = assessment(sample.session(), 1, sample.level());
     return episodes.saveAndFlush(new EpisodeFactEntity(new Creation(
@@ -143,12 +156,25 @@ class EpisodeFactRepositoryTest {
         sample.topic(), "target-0"), assessment));
   }
 
+  private void saveSession(Sample sample) {
+    var settings = new InterviewSessionSettings(SessionMode.PRACTICE, CandidateLevel.EXPERIENCED,
+        new PracticeScope(List.of(sample.topic())));
+    var creation = new AdaptiveSessionCreation(sample.owner().tenantId(), sample.session(),
+        sample.owner().candidateId(), "JD", "Resume", "provider", null, null, settings);
+    sessions.saveAndFlush(new AdaptiveAgentSessionEntity(
+        AdaptiveInterviewSession.create(sample.session(), 3, settings).start(), creation));
+  }
+
   private AdaptiveAgentTurnEntity turn(String session, int index) {
+    return turn(session, index, "synchronized 保证互斥");
+  }
+
+  private AdaptiveAgentTurnEntity turn(String session, int index, String answer) {
     var turn = new AdaptiveAgentTurnEntity(new AdaptiveTurnCreation(session, index, 0,
         RespondAction.ask("库存扣减使用 synchronized，竞争时发生什么？", "验证锁机制"),
         index == 1 ? TurnProvenance.initial() : TurnProvenance.agentDecision(index - 1),
         WorkingMemory.empty()));
-    turn.recordAnswer(new CandidateAnswer(index, "synchronized 保证互斥"));
+    turn.recordAnswer(new CandidateAnswer(index, answer));
     return turns.saveAndFlush(turn);
   }
 

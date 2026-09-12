@@ -81,7 +81,7 @@ public class AdaptiveAnswerDecisionService {
             request.answer(),
             new CoverageUpdate(assessment, budget)
         ),
-        answeredTurns(history.turns(), request.answer()),
+        answeredTurns(history.turns(), request.answer(), assessment),
         snapshotReader.latest(history.session().id())
     ));
   }
@@ -164,7 +164,8 @@ public class AdaptiveAnswerDecisionService {
 
   private List<AdaptiveInterviewTurn> answeredTurns(
       List<AdaptiveInterviewTurn> turns,
-      CandidateAnswer answer
+      CandidateAnswer answer,
+      AnswerAssessment assessment
   ) {
     return turns.stream().map(turn -> turn.turnIndex() == answer.turnIndex()
         ? new AdaptiveInterviewTurn(
@@ -172,7 +173,10 @@ public class AdaptiveAnswerDecisionService {
             answer.content(), turn.responseType(), turn.responseContent(), turn.decisionReason(),
             turn.provenance(), turn.adoptedRubrics(), turn.answerStatus(), turn.answerError(),
             turn.questionType(), turn.codeTask(), turn.codeTaskTurnIndex(),
-            answer.codeRepair() == null ? null : answer.codeRepair().code())
+            answer.codeRepair() == null ? null : answer.codeRepair().code(),
+            new AdaptiveInterviewTurn.AssessmentFeedback(assessment.decision().depthLevel(),
+                assessment.decision().rationaleSummary(), assessment.decision().codeReview(),
+                assessment.decision().evidenceQuotes()))
         : turn).toList();
   }
 

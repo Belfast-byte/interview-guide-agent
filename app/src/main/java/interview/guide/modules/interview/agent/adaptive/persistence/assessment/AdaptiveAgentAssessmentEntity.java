@@ -1,5 +1,9 @@
 package interview.guide.modules.interview.agent.adaptive.persistence.assessment;
 
+import interview.guide.modules.interview.agent.adaptive.core.context.CodeRepairReview;
+import org.hibernate.annotations.JdbcTypeCode;
+import org.hibernate.type.SqlTypes;
+
 import interview.guide.modules.interview.agent.adaptive.assessment.depth.AssessmentDecision;
 import interview.guide.modules.interview.agent.adaptive.core.context.DepthLevel;
 import jakarta.persistence.Column;
@@ -51,6 +55,14 @@ public class AdaptiveAgentAssessmentEntity {
   @Column(name = "rationale_summary", nullable = false, length = 500)
   private String rationaleSummary;
 
+  @JdbcTypeCode(SqlTypes.JSON)
+  @Column(name = "code_review_json")
+  private CodeRepairReview codeReview;
+
+  public CodeRepairReview codeReview() {
+    return codeReview;
+  }
+
   @Column(name = "created_at", nullable = false)
   private LocalDateTime createdAt;
 
@@ -66,6 +78,7 @@ public class AdaptiveAgentAssessmentEntity {
     this.depthLevel = decision.depthLevel();
     this.confidence = BigDecimal.valueOf(decision.confidence());
     this.rationaleSummary = decision.rationaleSummary();
+    this.codeReview = decision.codeReview();
   }
 
   @PrePersist

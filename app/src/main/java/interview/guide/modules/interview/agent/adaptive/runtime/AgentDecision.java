@@ -1,5 +1,6 @@
 package interview.guide.modules.interview.agent.adaptive.runtime;
 
+import io.swagger.v3.oas.annotations.media.Schema;
 import interview.guide.modules.interview.agent.adaptive.core.session.CodeRepairTask;
 import interview.guide.modules.interview.agent.adaptive.core.session.CodeRepairTask.QuestionType;
 
@@ -18,7 +19,7 @@ public record AgentDecision(
 
   public record Ask(
       String targetId,
-      Long sourceGapId,
+      @Schema(nullable = true, requiredMode = Schema.RequiredMode.NOT_REQUIRED) Long sourceGapId,
       QuestionDraft question
   ) implements Action {}
   public record CallReadTools(List<ReadToolCall> calls) implements Action {
@@ -36,8 +37,8 @@ public record AgentDecision(
       String decisionSummary,
       List<String> adoptedSourceRefs,
       QuestionType questionType,
-      CodeRepairTask codeTask,
-      Integer codeTaskTurnIndex
+      @Schema(nullable = true, requiredMode = Schema.RequiredMode.NOT_REQUIRED) CodeRepairTask codeTask,
+      @Schema(nullable = true, requiredMode = Schema.RequiredMode.NOT_REQUIRED) Integer codeTaskTurnIndex
   ) {
 
     public QuestionDraft {

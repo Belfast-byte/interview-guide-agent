@@ -1,5 +1,9 @@
 package interview.guide.modules.interview.agent.adaptive.persistence.assessment;
 
+import interview.guide.modules.interview.agent.adaptive.core.context.SourceQuote;
+import org.hibernate.annotations.JdbcTypeCode;
+import org.hibernate.type.SqlTypes;
+
 import interview.guide.modules.interview.agent.adaptive.core.context.ProbeGap;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
@@ -48,6 +52,17 @@ public class AssessmentProbeGapEntity {
   @Column(nullable = false, columnDefinition = "TEXT")
   private String anchor;
 
+  @JdbcTypeCode(SqlTypes.JSON)
+  @Column(name = "anchor_locator_json")
+  private SourceQuote.Locator anchorLocator;
+
+  @JdbcTypeCode(SqlTypes.JSON)
+  @Column(name = "closure_evidence_locator_json")
+  private SourceQuote.Locator closureEvidenceLocator;
+
+  public SourceQuote.Locator anchorLocator() { return anchorLocator; }
+  public SourceQuote.Locator closureEvidenceLocator() { return closureEvidenceLocator; }
+
   @Column(nullable = false, columnDefinition = "TEXT")
   private String description;
 
@@ -75,7 +90,8 @@ public class AssessmentProbeGapEntity {
     this.assessment = assessment;
     this.gapOrder = gapOrder;
     this.gapCode = GAP_CODE_PREFIX + gapOrder;
-    this.anchor = gap.anchor();
+    this.anchor = gap.anchor().quote();
+    this.anchorLocator = gap.anchor().locator();
     this.description = gap.missingPoint();
   }
 
@@ -109,11 +125,15 @@ public class AssessmentProbeGapEntity {
   }
 
   public ProbeGap toDomain() {
-    return new ProbeGap(anchor, description);
+    return new ProbeGap(SourceQuote.fromStored(anchor, anchorLocator), description);
   }
 
   public Long closedByAssessmentId() {
     return closedByAssessment == null ? null : closedByAssessment.id();
+  }
+
+  public Integer closedByTurnIndex() {
+    return closedByAssessment == null ? null : closedByAssessment.turnIndex();
   }
 
   @Column(name = "closure_evidence_quote", columnDefinition = "TEXT")
@@ -130,11 +150,12 @@ public class AssessmentProbeGapEntity {
     return closureSummary;
   }
 
-  public void closeByEvidence(AdaptiveAgentAssessmentEntity assessment, String quote, String reason) {
+  public void closeByEvidence(AdaptiveAgentAssessmentEntity assessment, SourceQuote quote, String reason) {
     if (closedByAssessment != null) throw new IllegalStateException("缺口已关闭");
     closedByAssessment = assessment;
     closureReason = ProbeGapClosureReason.EVIDENCE_RESOLVED;
-    closureEvidenceQuote = quote;
+    closureEvidenceQuote = quote.quote();
+    closureEvidenceLocator = quote.locator();
     closureSummary = reason;
   }
 

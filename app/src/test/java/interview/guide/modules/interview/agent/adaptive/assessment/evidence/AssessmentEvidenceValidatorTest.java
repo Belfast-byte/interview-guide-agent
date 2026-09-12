@@ -1,86 +1,73 @@
 package interview.guide.modules.interview.agent.adaptive.assessment.evidence;
 
+import interview.guide.common.exception.BusinessException;
+import interview.guide.modules.interview.agent.adaptive.core.context.SourceQuote;
+import interview.guide.modules.interview.agent.adaptive.core.context.SourceQuote.AnswerSources;
+import interview.guide.modules.interview.agent.adaptive.core.context.SourceQuote.Source;
+import java.util.List;
+import org.junit.jupiter.api.Test;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
-import interview.guide.common.exception.BusinessException;
-import java.util.List;
-import org.junit.jupiter.api.DisplayName;
-import org.junit.jupiter.api.Test;
-
 class AssessmentEvidenceValidatorTest {
-
   private final AssessmentEvidenceValidator validator = new AssessmentEvidenceValidator();
 
   @Test
-  @DisplayName("逐字引用必须是当前回答的精确子串")
-  void shouldValidateExactQuote() {
-    List<ValidatedAssessmentEvidence> evidences = validator.validate(
-        "session-1",
-        1,
-        "延迟双删只能降低概率，重要数据使用版本号。",
-        List.of(AssessmentEvidenceCandidate.quote("重要数据使用版本号"))
-    );
-
-    assertThat(evidences).containsExactly(new ValidatedAssessmentEvidence(
-        EvidenceType.QUOTE,
-        "重要数据使用版本号",
-        null
-    ));
+  void preservesExactCodeAndUtf16Offsets() {
+    var sources = new AnswerSources("已修改", "// 😀\nreturn  reserve();");
+    var evidence = validator.validate(sources, List.of(candidate(Source.SUBMITTED_CODE, "return  reserve();", null)));
+    assertThat(evidence).containsExactly(new ValidatedAssessmentEvidence(EvidenceType.QUOTE,
+        "return  reserve();", null, new SourceQuote.Locator(Source.SUBMITTED_CODE, 6, 24)));
   }
 
   @Test
-  @DisplayName("模型改写而非逐字引用时明确拒绝正式提案")
-  void shouldRejectParaphrasedQuote() {
-    assertThatThrownBy(() -> validator.validate(
-        "session-1",
-        1,
-        "重要数据使用版本号。",
-        List.of(AssessmentEvidenceCandidate.quote("关键数据应当增加版本字段"))
-    )).isInstanceOf(BusinessException.class)
-        .hasMessageContaining("未命中回答原文");
+  void rejectsWhitespaceAndWidthNormalization() {
+    var sources = new AnswerSources("使用 Ｒｅｄｉｓ", "return  reserve();");
+    assertThatThrownBy(() -> validator.validate(sources,
+        List.of(candidate(Source.SUBMITTED_CODE, "return reserve();", null))))
+        .isInstanceOf(BusinessException.class).hasMessageContaining("未命中");
+    assertThatThrownBy(() -> validator.validate(sources,
+        List.of(candidate(Source.ANSWER_TEXT, "使用 Redis", null))))
+        .isInstanceOf(BusinessException.class).hasMessageContaining("未命中");
   }
 
   @Test
-  @DisplayName("全半角和连续空白差异归一化后命中回答原文")
-  void shouldMatchQuoteAfterNormalization() {
-    List<ValidatedAssessmentEvidence> evidences = validator.validate(
-        "session-1",
-        1,
-        "重要数据使用版本号（最终一致），延迟 双删只能降低概率。",
-        List.of(
-            AssessmentEvidenceCandidate.quote("重要数据使用版本号(最终一致)"),
-            AssessmentEvidenceCandidate.quote("延迟 双删只能降低概率")
-        )
-    );
-
-    assertThat(evidences).containsExactly(
-        new ValidatedAssessmentEvidence(
-            EvidenceType.QUOTE,
-            "重要数据使用版本号(最终一致)",
-            null
-        ),
-        new ValidatedAssessmentEvidence(EvidenceType.QUOTE, "延迟 双删只能降低概率", null)
-    );
+  void requiresOffsetForRepeatedFragments() {
+    var sources = new AnswerSources(null, "x(); x();");
+    assertThatThrownBy(() -> validator.validate(sources,
+        List.of(candidate(Source.SUBMITTED_CODE, "x();", null))))
+        .isInstanceOf(BusinessException.class).hasMessageContaining("消歧");
+    var evidence = validator.validate(sources, List.of(candidate(Source.SUBMITTED_CODE, "x();", 5)));
+    assertThat(evidence.getFirst().quoteLocator()).isEqualTo(new SourceQuote.Locator(Source.SUBMITTED_CODE, 5, 9));
   }
 
   @Test
-  @DisplayName("模型重复引用同一原文时去重后继续校验而不是整轮失败")
-  void shouldDeduplicateRepeatedQuotes() {
-    List<ValidatedAssessmentEvidence> evidences = validator.validate(
-        "session-1",
-        1,
-        "延迟双删只能降低概率，重要数据使用版本号。",
-        List.of(
-            AssessmentEvidenceCandidate.quote("重要数据使用版本号"),
-            AssessmentEvidenceCandidate.quote("重要数据使用版本号")
-        )
-    );
+  void rejectsMissingSourceAndIncorrectOffsets() {
+    var sources = new AnswerSources("说明", null);
+    assertThatThrownBy(() -> validator.validate(sources,
+        List.of(candidate(Source.SUBMITTED_CODE, "说明", null))))
+        .isInstanceOf(BusinessException.class).hasMessageContaining("没有本轮提交原文");
+    for (int offset : List.of(-1, 1, Integer.MAX_VALUE)) {
+      assertThatThrownBy(() -> validator.validate(sources,
+          List.of(candidate(Source.ANSWER_TEXT, "说明", offset))))
+          .isInstanceOf(BusinessException.class).hasMessageContaining("未命中");
+    }
+  }
 
-    assertThat(evidences).containsExactly(new ValidatedAssessmentEvidence(
-        EvidenceType.QUOTE,
-        "重要数据使用版本号",
-        null
-    ));
+  @Test
+  void deduplicatesSameSourcePositionButKeepsOtherSources() {
+    var sources = new AnswerSources("CAS", "CAS");
+    var text = candidate(Source.ANSWER_TEXT, "CAS", null);
+    var code = candidate(Source.SUBMITTED_CODE, "CAS", null);
+    assertThat(validator.validate(sources, List.of(text, candidate(Source.ANSWER_TEXT, "CAS", 0), code))).hasSize(2);
+  }
+
+  @Test
+  void historicalQuoteDoesNotInventPosition() {
+    assertThat(SourceQuote.fromStored("历史原句", null).startOffset()).isNull();
+  }
+
+  private AssessmentEvidenceCandidate candidate(Source source, String quote, Integer offset) {
+    return AssessmentEvidenceCandidate.quote(new SourceQuote(source, quote, offset));
   }
 }

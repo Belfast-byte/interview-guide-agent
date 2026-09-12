@@ -32,7 +32,7 @@ public record CoverageFacts(
   public record ProbeGapFact(
       long gapId,
       long assessmentId,
-      String anchor,
+      SourceQuote anchor,
       String description,
       Long closedByAssessmentId
   ) {}

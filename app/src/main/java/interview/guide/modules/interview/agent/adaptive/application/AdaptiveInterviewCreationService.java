@@ -82,7 +82,7 @@ public class AdaptiveInterviewCreationService {
         java.util.List.of(),
         // 首题来源由当前 owner 的规划历史提供，不从模型输出推断可信引用。
         interview.guide.modules.interview.agent.adaptive.core.context.WorkingMemory.empty()
-            .withEpisodeReferences(run.availableEpisodeRefs())
+            .withAdoptedSources(run.availableEpisodeRefs())
     ));
   }
 

@@ -1,5 +1,6 @@
 package interview.guide.modules.interview.agent.adaptive.role;
 
+import io.swagger.v3.oas.annotations.media.Schema;
 import interview.guide.modules.interview.agent.adaptive.core.session.CodeRepairTask;
 import interview.guide.modules.interview.agent.adaptive.core.session.CodeRepairTask.QuestionType;
 
@@ -21,9 +22,9 @@ record InterviewDecisionOutput(
 
   record ActionOutput(
       String type,
-      AskOutput ask,
-      CallReadToolsOutput callReadTools,
-      FinishOutput finish
+      @Schema(nullable = true, requiredMode = Schema.RequiredMode.NOT_REQUIRED) AskOutput ask,
+      @Schema(nullable = true, requiredMode = Schema.RequiredMode.NOT_REQUIRED) CallReadToolsOutput callReadTools,
+      @Schema(nullable = true, requiredMode = Schema.RequiredMode.NOT_REQUIRED) FinishOutput finish
   ) {
 
     AgentDecision.Action toDomain() {
@@ -40,7 +41,7 @@ record InterviewDecisionOutput(
     }
   }
 
-  record AskOutput(String targetId, Long sourceGapId, QuestionOutput question) {
+  record AskOutput(String targetId, @Schema(nullable = true, requiredMode = Schema.RequiredMode.NOT_REQUIRED) Long sourceGapId, QuestionOutput question) {
 
     AgentDecision.Ask toDomain() {
       return new AgentDecision.Ask(
@@ -76,8 +77,8 @@ record InterviewDecisionOutput(
       String decisionSummary,
       List<String> adoptedSourceRefs,
       QuestionType questionType,
-      CodeRepairTask codeTask,
-      Integer codeTaskTurnIndex
+      @Schema(nullable = true, requiredMode = Schema.RequiredMode.NOT_REQUIRED) CodeRepairTask codeTask,
+      @Schema(nullable = true, requiredMode = Schema.RequiredMode.NOT_REQUIRED) Integer codeTaskTurnIndex
   ) {
 
     AgentDecision.QuestionDraft toDomain() {

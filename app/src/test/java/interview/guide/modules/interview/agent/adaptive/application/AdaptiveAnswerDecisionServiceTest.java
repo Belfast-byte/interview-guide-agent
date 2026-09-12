@@ -38,7 +38,7 @@ class AdaptiveAnswerDecisionServiceTest {
     var turn = new AdaptiveInterviewTurn(1, 0, "问题", "提问理由", null,
         null, null, null, TurnProvenance.initial(), List.of(rubric),
         AnswerProcessingStatus.PROCESSING, "已记录的错误",
-        interview.guide.modules.interview.agent.adaptive.core.session.CodeRepairTask.QuestionType.TEXT, null, null, null);
+        interview.guide.modules.interview.agent.adaptive.core.session.CodeRepairTask.QuestionType.TEXT, null, null, null, null);
     var history = new AdaptiveInterviewHistory(testSession("session-1", 3).start(),
         "candidate-1", "jd", "resume", "provider", List.of(turn));
     var interview = new PlannedInterview(history, plan);
@@ -59,7 +59,10 @@ class AdaptiveAnswerDecisionServiceTest {
     verify(assembler).agent(input.capture());
     var copied = input.getValue().recentTurns().getFirst();
     assertThat(copied.answer()).isEqualTo(answer.content());
-    assertThat(copied).usingRecursiveComparison().ignoringFields("answer").isEqualTo(turn);
+    assertThat(copied.assessmentFeedback().depthLevel()).isEqualTo(DepthLevel.L1);
+    assertThat(copied.assessmentFeedback().rationale()).isEqualTo("证据不足");
+    assertThat(copied).usingRecursiveComparison()
+        .ignoringFields("answer", "assessmentFeedback").isEqualTo(turn);
     assertThat(turn.answer()).isNull();
   }
 

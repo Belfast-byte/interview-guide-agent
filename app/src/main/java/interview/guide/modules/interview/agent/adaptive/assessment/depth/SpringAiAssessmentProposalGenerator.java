@@ -66,7 +66,7 @@ public class SpringAiAssessmentProposalGenerator
         properties.getAssessmentUserPromptPath()
     );
     this.assessmentExamples = promptLoader.loadText(properties.getAssessmentExamplesPath());
-    this.outputConverter = new BeanOutputConverter<>(AssessmentProposal.class);
+    this.outputConverter = StructuredOutputInvoker.strictConverter(AssessmentProposal.class);
   }
 
   @Override
@@ -95,7 +95,7 @@ public class SpringAiAssessmentProposalGenerator
           request.sessionId()
       );
       AssessmentProposal proposal = deadlineExecutor.invoke(
-          () -> structuredOutputInvoker.invoke(
+          () -> structuredOutputInvoker.invokeOnce(
               chatClient,
               systemPrompt,
               userPrompt,

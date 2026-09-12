@@ -1,5 +1,6 @@
 package interview.guide.modules.interview.agent.adaptive.planning;
 
+import io.swagger.v3.oas.annotations.media.Schema;
 import interview.guide.modules.interview.agent.adaptive.core.session.CodeRepairTask;
 import interview.guide.modules.interview.agent.adaptive.core.session.CodeRepairTask.QuestionType;
 
@@ -18,8 +19,8 @@ public record InitialQuestionProposal(
     String nextProbeIntent,
     List<String> adoptedEpisodeRefs,
     QuestionType questionType,
-    CodeRepairTask codeTask,
-    Integer codeTaskTurnIndex
+    @Schema(nullable = true, requiredMode = Schema.RequiredMode.NOT_REQUIRED) CodeRepairTask codeTask,
+    @Schema(nullable = true, requiredMode = Schema.RequiredMode.NOT_REQUIRED) Integer codeTaskTurnIndex
 ) {
 
   public AgentDecision toDecision(InterviewPlan plan, List<String> availableEpisodeRefs) {

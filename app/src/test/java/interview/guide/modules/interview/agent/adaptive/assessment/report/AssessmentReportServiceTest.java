@@ -204,6 +204,8 @@ class AssessmentReportServiceTest {
             null,
             null,
             null,
+            null,
+            null,
             null
         ))
     );

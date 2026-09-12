@@ -25,9 +25,9 @@ public class AdaptiveAgentProperties {
   private int maxInputTokens = 12_000;
   private int maxDecisionSteps = 8;
   private int maxReadToolCalls = 8;
-  private int plannerMaxOutputTokens = 2_048;
-  private int interviewerMaxOutputTokens = 1_024;
-  private int structuredMaxOutputTokens = 2_048;
+  private int plannerMaxOutputTokens = 8_192;
+  private int interviewerMaxOutputTokens = 8_192;
+  private int structuredMaxOutputTokens = 8_192;
   private String reasoningEffort = "low";
   private String systemPromptPath =
       "classpath:prompts/adaptive-agent-interviewer-system.st";

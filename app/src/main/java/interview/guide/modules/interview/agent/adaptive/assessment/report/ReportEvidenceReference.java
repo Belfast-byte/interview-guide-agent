@@ -10,7 +10,9 @@ public record ReportEvidenceReference(
     String question,
     String answer,
     String quote,
-    ReportToolResult toolResult
+    ReportToolResult toolResult,
+    String submittedCode,
+    interview.guide.modules.interview.agent.adaptive.core.context.SourceQuote.Locator quoteLocator
 ) {
 
   static ReportEvidenceReference from(AssessmentReportEvidenceFacts facts) {
@@ -28,7 +30,9 @@ public record ReportEvidenceReference(
         facts.question(),
         facts.answer(),
         facts.quote(),
-        toolResult
+        toolResult,
+        facts.submittedCode(),
+        facts.quoteLocator()
     );
   }
 

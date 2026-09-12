@@ -1,12 +1,13 @@
 package interview.guide.modules.interview.agent.adaptive.core.context;
 
+import io.swagger.v3.oas.annotations.media.Schema;
 import java.util.List;
 import java.util.ArrayList;
 import java.util.Collections;
 
 /** Agent 在相邻 Turn 之间保留的短期注意力，只保存引用和短期认知。 */
 public record WorkingMemory(
-    Integer basedOnTurnIndex,
+    @Schema(nullable = true, requiredMode = Schema.RequiredMode.NOT_REQUIRED) Integer basedOnTurnIndex,
     Focus focus,
     Deliberation deliberation
 ) {
@@ -19,18 +20,18 @@ public record WorkingMemory(
     );
   }
 
-  /** Episode 已由本轮工具按归属读取；只保留来源，不复制历史回答或能力状态。 */
-  public WorkingMemory withEpisodeReferences(List<String> sources) {
-    var references = java.util.stream.Stream.concat(
-        deliberation.adoptedObservationRefs().stream(), sources.stream())
-        .filter(ref -> ref.startsWith("episode:")).distinct().toList();
+  /** 本题 ASK 实际采用的稳定素材引用随 Turn 保存；不把前题来源计作本题来源。 */
+  public WorkingMemory withAdoptedSources(List<String> sources) {
+    var references = sources.stream()
+        .filter(ref -> ref.startsWith("episode:") || ref.startsWith("question:")
+            || ref.startsWith("rubric:")).distinct().toList();
     return new WorkingMemory(basedOnTurnIndex, focus,
         new Deliberation(deliberation.hypotheses(), deliberation.nextProbeIntent(), references));
   }
 
   public record Focus(
-      String activeTargetId,
-      Long activeGapId,
+      @Schema(nullable = true, requiredMode = Schema.RequiredMode.NOT_REQUIRED) String activeTargetId,
+      @Schema(nullable = true, requiredMode = Schema.RequiredMode.NOT_REQUIRED) Long activeGapId,
       List<GapPriority> gapPriorities
   ) {
 
@@ -41,7 +42,7 @@ public record WorkingMemory(
 
   public record Deliberation(
       List<Hypothesis> hypotheses,
-      String nextProbeIntent,
+      @Schema(nullable = true, requiredMode = Schema.RequiredMode.NOT_REQUIRED) String nextProbeIntent,
       List<String> adoptedObservationRefs
   ) {
 

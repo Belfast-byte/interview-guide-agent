@@ -1,5 +1,6 @@
 package interview.guide.modules.interview.agent.adaptive.core.context;
 
+import interview.guide.modules.interview.agent.adaptive.core.context.SourceQuote;
 import static org.assertj.core.api.Assertions.assertThat;
 
 import interview.guide.modules.interview.agent.adaptive.core.context.CoverageFacts.AssessmentFact;
@@ -31,8 +32,8 @@ class CoverageProjectorTest {
             new AssessmentFact(12, 3, "target-0", DepthLevel.L1)
         ),
         List.of(
-            new ProbeGapFact(20, 10, "anchor", "open", null),
-            new ProbeGapFact(21, 12, "anchor", "closed", 13L)
+            new ProbeGapFact(20, 10,new SourceQuote(SourceQuote.Source.ANSWER_TEXT, "anchor", null), "open", null),
+            new ProbeGapFact(21, 12,new SourceQuote(SourceQuote.Source.ANSWER_TEXT, "anchor", null), "closed", 13L)
         ),
         List.of(new EvidenceFact(30, 12), new EvidenceFact(31, 10))
     ));

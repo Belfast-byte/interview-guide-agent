@@ -179,7 +179,7 @@ public class AdaptiveAnswerTransactionService {
             target.order(),
             action,
             provenance,
-            memory.withEpisodeReferences(ask.question().adoptedSourceRefs()),
+            memory.withAdoptedSources(ask.question().adoptedSourceRefs()),
             rubricSnapshots.resolve(ask.question().adoptedSourceRefs().stream()
                 .filter(ref -> ref.startsWith("rubric:")).toList())
         ))

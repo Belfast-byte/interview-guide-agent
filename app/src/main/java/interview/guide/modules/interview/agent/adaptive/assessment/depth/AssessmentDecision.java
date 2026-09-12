@@ -1,5 +1,9 @@
 package interview.guide.modules.interview.agent.adaptive.assessment.depth;
 
+import interview.guide.modules.interview.agent.adaptive.core.context.CodeRepairReview;
+
+import interview.guide.modules.interview.agent.adaptive.core.context.SourceQuote;
+
 import interview.guide.modules.interview.agent.adaptive.core.context.DepthLevel;
 import interview.guide.modules.interview.agent.adaptive.core.context.ProbeGap;
 import java.util.List;
@@ -13,9 +17,10 @@ public record AssessmentDecision(
     DepthLevel depthLevel,
     double confidence,
     String rationaleSummary,
-    List<String> evidenceQuotes,
+    List<SourceQuote> evidenceQuotes,
     List<ProbeGap> probeGaps,
-    List<GapResolution> resolvedGaps
+    List<GapResolution> resolvedGaps,
+    CodeRepairReview codeReview
 ) {
 
   public AssessmentDecision {
@@ -24,8 +29,8 @@ public record AssessmentDecision(
     resolvedGaps = resolvedGaps == null ? List.of() : List.copyOf(resolvedGaps);
   }
 
-  public AssessmentDecision(String sessionId, int turnIndex, DepthLevel depthLevel, double confidence, String rationaleSummary, List<String> evidenceQuotes, List<ProbeGap> probeGaps) {
-    this(sessionId, turnIndex, depthLevel, confidence, rationaleSummary, evidenceQuotes, probeGaps, List.of());
+  public AssessmentDecision(String sessionId, int turnIndex, DepthLevel depthLevel, double confidence, String rationaleSummary, List<SourceQuote> evidenceQuotes, List<ProbeGap> probeGaps) {
+    this(sessionId, turnIndex, depthLevel, confidence, rationaleSummary, evidenceQuotes, probeGaps, List.of(), null);
   }
 
   public AssessmentDecision(
@@ -34,7 +39,7 @@ public record AssessmentDecision(
       DepthLevel depthLevel,
       double confidence,
       String rationaleSummary,
-      List<String> evidenceQuotes
+      List<SourceQuote> evidenceQuotes
   ) {
     this(sessionId, turnIndex, depthLevel, confidence, rationaleSummary,
         evidenceQuotes, List.of());

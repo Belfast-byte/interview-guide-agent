@@ -6,16 +6,7 @@ import interview.guide.modules.interview.agent.adaptive.application.AdaptiveInte
 import interview.guide.modules.interview.agent.adaptive.application.TenantInterviewCreationCommand;
 import interview.guide.modules.interview.agent.adaptive.assessment.report.AssessmentReportService;
 import interview.guide.modules.interview.agent.adaptive.assessment.report.EnterpriseAssessmentReport;
-import interview.guide.modules.interview.agent.adaptive.core.context.CoverageView.TargetCoverage;
-import interview.guide.modules.interview.agent.adaptive.core.context.TopicKey;
 import interview.guide.modules.interview.agent.adaptive.core.event.CandidateAnswer;
-import interview.guide.modules.interview.agent.adaptive.core.memory.TargetWorkStatus;
-import interview.guide.modules.interview.agent.adaptive.core.session.AdaptiveInterviewHistory;
-import interview.guide.modules.interview.agent.adaptive.core.session.AdaptiveSessionStatus;
-import interview.guide.modules.interview.agent.adaptive.core.session.CandidateLevel;
-import interview.guide.modules.interview.agent.adaptive.core.session.InterviewSessionSettings;
-import interview.guide.modules.interview.agent.adaptive.core.session.PracticeScope;
-import interview.guide.modules.interview.agent.adaptive.core.session.SessionMode;
 import interview.guide.modules.interview.agent.adaptive.planning.PlannedInterview;
 import java.util.List;
 import java.util.function.Supplier;
@@ -50,14 +41,15 @@ public class AdaptiveInterviewMcpTools {
 
   @McpTool(
       name = CREATE_TOOL,
-      description = "Create a tenant-scoped adaptive text interview"
+      description = "Create a tenant-scoped adaptive interview with text or Java code-repair questions"
   )
   public McpInterviewStatusResponse create(
       McpSyncRequestContext context,
       @McpToolParam(description = "Interview creation parameters")
       McpCreateInterviewRequest request
   ) {
-    validateCreateInput(request);
+    if (request == null) throw new BusinessException(ErrorCode.BAD_REQUEST, "创建参数不能为空");
+    request.validate();
     McpTenantPrincipal principal = requireScope(
         context,
         CREATE_TOOL,
@@ -89,10 +81,11 @@ public class AdaptiveInterviewMcpTools {
   public McpInterviewStatusResponse submitAnswer(
       McpSyncRequestContext context,
       @McpToolParam(description = "Interview session identifier") String sessionId,
-      @McpToolParam(description = "Turn index and text answer")
+      @McpToolParam(description = "Turn index with a text answer or codeRepair code and optional explanation")
       McpSubmitAnswerRequest request
   ) {
-    validateAnswerInput(request);
+    if (request == null) throw new BusinessException(ErrorCode.BAD_REQUEST, "回答参数不能为空");
+    request.validate();
     McpTenantPrincipal principal = requireScope(
         context,
         SUBMIT_ANSWER_TOOL,
@@ -105,7 +98,8 @@ public class AdaptiveInterviewMcpTools {
         () -> applicationService.submitAnswerForTenant(
             principal.tenantId(),
             sessionId,
-            new CandidateAnswer(request.turnIndex(), request.answer())
+            new CandidateAnswer(request.turnIndex(), request.answer(), null,
+                request.codeRepair() == null ? null : new CandidateAnswer.CodeRepairAnswer(request.codeRepair().code()))
         )
     );
     auditService.record(
@@ -231,134 +225,4 @@ public class AdaptiveInterviewMcpTools {
     return McpScopeGuard.requireScope(context, toolName, scope, auditService);
   }
 
-  private void validateCreateInput(McpCreateInterviewRequest request) {
-    if (request == null
-        || request.candidateId() == null
-        || request.candidateId().isBlank()
-        || request.candidateId().length() > 64) {
-      throw new BusinessException(ErrorCode.BAD_REQUEST, "候选人标识无效");
-    }
-    if (request.jd() == null
-        || request.jd().isBlank()
-        || request.resume() == null
-        || request.resume().isBlank()) {
-      throw new BusinessException(ErrorCode.BAD_REQUEST, "JD 和简历不能为空");
-    }
-    if (request.llmProvider() != null && request.llmProvider().length() > 64) {
-      throw new BusinessException(ErrorCode.BAD_REQUEST, "LLM Provider 标识无效");
-    }
-    if (request.mode() == null
-        || request.candidateLevel() == null
-        || request.practiceScope() == null) {
-      throw new BusinessException(ErrorCode.BAD_REQUEST, "面试模式参数不能为空");
-    }
-    request.settings();
-  }
-
-  private void validateAnswerInput(McpSubmitAnswerRequest request) {
-    if (request == null || request.turnIndex() < 1) {
-      throw new BusinessException(ErrorCode.BAD_REQUEST, "回答轮次无效");
-    }
-    if (request.answer() == null || request.answer().isBlank()) {
-      throw new BusinessException(ErrorCode.BAD_REQUEST, "回答不能为空");
-    }
-  }
-
-  /** MCP 创建面试参数。 */
-  public record McpCreateInterviewRequest(
-      String candidateId,
-      String jd,
-      String resume,
-      String llmProvider,
-      SessionMode mode,
-      CandidateLevel candidateLevel,
-      List<TopicKey> practiceScope
-  ) {
-
-    InterviewSessionSettings settings() {
-      return new InterviewSessionSettings(
-          mode,
-          candidateLevel,
-          new PracticeScope(practiceScope)
-      );
-    }
-  }
-
-  /** MCP 租户答题工具的不可变输入。 */
-  public record McpSubmitAnswerRequest(int turnIndex, String answer) {}
-
-  /**
-   * MCP 面试状态响应。
-   */
-  public record McpInterviewStatusResponse(
-      String sessionId,
-      AdaptiveSessionStatus status,
-      int currentTurn,
-      int maxTurns,
-      String currentQuestion
-  ) {
-
-    static McpInterviewStatusResponse from(PlannedInterview interview) {
-      var history = interview.history();
-      String question = history.session().status() == AdaptiveSessionStatus.COMPLETED
-          || history.turns().isEmpty()
-          ? null
-          : history.turns().getLast().question();
-      return new McpInterviewStatusResponse(
-          history.session().id(),
-          history.session().status(),
-          interview.coverage().askedTurns(),
-          history.session().maxTurns(),
-          question
-      );
-    }
-  }
-
-  /**
-   * MCP 面试维度响应。
-   */
-  public record McpInterviewDimensionResponse(
-      int order,
-      String dimension,
-      String focus,
-      int allocatedTurns,
-      int completedTurns,
-      TargetWorkStatus status
-  ) {
-
-    static McpInterviewDimensionResponse from(
-        TargetCoverage coverage,
-        AdaptiveInterviewHistory history
-    ) {
-      var target = coverage.target();
-      return new McpInterviewDimensionResponse(
-          target.identity().order(),
-          target.identity().dimension(),
-          target.identity().focus(),
-          target.budget().turnBudget(),
-          coverage.askedTurns(),
-          displayStatus(coverage, history)
-      );
-    }
-
-    private static TargetWorkStatus displayStatus(
-        TargetCoverage coverage,
-        AdaptiveInterviewHistory history
-    ) {
-      boolean current = history.session().status() == AdaptiveSessionStatus.IN_PROGRESS
-          && !history.turns().isEmpty()
-          && history.turns().getLast().dimensionOrder() != null
-          && history.turns().getLast().dimensionOrder() == targetOrder(coverage);
-      if (current) {
-        return TargetWorkStatus.ACTIVE;
-      }
-      return coverage.askedTurns() > 0
-          ? TargetWorkStatus.COMPLETED
-          : TargetWorkStatus.PENDING;
-    }
-
-    private static int targetOrder(TargetCoverage coverage) {
-      return coverage.target().identity().order();
-    }
-  }
 }

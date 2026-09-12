@@ -1,5 +1,11 @@
 package interview.guide.modules.interview.agent.adaptive.memory.episode;
 
+import interview.guide.modules.interview.agent.adaptive.core.context.CodeRepairReview;
+import interview.guide.modules.interview.agent.adaptive.core.context.SourceQuote;
+import interview.guide.modules.interview.agent.adaptive.core.session.AdaptiveSessionStatus;
+import interview.guide.modules.interview.agent.adaptive.core.session.CodeRepairTask.CodeRepairTaskResponse;
+import interview.guide.modules.interview.agent.adaptive.core.session.CodeRepairTask.QuestionType;
+
 import interview.guide.modules.interview.agent.adaptive.core.context.DepthLevel;
 import interview.guide.modules.interview.agent.adaptive.core.context.MemoryOwner;
 import interview.guide.modules.interview.agent.adaptive.core.context.TopicKey;
@@ -58,19 +64,37 @@ public class EpisodeQueryService {
             Collectors.toMap(PriorTurnProjection::getTurnIndex, Function.identity())));
     return facts.stream().map(fact -> view(fact,
         byAssessment.getOrDefault(fact.getAssessmentId(), List.of()),
-        priorTurns(fact, sessionTurns.get(fact.getSessionId())))).toList();
+        sessionTurns.get(fact.getSessionId()))).toList();
   }
 
   private EpisodeView view(EpisodeProjection fact, List<AssessmentProbeGapEntity> missing,
-      List<AnswerContext> priorTurns) {
+      Map<Integer, PriorTurnProjection> turns) {
+    boolean visible = fact.getCodeTaskTurnIndex() == null || fact.getSessionMode() == SessionMode.PRACTICE
+        || fact.getSessionStatus() == AdaptiveSessionStatus.COMPLETED;
     return new EpisodeView(fact.getEpisodeId(), fact.getSessionId(), fact.getTurnIndex(),
         fact.getSessionMode(), fact.getAssessmentId(),
         new TopicKey(fact.getSkillId(), fact.getFocusId()), fact.getQuestion(), fact.getAnswer(),
-        fact.getDepthLevel(), fact.getExpectedDepth(), fact.getRationaleSummary(),
-        missing.stream().map(gap -> new Gap(gap.id(), gap.toDomain().anchor(),
-            gap.toDomain().missingPoint(), gap.closedByAssessmentId(),
-            gap.closureEvidenceQuote(), gap.closureSummary())).toList(),
-        fact.getTriggerType(), priorTurns, fact.getCreatedAt());
+        fact.getDepthLevel(), fact.getExpectedDepth(), visible ? fact.getRationaleSummary() : null,
+        visible ? missing.stream().map(gap -> publicGap(fact, gap, turns)).toList() : List.of(),
+        fact.getTriggerType(), priorTurns(fact, turns), fact.getCreatedAt(), fact.getQuestionType(),
+        fact.getCodeTaskTurnIndex(), publicTask(fact), fact.getSubmittedCode(),
+        visible ? fact.getCodeReview() : null);
+  }
+
+  private Gap publicGap(EpisodeProjection fact, AssessmentProbeGapEntity gap, Map<Integer, PriorTurnProjection> turns) {
+    Integer closingTurn = gap.closedByTurnIndex();
+    boolean visible = closingTurn == null || fact.getSessionMode() == SessionMode.PRACTICE
+        || fact.getSessionStatus() == AdaptiveSessionStatus.COMPLETED
+        || turns.get(closingTurn).getCodeTaskTurnIndex() == null;
+    return new Gap(gap.id(), gap.toDomain().anchor().quote(), gap.toDomain().missingPoint(),
+        gap.closedByAssessmentId(), visible ? gap.closureEvidenceQuote() : null,
+        visible ? gap.closureSummary() : null, gap.anchorLocator(), visible ? gap.closureEvidenceLocator() : null);
+  }
+
+  private CodeRepairTaskResponse publicTask(EpisodeProjection fact) {
+    if (fact.getCodeTaskTurnIndex() == null) return null;
+    if (fact.getCodeTask() == null) throw new IllegalStateException("Episode 缺少关联原始代码任务");
+    return fact.getCodeTask().publicView();
   }
 
   /** 保留实际前文，避免把追问或提示后的回答解释为无提示作答。 */
@@ -79,7 +103,10 @@ public class EpisodeQueryService {
     Integer parent = fact.getParentTurnIndex();
     while (parent != null) {
       var turn = turns.get(parent);
-      result.add(new AnswerContext(turn.getTurnIndex(), turn.getQuestion(), turn.getAnswer()));
+      boolean published = fact.getSessionMode() == SessionMode.PRACTICE && turn.getCodeTaskTurnIndex() != null;
+      result.add(new AnswerContext(turn.getTurnIndex(), turn.getQuestion(), turn.getAnswer(),
+          turn.getSubmittedCode(), published ? turn.getCodeReview() : null,
+          published ? turn.getFeedbackRationale() : null));
       parent = turn.getParentTurnIndex();
     }
     Collections.reverse(result);
@@ -92,7 +119,8 @@ public class EpisodeQueryService {
       long assessmentId, TopicKey topic, String question, String answer,
       DepthLevel depthLevel, DepthLevel expectedDepth, String rationaleSummary,
       List<Gap> gaps, TurnTriggerType triggerType, List<AnswerContext> priorTurns,
-      LocalDateTime createdAt
+      LocalDateTime createdAt, QuestionType questionType, Integer codeTaskTurnIndex,
+      CodeRepairTaskResponse codeTask, String submittedCode, CodeRepairReview codeReview
   ) {
     public String reference() {
       return "episode:" + episodeId;
@@ -100,6 +128,7 @@ public class EpisodeQueryService {
   }
 
   public record Gap(long gapId, String anchor, String missingPoint,
-      Long closedByAssessmentId, String closureEvidenceQuote, String closureSummary) {}
+      Long closedByAssessmentId, String closureEvidenceQuote, String closureSummary,
+      SourceQuote.Locator anchorLocator, SourceQuote.Locator closureEvidenceLocator) {}
 
 }

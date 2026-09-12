@@ -1,5 +1,6 @@
 package interview.guide.modules.interview.agent.adaptive.assessment.depth;
 
+import interview.guide.modules.interview.agent.adaptive.core.context.SourceQuote;
 import interview.guide.common.ai.LlmProviderRegistry;
 import interview.guide.common.ai.PromptLoader;
 import interview.guide.common.ai.StructuredOutputInvoker;
@@ -97,7 +98,7 @@ class SpringAiAssessmentProposalGeneratorTest {
         DepthLevel.L3,
         0.8,
         "说明了权衡",
-        List.of("重要数据使用版本号")
+        List.of(new SourceQuote(SourceQuote.Source.ANSWER_TEXT, "重要数据使用版本号", null))
     );
     when(invoke()).thenReturn(expected);
 
@@ -105,7 +106,7 @@ class SpringAiAssessmentProposalGeneratorTest {
 
     assertThat(actual).isSameAs(expected);
     ArgumentCaptor<String> userPrompt = ArgumentCaptor.forClass(String.class);
-    verify(structuredOutputInvoker).invoke(
+    verify(structuredOutputInvoker).invokeOnce(
         eq(chatClient),
         anyString(),
         userPrompt.capture(),
@@ -127,7 +128,7 @@ class SpringAiAssessmentProposalGeneratorTest {
         DepthLevel.L2,
         0.8,
         "说明了权衡",
-        List.of("重要数据使用版本号")
+        List.of(new SourceQuote(SourceQuote.Source.ANSWER_TEXT, "重要数据使用版本号", null))
     );
     when(invoke()).thenReturn(expected);
     AssessmentRequest request = new AssessmentRequest(
@@ -145,7 +146,7 @@ class SpringAiAssessmentProposalGeneratorTest {
     generator.generate(request, "provider-1");
 
     ArgumentCaptor<String> systemPrompt = ArgumentCaptor.forClass(String.class);
-    verify(structuredOutputInvoker).invoke(
+    verify(structuredOutputInvoker).invokeOnce(
         eq(chatClient),
         systemPrompt.capture(),
         anyString(),
@@ -168,7 +169,7 @@ class SpringAiAssessmentProposalGeneratorTest {
         DepthLevel.L3,
         0.8,
         "说明了权衡",
-        List.of("重要数据使用版本号")
+        List.of(new SourceQuote(SourceQuote.Source.ANSWER_TEXT, "重要数据使用版本号", null))
     );
     when(invoke()).thenReturn(expected);
 
@@ -176,7 +177,7 @@ class SpringAiAssessmentProposalGeneratorTest {
     generator.generate(request("session-with-low-history", 3), "provider-1");
 
     ArgumentCaptor<String> userPrompts = ArgumentCaptor.forClass(String.class);
-    verify(structuredOutputInvoker, times(2)).invoke(
+    verify(structuredOutputInvoker, times(2)).invokeOnce(
         eq(chatClient),
         anyString(),
         userPrompts.capture(),
@@ -193,7 +194,7 @@ class SpringAiAssessmentProposalGeneratorTest {
   }
 
   private AssessmentProposal invoke() {
-    return structuredOutputInvoker.invoke(
+    return structuredOutputInvoker.invokeOnce(
         eq(chatClient),
         anyString(),
         anyString(),

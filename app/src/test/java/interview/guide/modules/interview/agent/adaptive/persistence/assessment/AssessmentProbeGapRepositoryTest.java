@@ -1,5 +1,6 @@
 package interview.guide.modules.interview.agent.adaptive.persistence.assessment;
 
+import interview.guide.modules.interview.agent.adaptive.core.context.SourceQuote;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
@@ -30,8 +31,8 @@ class AssessmentProbeGapRepositoryTest {
   void shouldReadGapsInStableOrder() {
     AdaptiveAgentAssessmentEntity assessment = saveAssessment("session-1", 1);
     gapRepository.saveAllAndFlush(List.of(
-        gap(assessment, 2, new ProbeGap("版本号", "缺少推进规则")),
-        gap(assessment, 1, new ProbeGap("缓存", "缺少失败边界"))
+        gap(assessment, 2, new ProbeGap(new SourceQuote(SourceQuote.Source.ANSWER_TEXT, "版本号", 0), "缺少推进规则")),
+        gap(assessment, 1, new ProbeGap(new SourceQuote(SourceQuote.Source.ANSWER_TEXT, "缓存", 0), "缺少失败边界"))
     ));
 
     assertThat(gapRepository.findByAssessmentIdOrderByGapOrderAscIdAsc(assessment.id()))
@@ -46,11 +47,11 @@ class AssessmentProbeGapRepositoryTest {
     gapRepository.saveAndFlush(gap(
         assessment,
         1,
-        new ProbeGap("缓存", "缺少失败边界")
+        new ProbeGap(new SourceQuote(SourceQuote.Source.ANSWER_TEXT, "缓存", 0), "缺少失败边界")
     ));
 
     assertThatThrownBy(() -> gapRepository.saveAndFlush(
-        gap(assessment, 1, new ProbeGap("版本号", "缺少推进规则"))
+        gap(assessment, 1, new ProbeGap(new SourceQuote(SourceQuote.Source.ANSWER_TEXT, "版本号", 0), "缺少推进规则"))
     )).isInstanceOf(DataIntegrityViolationException.class);
   }
 
@@ -61,8 +62,8 @@ class AssessmentProbeGapRepositoryTest {
     AdaptiveAgentAssessmentEntity second = saveAssessment("session-1", 2);
 
     gapRepository.saveAllAndFlush(List.of(
-        gap(first, 1, new ProbeGap("缓存", "缺少失败边界")),
-        gap(second, 1, new ProbeGap("并发", "缺少竞态分析"))
+        gap(first, 1, new ProbeGap(new SourceQuote(SourceQuote.Source.ANSWER_TEXT, "缓存", 0), "缺少失败边界")),
+        gap(second, 1, new ProbeGap(new SourceQuote(SourceQuote.Source.ANSWER_TEXT, "并发", 0), "缺少竞态分析"))
     ));
 
     assertThat(gapRepository.count()).isEqualTo(2);

@@ -1,5 +1,6 @@
 package interview.guide.modules.interview.agent.adaptive.runtime;
 
+import interview.guide.modules.interview.agent.adaptive.core.context.SourceQuote;
 import interview.guide.modules.interview.agent.adaptive.core.session.CodeRepairTask.QuestionType;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -74,7 +75,7 @@ class InterviewAgentLoopTest {
             "validation-1",
             DecisionObservation.Kind.VALIDATION_REJECTION,
             "action.ask.question.adoptedSourceRefs",
-            "引用不在成功工具结果或已采用的 Episode 中",
+            "引用不在成功工具结果或已保存的采用来源中",
             null,
             java.util.Map.of(),
             List.of()
@@ -160,7 +161,7 @@ class InterviewAgentLoopTest {
       assertThat(rejection.field()).isEqualTo("workingMemory");
       assertThat(rejection.message()).contains("引用数组元素不能为空");
     });
-    assertThat(actual.workingMemory().withEpisodeReferences(List.of())).isEqualTo(expected.workingMemory());
+    assertThat(actual.workingMemory().withAdoptedSources(List.of())).isEqualTo(expected.workingMemory());
   }
 
   private AgentDecision ask(String targetId, Long gapId, WorkingMemory memory) {
@@ -208,7 +209,7 @@ class InterviewAgentLoopTest {
             targetCoverage("target-1", second, List.of(12L))
         ),
         List.of(new CoverageView.OpenProbeGap(
-            12L, 22L, "target-1", 1, "并发更新", "缺少冲突处理"
+            12L, 22L, "target-1", 1,new SourceQuote(SourceQuote.Source.ANSWER_TEXT, "并发更新", null), "缺少冲突处理"
         )),
         List.of()
     );

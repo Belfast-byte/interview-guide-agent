@@ -1,5 +1,10 @@
 package interview.guide.modules.interview.agent.adaptive.api;
 
+import interview.guide.modules.interview.agent.adaptive.core.context.CodeRepairReview;
+import interview.guide.modules.interview.agent.adaptive.core.session.CodeRepairTask.CodeRepairTaskResponse;
+import interview.guide.modules.interview.agent.adaptive.core.session.CodeRepairTask.QuestionType;
+import interview.guide.modules.interview.agent.adaptive.core.session.AdaptiveInterviewTurn.AssessmentFeedback;
+
 import interview.guide.modules.interview.agent.adaptive.core.context.CapabilityTarget;
 import interview.guide.modules.interview.agent.adaptive.core.context.CoverageView.TargetCoverage;
 import interview.guide.modules.interview.agent.adaptive.core.context.DepthLevel;
@@ -57,7 +62,7 @@ public record AdaptiveInterviewResponse(
                 target, displayStatus(history, target), assessedTurns(history, target)))
             .toList(),
         history.turns().stream()
-            .map(AdaptiveInterviewTurnResponse::from)
+            .map(turn -> AdaptiveInterviewTurnResponse.from(turn, history))
             .toList()
     );
   }
@@ -131,18 +136,49 @@ public record AdaptiveInterviewResponse(
       String question,
       String answer,
       interview.guide.modules.interview.agent.adaptive.core.session.AnswerProcessingStatus answerStatus,
-      String answerError
+      String answerError,
+      QuestionType questionType,
+      Integer codeTaskTurnIndex,
+      CodeRepairTaskResponse codeTask,
+      String submittedCode,
+      CodeRepairReview codeReview,
+      AssessmentFeedback assessmentFeedback
   ) {
 
-    static AdaptiveInterviewTurnResponse from(AdaptiveInterviewTurn turn) {
+    static AdaptiveInterviewTurnResponse from(AdaptiveInterviewTurn turn, AdaptiveInterviewHistory history) {
+      AssessmentFeedback feedback = visibleFeedback(turn, history);
       return new AdaptiveInterviewTurnResponse(
           turn.turnIndex(),
           turn.dimensionOrder(),
           turn.question(),
           turn.answer(),
           turn.answerStatus(),
-          turn.answerError()
+          turn.answerError(),
+          turn.questionType(),
+          turn.codeTaskTurnIndex(),
+          publicTask(turn, history),
+          turn.submittedCode(),
+          feedback == null ? null : feedback.codeReview(),
+          feedback
       );
     }
+
+    private static AssessmentFeedback visibleFeedback(AdaptiveInterviewTurn turn, AdaptiveInterviewHistory history) {
+      boolean published = history.session().settings().mode() == SessionMode.PRACTICE
+          || history.session().status() == AdaptiveSessionStatus.COMPLETED;
+      return published && turn.codeTaskTurnIndex() != null ? turn.assessmentFeedback() : null;
+    }
+
+    private static CodeRepairTaskResponse publicTask(AdaptiveInterviewTurn turn, AdaptiveInterviewHistory history) {
+      Integer rootIndex = turn.codeTaskTurnIndex();
+      if (rootIndex == null) return null;
+      var root = history.turns().stream().filter(item -> item.turnIndex() == rootIndex)
+          .findFirst().orElseThrow(() -> new IllegalStateException("缺少原始代码任务"));
+      if (root.codeTask() == null || !java.util.Objects.equals(root.codeTaskTurnIndex(), root.turnIndex())) {
+        throw new IllegalStateException("代码任务引用未指向原始任务");
+      }
+      return root.codeTask().publicView();
+    }
+
   }
 }

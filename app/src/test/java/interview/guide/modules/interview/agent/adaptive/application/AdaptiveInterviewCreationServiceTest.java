@@ -102,7 +102,7 @@ class AdaptiveInterviewCreationServiceTest {
   @DisplayName("首题记忆或问题中的伪造 Episode 不会因创建校验放行")
   void shouldRejectUnprovidedEpisode(boolean includeInMemory) {
     var forged = List.of("episode:999");
-    var memory = includeInMemory ? WorkingMemory.empty().withEpisodeReferences(forged)
+    var memory = includeInMemory ? WorkingMemory.empty().withAdoptedSources(forged)
         : WorkingMemory.empty();
     var decision = new AgentDecision(memory, new AgentDecision.Ask("target-0", null,
         new AgentDecision.QuestionDraft("请展开说明。", "验证边界", forged, QuestionType.TEXT, null, null)));

@@ -1,104 +1,102 @@
 package interview.guide.modules.interview.agent.adaptive.assessment.depth;
 
+import interview.guide.modules.interview.agent.adaptive.core.context.CodeRepairReview;
+
 import interview.guide.common.exception.BusinessException;
 import interview.guide.common.exception.ErrorCode;
-import interview.guide.modules.interview.agent.adaptive.assessment.evidence.AnswerTextNormalizer;
 import interview.guide.modules.interview.agent.adaptive.core.context.DepthLevel;
 import interview.guide.modules.interview.agent.adaptive.core.context.ProbeGap;
+import interview.guide.modules.interview.agent.adaptive.core.context.SourceQuote;
+import interview.guide.modules.interview.agent.adaptive.core.context.SourceQuote.AnswerSources;
 import java.util.List;
+import java.util.HashSet;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 
-/**
- * 深度评估 Agent，按深度量规对候选人回答进行评级并提取证据和追问点。
- */
+/** 以本场原文验证评估提案，定位每条引用后才交给提交事务。 */
 @Service
 @RequiredArgsConstructor
 public class DepthAssessmentAgent {
-
   private static final int MAX_RATIONALE_LENGTH = 500;
   private static final int MAX_ANCHOR_LENGTH = 80;
   private static final int MAX_MISSING_POINT_LENGTH = 120;
+  private static final double MIN_CONFIDENCE = 0;
+  private static final double MAX_CONFIDENCE = 1;
 
   private final AssessmentProposalGenerator generator;
 
-  public AssessmentDecision assess(
-      AssessmentRequest request,
-      String llmProvider
-  ) {
+  public AssessmentDecision assess(AssessmentRequest request, String llmProvider) {
     AssessmentProposal proposal = generator.generate(request, llmProvider);
-    validate(proposal, request);
-    return new AssessmentDecision(
-        request.sessionId(),
-        request.turnIndex(),
-        proposal.depthLevel(),
-        proposal.confidence(),
-        proposal.rationaleSummary().trim(),
-        proposal.evidenceQuotes(),
-        proposal.probeGaps(),
-        proposal.resolvedGaps()
-    );
+    validateCompleteness(proposal);
+    try {
+      return validatedDecision(proposal, request);
+    } catch (IllegalArgumentException e) {
+      throw new BusinessException(ErrorCode.AI_SERVICE_ERROR, e.getMessage(), e);
+    }
   }
 
-  private void validate(AssessmentProposal proposal, AssessmentRequest request) {
-    validateCompleteness(proposal);
-    var allowed = request.context().openGaps().stream().map(g -> g.gapId()).toList();
-    var seen = new java.util.HashSet<Long>();
-    for (var resolution : proposal.resolvedGaps()) {
-      if (resolution == null || !allowed.contains(resolution.gapId())
-          || !seen.add(resolution.gapId()) || resolution.reason() == null
-          || resolution.reason().isBlank() || resolution.reason().length() > 500
-          || resolution.evidenceQuote() == null || resolution.evidenceQuote().isBlank()
-          || !AnswerTextNormalizer.normalize(request.context().answer()).contains(
-              AnswerTextNormalizer.normalize(resolution.evidenceQuote()))) {
-        throw new BusinessException(ErrorCode.AI_SERVICE_ERROR, "缺口关闭必须引用当前回答并指向开放缺口");
-      }
+  private AssessmentDecision validatedDecision(AssessmentProposal proposal, AssessmentRequest request) {
+    var code = request.context().codeTaskContext();
+    var sources = new AnswerSources(request.context().answer(), code == null ? null : code.submittedCode());
+    validateReview(proposal.codeReview(), code);
+    List<SourceQuote> quotes = proposal.evidenceQuotes().stream().map(quote -> resolve(quote, sources)).toList();
+    if (proposal.depthLevel() != DepthLevel.L0 && quotes.isEmpty()) {
+      throw new IllegalArgumentException("回答深度评估结果不完整");
     }
-    validateEvidenceQuotes(proposal);
-    validateProbeGaps(proposal.probeGaps(), request.context().answer());
+    List<ProbeGap> gaps = proposal.probeGaps().stream().map(gap -> resolveGap(gap, sources)).toList();
+    List<GapResolution> resolved = resolveClosures(proposal.resolvedGaps(), request.context(), sources);
+    return new AssessmentDecision(request.sessionId(), request.turnIndex(), proposal.depthLevel(),
+        proposal.confidence(), proposal.rationaleSummary().trim(), quotes, gaps, resolved, proposal.codeReview());
+  }
+
+  private void validateReview(CodeRepairReview review, AssessmentContext.CodeTaskContext code) {
+    if (code == null || code.submittedCode() == null) {
+      if (review != null) throw new IllegalArgumentException("文字回答不能生成代码修复评分");
+      return;
+    }
+    if (review == null) throw new IllegalArgumentException("代码改错评估必须包含 codeReview");
+    review.validate(code.task());
+  }
+
+  private List<GapResolution> resolveClosures(List<GapResolution> resolutions,
+      AssessmentContext context, AnswerSources sources) {
+    var allowed = context.openGaps().stream().map(gap -> gap.gapId()).toList();
+    var seen = new HashSet<Long>();
+    return resolutions.stream().map(resolution -> {
+      if (resolution == null || !allowed.contains(resolution.gapId()) || !seen.add(resolution.gapId())
+          || resolution.reason() == null || resolution.reason().isBlank()
+          || resolution.reason().length() > MAX_RATIONALE_LENGTH) {
+        throw new IllegalArgumentException("缺口关闭必须引用当前回答并指向开放缺口");
+      }
+      return new GapResolution(resolution.gapId(), resolve(resolution.evidenceQuote(), sources), resolution.reason());
+    }).toList();
+  }
+
+  private ProbeGap resolveGap(ProbeGap gap, AnswerSources sources) {
+    if (gap == null || gap.anchor() == null || gap.anchor().quote() == null
+        || gap.anchor().quote().length() > MAX_ANCHOR_LENGTH || gap.missingPoint() == null
+        || gap.missingPoint().isBlank() || gap.missingPoint().length() > MAX_MISSING_POINT_LENGTH) {
+      throw new IllegalArgumentException("回答追问点必须包含锚点和缺失点");
+    }
+    return new ProbeGap(resolve(gap.anchor(), sources), gap.missingPoint());
+  }
+
+  private SourceQuote resolve(SourceQuote quote, AnswerSources sources) {
+    if (quote == null) throw new IllegalArgumentException("评估引用不能为空");
+    return quote.resolve(sources);
   }
 
   private void validateCompleteness(AssessmentProposal proposal) {
-    if (proposal == null
-        || proposal.depthLevel() == null
-        || !Double.isFinite(proposal.confidence())
-        || proposal.confidence() < 0
-        || proposal.confidence() > 1
-        || proposal.rationaleSummary() == null
-        || proposal.rationaleSummary().isBlank()
+    if (proposal == null || proposal.evidenceQuotes() == null || proposal.probeGaps() == null) {
+      throw new BusinessException(ErrorCode.AI_SERVICE_ERROR, "回答深度评估结果不完整");
+    }
+    if (proposal.depthLevel() == null || !Double.isFinite(proposal.confidence())
+        || proposal.confidence() < MIN_CONFIDENCE || proposal.confidence() > MAX_CONFIDENCE) {
+      throw new BusinessException(ErrorCode.AI_SERVICE_ERROR, "回答深度评估结果不完整：等级或置信度无效");
+    }
+    if (proposal.rationaleSummary() == null || proposal.rationaleSummary().isBlank()
         || proposal.rationaleSummary().length() > MAX_RATIONALE_LENGTH) {
-      throw new BusinessException(ErrorCode.AI_SERVICE_ERROR, "回答深度评估结果不完整");
+      throw new BusinessException(ErrorCode.AI_SERVICE_ERROR, "回答深度评估摘要不完整");
     }
-  }
-
-  private void validateEvidenceQuotes(AssessmentProposal proposal) {
-    // L0 语义是「无证据」，允许证据引用为空；其余等级必须至少有一条非空引用
-    if (proposal.evidenceQuotes().stream().anyMatch(String::isBlank)) {
-      throw new BusinessException(ErrorCode.AI_SERVICE_ERROR, "回答深度评估结果不完整");
-    }
-    if (proposal.depthLevel() != DepthLevel.L0 && proposal.evidenceQuotes().isEmpty()) {
-      throw new BusinessException(ErrorCode.AI_SERVICE_ERROR, "回答深度评估结果不完整");
-    }
-  }
-
-  private void validateProbeGaps(List<ProbeGap> probeGaps, String answer) {
-    String normalizedAnswer = AnswerTextNormalizer.normalize(answer);
-    for (ProbeGap gap : probeGaps) {
-      if (!isWellFormed(gap)) {
-        throw new BusinessException(ErrorCode.AI_SERVICE_ERROR, "回答追问点必须包含锚点和缺失点");
-      }
-      if (!normalizedAnswer.contains(AnswerTextNormalizer.normalize(gap.anchor()))) {
-        throw new BusinessException(ErrorCode.AI_SERVICE_ERROR, "回答追问点锚定内容不存在于回答原文");
-      }
-    }
-  }
-
-  private static boolean isWellFormed(ProbeGap gap) {
-    return gap.anchor() != null
-        && !gap.anchor().isBlank()
-        && gap.anchor().length() <= MAX_ANCHOR_LENGTH
-        && gap.missingPoint() != null
-        && !gap.missingPoint().isBlank()
-        && gap.missingPoint().length() <= MAX_MISSING_POINT_LENGTH;
   }
 }

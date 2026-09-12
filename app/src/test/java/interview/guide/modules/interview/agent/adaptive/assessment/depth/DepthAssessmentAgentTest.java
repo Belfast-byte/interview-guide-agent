@@ -1,5 +1,6 @@
 package interview.guide.modules.interview.agent.adaptive.assessment.depth;
 
+import interview.guide.modules.interview.agent.adaptive.core.context.SourceQuote;
 import interview.guide.common.exception.BusinessException;
 import interview.guide.common.exception.ErrorCode;
 import interview.guide.modules.interview.agent.adaptive.core.context.DepthLevel;
@@ -22,7 +23,7 @@ class DepthAssessmentAgentTest {
   void shouldKeepAssessmentContextIsolated() {
     assertThat(Arrays.stream(AssessmentContext.class.getRecordComponents())
         .map(RecordComponent::getName))
-        .containsExactly("dimension", "focus", "question", "answer", "rubric", "adoptedRubrics", "openGaps", "priorTurns")
+        .containsExactly("dimension", "focus", "question", "answer", "rubric", "adoptedRubrics", "openGaps", "priorTurns", "codeTaskContext")
         .doesNotContain(
             "candidateId",
             "jd",
@@ -43,7 +44,7 @@ class DepthAssessmentAgentTest {
           DepthLevel.L3,
           0.85,
           " 能说明方案代价和边界 ",
-          List.of("延迟双删只能降低概率")
+          List.of(new SourceQuote(SourceQuote.Source.ANSWER_TEXT, "延迟双删只能降低概率", null))
       );
     });
     AssessmentRequest request = request();
@@ -55,26 +56,27 @@ class DepthAssessmentAgentTest {
     assertThat(decision.confidence()).isEqualTo(0.85);
     assertThat(decision.rationaleSummary()).isEqualTo("能说明方案代价和边界");
     assertThat(decision.evidenceQuotes())
-        .containsExactly("延迟双删只能降低概率");
+        .extracting(SourceQuote::quote).containsExactly("延迟双删只能降低概率");
   }
 
   @Test
   @DisplayName("评估决策透传锚定原文的追问点")
   void shouldCarryProbeGapsIntoDecision() {
-    ProbeGap gap = new ProbeGap("版本号", "未说明版本号如何推进");
+    ProbeGap gap = new ProbeGap(new SourceQuote(SourceQuote.Source.ANSWER_TEXT, "版本号", null), "未说明版本号如何推进");
     DepthAssessmentAgent agent = new DepthAssessmentAgent((request, provider) ->
         new AssessmentProposal(
             DepthLevel.L2,
             0.8,
             "描述了应用",
-            List.of("重要数据使用版本号"),
+            List.of(new SourceQuote(SourceQuote.Source.ANSWER_TEXT, "重要数据要使用版本号", null)),
             List.of(gap)
         )
     );
 
     AssessmentDecision decision = agent.assess(request(), null);
 
-    assertThat(decision.probeGaps()).containsExactly(gap);
+    assertThat(decision.probeGaps()).containsExactly(new ProbeGap(gap.anchor().resolve(
+        new SourceQuote.AnswerSources(request().context().answer(), null)), gap.missingPoint()));
   }
 
   @Test
@@ -87,14 +89,14 @@ class DepthAssessmentAgentTest {
           DepthLevel.L2,
           0.8,
           "描述了应用",
-          List.of("重要数据使用版本号"),
-          List.of(new ProbeGap("布隆过滤器", "未说明误判率"))
+          List.of(new SourceQuote(SourceQuote.Source.ANSWER_TEXT, "重要数据要使用版本号", null)),
+          List.of(new ProbeGap(new SourceQuote(SourceQuote.Source.ANSWER_TEXT, "布隆过滤器", null), "未说明误判率"))
       );
     });
 
     assertThatThrownBy(() -> agent.assess(request(), null))
         .isInstanceOf(BusinessException.class)
-        .hasMessageContaining("锚定内容不存在");
+        .hasMessageContaining("未命中");
 
     assertThat(calls.get()).isEqualTo(1);
   }
@@ -124,7 +126,7 @@ class DepthAssessmentAgentTest {
           null,
           0.8,
           "描述了应用",
-          List.of("重要数据使用版本号")
+          List.of(new SourceQuote(SourceQuote.Source.ANSWER_TEXT, "重要数据要使用版本号", null))
       );
     });
 
@@ -142,34 +144,31 @@ class DepthAssessmentAgentTest {
             DepthLevel.L2,
             0.8,
             "描述了应用",
-            List.of("重要数据使用版本号"),
+            List.of(new SourceQuote(SourceQuote.Source.ANSWER_TEXT, "重要数据要使用版本号", null)),
             List.of(
-                new ProbeGap("版本号", "未说明版本号如何推进"),
-                new ProbeGap("延迟双删", "未说明延迟窗口"),
-                new ProbeGap("概率", "未说明残余风险")
+                new ProbeGap(new SourceQuote(SourceQuote.Source.ANSWER_TEXT, "版本号", null), "未说明版本号如何推进"),
+                new ProbeGap(new SourceQuote(SourceQuote.Source.ANSWER_TEXT, "延迟双删", null), "未说明延迟窗口"),
+                new ProbeGap(new SourceQuote(SourceQuote.Source.ANSWER_TEXT, "概率", null), "未说明残余风险")
             )
         )
     );
 
     AssessmentDecision decision = agent.assess(request(), null);
 
-    assertThat(decision.probeGaps()).containsExactly(
-        new ProbeGap("版本号", "未说明版本号如何推进"),
-        new ProbeGap("延迟双删", "未说明延迟窗口"),
-        new ProbeGap("概率", "未说明残余风险")
-    );
+    assertThat(decision.probeGaps()).extracting(gap -> gap.anchor().quote())
+        .containsExactly("版本号", "延迟双删", "概率");
   }
 
   @Test
-  @DisplayName("追问点锚点经全半角和空白归一化后命中回答原文")
-  void shouldMatchProbeGapAnchorAfterNormalization() {
+  @DisplayName("追问点锚点不能通过全半角和空白归一化伪造匹配")
+  void shouldRejectNormalizedProbeGapAnchor() {
     DepthAssessmentAgent agent = new DepthAssessmentAgent((request, provider) ->
         new AssessmentProposal(
             DepthLevel.L2,
             0.8,
             "描述了应用",
-            List.of("缓存使用 Redis 做延迟双删"),
-            List.of(new ProbeGap("缓存使用 Ｒｅｄｉｓ 做延迟双删", "未说明延迟窗口"))
+            List.of(new SourceQuote(SourceQuote.Source.ANSWER_TEXT, "缓存使用 Redis 做延迟双删", null)),
+            List.of(new ProbeGap(new SourceQuote(SourceQuote.Source.ANSWER_TEXT, "缓存使用 Ｒｅｄｉｓ 做延迟双删", null), "未说明延迟窗口"))
         )
     );
     AssessmentRequest request = new AssessmentRequest(
@@ -183,10 +182,8 @@ class DepthAssessmentAgentTest {
         )
     );
 
-    AssessmentDecision decision = agent.assess(request, null);
-
-    assertThat(decision.probeGaps())
-        .containsExactly(new ProbeGap("缓存使用 Ｒｅｄｉｓ 做延迟双删", "未说明延迟窗口"));
+    assertThatThrownBy(() -> agent.assess(request, null))
+        .isInstanceOf(BusinessException.class).hasMessageContaining("未命中");
   }
 
   @Test
@@ -217,7 +214,7 @@ class DepthAssessmentAgentTest {
           DepthLevel.L2,
           Double.NaN,
           "描述了应用",
-          List.of("使用 Redis")
+          List.of(new SourceQuote(SourceQuote.Source.ANSWER_TEXT, "使用 Redis", null))
       );
     });
 

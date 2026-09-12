@@ -37,7 +37,7 @@ public record CoverageView(
       long assessmentId,
       String targetId,
       int sourceTurnIndex,
-      String anchor,
+      SourceQuote anchor,
       String description
   ) {}
 }

@@ -1,5 +1,7 @@
 package interview.guide.modules.interview.agent.adaptive.assessment.depth;
 
+import interview.guide.modules.interview.agent.adaptive.core.context.CodeRepairReview;
+
 import interview.guide.modules.interview.agent.adaptive.core.context.DepthLevel;
 import interview.guide.modules.interview.agent.adaptive.core.session.AdaptiveInterviewTurn.AnswerContext;
 import java.util.Arrays;
@@ -16,8 +18,19 @@ public record AssessmentContext(
     List<String> rubric,
     List<interview.guide.modules.interview.agent.adaptive.core.session.AdoptedRubricSource> adoptedRubrics,
     List<interview.guide.modules.interview.agent.adaptive.core.context.CoverageView.OpenProbeGap> openGaps,
-    List<AnswerContext> priorTurns
+    List<AnswerContext> priorTurns,
+    CodeTaskContext codeTaskContext
 ) {
+
+  public record CodeTaskContext(
+      interview.guide.modules.interview.agent.adaptive.core.session.CodeRepairTask task,
+      String submittedCode,
+      List<PriorCodeReview> priorReviews
+  ) {
+    public CodeTaskContext { priorReviews = List.copyOf(priorReviews); }
+  }
+
+  public record PriorCodeReview(int turnIndex, CodeRepairReview codeReview, String rationale) {}
 
   public AssessmentContext {
     rubric = List.copyOf(rubric);
@@ -37,7 +50,7 @@ public record AssessmentContext(
         focus,
         question,
         answer,
-        Arrays.stream(DepthLevel.values()).map(DepthLevel::rubricLine).toList(), List.of(), List.of(), List.of()
+        Arrays.stream(DepthLevel.values()).map(DepthLevel::rubricLine).toList(), List.of(), List.of(), List.of(), null
     );
   }
 }

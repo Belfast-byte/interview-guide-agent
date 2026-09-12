@@ -1,5 +1,14 @@
 package interview.guide.modules.interview.agent.adaptive.persistence.session;
 
+import interview.guide.modules.interview.agent.adaptive.core.session.AdaptiveInterviewTurn;
+import interview.guide.modules.interview.agent.adaptive.core.session.AdaptiveInterviewTurn.AssessmentFeedback;
+import interview.guide.modules.interview.agent.adaptive.core.context.SourceQuote;
+import interview.guide.modules.interview.agent.adaptive.assessment.evidence.EvidenceType;
+import interview.guide.modules.interview.agent.adaptive.persistence.assessment.AdaptiveAgentAssessmentRepository;
+import interview.guide.modules.interview.agent.adaptive.persistence.assessment.AdaptiveAgentEvidenceRepository;
+import java.util.Map;
+import java.util.stream.Collectors;
+
 import interview.guide.common.exception.BusinessException;
 import interview.guide.common.exception.ErrorCode;
 import interview.guide.modules.interview.agent.adaptive.core.session.AdaptiveInterviewHistory;
@@ -22,6 +31,8 @@ public class AdaptiveInterviewPersistenceService {
   private final AdaptiveAgentTurnRepository turnRepository;
   private final AdaptiveAgentPlanRepository planRepository;
   private final CoverageQueryService coverageQueryService;
+  private final AdaptiveAgentAssessmentRepository assessments;
+  private final AdaptiveAgentEvidenceRepository evidences;
 
   @Transactional(readOnly = true)
   public void requireCandidateSession(String candidateId, String sessionId) {
@@ -77,11 +88,24 @@ public class AdaptiveInterviewPersistenceService {
         entity.llmProvider(),
         entity.llmProviderNameSnapshot(),
         entity.llmModelSnapshot(),
-        turnRepository.findBySessionIdOrderByTurnIndex(session.id()).stream()
-            .map(AdaptiveAgentTurnEntity::toDomain)
-            .toList(),
+        turnsWithAssessments(session.id()),
         entity.failureReason()
     );
+  }
+
+  private List<AdaptiveInterviewTurn> turnsWithAssessments(String sessionId) {
+    var quotes = evidences.findReportEvidence(sessionId).stream()
+        .filter(evidence -> evidence.evidenceType() == EvidenceType.QUOTE)
+        .collect(Collectors.groupingBy(evidence -> evidence.assessment().turnIndex(),
+            Collectors.mapping(evidence -> SourceQuote.fromStored(evidence.quoteText(), evidence.quoteLocator()),
+                Collectors.toList())));
+    Map<Integer, AssessmentFeedback> feedback = assessments
+        .findBySessionIdOrderByDimensionOrderAscTurnIndexAsc(sessionId).stream()
+        .collect(Collectors.toMap(assessment -> assessment.turnIndex(), assessment -> new AssessmentFeedback(
+            assessment.depthLevel(), assessment.rationaleSummary(), assessment.codeReview(),
+            quotes.getOrDefault(assessment.turnIndex(), List.of()))));
+    return turnRepository.findBySessionIdOrderByTurnIndex(sessionId).stream()
+        .map(turn -> turn.toDomain().withAssessmentFeedback(feedback.get(turn.turnIndex()))).toList();
   }
 
   @Transactional(readOnly = true)

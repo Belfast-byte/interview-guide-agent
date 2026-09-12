@@ -70,7 +70,7 @@ public class AdaptiveCreationTransactionService {
             target.order(),
             action,
             TurnProvenance.initial(),
-            commit.decision().workingMemory().withEpisodeReferences(ask.question().adoptedSourceRefs()),
+            commit.decision().workingMemory().withAdoptedSources(ask.question().adoptedSourceRefs()),
             rubricSnapshots.resolve(ask.question().adoptedSourceRefs().stream()
                 .filter(ref -> ref.startsWith("rubric:")).toList())
         ))

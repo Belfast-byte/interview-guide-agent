@@ -13,9 +13,7 @@ import org.springframework.stereotype.Component;
 import java.util.Locale;
 import java.util.regex.Pattern;
 
-/**
- * 统一封装结构化输出调用与重试策略。
- */
+/** 结构化输出入口：通用重试与面试严格单次调用各有明确语义。 */
 @Component
 public class StructuredOutputInvoker {
 
@@ -101,10 +99,14 @@ public class StructuredOutputInvoker {
         );
     }
 
-    /**
-     * 执行严格单次模型调用，不启用结构化输出重试或 schema validation retry。
-     * 适用于由外层有界循环统一计算模型调用预算的场景。
-     */
+    public static <T> BeanOutputConverter<T> strictConverter(Class<T> type) {
+        var mapper = tools.jackson.databind.json.JsonMapper.builder()
+            .enable(tools.jackson.databind.DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES,
+                tools.jackson.databind.DeserializationFeature.FAIL_ON_TRAILING_TOKENS).build();
+        return new BeanOutputConverter<>(type, mapper, text -> text);
+    }
+
+    /** 严格调用保留原始 JSON，失败不修复；错误日志不输出私有模型内容。 */
     public <T> T invokeOnce(
         ChatClient chatClient,
         String systemPromptWithFormat,
@@ -125,15 +127,16 @@ public class StructuredOutputInvoker {
                 .user(userPrompt)
                 .call()
                 .content();
-            T result = convertWithRepair(content, outputConverter, logContext, log);
+            T result = outputConverter.convert(content);
             recordAttempt(contextTag, STATUS_SUCCESS);
             recordInvocation(contextTag, STATUS_SUCCESS, startNanos);
             return result;
         } catch (Exception e) {
             recordAttempt(contextTag, STATUS_FAILURE);
             recordInvocation(contextTag, STATUS_FAILURE, startNanos);
-            log.error("{}结构化单次调用失败: error={}", logContext, e.getMessage());
-            throw new BusinessException(errorCode, errorPrefix + e.getMessage(), e);
+            log.error("{}结构化单次调用失败: type={}, stack={}", logContext,
+                e.getClass().getName(), java.util.Arrays.toString(e.getStackTrace()));
+            throw new BusinessException(errorCode, errorPrefix + "结构化输出失败（" + e.getClass().getSimpleName() + "）");
         }
     }
 

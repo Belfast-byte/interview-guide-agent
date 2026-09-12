@@ -1,5 +1,6 @@
 package interview.guide.modules.interview.agent.adaptive.persistence.session;
 
+import interview.guide.modules.interview.agent.adaptive.core.context.SourceQuote;
 import interview.guide.modules.interview.agent.adaptive.core.session.CodeRepairTask.QuestionType;
 
 import interview.guide.common.exception.BusinessException;
@@ -241,7 +242,7 @@ class AdaptiveAnswerProgressionTest {
     PlannedInterview interview = interview(plan);
     var assessor = new AdaptiveAnswerAssessmentService(
         new DepthAssessmentAgent((request, provider) -> new AssessmentProposal(
-            level, 0.9, "根据当前回答评估", level == DepthLevel.L0 ? List.of() : List.of(answer.content()))),
+            level, 0.9, "根据当前回答评估", level == DepthLevel.L0 ? List.of() : List.of(new SourceQuote(SourceQuote.Source.ANSWER_TEXT, answer.content(), null)))),
         new AssessmentEvidenceValidator(), mock(InterviewSkillService.class));
     AnswerAssessment assessed = assessor.assess(interview, answer);
     var decision = new AgentDecision(WorkingMemory.empty(), new AgentDecision.Finish("本场结束"));
@@ -300,13 +301,14 @@ class AdaptiveAnswerProgressionTest {
         DepthLevel.L2,
         0.8,
         "理解版本冲突",
-        List.of("使用版本号"),
-        List.of(new ProbeGap("版本号", "缺少推进规则"))
+        List.of(new SourceQuote(SourceQuote.Source.ANSWER_TEXT, "使用版本号", null)),
+        List.of(new ProbeGap(new SourceQuote(SourceQuote.Source.ANSWER_TEXT, "版本号", 2), "缺少推进规则"))
     );
     AnswerAssessment assessed = new AnswerAssessment(
         plan.dimension(0),
         assessment,
-        List.of(new ValidatedAssessmentEvidence(EvidenceType.QUOTE, "使用版本号", null))
+        List.of(new ValidatedAssessmentEvidence(EvidenceType.QUOTE, "使用版本号", null,
+            new SourceQuote.Locator(SourceQuote.Source.ANSWER_TEXT, 0, 5)))
     );
     WorkingMemory memory = new WorkingMemory(
         1,

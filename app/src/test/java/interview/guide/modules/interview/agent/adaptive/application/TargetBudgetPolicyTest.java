@@ -1,5 +1,6 @@
 package interview.guide.modules.interview.agent.adaptive.application;
 
+import interview.guide.modules.interview.agent.adaptive.core.context.SourceQuote;
 import static interview.guide.modules.interview.agent.adaptive.support.AdaptiveTestFixtures.testDimension;
 import static org.assertj.core.api.Assertions.assertThat;
 
@@ -55,8 +56,8 @@ class TargetBudgetPolicyTest {
     return new AnswerAssessment(
         dimension(),
         new AssessmentDecision(
-            "session-1", 3, DepthLevel.L1, 0.8, "仍缺少边界说明", List.of("工具"),
-            withGap ? List.of(new ProbeGap("工具", "未说明失败边界")) : List.of()
+            "session-1", 3, DepthLevel.L1, 0.8, "仍缺少边界说明", List.of(new SourceQuote(SourceQuote.Source.ANSWER_TEXT, "工具", null)),
+            withGap ? List.of(new ProbeGap(new SourceQuote(SourceQuote.Source.ANSWER_TEXT, "工具", null), "未说明失败边界")) : List.of()
         ),
         List.of()
     );

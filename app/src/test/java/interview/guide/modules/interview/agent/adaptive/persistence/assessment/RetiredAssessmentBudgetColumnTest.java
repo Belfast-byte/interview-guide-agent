@@ -1,5 +1,6 @@
 package interview.guide.modules.interview.agent.adaptive.persistence.assessment;
 
+import interview.guide.modules.interview.agent.adaptive.core.context.SourceQuote;
 import interview.guide.modules.interview.agent.adaptive.assessment.depth.AssessmentDecision;
 import interview.guide.modules.interview.agent.adaptive.core.context.DepthLevel;
 import jakarta.persistence.EntityManager;
@@ -62,6 +63,6 @@ class RetiredAssessmentBudgetColumnTest {
   private AdaptiveAgentAssessmentEntity assessment(int turnIndex, DepthLevel depth) {
     return new AdaptiveAgentAssessmentEntity(DIMENSION_ORDER, new AssessmentDecision(
         SESSION_ID, turnIndex, depth, CONFIDENCE, "本轮正式评估",
-        List.of("当前回答原文"), List.of()));
+        List.of(new SourceQuote(SourceQuote.Source.ANSWER_TEXT, "当前回答原文", null)), List.of()));
   }
 }

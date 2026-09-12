@@ -17,9 +17,6 @@ import interview.guide.modules.interview.agent.adaptive.core.event.CandidateAnsw
 import interview.guide.modules.interview.agent.adaptive.core.session.AdaptiveInterviewHistory;
 import interview.guide.modules.interview.agent.adaptive.core.session.AdaptiveInterviewSession;
 import interview.guide.modules.interview.agent.adaptive.core.session.AdaptiveSessionStatus;
-import interview.guide.modules.interview.agent.adaptive.mcp.AdaptiveInterviewMcpTools.McpCreateInterviewRequest;
-import interview.guide.modules.interview.agent.adaptive.mcp.AdaptiveInterviewMcpTools.McpInterviewStatusResponse;
-import interview.guide.modules.interview.agent.adaptive.mcp.AdaptiveInterviewMcpTools.McpSubmitAnswerRequest;
 import interview.guide.modules.interview.agent.adaptive.planning.InterviewPlan;
 import interview.guide.modules.interview.agent.adaptive.planning.PlannedInterview;
 import io.modelcontextprotocol.common.McpTransportContext;
@@ -88,7 +85,7 @@ class AdaptiveInterviewMcpToolsTest {
     assertThatThrownBy(() -> tools.submitAnswer(
         context,
         "session-a",
-        new McpSubmitAnswerRequest(1, "回答")
+        new McpSubmitAnswerRequest(1, "回答", null)
     )).hasFieldOrPropertyWithValue("code", ErrorCode.FORBIDDEN.getCode());
 
     verify(auditService).record(
@@ -120,13 +117,13 @@ class AdaptiveInterviewMcpToolsTest {
     McpInterviewStatusResponse response = tools.submitAnswer(
         context,
         "session-a",
-        new McpSubmitAnswerRequest(1, "回答")
+        new McpSubmitAnswerRequest(1, "回答", null)
     );
 
     var mapper = new tools.jackson.databind.ObjectMapper();
     assertThat(mapper.valueToTree(response).path("sessionId").asText()).isEqualTo("session-a");
     assertThat(mapper.readValue("{\"turnIndex\":1,\"answer\":\"回答\"}", McpSubmitAnswerRequest.class))
-        .isEqualTo(new McpSubmitAnswerRequest(1, "回答"));
+        .isEqualTo(new McpSubmitAnswerRequest(1, "回答", null));
     assertThat(response.sessionId()).isEqualTo("session-a");
     verify(auditService).record(
         principal,

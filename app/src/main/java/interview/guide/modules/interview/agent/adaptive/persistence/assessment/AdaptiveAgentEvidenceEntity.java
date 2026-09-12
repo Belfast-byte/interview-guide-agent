@@ -1,5 +1,9 @@
 package interview.guide.modules.interview.agent.adaptive.persistence.assessment;
 
+import interview.guide.modules.interview.agent.adaptive.core.context.SourceQuote;
+import org.hibernate.annotations.JdbcTypeCode;
+import org.hibernate.type.SqlTypes;
+
 import interview.guide.modules.interview.agent.adaptive.assessment.evidence.EvidenceType;
 import interview.guide.modules.interview.agent.adaptive.assessment.evidence.ValidatedAssessmentEvidence;
 import interview.guide.modules.interview.agent.adaptive.core.action.CodeFactUsage;
@@ -53,6 +57,12 @@ public class AdaptiveAgentEvidenceEntity {
   @Column(name = "quote_text", columnDefinition = "TEXT")
   private String quoteText;
 
+  @JdbcTypeCode(SqlTypes.JSON)
+  @Column(name = "quote_locator_json")
+  private SourceQuote.Locator quoteLocator;
+
+  public SourceQuote.Locator quoteLocator() { return quoteLocator; }
+
   @Column(name = "sandbox_execution_id", length = 36)
   private String sandboxExecutionId;
 
@@ -82,6 +92,7 @@ public class AdaptiveAgentEvidenceEntity {
     this.sourceSessionId = sessionId;
     this.sourceTurnIndex = turnIndex;
     this.quoteText = evidence.quote();
+    this.quoteLocator = evidence.quoteLocator();
     this.sandboxExecutionId = evidence.sandboxExecutionId();
   }
 

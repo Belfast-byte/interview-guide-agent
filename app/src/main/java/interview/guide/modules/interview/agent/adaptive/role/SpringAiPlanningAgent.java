@@ -64,7 +64,7 @@ public class SpringAiPlanningAgent implements PlanningAgent {
     this.modelOptionsFactory = modelOptionsFactory;
     this.systemPromptTemplate = promptLoader.loadTemplate(properties.getPlannerSystemPromptPath());
     this.userPromptTemplate = promptLoader.loadTemplate(properties.getPlannerUserPromptPath());
-    this.outputConverter = new BeanOutputConverter<>(PlanProposal.class);
+    this.outputConverter = StructuredOutputInvoker.strictConverter(PlanProposal.class);
   }
 
   @Override

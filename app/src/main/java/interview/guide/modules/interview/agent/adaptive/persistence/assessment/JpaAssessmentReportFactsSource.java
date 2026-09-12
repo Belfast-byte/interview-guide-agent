@@ -181,7 +181,9 @@ public class JpaAssessmentReportFactsSource
           null,
           null,
           null,
-          null
+          null,
+          turn.codeRepair().submittedCode(),
+          evidence.quoteLocator()
       );
     }
     if (evidence.sandboxExecutionId() != null) {
@@ -197,7 +199,9 @@ public class JpaAssessmentReportFactsSource
           algorithmEvidence.executionId(),
           "sandbox_submit",
           algorithmEvidence.executionId(),
-          algorithmEvidence.summary()
+          algorithmEvidence.summary(),
+          null,
+          null
       );
     }
     throw new IllegalStateException("不支持的评估证据类型: " + evidence.evidenceType());

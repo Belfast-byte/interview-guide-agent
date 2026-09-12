@@ -13,5 +13,7 @@ public record AssessmentReportEvidenceFacts(
     String sandboxExecutionId,
     String toolName,
     String toolResultId,
-    String toolOutput
+    String toolOutput,
+    String submittedCode,
+    interview.guide.modules.interview.agent.adaptive.core.context.SourceQuote.Locator quoteLocator
 ) {}

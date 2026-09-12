@@ -17,7 +17,8 @@ import org.springframework.stereotype.Component;
  */
 @Component
 public class ContextAssembler {
-  private static final List<String> ALLOWED_READ_TOOLS = List.of("rubric_search", "memory_recall");
+  private static final List<String> ALLOWED_READ_TOOLS = List.of("rubric_search", "memory_recall",
+      "interview_material_read", "question_search", "code_task_read", "assessment_read");
 
   private final InterviewSkillService skillService;
 
@@ -47,22 +48,9 @@ public class ContextAssembler {
   }
 
 
-  /**
-   * JD 与简历注入上下文的最大字符数，超出部分截断并标注，控制每次调用的输入预算。
-   */
-  private static final int MAX_DOCUMENT_CHARS = 6_000;
-  private static final String TRUNCATION_MARKER = "……[原文共 %d 字符，超出部分已截断]";
-
-  /** 组装规划 Agent 所需的上下文，并裁剪过长的本次文档。 */
+  /** 本场材料保留原文，输入超限交给已有 token budget 显式报告。 */
   public PlannerContext planner(PlannerContext input) {
-    return new PlannerContext(
-        truncate(input.jd()),
-        truncate(input.resume()),
-        input.mode(),
-        input.candidateLevel(),
-        input.practiceScope(),
-        input.skillCatalog()
-    );
+    return input;
   }
 
   public record AgentContextInput(
@@ -83,11 +71,4 @@ public class ContextAssembler {
     }
   }
 
-  private String truncate(String document) {
-    if (document == null || document.length() <= MAX_DOCUMENT_CHARS) {
-      return document;
-    }
-    return document.substring(0, MAX_DOCUMENT_CHARS)
-        + TRUNCATION_MARKER.formatted(document.length());
-  }
 }

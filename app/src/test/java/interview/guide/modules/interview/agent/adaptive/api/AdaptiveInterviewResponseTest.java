@@ -1,5 +1,7 @@
 package interview.guide.modules.interview.agent.adaptive.api;
 
+import interview.guide.modules.interview.agent.adaptive.core.session.CodeRepairTask.QuestionType;
+
 import static interview.guide.modules.interview.agent.adaptive.support.AdaptiveTestFixtures.EVALUATION_SETTINGS;
 import static interview.guide.modules.interview.agent.adaptive.support.AdaptiveTestFixtures.testDimension;
 import static org.assertj.core.api.Assertions.assertThat;
@@ -67,7 +69,8 @@ class AdaptiveInterviewResponseTest {
 
     var json = new tools.jackson.databind.ObjectMapper().valueToTree(response);
     assertThat(json.path("turns").get(0).propertyNames()).containsExactlyInAnyOrder(
-        "turnIndex", "dimensionOrder", "question", "answer", "answerStatus", "answerError");
+        "turnIndex", "dimensionOrder", "question", "answer", "answerStatus", "answerError",
+        "questionType", "codeTaskTurnIndex", "codeTask", "submittedCode", "codeReview", "assessmentFeedback");
     assertThat(json.path("dimensions").get(0).propertyNames()).containsExactlyInAnyOrder(
         "order", "dimension", "focus", "allocatedTurns", "expectedDepth", "depthCeiling",
         "evidenceObjectives", "completedTurns", "status");
@@ -78,7 +81,9 @@ class AdaptiveInterviewResponseTest {
     assertThat(response.practiceScope()).isEmpty();
     assertThat(response.turns()).containsExactly(
         new AdaptiveInterviewTurnResponse(1, 0, "第一题？", null,
-            AnswerProcessingStatus.WAITING, null)
+            AnswerProcessingStatus.WAITING, null,
+            QuestionType.TEXT,
+            null, null, null, null, null)
     );
     assertThat(response.dimensions()).extracting(AdaptiveInterviewDimensionResponse::dimension)
         .containsExactly("专业基础");

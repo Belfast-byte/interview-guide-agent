@@ -21,7 +21,8 @@ class EpisodeReferenceTest {
     var repository = mock(AdaptiveAgentTurnRepository.class);
     var entity = mock(AdaptiveAgentTurnEntity.class);
     var memory = new WorkingMemory(1, new WorkingMemory.Focus("target-0", 7L, List.of()),
-        new WorkingMemory.Deliberation(List.of(), "换场景验证底层机制", List.of("episode:9", "tool-0-0")));
+        new WorkingMemory.Deliberation(List.of(), "换场景验证底层机制",
+            List.of("episode:9", "question:12", "rubric:cache@v1", "tool-0-0")));
     when(entity.workingMemory()).thenReturn(memory);
     when(repository.findFirstBySessionIdAndWorkingMemoryIsNotNullOrderByTurnIndexDesc("current"))
         .thenReturn(Optional.of(entity));
@@ -30,7 +31,8 @@ class EpisodeReferenceTest {
 
     assertThat(restored.focus()).isEqualTo(memory.focus());
     assertThat(restored.deliberation().nextProbeIntent()).isEqualTo("换场景验证底层机制");
-    assertThat(restored.deliberation().adoptedObservationRefs()).containsExactly("episode:9");
+    assertThat(restored.deliberation().adoptedObservationRefs())
+        .containsExactly("episode:9", "question:12", "rubric:cache@v1");
   }
 
   @Test
@@ -40,7 +42,7 @@ class EpisodeReferenceTest {
     var target = mock(CoverageView.TargetCoverage.class);
     when(target.targetId()).thenReturn("target-0");
     when(context.facts().coverage().targets()).thenReturn(List.of(target));
-    var memory = WorkingMemory.empty().withEpisodeReferences(List.of("episode:9"));
+    var memory = WorkingMemory.empty().withAdoptedSources(List.of("episode:9"));
     when(context.workingMemory()).thenReturn(memory);
 
     assertThat(validator.validateAction(decision(memory, "episode:9"), context, List.of())).isEmpty();

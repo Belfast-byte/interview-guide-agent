@@ -33,8 +33,8 @@ class ContextAssemblerTest {
   }
 
   @Test
-  @DisplayName("规划文档超长时截断并标注")
-  void shouldTruncateLongDocumentsWithMarker() {
+  @DisplayName("规划文档保留原文，由输入预算明确报告超限")
+  void shouldPreserveFullDocuments() {
     String longDocument = "岗位要求：熟悉分布式系统。".repeat(800);
 
     PlannerContext context = assembler.planner(new PlannerContext(
@@ -46,10 +46,7 @@ class ContextAssemblerTest {
         List.of()
     ));
 
-    assertThat(context.jd())
-        .startsWith(longDocument.substring(0, 50))
-        .endsWith("已截断]")
-        .hasSizeLessThan(longDocument.length());
+    assertThat(context.jd()).isEqualTo(longDocument);
     assertThat(context.resume()).isEqualTo("三行简历");
   }
 }

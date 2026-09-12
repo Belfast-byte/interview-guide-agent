@@ -31,7 +31,7 @@ class InterviewDecisionPrompt {
         properties.getDecisionSystemPromptPath());
     this.userTemplate = promptLoader.loadTemplate(
         properties.getDecisionUserPromptPath());
-    this.outputConverter = new BeanOutputConverter<>(InterviewDecisionOutput.class);
+    this.outputConverter = interview.guide.common.ai.StructuredOutputInvoker.strictConverter(InterviewDecisionOutput.class);
   }
 
   PreparedPrompt prepare(DecisionModelContext context) {
@@ -44,7 +44,7 @@ class InterviewDecisionPrompt {
 
   private String serialize(DecisionModelContext context) {
     try {
-      return objectMapper.writeValueAsString(context);
+      return objectMapper.writeValueAsString(DecisionContextProjection.project(context));
     } catch (JacksonException e) {
       throw new BusinessException(ErrorCode.AI_SERVICE_ERROR, "AgentContext 序列化失败", e);
     }

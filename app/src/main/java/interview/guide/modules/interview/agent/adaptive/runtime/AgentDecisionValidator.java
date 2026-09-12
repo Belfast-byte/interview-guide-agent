@@ -124,10 +124,10 @@ public class AgentDecisionValidator {
         .map(DecisionObservation.AdoptableSource::reference)
         .collect(Collectors.toSet());
     context.workingMemory().deliberation().adoptedObservationRefs().stream()
-        .filter(ref -> ref.startsWith("episode:")).forEach(available::add);
+        .filter(this::stableSource).forEach(available::add);
     return available.containsAll(adoptedRefs)
         ? Optional.empty()
-        : rejection("action.ask.question.adoptedSourceRefs", "引用不在成功工具结果或已采用的 Episode 中");
+        : rejection("action.ask.question.adoptedSourceRefs", "引用不在成功工具结果或已保存的采用来源中");
   }
 
   private Optional<DecisionObservation> validateTarget(
@@ -174,12 +174,16 @@ public class AgentDecisionValidator {
         .collect(Collectors.toSet());
     observations.stream().filter(item -> item.kind() == DecisionObservation.Kind.TOOL_SUCCESS)
         .flatMap(item -> item.adoptableSources().stream())
-        .filter(source -> source.type().equals("episode"))
+        .filter(source -> stableSource(source.reference()))
         .map(DecisionObservation.AdoptableSource::reference).forEach(references::add);
     // 上游按归属读取的首题来源或已提交快照可信，不从待校验的模型提案建立引用白名单。
     context.workingMemory().deliberation().adoptedObservationRefs().stream()
-        .filter(ref -> ref.startsWith("episode:")).forEach(references::add);
+        .filter(this::stableSource).forEach(references::add);
     return references;
+  }
+
+  private boolean stableSource(String ref) {
+    return ref.startsWith("episode:") || ref.startsWith("question:") || ref.startsWith("rubric:");
   }
 
   private Optional<DecisionObservation> requireText(String value, String field) {

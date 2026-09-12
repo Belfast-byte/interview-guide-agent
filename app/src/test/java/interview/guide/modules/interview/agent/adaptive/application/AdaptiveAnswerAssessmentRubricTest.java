@@ -1,5 +1,6 @@
 package interview.guide.modules.interview.agent.adaptive.application;
 
+import interview.guide.modules.interview.agent.adaptive.core.context.SourceQuote;
 import interview.guide.modules.interview.agent.adaptive.assessment.depth.*;
 import interview.guide.modules.interview.agent.adaptive.assessment.evidence.AssessmentEvidenceValidator;
 import interview.guide.modules.interview.agent.adaptive.core.context.DepthLevel;
@@ -29,7 +30,7 @@ class AdaptiveAnswerAssessmentRubricTest {
     var captured = new AtomicReference<AssessmentRequest>();
     var service = new AdaptiveAnswerAssessmentService(new DepthAssessmentAgent((request, provider) -> {
       captured.set(request);
-      return new AssessmentProposal(DepthLevel.L2, 0.8, "在提示下解释等待", List.of("竞争失败会等待"));
+      return new AssessmentProposal(DepthLevel.L2, 0.8, "在提示下解释等待", List.of(new SourceQuote(SourceQuote.Source.ANSWER_TEXT, "竞争失败会等待", null)));
     }), new AssessmentEvidenceValidator(), mock(InterviewSkillService.class));
 
     service.assess(interview, new CandidateAnswer(2, "竞争失败会等待"));
@@ -51,7 +52,7 @@ class AdaptiveAnswerAssessmentRubricTest {
       var captured=new AtomicReference<AssessmentRequest>();
       var assessor=new AdaptiveAnswerAssessmentService(new DepthAssessmentAgent((r,p) -> {
         captured.set(r);
-        return new AssessmentProposal(DepthLevel.L1,0.8,"识别原子性边界",List.of("不能"));
+        return new AssessmentProposal(DepthLevel.L1,0.8,"识别原子性边界",List.of(new SourceQuote(SourceQuote.Source.ANSWER_TEXT, "不能", null)));
       }),new AssessmentEvidenceValidator(),mock(InterviewSkillService.class));
       assessor.assess(interview,new CandidateAnswer(1,"不能保证复合操作原子性"));
       assertThat(captured.get().context().rubric()).hasSize(5);

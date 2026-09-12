@@ -1,11 +1,10 @@
 package interview.guide.modules.interview.agent.adaptive.assessment.evidence;
 
-/**
- * 评估证据候选，用于后续校验是否可采信。
- */
-public record AssessmentEvidenceCandidate(String quote) {
+import interview.guide.modules.interview.agent.adaptive.core.context.SourceQuote;
 
-  public static AssessmentEvidenceCandidate quote(String quote) {
+/** 待验证的有来源引用。 */
+public record AssessmentEvidenceCandidate(SourceQuote quote) {
+  public static AssessmentEvidenceCandidate quote(SourceQuote quote) {
     return new AssessmentEvidenceCandidate(quote);
   }
 }

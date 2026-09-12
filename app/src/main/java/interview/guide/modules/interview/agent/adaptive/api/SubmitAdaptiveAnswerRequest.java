@@ -1,5 +1,7 @@
 package interview.guide.modules.interview.agent.adaptive.api;
 
+import com.fasterxml.jackson.annotation.JsonAnySetter;
+
 import interview.guide.modules.interview.agent.adaptive.algorithm.sandbox.SandboxLanguage;
 import interview.guide.modules.interview.agent.adaptive.algorithm.sandbox.SandboxRunMode;
 import jakarta.validation.Valid;
@@ -19,7 +21,17 @@ public record SubmitAdaptiveAnswerRequest(
     @Valid CodeRepairAnswerRequest codeRepair
 ) {
 
-  public record CodeRepairAnswerRequest(@NotBlank(message = "提交代码不能为空") String code) {}
+  public record CodeRepairAnswerRequest(@NotBlank(message = "提交代码不能为空") String code) {
+    @JsonAnySetter
+    public void rejectUnknownField(String field, Object value) {
+      throw new IllegalArgumentException("codeRepair 不支持字段：" + field);
+    }
+  }
+
+  @JsonAnySetter
+  public void rejectUnknownField(String field, Object value) {
+    throw new IllegalArgumentException("答题参数不支持字段：" + field);
+  }
 
   @AssertTrue(message = "代码改错与旧代码执行提交互斥")
   public boolean hasSingleCodeProtocol() {

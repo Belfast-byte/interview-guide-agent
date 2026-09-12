@@ -16,6 +16,18 @@ public record CodeRepairTask(
     assumptions = immutable(assumptions);
   }
 
+  /** 候选人可见题目，与含私有参考的任务事实分开序列化。 */
+  public record CodeRepairTaskResponse(String initialCode, List<String> requirements, List<String> assumptions) {
+    public CodeRepairTaskResponse {
+      requirements = List.copyOf(requirements);
+      assumptions = List.copyOf(assumptions);
+    }
+  }
+
+  public CodeRepairTaskResponse publicView() {
+    return new CodeRepairTaskResponse(initialCode, requirements, assumptions);
+  }
+
   public enum QuestionType { TEXT, CODE_REPAIR }
 
   public record ReviewGuide(List<Check> checks) {

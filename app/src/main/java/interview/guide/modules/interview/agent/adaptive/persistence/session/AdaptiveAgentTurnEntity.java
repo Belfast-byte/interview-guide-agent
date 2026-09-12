@@ -242,7 +242,7 @@ public class AdaptiveAgentTurnEntity {
     return new AdaptiveInterviewTurn(turnIndex, dimensionOrder, question, questionReason,
         answer, responseType, responseContent, decisionReason, provenance(), adoptedRubrics,
         answerStatus(), answerError, codeRepair.questionType(), codeRepair.codeTask(),
-        codeRepair.codeTaskTurnIndex(), codeRepair.submittedCode());
+        codeRepair.codeTaskTurnIndex(), codeRepair.submittedCode(), null);
   }
 
   private TurnProvenance provenance() {

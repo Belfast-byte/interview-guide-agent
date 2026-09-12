@@ -53,7 +53,7 @@ class JpaAlgorithmEvidenceConsumer implements AlgorithmEvidenceConsumer {
         new ValidatedAssessmentEvidence(
             EvidenceType.TOOL_RESULT,
             null,
-            execution.id()
+            execution.id(), null
         )
     ));
     return true;

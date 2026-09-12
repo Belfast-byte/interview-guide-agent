@@ -38,6 +38,7 @@ class StructuredOutputInvokerTest {
   private ChatClient chatClient;
   private StructuredOutputInvoker invoker;
   private boolean returnValidOnSecondRequest;
+  private String customContent;
 
   @BeforeEach
   void setUp() throws IOException {
@@ -76,6 +77,42 @@ class StructuredOutputInvokerTest {
     assertThat(requestCount).hasValue(2);
   }
 
+  @Test
+  void strictInvocationDoesNotRepairOrRetryPrivateModelJson() {
+    customContent = "{\"value\":\"PRIVATE_GUIDE_ONLY\",\"unknown\":true}";
+    var logger = (ch.qos.logback.classic.Logger) LOG;
+    var appender = new ch.qos.logback.core.read.ListAppender<ch.qos.logback.classic.spi.ILoggingEvent>();
+    appender.start();
+    logger.addAppender(appender);
+    try {
+      assertThatThrownBy(() -> invoker.invokeOnce(chatClient, "schema", "synthetic test",
+          StructuredOutputInvoker.strictConverter(TestOutput.class), ErrorCode.AI_SERVICE_ERROR,
+          "解析失败: ", "strict_output_test", LOG))
+          .isInstanceOf(BusinessException.class).hasNoCause()
+          .hasMessageContaining("结构化输出失败").hasMessageNotContaining("PRIVATE_GUIDE_ONLY");
+      assertThat(requestCount).hasValue(1);
+      assertThat(appender.list).isNotEmpty().allSatisfy(event -> {
+        assertThat(event.getFormattedMessage()).doesNotContain("PRIVATE_GUIDE_ONLY", "unknown");
+        assertThat(event.getThrowableProxy()).isNull();
+      });
+    } finally {
+      logger.detachAppender(appender);
+      appender.stop();
+    }
+  }
+
+  @Test
+  void strictConverterRejectsMalformedUnknownAndTrailingJsonWithoutChangingCode() {
+    var converter = StructuredOutputInvoker.strictConverter(TestOutput.class);
+    assertThatThrownBy(() -> converter.convert("{\"value\":\"unescaped \"code\"\"}"))
+        .isInstanceOf(RuntimeException.class);
+    assertThatThrownBy(() -> converter.convert("{\"value\":\"ok\",\"extra\":true}"))
+        .isInstanceOf(RuntimeException.class);
+    assertThatThrownBy(() -> converter.convert("{\"value\":\"ok\"} {}"))
+        .isInstanceOf(RuntimeException.class);
+    assertThat(converter.convert("{\"value\":\"  code\\n\"}").value()).isEqualTo("  code\n");
+  }
+
   private TestOutput invoke() {
     BeanOutputConverter<TestOutput> converter = new BeanOutputConverter<>(TestOutput.class);
     return invoker.invoke(
@@ -93,7 +130,8 @@ class StructuredOutputInvokerTest {
   private void handleRequest(HttpExchange exchange) throws IOException {
     exchange.getRequestBody().readAllBytes();
     int currentRequest = requestCount.incrementAndGet();
-    byte[] response = returnValidOnSecondRequest && currentRequest == 2
+    byte[] response = customContent != null ? response(customContent)
+        : returnValidOnSecondRequest && currentRequest == 2
         ? VALID_RESPONSE
         : INVALID_RESPONSE;
     exchange.getResponseHeaders().add("Content-Type", "application/json");

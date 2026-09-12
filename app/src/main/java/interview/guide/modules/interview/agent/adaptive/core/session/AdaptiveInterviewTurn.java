@@ -22,13 +22,36 @@ public record AdaptiveInterviewTurn(
     CodeRepairTask.QuestionType questionType,
     CodeRepairTask codeTask,
     Integer codeTaskTurnIndex,
-    String submittedCode
+    String submittedCode,
+    AssessmentFeedback assessmentFeedback
 ) {
 
-  /** 评估与历史召回共用原始问答上下文，不携带评分或候选人画像。 */
-  public record AnswerContext(int turnIndex, String question, String answer, String submittedCode) {
+  /** 由正式 Assessment 和 Evidence 读取投影，不在 Turn 中另存评级。 */
+  public record AssessmentFeedback(
+      interview.guide.modules.interview.agent.adaptive.core.context.DepthLevel depthLevel,
+      String rationale,
+      interview.guide.modules.interview.agent.adaptive.core.context.CodeRepairReview codeReview,
+      List<interview.guide.modules.interview.agent.adaptive.core.context.SourceQuote> evidenceQuotes
+  ) {
+    public AssessmentFeedback { evidenceQuotes = List.copyOf(evidenceQuotes); }
+  }
+
+  public AdaptiveInterviewTurn withAssessmentFeedback(AssessmentFeedback feedback) {
+    return new AdaptiveInterviewTurn(turnIndex, dimensionOrder, question, questionReason, answer,
+        responseType, responseContent, decisionReason, provenance, adoptedRubrics, answerStatus,
+        answerError, questionType, codeTask, codeTaskTurnIndex, submittedCode, feedback);
+  }
+
+  /** 默认仅传原始问答；Episode 可显式补入作答前已公开的反馈，不携带画像。 */
+  public record AnswerContext(int turnIndex, String question, String answer, String submittedCode,
+      interview.guide.modules.interview.agent.adaptive.core.context.CodeRepairReview codeReview,
+      String feedbackRationale) {
+    public AnswerContext(int turnIndex, String question, String answer, String submittedCode) {
+      this(turnIndex, question, answer, submittedCode, null, null);
+    }
+
     public AnswerContext(int turnIndex, String question, String answer) {
-      this(turnIndex, question, answer, null);
+      this(turnIndex, question, answer, null, null, null);
     }
   }
 
@@ -44,7 +67,7 @@ public record AdaptiveInterviewTurn(
         responseContent, decisionReason, provenance, adoptedRubrics,
         responseType != null ? AnswerProcessingStatus.COMPLETED
             : answer == null ? AnswerProcessingStatus.WAITING : AnswerProcessingStatus.RETRYABLE,
-        null, CodeRepairTask.QuestionType.TEXT, null, null, null);
+        null, CodeRepairTask.QuestionType.TEXT, null, null, null, null);
   }
 
   public AdaptiveInterviewTurn {
