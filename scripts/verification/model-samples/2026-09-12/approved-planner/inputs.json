@@ -1,0 +1,19 @@
+{
+  "planner": {
+    "interview": {
+      "jd": "合成JD：Java 21后端，负责订单库存，关注多实例并发一致性。",
+      "resume": "合成简历：参与订单服务开发，使用Java及关系数据库，无真实个人数据。",
+      "mode": "EVALUATION",
+      "candidateLevel": "EXPERIENCED",
+      "practiceScope": [],
+      "skillCatalog": [
+        {
+          "skillId": "java-backend",
+          "focusIds": [
+            "JAVA"
+          ]
+        }
+      ]
+    }
+  }
+}

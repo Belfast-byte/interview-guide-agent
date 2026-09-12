@@ -1,0 +1,21 @@
+{
+  "authorization": "用户在本次复测前明确允许向指定 DeepSeek 端点发送一次请求",
+  "requestCount": 1,
+  "productionRevision": "55b8f16",
+  "schemaValidation": "PASS",
+  "javaDomainValidation": "PASS",
+  "manualQualityValidation": "NOT_PASSED",
+  "improvements": [
+    "不存在上一样例的JPQL字段与实体不一致",
+    "原子扣减接口及返回语义已定义",
+    "READ_COMMITTED隔离级别已明确",
+    "没有要求未定义的幂等设施"
+  ],
+  "remainingFindings": [
+    "没有说明quantity已校验为正整数或SKU保证存在；负数quantity会使原代码增加库存，reviewGuide两项检查没有覆盖该路径。",
+    "没有明确两个Repository使用同一数据源/事务管理器并参与调用方事务；仅声明placeOrder通过Spring事务代理不足以排除独立提交语义。",
+    "reviewGuide把先读再写描述为可能导致负库存或超卖；在quantity为正且每次通过current校验的给定序列中，直接问题是丢失扣减造成超卖，负库存并非该交错本身的结果。"
+  ],
+  "latency": "39.90秒，小于application.yml Planner默认60秒；单个环境provider样例不代表应用端到端延迟已通过",
+  "generatedCodeExecuted": false
+}

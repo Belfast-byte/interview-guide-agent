@@ -27,22 +27,34 @@
 4. **首题人工质量问题未被结构校验证明正确。** 归档首题可见题面没有复述修复答案，业务背景及假设也明确与库存场景有关，但 JPQL 使用 `i.id`，对应实体只有 `productId`；该额外符号错误未被 `reviewGuide` 覆盖。幂等设施的接口和事务语义不够明确，隔离级别使用“默认（通常 READ_COMMITTED）”。已补充生产 Planner/Decision 提示词，要求具体前提、依赖契约和参考覆盖所有刻意缺陷。
 5. **主题唯一规则。** 更早的首题响应曾用不同维度名称重复同一 Skill/Focus 组合。生产 `InterviewPlan` 已禁止该情形；提示词现明确要求同一组合只能出现一次，smoke 也增加这一断言。归档首题只有一个主题并通过真实领域校验。
 
-最后一版出题提示词的真实质量复测尚未完成，不能标记为通过。已有结果没有被替换为模拟输出，也没有通过隐藏修复使失败样例通过。
+用户明确批准后，最后一版出题提示词已完成一次真实复测，结果见下方。结构通过，但人工质量仍有缺口，不标记为质量通过；此前失败产物继续保留。
 
-## 自动审批阻断
+## 外发审批记录（已获得批准）
 
-最后一次仅重测首题的外发请求被自动审批拒绝。原始理由如下：
+此前仅重测首题的外发请求被自动审批拒绝；随后用户明确回复“允许”，授权下述一次请求。此前拒绝理由如下：
 
 > 该操作会把仓库中的生产 system prompt、安全指令及 schema/格式内容发送到外部 DeepSeek 服务；这些内部实现细节属于敏感数据，用户未明确授权向该具体外部目的地披露，不能仅因输入样例是合成数据而放行。
 
-待批准动作是向 **DeepSeek，`https://api.deepseek.com/anthropic/v1/messages`** 发送一次合成首题请求，模型 `deepseek-v4-pro`、推理 `low`、输出预算 8192。凭据只由环境读取，不进入日志或仓库。请求内容具体包括：
+本次获准动作是向 **DeepSeek，`https://api.deepseek.com/anthropic/v1/messages`** 发送一次合成首题请求，模型 `deepseek-v4-pro`、推理 `low`、输出预算 8192。凭据只由环境读取，不进入日志或仓库。请求内容具体包括：
 
 - `app/src/main/resources/prompts/adaptive-agent-planner-system.st`，最新出题要求。
 - `app/src/main/resources/prompts/adaptive-agent-planner-user.st`，替换为脚本内合成 JD、简历和 Skill 目录后的用户提示词。
 - `StructuredOutputInvoker.strictConverter(PlanProposal.class)` 生成的 JSON schema 和 `getFormat()` 格式指令，涉及首题代码任务契约。
 - `app/src/main/java/interview/guide/common/ai/PromptSecurityConstants.java` 中的 `ANTI_INJECTION_INSTRUCTION`。
 
-此请求不发送真实 JD/简历、业务数据库记录或凭据正文。拒绝发生后未执行外发、未删除敏感部分绕过审批、未更换目的地重试。需要用户对上述具体目的地及内容明确批准，才能继续该项复测。
+此请求不发送真实 JD/简历、业务数据库记录或凭据正文。拒绝后没有绕过审批；用户明确批准后，仅向上述目的地执行了一次请求。审批阻断已解除。
+
+## 获准后的首题复测
+
+在 `55b8f16` 版本上调用一次 `deepseek-v4-pro`，推理 `low`、预算 8192，返回 `end_turn`。输入 2157 tokens、输出 2415 tokens，耗时 **39.90 秒**。使用最新生产提示词、生成器格式指令及安全指令，未修补响应。
+
+- JSON schema、主题唯一性、新根任务检查通过；真实 `strictConverter`、`InterviewPlan.decide` 和 `InitialQuestionProposal.toDecision` 回放通过。
+- 人工审阅确认上一样例的 JPQL 字段错误没有重现；原子扣减接口、返回值和 READ_COMMITTED 隔离级别已明确，也不再要求未定义的幂等设施。
+- **质量尚未通过**：没有声明数量已校验为正数或 SKU 保证存在，负数量导致库存增加的路径不在当前参考中；两个 Repository 是否参与同一数据源/事务管理器下的事务仍不明确。
+- 参考的机制说明也需更准确：给定先读、校验、写回序列在正数量下可能丢失扣减、造成超卖，不能直接据此推断写出负库存。
+- 本次 39.90 秒低于 YAML 的 Planner 60 秒默认值，但只是环境 provider 的一次观测，没有补齐应用端到端验证，也不改变此前评估超时样例的结果。
+
+原始响应、合成输入、脚本结果、Java 校验输出及人工审阅结论保存在 `model-samples/2026-09-12/approved-planner/`。未编译或运行生成的业务代码。CR-08 继续保留未完成状态，原因为题目质量及应用链路验证缺口，已不再是外发审批阻断。
 
 ## 产物与复现
 

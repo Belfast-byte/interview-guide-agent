@@ -1,0 +1,25 @@
+{
+  "successes": [
+    {
+      "case": "planner",
+      "requestedModel": "deepseek-v4-pro",
+      "returnedModel": "deepseek-v4-pro",
+      "reasoningEffort": "low",
+      "stopReason": "end_turn",
+      "usage": {
+        "input_tokens": 2157,
+        "cache_creation_input_tokens": 0,
+        "cache_read_input_tokens": 0,
+        "output_tokens": 2415,
+        "service_tier": "standard"
+      },
+      "elapsedSeconds": 39.9,
+      "validation": {
+        "newCodeTask": true,
+        "visibleContent": "请审查并修复下述 Java 21 代码。要求：在并发下单场景下保证不出现超卖，并且订单创建与库存扣减保持一致。如代码存在缺陷，请指出并给出修复后的完整代码。",
+        "manualReviewRequired": true
+      }
+    }
+  ],
+  "failures": []
+}
