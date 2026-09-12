@@ -16,6 +16,9 @@ import interview.guide.modules.interview.agent.adaptive.core.context.TopicKey;
 import interview.guide.modules.interview.agent.adaptive.core.context.WorkingMemory;
 import interview.guide.modules.interview.agent.adaptive.core.context.WorkingMemoryValidator;
 import interview.guide.modules.interview.agent.adaptive.core.session.SessionMode;
+import interview.guide.modules.interview.agent.adaptive.core.session.AdaptiveInterviewTurn;
+import interview.guide.modules.interview.agent.adaptive.core.session.TurnProvenance;
+import interview.guide.modules.interview.agent.adaptive.core.session.AnswerProcessingStatus;
 import java.time.Duration;
 import java.util.ArrayList;
 import java.util.List;
@@ -220,9 +223,15 @@ class InterviewAgentLoopTest {
             SessionMode.EVALUATION,
             4
         ),
-        new AgentContext.Facts(coverage, List.of(), List.of(), List.of()),
+        new AgentContext.Facts(coverage, List.of(sourceTurn()), List.of(), List.of()),
         memory("target-0", null)
     );
+  }
+
+  private AdaptiveInterviewTurn sourceTurn() {
+    return new AdaptiveInterviewTurn(1, 1, "如何处理并发更新", "验证冲突", "并发更新", null, null, null,
+        TurnProvenance.initial(), List.of(), AnswerProcessingStatus.COMPLETED, null,
+        QuestionType.TEXT, null, null, null, null);
   }
 
   private CoverageView.TargetCoverage targetCoverage(

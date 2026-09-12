@@ -83,10 +83,12 @@ public interface CandidateMemoryEpisodeQueryRepository extends Repository<Episod
              turn.question AS question, turn.answer AS answer,
              turn.codeRepair.submittedCode AS submittedCode, assessment.codeReview AS codeReview,
              assessment.rationaleSummary AS feedbackRationale,
-             turn.codeRepair.codeTaskTurnIndex AS codeTaskTurnIndex
+             turn.codeRepair.codeTaskTurnIndex AS codeTaskTurnIndex,
+             sourceAssessment.turnIndex AS sourceAssessmentTurnIndex
       FROM AdaptiveAgentTurnEntity turn
       LEFT JOIN AdaptiveAgentAssessmentEntity assessment ON assessment.sessionId = turn.sessionId
            AND assessment.turnIndex = turn.turnIndex
+      LEFT JOIN AdaptiveAgentAssessmentEntity sourceAssessment ON sourceAssessment.id = turn.sourceAssessmentId
       WHERE turn.sessionId IN :sessionIds
       """)
   List<PriorTurnProjection> findSessionTurns(Collection<String> sessionIds);
@@ -95,6 +97,7 @@ public interface CandidateMemoryEpisodeQueryRepository extends Repository<Episod
     String getSessionId();
     int getTurnIndex();
     Integer getParentTurnIndex();
+    Integer getSourceAssessmentTurnIndex();
     String getQuestion();
     String getAnswer();
     String getSubmittedCode();

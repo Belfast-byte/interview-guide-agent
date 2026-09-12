@@ -17,6 +17,7 @@ import interview.guide.modules.interview.agent.adaptive.persistence.assessment.A
 import interview.guide.modules.interview.agent.adaptive.planning.*;
 import interview.guide.modules.interview.agent.adaptive.rubric.RubricGenerationStore;
 import interview.guide.modules.interview.agent.adaptive.runtime.AgentDecision;
+import interview.guide.modules.interview.agent.adaptive.application.PendingAssessmentReferences;
 import java.time.Duration;
 import java.util.List;
 import java.util.UUID;
@@ -169,6 +170,37 @@ class CodeRepairTransactionTest {
     assertRejectedWithoutProgress(plan, second, ask(QuestionType.CODE_REPAIR, 2));
     assertThat(turn(plan, 1).candidateAnswer()).isEqualTo(first);
     assertThat(turn(plan, 2).candidateAnswer()).isEqualTo(second);
+  }
+
+  @Test
+  void codeGapCannotBecomeUnlinkedTextAndRejectedCommitRetainsAcceptedAnswer() {
+    var plan = initialize(SessionMode.EVALUATION);
+    var answer = answer(1, CODE);
+    claim(plan, answer, TOKEN);
+    assertThatThrownBy(() -> transactions.commit(gapCommit(plan, answer, null)))
+        .isInstanceOf(IllegalArgumentException.class).hasMessageContaining("代码缺口追问");
+    assertThat(assessments.findBySessionIdAndTurnIndex(plan.sessionId(), 1)).isEmpty();
+    assertThat(episodes.countBySessionId(plan.sessionId())).isZero();
+    assertThat(turns.findBySessionIdOrderByTurnIndex(plan.sessionId())).hasSize(1);
+    assertThat(turn(plan, 1).candidateAnswer()).isEqualTo(answer);
+    transactions.commit(gapCommit(plan, answer, 1));
+    assertThat(turn(plan, 2).codeRepair().codeTaskTurnIndex()).isEqualTo(1);
+  }
+
+  private AdaptiveAnswerTransactionService.AnswerCommit gapCommit(
+      InterviewPlan plan, CandidateAnswer answer, Integer root) {
+    var next = new AgentDecision(WorkingMemory.empty(), new AgentDecision.Ask("target-0",
+        PendingAssessmentReferences.gapId(0),
+        new AgentDecision.QuestionDraft("解释原子性", "验证缺口", List.of(), QuestionType.TEXT, null, root)));
+    var base = commit(plan, answer, next);
+    var assessed = base.facts().progression().assessment();
+    var original = assessed.decision();
+    var gap = new ProbeGap(new SourceQuote(SourceQuote.Source.SUBMITTED_CODE, CODE, 0), "解释原子性");
+    var decision = new AssessmentDecision(plan.sessionId(), 1, DepthLevel.L2, 0.8, "静态代码审阅",
+        original.evidenceQuotes(), List.of(gap), List.of(), original.codeReview());
+    var updated = new AnswerAssessment(assessed.dimension(), decision, assessed.evidences());
+    return new AdaptiveAnswerTransactionService.AnswerCommit(OWNER, base.interview(),
+        new AdaptiveAnswerTransactionService.CommitFacts(answer, new AnswerProgressionDecision(updated, next)), TOKEN);
   }
 
   private void assertRejectedWithoutProgress(InterviewPlan plan, CandidateAnswer answer, AgentDecision next) {

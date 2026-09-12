@@ -22,6 +22,7 @@ import interview.guide.modules.interview.agent.adaptive.planning.InterviewPlan;
 import interview.guide.modules.interview.agent.adaptive.planning.PlannedDimension;
 import interview.guide.modules.interview.agent.adaptive.planning.PlannedInterview;
 import interview.guide.modules.interview.agent.adaptive.runtime.AgentDecision;
+import interview.guide.modules.interview.agent.adaptive.runtime.CodeQuestionValidator;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -222,15 +223,13 @@ public class AdaptiveAnswerTransactionService {
       return TurnProvenance.agentDecision(answer.turnIndex());
     }
     long resolvedGapId = PendingFactReferenceResolver.requireId(sourceGapId, gapIds);
-    long resolvedAssessmentId = PendingAssessmentReferences.pending(sourceGapId)
-        ? commit.saved().assessment().id()
-        : interview.coverage().openProbeGaps().stream()
-            .filter(gap -> gap.gapId() == sourceGapId)
-            .mapToLong(gap -> gap.assessmentId())
-            .findFirst()
-            .orElseThrow();
-    return TurnProvenance.assessmentGap(
-        answer.turnIndex(), resolvedAssessmentId, resolvedGapId);
+    var source = assessments.openGap(interview.history().session().id(),
+        target(interview.plan(), ask.targetId()).order(), resolvedGapId);
+    var sourceTurn = turns.findBySessionIdAndTurnIndex(interview.history().session().id(),
+        source.assessmentTurnIndex()).orElseThrow();
+    CodeQuestionValidator.validateGapReference(
+        ask.question(), sourceTurn.codeRepair().codeTaskTurnIndex());
+    return TurnProvenance.assessmentGap(answer.turnIndex(), source.assessmentId(), resolvedGapId);
   }
 
   private Map<Long, Long> gapIds(List<AssessmentProbeGapEntity> gaps) {

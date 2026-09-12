@@ -197,6 +197,30 @@ class CodeRepairEpisodeQueryTest {
     });
   }
 
+  @ParameterizedTest
+  @CsvSource({"PRACTICE,IN_PROGRESS,true", "EVALUATION,IN_PROGRESS,false", "EVALUATION,COMPLETED,true"})
+  void historicalTextGapChainWithoutTaskReferenceKeepsFeedbackPrivate(
+      SessionMode mode, AdaptiveSessionStatus status, boolean visible) {
+    createSession(mode, status);
+    saveOriginal(mode);
+    var source = assessments.findAll().getFirst();
+    for (int index = 2; index <= 3; index++) {
+      var gap = gaps.saveAndFlush(new AssessmentProbeGapEntity(source, 1,
+          new ProbeGap(new SourceQuote(SourceQuote.Source.ANSWER_TEXT, "共享库存", 0), "原子性缺口")));
+      var text = new AdaptiveAgentTurnEntity(new AdaptiveTurnCreation(SESSION, index, 0,
+          RespondAction.ask("解释原子性", "验证理解"),
+          TurnProvenance.assessmentGap(index - 1, source.id(), gap.id())));
+      text.recordAnswer(new CandidateAnswer(index, "共享库存"));
+      turns.saveAndFlush(text);
+      source = saveEpisode(text, mode, null);
+    }
+    var view = query.latest(OWNER).getFirst();
+    assertThat(view.questionType()).isEqualTo(QuestionType.TEXT);
+    assertThat(view.codeTaskTurnIndex()).isNull();
+    if (visible) assertThat(view.rationaleSummary()).isEqualTo("文字回答评估");
+    else assertThat(view.rationaleSummary()).isNull();
+  }
+
   private void createSession(SessionMode mode, AdaptiveSessionStatus status) {
     var scope = mode == SessionMode.PRACTICE ? new PracticeScope(List.of(TOPIC)) : PracticeScope.none();
     var settings = new InterviewSessionSettings(mode, CandidateLevel.EXPERIENCED, scope);

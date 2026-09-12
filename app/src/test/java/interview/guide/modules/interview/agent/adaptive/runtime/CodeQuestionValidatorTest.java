@@ -37,6 +37,20 @@ class CodeQuestionValidatorTest {
     assertThatThrownBy(invalid::validate).hasMessageContaining("ID 重复");
   }
 
+  @Test
+  void codeGapFollowupMustRetainItsTaskButCanStartAnExplicitNewTask() {
+    assertThatThrownBy(() -> CodeQuestionValidator.validateGapReference(question(QuestionType.TEXT, null, null), 1))
+        .hasMessageContaining("代码缺口追问");
+    assertThatThrownBy(() -> CodeQuestionValidator.validateGapReference(question(QuestionType.TEXT, null, 2), 1))
+        .hasMessageContaining("代码缺口追问");
+    assertThatCode(() -> CodeQuestionValidator.validateGapReference(question(QuestionType.TEXT, null, 1), 1))
+        .doesNotThrowAnyException();
+    assertThatCode(() -> CodeQuestionValidator.validateGapReference(question(QuestionType.TEXT, null, null), null))
+        .doesNotThrowAnyException();
+    assertThatCode(() -> CodeQuestionValidator.validateGapReference(question(QuestionType.CODE_REPAIR, task(), null), 1))
+        .doesNotThrowAnyException();
+  }
+
   private AgentDecision.QuestionDraft question(QuestionType type, CodeRepairTask task, Integer root) {
     return new AgentDecision.QuestionDraft("修复库存预留", "验证并发", List.of(), type, task, root);
   }

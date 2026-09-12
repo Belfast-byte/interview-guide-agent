@@ -25,7 +25,7 @@ class DecisionContextProjectionTest {
         .doesNotContain("OLD_INITIAL", "OLD_SUBMISSION", "FIRST_SUBMISSION");
     var draft = new AgentDecision.QuestionDraft("再修改", "验证", List.of(),
         CodeRepairTask.QuestionType.CODE_REPAIR, null, 1);
-    assertThatCode(() -> CodeQuestionValidator.validate(draft, context)).doesNotThrowAnyException();
+    assertThatCode(() -> CodeQuestionValidator.validate(new AgentDecision.Ask("target-0", null, draft), context)).doesNotThrowAnyException();
     assertThat(context.facts().recentTurns().getFirst().codeTask().initialCode()).isEqualTo("OLD_INITIAL");
   }
 

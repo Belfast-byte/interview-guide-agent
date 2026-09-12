@@ -103,7 +103,7 @@ public class AgentDecisionValidator {
       return summary;
     }
     try {
-      CodeQuestionValidator.validate(ask.question(), context);
+      CodeQuestionValidator.validate(ask, context);
     } catch (IllegalArgumentException e) {
       return rejection("action.ask.question", e.getMessage());
     }

@@ -52,6 +52,12 @@ class AdaptiveAssessmentRepositories {
     }
   }
 
+  AssessmentProbeGapEntity openGap(String sessionId, int dimensionOrder, long gapId) {
+    return gaps.findOpenForTarget(sessionId, dimensionOrder).stream()
+        .filter(gap -> gap.id() == gapId).findFirst()
+        .orElseThrow(() -> new IllegalArgumentException("追问缺口不属于所选维度或已关闭"));
+  }
+
   List<AdaptiveAgentEvidenceEntity> saveEvidences(
       List<AdaptiveAgentEvidenceEntity> entities
   ) {

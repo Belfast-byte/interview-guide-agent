@@ -25,8 +25,10 @@ public final class CodeQuestionValidator {
     }
   }
 
-  public static void validate(AgentDecision.QuestionDraft question, AgentContext context) {
+  public static void validate(AgentDecision.Ask ask, AgentContext context) {
+    var question = ask.question();
     validateShape(question);
+    if (ask.sourceGapId() != null) validateGapSource(ask, context);
     if (question.codeTaskTurnIndex() == null) return;
     var root = context.facts().recentTurns().stream()
         .filter(turn -> turn.turnIndex() == question.codeTaskTurnIndex()).findFirst()
@@ -37,6 +39,21 @@ public final class CodeQuestionValidator {
     if (question.questionType() == QuestionType.CODE_REPAIR
         && context.session().mode() != SessionMode.PRACTICE) {
       throw new IllegalArgumentException("评估模式只能对已提交代码进行文字追问");
+    }
+  }
+  private static void validateGapSource(AgentDecision.Ask ask, AgentContext context) {
+    var gap = context.facts().coverage().openProbeGaps().stream()
+        .filter(item -> item.gapId() == ask.sourceGapId()).findFirst().orElseThrow();
+    var source = context.facts().recentTurns().stream()
+        .filter(turn -> turn.turnIndex() == gap.sourceTurnIndex()).findFirst().orElseThrow();
+    validateGapReference(ask.question(), source.codeTaskTurnIndex());
+  }
+
+  /** 追问代码缺口须沿用原任务；显式生成的新代码任务仍可验证同一缺口。 */
+  public static void validateGapReference(AgentDecision.QuestionDraft question, Integer sourceRoot) {
+    if (question.codeTask() == null && sourceRoot != null
+        && !java.util.Objects.equals(question.codeTaskTurnIndex(), sourceRoot)) {
+      throw new IllegalArgumentException("代码缺口追问必须引用来源的原始代码任务");
     }
   }
 }

@@ -69,7 +69,7 @@ public class EpisodeQueryService {
 
   private EpisodeView view(EpisodeProjection fact, List<AssessmentProbeGapEntity> missing,
       Map<Integer, PriorTurnProjection> turns) {
-    boolean visible = fact.getCodeTaskTurnIndex() == null || fact.getSessionMode() == SessionMode.PRACTICE
+    boolean visible = !codeRelated(fact.getTurnIndex(), turns) || fact.getSessionMode() == SessionMode.PRACTICE
         || fact.getSessionStatus() == AdaptiveSessionStatus.COMPLETED;
     return new EpisodeView(fact.getEpisodeId(), fact.getSessionId(), fact.getTurnIndex(),
         fact.getSessionMode(), fact.getAssessmentId(),
@@ -85,10 +85,17 @@ public class EpisodeQueryService {
     Integer closingTurn = gap.closedByTurnIndex();
     boolean visible = closingTurn == null || fact.getSessionMode() == SessionMode.PRACTICE
         || fact.getSessionStatus() == AdaptiveSessionStatus.COMPLETED
-        || turns.get(closingTurn).getCodeTaskTurnIndex() == null;
+        || !codeRelated(closingTurn, turns);
     return new Gap(gap.id(), gap.toDomain().anchor().quote(), gap.toDomain().missingPoint(),
         gap.closedByAssessmentId(), visible ? gap.closureEvidenceQuote() : null,
         visible ? gap.closureSummary() : null, gap.anchorLocator(), visible ? gap.closureEvidenceLocator() : null);
+  }
+
+  /** 历史追问即使遗漏任务引用，正式 gap 来源仍决定其反馈权限。 */
+  private boolean codeRelated(int turnIndex, Map<Integer, PriorTurnProjection> turns) {
+    var turn = java.util.Objects.requireNonNull(turns.get(turnIndex), "缺少反馈来源轮次");
+    Integer source = turn.getSourceAssessmentTurnIndex();
+    return turn.getCodeTaskTurnIndex() != null || (source != null && codeRelated(source, turns));
   }
 
   private CodeRepairTaskResponse publicTask(EpisodeProjection fact) {
