@@ -129,3 +129,17 @@ it('状态恢复失败只读锁定的草稿仍标为当前修改，不冒充正�
   expect(EditorView.findFromDOM(screen.getByRole('textbox', { name: 'Java 代码（只读）' }))!.state.doc.toString()).toBe(repaired);
   expect(JSON.parse(sessionStorage.getItem(draftKey('candidate', 'repair', 1))!).code).toBe(repaired);
 });
+
+it('损坏的代码草稿必须保留错误提示且不能被初始代码自动覆盖', async () => {
+  const key = draftKey('candidate', 'repair', 1);
+  sessionStorage.setItem(key, '{broken-draft');
+  vi.mocked(adaptiveInterviewApi.get).mockResolvedValue(snapshot());
+  mount();
+  await screen.findByRole('textbox', { name: 'Java 代码' });
+  await waitFor(() => expect(screen.getByRole('textbox', { name: 'Java 代码' }).textContent).toContain('stocks.set(0)'));
+  expect(sessionStorage.getItem(key)).toBe('{broken-draft');
+  expect(screen.queryByText(/草稿恢复失败/)).not.toBeNull();
+  await edit(repaired);
+  expect(JSON.parse(sessionStorage.getItem(key)!).code).toBe(repaired);
+  expect(screen.queryByText(/草稿恢复失败/)).toBeNull();
+});

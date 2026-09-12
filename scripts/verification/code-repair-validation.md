@@ -94,3 +94,9 @@ java -cp "$APP_RUNTIME_CLASSPATH" scripts/verification/ValidateCodeRepairModelSa
 ```
 
 `ValidateCodeRepairModelSample.java` 对评估执行真实引用和审阅校验，对首题执行真实计划和提案校验；不会重新调用模型。环境 provider 的请求示例已保留在脚本参数中，未写入任何固定 API key。
+
+## 审查问题 2、3 回归（2026-09-12）
+
+代码缺口任务引用在模型校验和正式提交中核对；历史遗漏引用的文字追问按正式评估来源链隔离反馈。损坏代码草稿不再被编辑器初始化覆盖，恢复错误保留至实际编辑。MCP 审查问题按用户要求暂不处理。
+
+本轮验证：PostgreSQL 16.14 环境下后端联合回归 343 项全部通过，0 失败、0 跳过，38.17 秒（`timeout 60s`）；前端 32 项通过，生产构建通过。构建仍有原有 Browserslist 数据与 CSS `:where` 警告。

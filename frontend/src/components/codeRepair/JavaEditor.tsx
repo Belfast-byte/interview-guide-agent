@@ -1,9 +1,11 @@
 import { useEffect, useRef } from 'react';
 import { basicSetup } from 'codemirror';
-import { EditorState } from '@codemirror/state';
+import { Annotation, EditorState } from '@codemirror/state';
 import { EditorView } from '@codemirror/view';
 import { java } from '@codemirror/lang-java';
 import { MergeView } from '@codemirror/merge';
+
+const externalCodeSync = Annotation.define<boolean>();
 
 const theme = EditorView.theme({
   '&': { background: 'var(--raised)', color: 'var(--ink)', fontSize: '13px' },
@@ -27,7 +29,9 @@ export default function JavaEditor(props: {
       extensions: [...extensions(Boolean(props.readOnly)),
         EditorView.contentAttributes.of({ 'aria-label': props.readOnly ? 'Java 代码（只读）' : 'Java 代码' }),
         EditorView.updateListener.of(update => {
-          if (update.docChanged) onChange.current?.(update.state.doc.toString());
+          if (update.transactions.some(transaction => transaction.docChanged && !transaction.annotation(externalCodeSync))) {
+            onChange.current?.(update.state.doc.toString());
+          }
         })],
     });
     view.current = editor;
@@ -36,7 +40,8 @@ export default function JavaEditor(props: {
   useEffect(() => {
     const editor = view.current;
     if (editor && editor.state.doc.toString() !== props.code) {
-      editor.dispatch({ changes: { from: 0, to: editor.state.doc.length, insert: props.code } });
+      editor.dispatch({ changes: { from: 0, to: editor.state.doc.length, insert: props.code },
+        annotations: externalCodeSync.of(true) });
     }
   }, [props.code]);
   return <div ref={host} className="min-w-0 overflow-hidden border border-line" />;
