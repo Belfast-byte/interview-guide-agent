@@ -1,19 +1,14 @@
 package interview.guide.modules.interview.agent.adaptive.persistence.session;
 
-import static interview.guide.modules.interview.agent.adaptive.support.AdaptiveTestFixtures.EVALUATION_SETTINGS;
-import static interview.guide.modules.interview.agent.adaptive.support.AdaptiveTestFixtures.testPlan;
-import static org.assertj.core.api.Assertions.assertThat;
-import static org.assertj.core.api.Assertions.assertThatThrownBy;
-
+import interview.guide.common.exception.BusinessException;
 import interview.guide.modules.interview.agent.adaptive.core.context.WorkingMemory;
 import interview.guide.modules.interview.agent.adaptive.core.session.AdaptiveSessionStatus;
-import interview.guide.modules.interview.agent.adaptive.memory.episode.QuestionIdentityFactory;
-import interview.guide.modules.interview.agent.adaptive.persistence.memory.QuestionExposurePersistence;
+import interview.guide.modules.interview.agent.adaptive.memory.episode.exposure.QuestionExposureEntity;
+import interview.guide.modules.interview.agent.adaptive.memory.episode.exposure.QuestionExposurePersistence;
 import interview.guide.modules.interview.agent.adaptive.planning.DimensionProposal;
 import interview.guide.modules.interview.agent.adaptive.planning.InterviewPlan;
 import interview.guide.modules.interview.agent.adaptive.planning.PlanProposal;
 import interview.guide.modules.interview.agent.adaptive.runtime.AgentDecision;
-import interview.guide.common.exception.BusinessException;
 import jakarta.persistence.EntityManager;
 import java.util.List;
 import org.junit.jupiter.api.DisplayName;
@@ -23,17 +18,19 @@ import org.springframework.boot.data.jpa.test.autoconfigure.DataJpaTest;
 import org.springframework.context.annotation.Import;
 import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
+import static interview.guide.modules.interview.agent.adaptive.support.AdaptiveTestFixtures.EVALUATION_SETTINGS;
+import static interview.guide.modules.interview.agent.adaptive.support.AdaptiveTestFixtures.testPlan;
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 @DataJpaTest(showSql = false, properties = {
     "spring.flyway.enabled=false",
     "spring.jpa.hibernate.ddl-auto=create-drop"
 })
 @Import({
-    interview.guide.modules.interview.agent.adaptive.persistence.memory.JpaMemoryEvidenceService.class,
     interview.guide.modules.interview.agent.adaptive.persistence.session.RubricSnapshotResolver.class,
     AdaptiveCreationTransactionService.class,
-    QuestionExposurePersistence.class,
-    QuestionIdentityFactory.class
+    QuestionExposurePersistence.class
 })
 class AdaptiveCreationTransactionServiceTest {
 

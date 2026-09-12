@@ -1,11 +1,11 @@
 # Agent Loop 与 Working Memory 演进规格
 
 > 维护：Agent；上游产品意图以 [面试 Agent 的运行方式](../design/03-agent-loop-and-working-memory.md) 为准。
-> 状态：已实施，作为当前 Agent 运行与记忆边界的技术权威。
+> 状态：Agent Loop 规则继续适用；冲突的记忆目标以 [38 号业务复用规格](./38-memory-business-reuse-spec.md) 为准，38 的业务复用代码已实现，验证边界见 37。
 > 依据：[2026-08-29 架构审计](../review/adaptive-agent-complexity-audit-2026-08-29.md)。
-> 最后更新：2026-08-30
+> 最后更新：2026-09-12
 
-本规格取代 34 号 v4 中 WorkState/Patch/ActionIntent 和固定 NextActionPolicy，取代 35 号旧 T02/T03，并校准 10/11/12/13/14/20 中的模型/Java、Tool 和恢复边界。Episodic/Semantic 的当前目标仍见 [34-memory-three-layer-spec.md](./34-memory-three-layer-spec.md) v5。
+本规格取代 34 号 v4 中 WorkState/Patch/ActionIntent 和固定 NextActionPolicy，取代 35 号旧 T02/T03，并校准 10/11/13/14/20 中的模型/Java、Tool 和恢复边界。三层记忆的当前目标见 [38-memory-business-reuse-spec.md](./38-memory-business-reuse-spec.md)；Java 改错题的新增契约见 [40 号规格](./40-java-code-repair-spec.md)，尚未实施。
 
 ## 0. 目标与非目标
 
@@ -119,7 +119,7 @@ Java 拒绝非法提案时返回结构化 validation Observation，由模型重�
 
 - Turn 保存用户真正看到的问题、回答、target 和最终采用的 provenance。
 - Snapshot 与问题在同一 Turn 保存；`(session_id, turn_index)` 继续唯一。
-- answer 使用条件更新，只能从 null 写入一次；不同 payload 重放必须显式冲突。
+- 答案使用条件更新，每轮只能接受一次；不同 payload 重放必须显式冲突。40 号规格中的改错代码与可选说明共同构成答案，不能仅按文字是否为 null 判断提交状态。
 - 删除 `uk_agent_turn_source_probe_gap`，保留外键：同一 Gap 允许用不同场景多轮验证。
 - 不保存只读 Tool 的每次执行，只保存最终采用的 Rubric/Question/Exposure 引用。
 
@@ -130,7 +130,7 @@ Java 拒绝非法提案时返回结构化 validation Observation，由模型重�
 - ProbeGap 是带 Assessment/Turn 来源的正式事实；后续 Assessment 可以记录其关闭事实。
 - 因 Target 预算耗尽关闭的 Gap 必须记录 closing Assessment 与 `BUDGET_EXHAUSTED` 原因；该 Assessment 是该模块的最终评级事实。
 - Rubric/题库 Observation 只提供问题或评分 provenance，不自动成为候选人能力 Evidence。
-- 沙箱和代码分析结果以稳定 execution/artifact ID 进入 Evidence。
+- 沙箱结果以稳定 execution ID 进入 Evidence；[40 号 Java 改错题规格](./40-java-code-repair-spec.md) 的候选人代码通过有来源的 quote 形成证据，不生成运行结果。
 
 ## 5. Working Memory 契约
 
@@ -210,7 +210,7 @@ Tool 必须同时满足：是否调用由模型决定、关键参数依赖语义
 | 题库语义搜索 | 真 Tool；当前无闭环则先删除，需求上线再恢复 | 只存采用题目 provenance |
 | `memory_search` | 真 Tool；按 EVALUATION/PRACTICE 过滤 | 只存采用的 Episode/Exposure 引用 |
 | Session/state/config/planner lookup | ContextAssembler/普通读取 | 否 |
-| `code.trace` | 真只读 Agent Tool | 只存采用的 artifact provenance |
+| Java 业务代码改错题 | ASK 题型与答案评估，见 40 号规格 | 原始任务、各次提交、Assessment 与来源引用 |
 | sandbox submit | Application Command | SandboxExecution |
 
 现有 ToolGateway 收缩为无状态只读 executor，只负责 allowlist、schema、tenant/scope、provenance、deadline 和 dispatch。删除 read-only ToolExecution、invocation idempotency、pending 和 recovery。Tool 输出视为不可信数据，不得提升为 system instruction。

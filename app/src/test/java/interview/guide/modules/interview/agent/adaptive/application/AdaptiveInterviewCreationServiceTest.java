@@ -27,6 +27,8 @@ import java.util.List;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.ValueSource;
 
 class AdaptiveInterviewCreationServiceTest {
 
@@ -51,7 +53,7 @@ class AdaptiveInterviewCreationServiceTest {
   @Test
   @DisplayName("创建链直接校验并发布模型同次返回的计划和首题")
   void shouldPublishInitialDecisionWithoutSecondModelCall() {
-    var run = run(decision());
+    var run = run(decision(), List.of());
     PlannedInterview initialized = mock(PlannedInterview.class);
     PlannedInterview completed = mock(PlannedInterview.class);
     when(persistence.get("session-1")).thenReturn(initialized, completed);
@@ -71,7 +73,7 @@ class AdaptiveInterviewCreationServiceTest {
             new AgentDecision.QuestionDraft("", "理由", List.of())
         )
     );
-    var run = run(invalid);
+    var run = run(invalid, List.of());
 
     assertThatThrownBy(() -> service.create(run))
         .isInstanceOf(BusinessException.class)
@@ -79,20 +81,52 @@ class AdaptiveInterviewCreationServiceTest {
     verify(transactions, never()).create(run.creation(), run.plan(), run.decision());
   }
 
-  private AdaptiveInterviewCreationService.InitialAgentRun run(AgentDecision decision) {
+  @Test
+  @DisplayName("首题采用本次规划提供的 Episode 时通过创建校验并保留采用来源")
+  void shouldCreateWithTrustedPlanningHistory() {
+    var available = List.of("episode:7", "episode:8");
+    var adopted = new InitialQuestionProposal(
+        0, "换一个场景验证并发更新。", "参考上次回答", "验证冲突处理", List.of("episode:7")
+    ).toDecision(plan(), available);
+    var run = run(adopted, available);
+
+    service.create(run);
+
+    verify(transactions).create(run.creation(), run.plan(), adopted);
+  }
+
+  @ParameterizedTest
+  @ValueSource(booleans = {true, false})
+  @DisplayName("首题记忆或问题中的伪造 Episode 不会因创建校验放行")
+  void shouldRejectUnprovidedEpisode(boolean includeInMemory) {
+    var forged = List.of("episode:999");
+    var memory = includeInMemory ? WorkingMemory.empty().withEpisodeReferences(forged)
+        : WorkingMemory.empty();
+    var decision = new AgentDecision(memory, new AgentDecision.Ask("target-0", null,
+        new AgentDecision.QuestionDraft("请展开说明。", "验证边界", forged)));
+    var run = run(decision, List.of("episode:7"));
+
+    assertThatThrownBy(() -> service.create(run))
+        .isInstanceOf(BusinessException.class)
+        .hasMessageContaining(includeInMemory ? "workingMemory" : "adoptedSourceRefs");
+    verify(transactions, never()).create(run.creation(), run.plan(), run.decision());
+  }
+
+  private AdaptiveInterviewCreationService.InitialAgentRun run(AgentDecision decision, List<String> availableRefs) {
     return new AdaptiveInterviewCreationService.InitialAgentRun(
         new AdaptiveSessionCreation(
             null, "session-1", "candidate-1", "JD", "Resume", "provider-1",
             null, null, EVALUATION_SETTINGS),
         plan(),
-        decision
+        decision,
+        availableRefs
     );
   }
 
   private AgentDecision decision() {
     return new InitialQuestionProposal(
-        0, "请说明缓存并发更新的冲突处理。", "验证并发边界", "验证冲突处理"
-    ).toDecision(plan());
+        0, "请说明缓存并发更新的冲突处理。", "验证并发边界", "验证冲突处理", List.of()
+    ).toDecision(plan(), List.of());
   }
 
   private InterviewPlan plan() {

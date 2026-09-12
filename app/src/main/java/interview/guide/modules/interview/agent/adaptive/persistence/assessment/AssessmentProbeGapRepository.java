@@ -44,6 +44,7 @@ public interface AssessmentProbeGapRepository
       SELECT gap
       FROM AssessmentProbeGapEntity gap
       JOIN FETCH gap.assessment assessment
+      LEFT JOIN FETCH gap.closedByAssessment
       WHERE assessment.id IN :assessmentIds
       ORDER BY assessment.id, gap.gapOrder, gap.id
       """)

@@ -26,9 +26,7 @@ import jakarta.persistence.UniqueConstraint;
 import java.time.LocalDateTime;
 import java.util.List;
 
-/**
- * AdaptiveAgentTurnEntity JPA 实体，对应数据库中的相关表。
- */
+/** 轮次保存原始问答、已采用量规及当前 Working Memory。 */
 @Entity
 @Table(
     name = "agent_turns",
@@ -122,19 +120,6 @@ public class AdaptiveAgentTurnEntity {
   @Column(name = "adopted_rubrics_json", nullable = false, columnDefinition = "TEXT")
   private List<AdoptedRubricSource> adoptedRubrics;
 
-  @Column(name = "adopted_memory_refs", columnDefinition = "TEXT")
-  private String adoptedMemoryRefs;
-
-  public void recordMemorySources(java.util.List<String> references) {
-    adoptedMemoryRefs = new tools.jackson.databind.ObjectMapper().writeValueAsString(references);
-  }
-
-  public java.util.List<String> memorySources() {
-    return adoptedMemoryRefs == null ? java.util.List.of() :
-        java.util.List.copyOf(new tools.jackson.databind.ObjectMapper().readValue(adoptedMemoryRefs,
-            new tools.jackson.core.type.TypeReference<java.util.List<String>>() {}));
-  }
-
   @Column(name = "answer_execution_token", length = 36)
   private String answerExecutionToken;
 
@@ -186,11 +171,6 @@ public class AdaptiveAgentTurnEntity {
     }
   }
 
-  public void complete(CandidateAnswer candidateAnswer, RespondAction action) {
-    recordAnswer(candidateAnswer);
-    recordResponse(action);
-  }
-
   public void recordAnswer(CandidateAnswer candidateAnswer) {
     answer = candidateAnswer.content();
     CandidateCodeSubmission submission = candidateAnswer.codeSubmission();
@@ -229,7 +209,6 @@ public class AdaptiveAgentTurnEntity {
   }
 
   private interview.guide.modules.interview.agent.adaptive.core.session.AnswerProcessingStatus answerStatus() {
-    var status = interview.guide.modules.interview.agent.adaptive.core.session.AnswerProcessingStatus.class;
     if (responseType != null) return interview.guide.modules.interview.agent.adaptive.core.session.AnswerProcessingStatus.COMPLETED;
     if (answer == null) return interview.guide.modules.interview.agent.adaptive.core.session.AnswerProcessingStatus.WAITING;
     return processing() ? interview.guide.modules.interview.agent.adaptive.core.session.AnswerProcessingStatus.PROCESSING
@@ -254,20 +233,9 @@ public class AdaptiveAgentTurnEntity {
   }
 
   public AdaptiveInterviewTurn toDomain() {
-    return new AdaptiveInterviewTurn(
-        turnIndex,
-        dimensionOrder,
-        question,
-        questionReason,
-        answer,
-        responseType,
-        responseContent,
-        decisionReason,
-        provenance(),
-        adoptedRubrics,
-        answerStatus(),
-        answerError
-    );
+    return new AdaptiveInterviewTurn(turnIndex, dimensionOrder, question, questionReason,
+        answer, responseType, responseContent, decisionReason, provenance(), adoptedRubrics,
+        answerStatus(), answerError);
   }
 
   private TurnProvenance provenance() {
@@ -312,14 +280,6 @@ public class AdaptiveAgentTurnEntity {
     return answer;
   }
 
-  public String questionSourceId() {
-    return questionSourceId;
-  }
-
-  public String questionDifficulty() {
-    return questionDifficulty;
-  }
-
   public String codeSourceId() {
     return codeSourceId;
   }
@@ -336,19 +296,4 @@ public class AdaptiveAgentTurnEntity {
     return codeFactUsage;
   }
 
-  public Integer parentTurnIndex() {
-    return parentTurnIndex;
-  }
-
-  public TurnTriggerType triggerType() {
-    return triggerType;
-  }
-
-  public Long sourceAssessmentId() {
-    return sourceAssessmentId;
-  }
-
-  public Long sourceProbeGapId() {
-    return sourceProbeGapId;
-  }
 }

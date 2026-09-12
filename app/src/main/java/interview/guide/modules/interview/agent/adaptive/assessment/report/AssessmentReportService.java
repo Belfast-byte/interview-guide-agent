@@ -2,7 +2,6 @@ package interview.guide.modules.interview.agent.adaptive.assessment.report;
 
 import interview.guide.common.exception.BusinessException;
 import interview.guide.common.exception.ErrorCode;
-import interview.guide.modules.interview.agent.adaptive.assessment.FinalAssessmentSelector;
 import interview.guide.modules.interview.agent.adaptive.core.context.DepthLevel;
 import interview.guide.modules.interview.agent.adaptive.core.session.AdaptiveSessionStatus;
 import java.util.Comparator;
@@ -17,12 +16,6 @@ public class AssessmentReportService {
 
   public static final String ENTERPRISE_DISCLAIMER =
       "AI 初筛建议，不构成录用决定";
-
-  private static final Comparator<AssessmentReportTurnFacts> FINAL_ASSESSMENT =
-      FinalAssessmentSelector.byDepthThenTurn(
-          AssessmentReportTurnFacts::depthLevel,
-          AssessmentReportTurnFacts::turnIndex
-      );
 
   private final AssessmentReportFactsSource source;
 
@@ -95,12 +88,10 @@ public class AssessmentReportService {
   private AssessmentReportTurnFacts finalAssessment(
       AssessmentReportDimensionFacts dimension
   ) {
+    // 报告表达本场最近表现；预算耗尽和历史最高分都不能覆盖后续正式评估。
     return dimension.assessments().stream()
-        .filter(AssessmentReportTurnFacts::budgetExhaustedFinal)
         .max(Comparator.comparingInt(AssessmentReportTurnFacts::turnIndex))
-        .orElseGet(() -> dimension.assessments().stream()
-            .max(FINAL_ASSESSMENT)
-            .orElseThrow());
+        .orElseThrow();
   }
 
   private List<CandidateWeakPoint> weakPoints(

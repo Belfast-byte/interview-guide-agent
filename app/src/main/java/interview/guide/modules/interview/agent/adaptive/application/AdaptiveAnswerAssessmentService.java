@@ -48,7 +48,10 @@ public class AdaptiveAnswerAssessmentService {
                 answeredTurn.adoptedRubrics().stream()
                     .filter(r -> r.body() != null && !r.body().isBlank()).toList(),
                 interview.coverage().openProbeGaps().stream().filter(g -> g.targetId().equals(
-                    CoverageProjector.targetId(dimension.order()))).toList()
+                    CoverageProjector.targetId(dimension.order()))).toList(),
+                // 只提供本场原始前文来识别提示条件，不传跨场 Episode 或历史评级。
+                history.turns().stream().filter(turn -> turn.turnIndex() < answer.turnIndex())
+                    .map(turn -> turn.answerContext()).toList()
             ),
             skillService.buildEvaluationReferenceSection(dimension.suggestedSkill())
         ),

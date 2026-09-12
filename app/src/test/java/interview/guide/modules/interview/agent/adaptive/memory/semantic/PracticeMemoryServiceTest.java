@@ -1,50 +1,73 @@
 package interview.guide.modules.interview.agent.adaptive.memory.semantic;
 
-import static org.assertj.core.api.Assertions.assertThat;
-import static org.mockito.Mockito.mock;
-import static org.mockito.Mockito.when;
-
-import interview.guide.modules.interview.agent.adaptive.core.context.DepthLevel;
 import interview.guide.modules.interview.agent.adaptive.core.context.MemoryOwner;
 import interview.guide.modules.interview.agent.adaptive.core.context.TopicKey;
 import interview.guide.modules.interview.agent.adaptive.core.session.PracticeScope;
-import java.time.LocalDateTime;
+import interview.guide.modules.interview.agent.adaptive.memory.episode.EpisodeQueryService;
+import interview.guide.modules.interview.skill.InterviewSkillService;
 import java.util.List;
-import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.mockito.Mockito.*;
 
 class PracticeMemoryServiceTest {
-
-  private static final MemoryOwner OWNER = new MemoryOwner(null, "candidate-1");
-  private static final TopicKey REDIS = new TopicKey("redis", "persistence");
-  private static final TopicKey JVM = new TopicKey("java", "jvm");
+  private final EpisodeQueryService episodes = mock(EpisodeQueryService.class);
+  private final InterviewSkillService skills = mock(InterviewSkillService.class);
+  private final PracticeMemoryService memory = new PracticeMemoryService(episodes, skills);
+  private final MemoryOwner owner = new MemoryOwner(null, "candidate");
+  private final TopicKey topic = new TopicKey("java-backend", "CONCURRENCY");
 
   @Test
-  @DisplayName("练习 planning view 保持请求 scope 且不会被画像扩张")
-  void shouldKeepPlanningViewInsideScope() {
-    SemanticStateSource source = mock(SemanticStateSource.class);
-    when(source.findByOwner(OWNER)).thenReturn(List.of(evaluation(REDIS), evaluation(JVM)));
-
-    PracticePlanningMemory memory = new PracticeMemoryService(source)
-        .planning(OWNER, new PracticeScope(List.of(REDIS)));
-
-    assertThat(memory.topics())
-        .extracting(PracticePlanningTopic::topic)
-        .containsExactly(REDIS);
-    assertThat(memory.topics().getFirst().status().evaluatedAbility())
-        .isNull();
-    org.mockito.Mockito.verify(source, org.mockito.Mockito.never()).findByOwner(OWNER);
+  void practiceUsesExistingExperienceOnlyWithinSelectedScope() {
+    var latest = episode(topic);
+    when(episodes.recent(eq(owner), eq(topic), any())).thenReturn(List.of(latest));
+    var history = memory.planning(owner, new PracticeScope(List.of(topic)));
+    assertThat(history.topics()).singleElement().satisfies(item -> {
+      assertThat(item.topic()).isEqualTo(topic);
+      assertThat(item.episodes()).containsExactly(latest);
+    });
+    verify(episodes).recent(eq(owner), eq(topic), any());
+    verifyNoMoreInteractions(episodes);
   }
 
-  private EvaluationSemanticState evaluation(TopicKey topic) {
-    EvaluationStatistics statistics = new EvaluationStatistics(List.of(0L, 0L, 1L, 0L, 0L));
-    return new EvaluationSemanticState(
-        new SemanticStateKey(OWNER, topic, SemanticTrack.EVALUATED_CAPABILITY),
-        1,
-        statistics,
-        statistics.ability(),
-        List.of(),
-        LocalDateTime.of(2026, 8, 28, 10, 0)
-    );
+  @Test
+  void profileGroupsBySkillAndLeavesUnassessedTopicsWithoutGrade() {
+    var latest = episode(topic);
+    var testing = episode(new TopicKey("testing", "CONCURRENCY"));
+    when(episodes.latest(owner)).thenReturn(List.of(latest, testing));
+    when(skills.getAllSkills()).thenReturn(List.of(skill("Java 开发")));
+
+    var profile = memory.profile(owner);
+    assertThat(profile).hasSize(2);
+    assertThat(profile.getFirst().skillId()).isEqualTo("java-backend");
+    assertThat(profile.getFirst().skillName()).isEqualTo("Java 开发");
+    assertThat(profile.getFirst().topics().getFirst().latest()).isSameAs(latest);
+    assertThat(profile.getFirst().topics().getLast().latest()).isNull();
+    assertThat(profile.getLast().topics().getFirst().latest()).isSameAs(testing);
+
+    when(skills.getAllSkills()).thenReturn(List.of(skill("Java 工程师")));
+    assertThat(memory.profile(owner).getFirst().skillId()).isEqualTo("java-backend");
+  }
+
+  @Test
+  void planningExposesQueryErrorsWithoutEmptyFallback() {
+    var failure = new IllegalStateException("database unavailable");
+    when(episodes.recent(any(), any(), any())).thenThrow(failure);
+    assertThatThrownBy(() -> memory.planning(owner, new PracticeScope(List.of(topic))))
+        .isSameAs(failure);
+  }
+
+  private EpisodeQueryService.EpisodeView episode(TopicKey key) {
+    var episode = mock(EpisodeQueryService.EpisodeView.class);
+    when(episode.topic()).thenReturn(key);
+    return episode;
+  }
+
+  private InterviewSkillService.SkillDTO skill(String name) {
+    return new InterviewSkillService.SkillDTO("java-backend", name, "Java 开发", List.of(
+        new InterviewSkillService.SkillCategoryDTO("CONCURRENCY", "并发", "high", null, false),
+        new InterviewSkillService.SkillCategoryDTO("JVM", "虚拟机", "high", null, false)),
+        true, null, null, null);
   }
 }

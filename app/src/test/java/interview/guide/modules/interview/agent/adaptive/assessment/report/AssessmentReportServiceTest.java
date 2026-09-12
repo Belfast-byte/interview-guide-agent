@@ -6,6 +6,8 @@ import interview.guide.modules.interview.agent.adaptive.core.session.AdaptiveSes
 import java.util.List;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.EnumSource;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
@@ -81,27 +83,39 @@ class AssessmentReportServiceTest {
         .hasFieldOrPropertyWithValue("code", 3007);
   }
 
-  @Test
-  @DisplayName("预算耗尽时使用当前轮评级而不是历史最高评级")
-  void shouldUseBudgetFinalAssessment() {
+  @ParameterizedTest
+  @EnumSource(value = DepthLevel.class, names = {"L0", "L1", "L3"})
+  @DisplayName("报告按轮次取最近表现，改善和下降均保留该轮理由与证据")
+  void shouldUseLatestAssessment(DepthLevel latestDepth) {
+    var latest = latestDepth == DepthLevel.L0
+        ? new AssessmentReportTurnFacts(5, latestDepth, 0.8, "本轮没有有效证据", List.of())
+        : assessment(5, latestDepth, "本轮验证结果", "本轮回答原文");
     AssessmentReportDimensionFacts dimension = new AssessmentReportDimensionFacts(
         0,
         "工具设计",
         "失败边界",
         List.of(
-            assessment(1, DepthLevel.L3, "历史较高评级", "说明了幂等"),
-            new AssessmentReportTurnFacts(
-                3, DepthLevel.L1, 0.8, "当前验证仍不充分", List.of(), true)
-        )
+            latest,
+            assessment(3, DepthLevel.L2, "之前的验证结果", "之前的回答原文")
+        ),
+        List.of("尚未说明失败恢复")
     );
     AssessmentReportFacts facts = new AssessmentReportFacts(
         "session-1", "candidate-1", AdaptiveSessionStatus.COMPLETED,
         List.of(dimension), List.of(), List.of());
 
-    CandidateAssessmentReport report = new AssessmentReportService(
-        new StubFactsSource(facts)).candidateReport("session-1");
-
-    assertThat(report.dimensions().getFirst().depthLevel()).isEqualTo(DepthLevel.L1);
+    var service = new AssessmentReportService(new StubFactsSource(facts));
+    var report = service.candidateReport("session-1");
+    assertThat(report.dimensions()).singleElement().satisfies(conclusion -> {
+      assertThat(conclusion.depthLevel()).isEqualTo(latestDepth);
+      assertThat(conclusion.confidence()).isEqualTo(latest.confidence());
+      assertThat(conclusion.rationale())
+          .isEqualTo(latest.rationale() + "；证据不足：尚未说明失败恢复");
+      assertThat(conclusion.evidences()).isEqualTo(latest.evidences().stream()
+          .map(ReportEvidenceReference::from).toList());
+    });
+    assertThat(service.enterpriseReport("tenant-a", "session-1").dimensionMatrix())
+        .isEqualTo(report.dimensions());
   }
 
   @Test

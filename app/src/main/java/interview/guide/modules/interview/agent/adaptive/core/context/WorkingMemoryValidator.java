@@ -29,12 +29,17 @@ public class WorkingMemoryValidator {
           && hypothesis.evidenceLinks().contradictingEvidenceIds() != null,
           "Evidence 引用数组不能为空");
       hypothesis.evidenceLinks().supportingEvidenceIds()
-          .forEach(id -> requireAllowed(id, references.evidenceIds(), "Evidence"));
+          .forEach(id -> requireReference(id, references.evidenceIds(), "Evidence"));
       hypothesis.evidenceLinks().contradictingEvidenceIds()
-          .forEach(id -> requireAllowed(id, references.evidenceIds(), "Evidence"));
+          .forEach(id -> requireReference(id, references.evidenceIds(), "Evidence"));
     }
     memory.deliberation().adoptedObservationRefs()
-        .forEach(ref -> requireAllowed(ref, references.observationRefs(), "Observation"));
+        .forEach(ref -> requireReference(ref, references.observationRefs(), "Observation"));
+  }
+
+  private static <T> void requireReference(T value, Collection<T> allowed, String type) {
+    require(value != null, type + " 引用数组元素不能为空");
+    requireAllowed(value, allowed, type);
   }
 
   private static void require(boolean valid, String message) {

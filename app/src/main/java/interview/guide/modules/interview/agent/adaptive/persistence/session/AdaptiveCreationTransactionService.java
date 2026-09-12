@@ -5,49 +5,31 @@ import interview.guide.common.exception.ErrorCode;
 import interview.guide.modules.interview.agent.adaptive.core.action.RespondAction;
 import interview.guide.modules.interview.agent.adaptive.core.context.CoverageProjector;
 import interview.guide.modules.interview.agent.adaptive.core.session.AdaptiveInterviewSession;
-import interview.guide.modules.interview.agent.adaptive.core.session.TurnProvenance;
 import interview.guide.modules.interview.agent.adaptive.core.session.AdoptedRubricSource;
-import interview.guide.modules.interview.agent.adaptive.memory.episode.QuestionIdentityFactory;
-import interview.guide.modules.interview.agent.adaptive.memory.episode.QuestionPublication;
-import interview.guide.modules.interview.agent.adaptive.persistence.memory.QuestionExposurePersistence;
+import interview.guide.modules.interview.agent.adaptive.core.session.TurnProvenance;
+import interview.guide.modules.interview.agent.adaptive.memory.episode.exposure.QuestionExposure.QuestionPublication;
+import interview.guide.modules.interview.agent.adaptive.memory.episode.exposure.QuestionExposurePersistence;
+import interview.guide.modules.interview.agent.adaptive.memory.episode.exposure.QuestionExposure.QuestionIdentity;
 import interview.guide.modules.interview.agent.adaptive.persistence.plan.AdaptiveAgentPlanEntity;
 import interview.guide.modules.interview.agent.adaptive.persistence.plan.AdaptiveAgentPlanRepository;
 import interview.guide.modules.interview.agent.adaptive.planning.InterviewPlan;
 import interview.guide.modules.interview.agent.adaptive.planning.PlannedDimension;
 import interview.guide.modules.interview.agent.adaptive.runtime.AgentDecision;
+import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 /** 原子保存创建计划、首题及其来源；模型调用在事务外完成。 */
 @Service
+@RequiredArgsConstructor
 public class AdaptiveCreationTransactionService {
 
   private final AdaptiveAgentSessionRepository sessions;
   private final AdaptiveAgentPlanRepository plans;
   private final AdaptiveAgentTurnRepository turns;
   private final QuestionExposurePersistence exposurePersistence;
-  private final QuestionIdentityFactory identityFactory;
 
   private final RubricSnapshotResolver rubricSnapshots;
-  private final interview.guide.modules.interview.agent.adaptive.persistence.memory.JpaMemoryEvidenceService memoryEvidence;
-
-  public AdaptiveCreationTransactionService(
-      AdaptiveAgentSessionRepository sessions,
-      AdaptiveAgentPlanRepository plans,
-      AdaptiveAgentTurnRepository turns,
-      QuestionExposurePersistence exposurePersistence,
-      QuestionIdentityFactory identityFactory,
-      RubricSnapshotResolver rubricSnapshots,
-      interview.guide.modules.interview.agent.adaptive.persistence.memory.JpaMemoryEvidenceService memoryEvidence
-  ) {
-    this.sessions = sessions;
-    this.plans = plans;
-    this.turns = turns;
-    this.exposurePersistence = exposurePersistence;
-    this.identityFactory = identityFactory;
-    this.rubricSnapshots = rubricSnapshots;
-    this.memoryEvidence = memoryEvidence;
-  }
 
   @Transactional
   public void create(AdaptiveSessionCreation creation, InterviewPlan plan, AgentDecision decision) {
@@ -88,16 +70,13 @@ public class AdaptiveCreationTransactionService {
             target.order(),
             action,
             TurnProvenance.initial(),
-            commit.decision().workingMemory(),
+            commit.decision().workingMemory().withEpisodeReferences(ask.question().adoptedSourceRefs()),
             rubricSnapshots.resolve(ask.question().adoptedSourceRefs().stream()
                 .filter(ref -> ref.startsWith("rubric:")).toList())
         ))
     );
-    turn.recordMemorySources(memoryEvidence.adopt(
-        new interview.guide.modules.interview.agent.adaptive.core.context.MemoryOwner(session.tenantId(),session.candidateId()),
-        target.topic(),ask.question().adoptedSourceRefs()));
     exposurePersistence.save(session, turn, new QuestionPublication(
-        action, identityFactory.create(target.target(), action), null, null));
+        action, QuestionIdentity.from(target.target()), null, null));
   }
 
   private AgentDecision.Ask requireAsk(AgentDecision decision) {

@@ -122,6 +122,14 @@ public class AssessmentProbeGapEntity {
   @Column(name = "closure_summary", length = 500)
   private String closureSummary;
 
+  public String closureEvidenceQuote() {
+    return closureEvidenceQuote;
+  }
+
+  public String closureSummary() {
+    return closureSummary;
+  }
+
   public void closeByEvidence(AdaptiveAgentAssessmentEntity assessment, String quote, String reason) {
     if (closedByAssessment != null) throw new IllegalStateException("缺口已关闭");
     closedByAssessment = assessment;

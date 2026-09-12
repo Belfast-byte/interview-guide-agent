@@ -39,7 +39,7 @@ class AdaptivePackageIsolationTest {
   }
 
   @Test
-  @DisplayName("业务能力与运行时不能反向依赖持久化实现")
+  @DisplayName("按技术层组织的业务能力与运行时不能反向依赖持久化实现")
   void businessCapabilitiesShouldUseOwnedPorts() {
     noClasses()
         .that().resideInAnyPackage(
@@ -49,6 +49,8 @@ class AdaptivePackageIsolationTest {
             ROOT + ".runtime..",
             ROOT + ".tool.."
         )
+        // Episode 按业务聚合模型、服务和持久化；其他模块仍保持原有技术层边界。
+        .and().resideOutsideOfPackage(ROOT + ".memory.episode..")
         .should().dependOnClassesThat()
         .resideInAPackage(ROOT + ".persistence..")
         .check(classes);

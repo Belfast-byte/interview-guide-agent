@@ -53,13 +53,13 @@ public class AdaptiveAnswerDecisionService {
       var finish = new AgentDecision(
           WorkingMemory.empty(),
           new AgentDecision.Finish("已达到本场最大轮次"));
-      return new AnswerProgressionDecision(assessment, finish, budget.exhausted());
+      return new AnswerProgressionDecision(assessment, finish);
     }
     request.sink().onStage(AnswerEventSink.AnswerStage.GENERATING);
     var context = context(request, assessment, budget);
     AgentDecision decision = agentLoop.run(
         context, budget.observations(), Duration.ofNanos(Math.max(0, deadline - System.nanoTime())));
-    return new AnswerProgressionDecision(assessment, decision, budget.exhausted());
+    return new AnswerProgressionDecision(assessment, decision);
   }
 
   private interview.guide.modules.interview.agent.adaptive.core.context.AgentContext context(
@@ -190,15 +190,6 @@ public class AdaptiveAnswerDecisionService {
   /** 最终事务所需的 Assessor 正式事实与 Agent 最终决定。 */
   public record AnswerProgressionDecision(
       AnswerAssessment assessment,
-      AgentDecision agentDecision,
-      boolean targetBudgetExhausted
-  ) {
-
-    public AnswerProgressionDecision(
-        AnswerAssessment assessment,
-        AgentDecision agentDecision
-    ) {
-      this(assessment, agentDecision, false);
-    }
-  }
+      AgentDecision agentDecision
+  ) {}
 }

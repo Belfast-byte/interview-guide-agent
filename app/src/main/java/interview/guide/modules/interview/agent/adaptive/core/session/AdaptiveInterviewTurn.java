@@ -21,6 +21,13 @@ public record AdaptiveInterviewTurn(
     String answerError
 ) {
 
+  /** 评估与历史召回共用原始问答上下文，不携带评分或候选人画像。 */
+  public record AnswerContext(int turnIndex, String question, String answer) {}
+
+  public AnswerContext answerContext() {
+    return new AnswerContext(turnIndex, question, answer);
+  }
+
   public AdaptiveInterviewTurn(int turnIndex, Integer dimensionOrder, String question,
       String questionReason, String answer, AgentResponseType responseType,
       String responseContent, String decisionReason, TurnProvenance provenance,

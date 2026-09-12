@@ -1,69 +1,78 @@
 package interview.guide.modules.interview.agent.adaptive.tool;
 
-import interview.guide.modules.interview.agent.adaptive.core.context.*;
-import interview.guide.modules.interview.agent.adaptive.memory.observation.*;
-import java.util.*;
+import interview.guide.modules.interview.agent.adaptive.core.context.AgentContext;
+import interview.guide.modules.interview.agent.adaptive.core.context.CoverageView;
+import interview.guide.modules.interview.agent.adaptive.core.context.MemoryOwner;
+import interview.guide.modules.interview.agent.adaptive.core.context.TopicKey;
+import interview.guide.modules.interview.agent.adaptive.core.session.SessionMode;
+import interview.guide.modules.interview.agent.adaptive.memory.episode.EpisodeQueryService;
+import interview.guide.modules.interview.agent.adaptive.memory.episode.exposure.QuestionExposureRepository;
+import java.util.List;
+import java.util.Map;
 import org.junit.jupiter.api.Test;
-import org.springframework.ai.tokenizer.TokenCountEstimator;
-import static org.assertj.core.api.Assertions.*;
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.Mockito.*;
 
 class MemoryRecallToolTest {
-  final MemoryEvidenceSource source=mock(MemoryEvidenceSource.class);
-  final TokenCountEstimator tokens=mock(TokenCountEstimator.class);
-  final MemoryRecallTool tool=new MemoryRecallTool(source,tokens);
-  final MemoryOwner owner=new MemoryOwner("tenant","candidate");
-  final TopicKey topic=new TopicKey("java","concurrency");
+  private final EpisodeQueryService episodes = mock(EpisodeQueryService.class);
+  private final QuestionExposureRepository exposures = mock(QuestionExposureRepository.class);
+  private final MemoryRecallTool tool = new MemoryRecallTool(episodes, exposures);
+  private final MemoryOwner owner = new MemoryOwner("tenant", "candidate");
+  private final TopicKey topic = new TopicKey("java", "concurrency");
 
-  @Test void verifiesOnlyCurrentOwnersUnresolvedCapabilities() {
-    when(source.beliefs(owner,topic)).thenReturn(List.of(belief("good",false),belief("pending",true)));
-    var request=request(Map.of("purpose","VERIFY_INDEPENDENCE","targetId","target-0"));
+  @Test
+  void recallsOriginalExperienceUsingCurrentOwnerAndTopicWithoutPurposeEnum() {
+    var episode = mock(EpisodeQueryService.EpisodeView.class);
+    when(episode.episodeId()).thenReturn(7L);
+    when(episode.reference()).thenReturn("episode:7");
+    when(episodes.recent(eq(owner), eq(topic), any())).thenReturn(List.of(episode));
+    var request = request(SessionMode.PRACTICE, Map.of("targetId", "target-0"));
     tool.validate(request);
-    var result=(ReadToolResult.Success)tool.execute(request);
-    assertThat(result.adoptableSources()).singleElement()
-        .satisfies(s -> assertThat(s.id()).isEqualTo("pending"));
-    verify(source).beliefs(owner,topic);
+    var result = (ReadToolResult.Success) tool.execute(request);
+    assertThat(result.data().get("episodes")).isEqualTo(List.of(episode));
+    assertThat(result.adoptableSources()).singleElement().satisfies(source -> {
+      assertThat(source.reference()).isEqualTo("episode:7");
+      assertThat(source.version()).isNull();
+    });
+    verify(episodes).recent(eq(owner), eq(topic), any());
   }
 
-  @Test void rejectsModelSuppliedOwnerAndUnknownTarget() {
-    assertThatThrownBy(() -> tool.validate(request(Map.of("purpose","VERIFY_INDEPENDENCE",
-        "targetId","target-0","owner","other")))).isInstanceOf(ReadToolValidationException.class);
-    assertThatThrownBy(() -> tool.validate(request(Map.of("purpose","VERIFY_INDEPENDENCE",
-        "targetId","other")))).isInstanceOf(ReadToolValidationException.class);
-    verifyNoInteractions(source);
+  @Test
+  void rejectsModelSuppliedOwnerAndUnknownTargetAtToolBoundary() {
+    assertThatThrownBy(() -> tool.validate(request(SessionMode.PRACTICE,
+        Map.of("targetId", "target-0", "owner", "other"))))
+        .isInstanceOf(ReadToolValidationException.class);
+    assertThatThrownBy(() -> tool.validate(request(SessionMode.PRACTICE,
+        Map.of("targetId", "other")))).isInstanceOf(ReadToolValidationException.class);
+    verifyNoInteractions(episodes, exposures);
   }
 
-  @Test void dropsSourcesTogetherWithOverBudgetHits() {
-    when(source.beliefs(owner,topic)).thenReturn(List.of(belief("a",true),belief("b",true)));
-    when(tokens.estimate(anyString())).thenAnswer(invocation ->
-        invocation.<String>getArgument(0).contains("\"capabilityKey\":\"b\"") ? 2000 : 600);
-    var result=(ReadToolResult.Success)tool.execute(request(Map.of("purpose","CONTINUE_LEARNING","targetId","target-0")));
-    assertThat(result.adoptableSources()).hasSize(1);
-    assertThat((List<?>)result.data().get("memories")).hasSize(1);
-    assertThat(result.data().get("complete")).isEqualTo(false);
-  }
-
-  @Test void repetitionRecallDoesNotExposeAbilityLabelsAndFailuresAllowContinuation() {
-    when(source.recentQuestions(owner,topic,5)).thenReturn(List.of("原题"));
-    var result=(ReadToolResult.Success)tool.execute(request(Map.of("purpose","AVOID_REPEAT","targetId","target-0")));
+  @Test
+  void evaluationReadsOnlyExposedQuestionsAndNeverHistoricalAbility() {
+    var result = (ReadToolResult.Success) tool.execute(
+        request(SessionMode.EVALUATION, Map.of("targetId", "target-0")));
+    assertThat(result.data()).containsOnlyKeys("recentQuestions");
     assertThat(result.adoptableSources()).isEmpty();
-    verify(source,never()).beliefs(any(),any());
-    when(source.beliefs(owner,topic)).thenThrow(new IllegalStateException("offline"));
-    assertThat(tool.execute(request(Map.of("purpose","CONTINUE_LEARNING","targetId","target-0"))))
-        .isInstanceOf(ReadToolResult.Error.class);
+    verifyNoInteractions(episodes);
   }
 
-  private CapabilityBelief belief(String key,boolean pending) {
-    return new CapabilityBelief(key,"复合操作原子性",pending?"NEEDS_REVALIDATION":"INDEPENDENTLY_DEMONSTRATED",
-        pending,1,"v1",List.of(1L),"有具体原文支持的观察","2026-09-05");
+  @Test
+  void databaseFailureIsNotReportedAsEmptyMemory() {
+    var failure = new IllegalStateException("database unavailable");
+    when(episodes.recent(any(), any(), any())).thenThrow(failure);
+    assertThatThrownBy(() -> tool.execute(request(SessionMode.PRACTICE,
+        Map.of("targetId", "target-0")))).isSameAs(failure);
   }
-  private ReadToolRequest request(Map<String,Object> args) {
-    var context=mock(AgentContext.class,RETURNS_DEEP_STUBS);
-    var target=mock(CoverageView.TargetCoverage.class,RETURNS_DEEP_STUBS);
+
+  private ReadToolRequest request(SessionMode mode, Map<String, Object> args) {
+    var context = mock(AgentContext.class, RETURNS_DEEP_STUBS);
+    var target = mock(CoverageView.TargetCoverage.class, RETURNS_DEEP_STUBS);
+    when(context.session().mode()).thenReturn(mode);
     when(context.session().identity().owner()).thenReturn(owner);
     when(context.facts().coverage().targets()).thenReturn(List.of(target));
     when(target.targetId()).thenReturn("target-0");
     when(target.target().identity().topic()).thenReturn(topic);
-    return new ReadToolRequest(context,args,Long.MAX_VALUE);
+    return new ReadToolRequest(context, args, Long.MAX_VALUE);
   }
 }

@@ -11,9 +11,7 @@ import interview.guide.modules.interview.agent.adaptive.core.session.CandidateLe
 import interview.guide.modules.interview.agent.adaptive.core.session.SessionMode;
 import interview.guide.modules.interview.agent.adaptive.core.context.TopicKey;
 import interview.guide.modules.interview.agent.adaptive.core.session.PracticeScope;
-import interview.guide.modules.interview.agent.adaptive.memory.semantic.PracticePlanningMemory;
-import interview.guide.modules.interview.agent.adaptive.memory.semantic.PracticePlanningStatus;
-import interview.guide.modules.interview.agent.adaptive.memory.semantic.PracticePlanningTopic;
+import interview.guide.modules.interview.agent.adaptive.memory.semantic.PracticeMemoryService.PracticePlanningMemory;
 import interview.guide.modules.interview.agent.adaptive.observability.AdaptiveAgentTelemetry;
 import interview.guide.modules.interview.agent.adaptive.observability.AdaptiveInputTokenBudget;
 import interview.guide.modules.interview.agent.adaptive.planning.DimensionProposal;
@@ -144,11 +142,7 @@ class SpringAiPlanningAgentTest {
         dimension("专项练习", "持久化"))));
     TopicKey topic = new TopicKey("java-backend", "JAVA");
     PracticePlanningMemory memory = new PracticePlanningMemory(List.of(
-        new PracticePlanningTopic(
-            topic,
-            new PracticePlanningStatus(null, null, null),
-            List.of()
-        )
+        new PracticePlanningMemory.TopicHistory(topic, List.of())
     ));
 
     planningAgent.propose(practiceRequest(topic, memory), "provider-1");

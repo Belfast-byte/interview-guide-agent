@@ -7,7 +7,6 @@ import interview.guide.modules.interview.agent.adaptive.core.context.MemoryOwner
 import interview.guide.modules.interview.agent.adaptive.memory.ContextAssembler;
 import interview.guide.modules.interview.agent.adaptive.memory.ContextAssembler.AgentContextInput;
 import interview.guide.modules.interview.agent.adaptive.persistence.session.AdaptiveCreationTransactionService;
-import interview.guide.modules.interview.agent.adaptive.persistence.session.AdaptiveCreationTransactionService.InitialTurnCommit;
 import interview.guide.modules.interview.agent.adaptive.persistence.session.AdaptiveInterviewPersistenceService;
 import interview.guide.modules.interview.agent.adaptive.persistence.session.AdaptiveSessionCreation;
 import interview.guide.modules.interview.agent.adaptive.planning.InterviewPlan;
@@ -81,13 +80,20 @@ public class AdaptiveInterviewCreationService {
                 java.util.List.of()
             )),
         java.util.List.of(),
+        // 首题来源由当前 owner 的规划历史提供，不从模型输出推断可信引用。
         interview.guide.modules.interview.agent.adaptive.core.context.WorkingMemory.empty()
+            .withEpisodeReferences(run.availableEpisodeRefs())
     ));
   }
 
   public record InitialAgentRun(
       AdaptiveSessionCreation creation,
       InterviewPlan plan,
-      AgentDecision decision
-  ) {}
+      AgentDecision decision,
+      List<String> availableEpisodeRefs
+  ) {
+    public InitialAgentRun {
+      availableEpisodeRefs = List.copyOf(availableEpisodeRefs);
+    }
+  }
 }

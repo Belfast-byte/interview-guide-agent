@@ -8,7 +8,7 @@ import interview.guide.modules.interview.agent.adaptive.core.session.InterviewSe
 import interview.guide.modules.interview.agent.adaptive.core.session.SessionMode;
 import interview.guide.modules.interview.agent.adaptive.memory.ContextAssembler;
 import interview.guide.modules.interview.agent.adaptive.memory.semantic.PracticeMemoryService;
-import interview.guide.modules.interview.agent.adaptive.memory.semantic.PracticePlanningMemory;
+import interview.guide.modules.interview.agent.adaptive.memory.semantic.PracticeMemoryService.PracticePlanningMemory;
 import interview.guide.modules.interview.agent.adaptive.observability.AdaptiveAgentTelemetry;
 import interview.guide.modules.interview.agent.adaptive.observability.AlgorithmInterviewTelemetry;
 import interview.guide.modules.interview.agent.adaptive.persistence.session.AdaptiveInterviewPersistenceService;
@@ -118,7 +118,8 @@ public class AdaptiveInterviewApplicationService {
     return new AdaptiveInterviewCreationService.InitialAgentRun(
         input.toSessionCreation(sessionId),
         proposal.plan(),
-        proposal.decision()
+        proposal.decision(),
+        proposal.availableEpisodeRefs()
     );
   }
 
@@ -126,6 +127,7 @@ public class AdaptiveInterviewApplicationService {
       String sessionId,
       InterviewCreationInput input
   ) {
+    PracticePlanningMemory memory = practiceMemory(input);
     PlanProposal proposal = planningAgent.propose(
         new PlanningRequest(sessionId, contextAssembler.planner(new PlannerContext(
             input.jd(),
@@ -134,7 +136,7 @@ public class AdaptiveInterviewApplicationService {
             input.settings().candidateLevel(),
             input.settings().practiceScope().topics(),
             planningTaxonomy.catalog()
-        )), practiceMemory(input)),
+        )), memory),
         input.llmProviderId()
     );
     try {
@@ -144,14 +146,18 @@ public class AdaptiveInterviewApplicationService {
       if (initialQuestion == null) {
         throw new BusinessException(ErrorCode.AI_SERVICE_ERROR, "创建 Agent 未返回首题提案");
       }
-      return new InitialCreationProposal(plan, initialQuestion.toDecision(plan));
+      var references = memory == null ? java.util.List.<String>of() : memory.topics().stream()
+          .flatMap(topic -> topic.episodes().stream()).map(episode -> episode.reference()).toList();
+      return new InitialCreationProposal(plan, initialQuestion.toDecision(plan, references), references);
     } catch (BusinessException e) {
       telemetry.planRejected(sessionId, e.getCode());
       throw e;
     }
   }
 
-  private record InitialCreationProposal(InterviewPlan plan, AgentDecision decision) {}
+  private record InitialCreationProposal(
+      InterviewPlan plan, AgentDecision decision, java.util.List<String> availableEpisodeRefs
+  ) {}
 
   private PracticePlanningMemory practiceMemory(InterviewCreationInput input) {
     if (input.settings().mode() != SessionMode.PRACTICE) {

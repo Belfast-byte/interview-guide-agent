@@ -1,6 +1,7 @@
 package interview.guide.modules.interview.agent.adaptive.assessment.depth;
 
 import interview.guide.modules.interview.agent.adaptive.core.context.DepthLevel;
+import interview.guide.modules.interview.agent.adaptive.core.session.AdaptiveInterviewTurn.AnswerContext;
 import java.util.Arrays;
 import java.util.List;
 
@@ -14,13 +15,15 @@ public record AssessmentContext(
     String answer,
     List<String> rubric,
     List<interview.guide.modules.interview.agent.adaptive.core.session.AdoptedRubricSource> adoptedRubrics,
-    List<interview.guide.modules.interview.agent.adaptive.core.context.CoverageView.OpenProbeGap> openGaps
+    List<interview.guide.modules.interview.agent.adaptive.core.context.CoverageView.OpenProbeGap> openGaps,
+    List<AnswerContext> priorTurns
 ) {
 
   public AssessmentContext {
     rubric = List.copyOf(rubric);
     adoptedRubrics = List.copyOf(adoptedRubrics);
     openGaps = List.copyOf(openGaps);
+    priorTurns = List.copyOf(priorTurns);
   }
 
   public static AssessmentContext currentAnswer(
@@ -34,7 +37,7 @@ public record AssessmentContext(
         focus,
         question,
         answer,
-        Arrays.stream(DepthLevel.values()).map(DepthLevel::rubricLine).toList(), List.of(), List.of()
+        Arrays.stream(DepthLevel.values()).map(DepthLevel::rubricLine).toList(), List.of(), List.of(), List.of()
     );
   }
 }

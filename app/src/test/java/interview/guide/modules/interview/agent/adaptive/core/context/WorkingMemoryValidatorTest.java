@@ -8,6 +8,8 @@ import java.util.List;
 import java.util.Set;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.ValueSource;
 
 class WorkingMemoryValidatorTest {
 
@@ -21,6 +23,31 @@ class WorkingMemoryValidatorTest {
       Set.of(21L, 22L),
       Set.of("observation-1")
   );
+
+  @Test
+  @DisplayName("可选单值引用仍允许为空，未采用引用使用空数组")
+  void shouldAcceptEmptyMemory() {
+    assertThatCode(() -> validator.validate(WorkingMemory.empty(), references))
+        .doesNotThrowAnyException();
+  }
+
+  @ParameterizedTest
+  @ValueSource(strings = {"observation", "supporting", "contradicting"})
+  @DisplayName("引用数组中的空元素在模型边界被明确拒绝")
+  void shouldRejectNullReferenceElements(String field) {
+    List<Long> nullIds = java.util.Collections.singletonList(null);
+    var links = new WorkingMemory.EvidenceLinks(
+        field.equals("supporting") ? nullIds : List.of(),
+        field.equals("contradicting") ? nullIds : List.of());
+    var memory = new WorkingMemory(null, WorkingMemory.empty().focus(),
+        new WorkingMemory.Deliberation(
+            List.of(new WorkingMemory.Hypothesis("待验证", "OPEN", links)), null,
+            field.equals("observation") ? java.util.Collections.singletonList(null) : List.of()));
+
+    assertThatThrownBy(() -> validator.validate(memory, references))
+        .isInstanceOf(BusinessException.class)
+        .hasMessageContaining("引用数组元素不能为空");
+  }
 
   @Test
   @DisplayName("当前 Context 中的事实引用可进入 WorkingMemory")

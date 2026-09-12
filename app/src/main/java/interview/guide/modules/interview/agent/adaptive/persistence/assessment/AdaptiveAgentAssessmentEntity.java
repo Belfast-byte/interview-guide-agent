@@ -51,9 +51,6 @@ public class AdaptiveAgentAssessmentEntity {
   @Column(name = "rationale_summary", nullable = false, length = 500)
   private String rationaleSummary;
 
-  @Column(name = "budget_exhausted_final", nullable = false)
-  private boolean budgetExhaustedFinal;
-
   @Column(name = "created_at", nullable = false)
   private LocalDateTime createdAt;
 
@@ -63,21 +60,12 @@ public class AdaptiveAgentAssessmentEntity {
       int dimensionOrder,
       AssessmentDecision decision
   ) {
-    this(dimensionOrder, decision, false);
-  }
-
-  public AdaptiveAgentAssessmentEntity(
-      int dimensionOrder,
-      AssessmentDecision decision,
-      boolean budgetExhaustedFinal
-  ) {
     this.sessionId = decision.sessionId();
     this.turnIndex = decision.turnIndex();
     this.dimensionOrder = dimensionOrder;
     this.depthLevel = decision.depthLevel();
     this.confidence = BigDecimal.valueOf(decision.confidence());
     this.rationaleSummary = decision.rationaleSummary();
-    this.budgetExhaustedFinal = budgetExhaustedFinal;
   }
 
   @PrePersist
@@ -113,7 +101,4 @@ public class AdaptiveAgentAssessmentEntity {
     return rationaleSummary;
   }
 
-  public boolean budgetExhaustedFinal() {
-    return budgetExhaustedFinal;
-  }
 }

@@ -2,7 +2,7 @@
 
 > 维护：Agent；上游设计以 [三层记忆设计](../design/02-memory-design.md) 和 [面试 Agent 的运行方式](../design/03-agent-loop-and-working-memory.md) 为准。
 >
-> 状态：目标规格；v4 的 WorkState/Patch/ActionIntent 方案已被取代。
+> 状态：历史目标；三层记忆目标已被 [38 号业务复用规格](./38-memory-business-reuse-spec.md) 取代，不再据此建设观察、整理或恢复链路。
 >
 > 最后更新：2026-08-29
 

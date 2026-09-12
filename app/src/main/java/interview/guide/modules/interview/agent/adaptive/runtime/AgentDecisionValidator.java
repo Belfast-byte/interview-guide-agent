@@ -50,7 +50,7 @@ public class AgentDecisionValidator {
       return validateCalls(call);
     }
     if (decision.action() instanceof AgentDecision.Ask ask) {
-      return validateAsk(ask, context.facts().coverage(), observations);
+      return validateAsk(ask, context, observations);
     }
     return rejection("action", "必须返回 ASK、CALL_READ_TOOLS 或 FINISH");
   }
@@ -82,10 +82,10 @@ public class AgentDecisionValidator {
 
   private Optional<DecisionObservation> validateAsk(
       AgentDecision.Ask ask,
-      CoverageView coverage,
+      AgentContext context,
       List<DecisionObservation> observations
   ) {
-    Optional<DecisionObservation> target = validateTarget(ask, coverage);
+    Optional<DecisionObservation> target = validateTarget(ask, context.facts().coverage());
     if (target.isPresent()) {
       return target;
     }
@@ -102,11 +102,12 @@ public class AgentDecisionValidator {
     if (summary.isPresent()) {
       return summary;
     }
-    return validateAdoptedSources(ask.question().adoptedSourceRefs(), observations);
+    return validateAdoptedSources(ask.question().adoptedSourceRefs(), context, observations);
   }
 
   private Optional<DecisionObservation> validateAdoptedSources(
       List<String> adoptedRefs,
+      AgentContext context,
       List<DecisionObservation> observations
   ) {
     if (adoptedRefs == null) {
@@ -117,9 +118,11 @@ public class AgentDecisionValidator {
         .flatMap(observation -> observation.adoptableSources().stream())
         .map(DecisionObservation.AdoptableSource::reference)
         .collect(Collectors.toSet());
+    context.workingMemory().deliberation().adoptedObservationRefs().stream()
+        .filter(ref -> ref.startsWith("episode:")).forEach(available::add);
     return available.containsAll(adoptedRefs)
         ? Optional.empty()
-        : rejection("action.ask.question.adoptedSourceRefs", "引用不在成功 Tool Observation 中");
+        : rejection("action.ask.question.adoptedSourceRefs", "引用不在成功工具结果或已采用的 Episode 中");
   }
 
   private Optional<DecisionObservation> validateTarget(
@@ -157,8 +160,21 @@ public class AgentDecisionValidator {
                 .map(CoverageView.OpenProbeGap::gapId).collect(Collectors.toSet())
         ),
         Set.copyOf(coverage.evidenceIds()),
-        observations.stream().map(DecisionObservation::reference).collect(Collectors.toSet())
+        memoryReferences(context, observations)
     );
+  }
+
+  private Set<String> memoryReferences(AgentContext context, List<DecisionObservation> observations) {
+    var references = observations.stream().map(DecisionObservation::reference)
+        .collect(Collectors.toSet());
+    observations.stream().filter(item -> item.kind() == DecisionObservation.Kind.TOOL_SUCCESS)
+        .flatMap(item -> item.adoptableSources().stream())
+        .filter(source -> source.type().equals("episode"))
+        .map(DecisionObservation.AdoptableSource::reference).forEach(references::add);
+    // 上游按归属读取的首题来源或已提交快照可信，不从待校验的模型提案建立引用白名单。
+    context.workingMemory().deliberation().adoptedObservationRefs().stream()
+        .filter(ref -> ref.startsWith("episode:")).forEach(references::add);
+    return references;
   }
 
   private Optional<DecisionObservation> requireText(String value, String field) {

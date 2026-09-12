@@ -72,7 +72,7 @@ class InterviewAgentLoopTest {
             "validation-1",
             DecisionObservation.Kind.VALIDATION_REJECTION,
             "action.ask.question.adoptedSourceRefs",
-            "引用不在成功 Tool Observation 中",
+            "引用不在成功工具结果或已采用的 Episode 中",
             null,
             java.util.Map.of(),
             List.of()
@@ -133,6 +133,32 @@ class InterviewAgentLoopTest {
         batch -> List.of(),
         new DeadlineExecutor(), new interview.guide.modules.interview.agent.adaptive.application.AdaptiveAgentProperties()
     );
+  }
+
+  @Test
+  @DisplayName("空记忆引用反馈给模型纠正，非法记忆不进入下一步或最终快照")
+  void shouldRecoverFromNullMemoryReference() {
+    var invalidMemory = new WorkingMemory(null, WorkingMemory.empty().focus(),
+        new WorkingMemory.Deliberation(List.of(), null,
+            java.util.Collections.singletonList(null)));
+    var expected = ask("target-1", 12L, memory("target-1", 12L));
+    List<DecisionModelContext> requests = new ArrayList<>();
+    var loop = loop(request -> {
+      requests.add(request);
+      return requests.size() == 1 ? ask("target-1", 12L, invalidMemory) : expected;
+    });
+
+    var actual = loop.run(context(), Duration.ofSeconds(1));
+
+    assertThat(actual).isEqualTo(expected);
+    assertThat(requests).hasSize(2);
+    assertThat(requests.getLast().agentContext().workingMemory()).isEqualTo(context().workingMemory());
+    assertThat(requests.getLast().observations()).singleElement().satisfies(rejection -> {
+      assertThat(rejection.kind()).isEqualTo(DecisionObservation.Kind.VALIDATION_REJECTION);
+      assertThat(rejection.field()).isEqualTo("workingMemory");
+      assertThat(rejection.message()).contains("引用数组元素不能为空");
+    });
+    assertThat(actual.workingMemory().withEpisodeReferences(List.of())).isEqualTo(expected.workingMemory());
   }
 
   private AgentDecision ask(String targetId, Long gapId, WorkingMemory memory) {

@@ -13,7 +13,7 @@ import interview.guide.modules.interview.agent.adaptive.planning.PlanningAgent;
 import interview.guide.modules.interview.agent.adaptive.planning.PlanningRequest;
 import interview.guide.modules.interview.agent.adaptive.planning.PlannerContext;
 import interview.guide.modules.interview.agent.adaptive.core.session.SessionMode;
-import interview.guide.modules.interview.agent.adaptive.memory.semantic.PracticePlanningMemory;
+import interview.guide.modules.interview.agent.adaptive.memory.semantic.PracticeMemoryService.PracticePlanningMemory;
 import interview.guide.modules.interview.agent.adaptive.runtime.DeadlineExecutor;
 import java.util.Map;
 import lombok.extern.slf4j.Slf4j;

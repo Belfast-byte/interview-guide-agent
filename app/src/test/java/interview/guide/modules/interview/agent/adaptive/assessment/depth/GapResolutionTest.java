@@ -25,6 +25,6 @@ class GapResolutionTest {
   }
   private AssessmentRequest request() {
     return new AssessmentRequest("session",2,new AssessmentContext("Java","CAS","如何更新？","CAS 重试保证更新",
-        List.of("L0-L4"),List.of(),List.of(new CoverageView.OpenProbeGap(7,1,"target-1",1,"CAS","缺少更新机制"))));
+        List.of("L0-L4"),List.of(),List.of(new CoverageView.OpenProbeGap(7,1,"target-1",1,"CAS","缺少更新机制")),List.of()));
   }
 }

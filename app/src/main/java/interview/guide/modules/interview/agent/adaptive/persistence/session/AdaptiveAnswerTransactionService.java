@@ -27,11 +27,13 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
+import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 /** 以 Session/Turn 锁一次提交回答的全部正式事实与下一 Turn。 */
 @Service
+@RequiredArgsConstructor
 public class AdaptiveAnswerTransactionService {
 
   private final AdaptiveAgentSessionRepository sessions;
@@ -40,26 +42,7 @@ public class AdaptiveAnswerTransactionService {
   private final AdaptiveAnswerSideEffects sideEffects;
 
   private final RubricSnapshotResolver rubricSnapshots;
-  private final interview.guide.modules.interview.agent.adaptive.persistence.memory.JpaMemoryEvidenceService memoryEvidence;
   private final interview.guide.modules.interview.agent.adaptive.rubric.RubricGenerationStore rubricGeneration;
-
-  public AdaptiveAnswerTransactionService(
-      AdaptiveAgentSessionRepository sessions,
-      AdaptiveAgentTurnRepository turns,
-      AdaptiveAssessmentRepositories assessments,
-      AdaptiveAnswerSideEffects sideEffects,
-      RubricSnapshotResolver rubricSnapshots,
-      interview.guide.modules.interview.agent.adaptive.persistence.memory.JpaMemoryEvidenceService memoryEvidence,
-      interview.guide.modules.interview.agent.adaptive.rubric.RubricGenerationStore rubricGeneration
-  ) {
-    this.sessions = sessions;
-    this.turns = turns;
-    this.assessments = assessments;
-    this.sideEffects = sideEffects;
-    this.rubricSnapshots = rubricSnapshots;
-    this.memoryEvidence = memoryEvidence;
-    this.rubricGeneration = rubricGeneration;
-  }
 
   @Transactional
   public void commit(AnswerCommit commit) {
@@ -123,8 +106,7 @@ public class AdaptiveAnswerTransactionService {
     AdaptiveAgentAssessmentEntity assessment = assessments.saveAssessment(
         new AdaptiveAgentAssessmentEntity(
             proposed.dimension().order(),
-            proposed.decision(),
-            progression.targetBudgetExhausted()
+            proposed.decision()
         ));
     List<AssessmentProbeGapEntity> gaps = new ArrayList<>();
     for (int index = 0; index < proposed.decision().probeGaps().size(); index++) {
@@ -196,13 +178,11 @@ public class AdaptiveAnswerTransactionService {
             target.order(),
             action,
             provenance,
-            memory,
+            memory.withEpisodeReferences(ask.question().adoptedSourceRefs()),
             rubricSnapshots.resolve(ask.question().adoptedSourceRefs().stream()
                 .filter(ref -> ref.startsWith("rubric:")).toList())
         ))
     );
-    nextTurn.recordMemorySources(memoryEvidence.adopt(commit.commit().owner(),
-        target.topic(),ask.question().adoptedSourceRefs()));
     sideEffects.saveExposure(new QuestionExposureInput(
         commit.locked().session(), nextTurn, new QuestionTarget(target, action)));
   }

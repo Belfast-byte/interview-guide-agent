@@ -15,6 +15,29 @@ import static org.assertj.core.api.Assertions.*;
 import static interview.guide.modules.interview.agent.adaptive.support.AdaptiveTestFixtures.EVALUATION_SETTINGS;
 
 class AdaptiveAnswerAssessmentRubricTest {
+  @Test
+  void assessmentUsesCurrentSessionHintContextWithoutHistoricalGrades() {
+    var plan = InterviewPlan.decide("s", new PlanProposal(List.of(
+        new DimensionProposal("Java", "锁机制", "JAVA", 2, "java-backend"))), EVALUATION_SETTINGS);
+    var first = new AdaptiveInterviewTurn(1, 0, "解释 synchronized", "考察机制",
+        "只知道互斥", null, null, null, TurnProvenance.initial());
+    var current = new AdaptiveInterviewTurn(2, 0, "结合监视器说明等待过程", "补充提示",
+        null, null, null, null, TurnProvenance.agentDecision(1));
+    var session = AdaptiveInterviewSession.create("s", plan.maxTurns(), EVALUATION_SETTINGS);
+    var interview = new PlannedInterview(new AdaptiveInterviewHistory(session,
+        "candidate", "", "", "provider", List.of(first, current)), plan);
+    var captured = new AtomicReference<AssessmentRequest>();
+    var service = new AdaptiveAnswerAssessmentService(new DepthAssessmentAgent((request, provider) -> {
+      captured.set(request);
+      return new AssessmentProposal(DepthLevel.L2, 0.8, "在提示下解释等待", List.of("竞争失败会等待"));
+    }), new AssessmentEvidenceValidator(), mock(InterviewSkillService.class));
+
+    service.assess(interview, new CandidateAnswer(2, "竞争失败会等待"));
+
+    assertThat(captured.get().context().priorTurns()).containsExactly(first.answerContext());
+    assertThat(captured.get().context().answer()).isEqualTo("竞争失败会等待");
+  }
+
   @Test void assessmentReceivesAdoptedBodyAndKeepsStandardWithoutOne() {
     for (boolean adopted : List.of(true,false)) {
       var plan=InterviewPlan.decide("s",new PlanProposal(List.of(

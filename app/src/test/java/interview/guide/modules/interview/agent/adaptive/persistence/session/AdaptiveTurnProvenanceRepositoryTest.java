@@ -65,10 +65,10 @@ class AdaptiveTurnProvenanceRepositoryTest {
     AdaptiveAgentTurnEntity reloaded = repository.findById(saved.id()).orElseThrow();
 
     assertThat(reloaded.question()).isEqualTo("并发更新时会发生什么？");
-    assertThat(reloaded.parentTurnIndex()).isEqualTo(2);
-    assertThat(reloaded.triggerType()).isEqualTo(TurnTriggerType.ASSESSMENT_GAP);
-    assertThat(reloaded.sourceAssessmentId()).isEqualTo(42);
-    assertThat(reloaded.sourceProbeGapId()).isEqualTo(84);
+    assertThat(reloaded.toDomain().provenance().parentTurnIndex()).isEqualTo(2);
+    assertThat(reloaded.toDomain().provenance().trigger().type()).isEqualTo(TurnTriggerType.ASSESSMENT_GAP);
+    assertThat(reloaded.toDomain().provenance().trigger().sourceAssessmentId()).isEqualTo(42);
+    assertThat(reloaded.toDomain().provenance().trigger().sourceProbeGapId()).isEqualTo(84);
     assertThat(reloaded.toDomain().provenance())
         .isEqualTo(TurnProvenance.assessmentGap(2, 42, 84));
     assertThat(reloaded.workingMemory()).isEqualTo(memory);

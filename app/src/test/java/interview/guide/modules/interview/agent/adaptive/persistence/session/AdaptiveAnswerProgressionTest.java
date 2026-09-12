@@ -1,14 +1,5 @@
 package interview.guide.modules.interview.agent.adaptive.persistence.session;
 
-import static interview.guide.modules.interview.agent.adaptive.support.AdaptiveTestFixtures.EVALUATION_SETTINGS;
-import static interview.guide.modules.interview.agent.adaptive.support.AdaptiveTestFixtures.testPlan;
-import static org.assertj.core.api.Assertions.assertThat;
-import static org.assertj.core.api.Assertions.assertThatThrownBy;
-import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.Mockito.mock;
-import static org.mockito.Mockito.times;
-import static org.mockito.Mockito.verify;
-
 import interview.guide.common.exception.BusinessException;
 import interview.guide.modules.interview.agent.adaptive.algorithm.evidence.AlgorithmEvidenceSource;
 import interview.guide.modules.interview.agent.adaptive.application.AdaptiveAnswerAssessmentService.AnswerAssessment;
@@ -35,12 +26,11 @@ import interview.guide.modules.interview.agent.adaptive.core.session.CandidateLe
 import interview.guide.modules.interview.agent.adaptive.core.session.InterviewSessionSettings;
 import interview.guide.modules.interview.agent.adaptive.core.session.PracticeScope;
 import interview.guide.modules.interview.agent.adaptive.core.session.SessionMode;
-import interview.guide.modules.interview.agent.adaptive.memory.episode.QuestionIdentityFactory;
+import interview.guide.modules.interview.agent.adaptive.memory.episode.exposure.QuestionExposurePersistence;
 import interview.guide.modules.interview.agent.adaptive.persistence.assessment.AdaptiveAgentAssessmentRepository;
 import interview.guide.modules.interview.agent.adaptive.persistence.assessment.AdaptiveAgentEvidenceRepository;
 import interview.guide.modules.interview.agent.adaptive.persistence.assessment.AssessmentProbeGapRepository;
 import interview.guide.modules.interview.agent.adaptive.persistence.assessment.JpaAssessmentReportFactsSource;
-import interview.guide.modules.interview.agent.adaptive.persistence.memory.QuestionExposurePersistence;
 import interview.guide.modules.interview.agent.adaptive.planning.DimensionProposal;
 import interview.guide.modules.interview.agent.adaptive.planning.InterviewPlan;
 import interview.guide.modules.interview.agent.adaptive.planning.PlanProposal;
@@ -57,13 +47,20 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.data.jpa.test.autoconfigure.DataJpaTest;
 import org.springframework.context.annotation.Import;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
+import static interview.guide.modules.interview.agent.adaptive.support.AdaptiveTestFixtures.EVALUATION_SETTINGS;
+import static interview.guide.modules.interview.agent.adaptive.support.AdaptiveTestFixtures.testPlan;
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.times;
+import static org.mockito.Mockito.verify;
 
 @DataJpaTest(showSql = false, properties = {
     "spring.flyway.enabled=false",
     "spring.jpa.hibernate.ddl-auto=create-drop"
 })
 @Import({
-    interview.guide.modules.interview.agent.adaptive.persistence.memory.JpaMemoryEvidenceService.class,
     tools.jackson.databind.ObjectMapper.class,
     interview.guide.modules.interview.agent.adaptive.rubric.RubricGenerationStore.class,
     interview.guide.modules.interview.agent.adaptive.persistence.session.RubricSnapshotResolver.class,
@@ -72,7 +69,8 @@ import org.springframework.test.context.bean.override.mockito.MockitoBean;
     AdaptiveAnswerTransactionService.class,
     AdaptiveAnswerClaimService.class,
     QuestionExposurePersistence.class,
-    QuestionIdentityFactory.class,
+    AdaptiveAnswerSideEffects.class,
+    interview.guide.modules.interview.agent.adaptive.memory.episode.EpisodeFactPersistence.class,
     JpaAssessmentReportFactsSource.class,
     AssessmentReportService.class
 })
@@ -92,7 +90,8 @@ class AdaptiveAnswerProgressionTest {
   @Autowired private AssessmentReportService reports;
   @MockitoBean private AlgorithmEvidenceSource algorithmEvidence;
 
-  @MockitoBean private AdaptiveAnswerSideEffects sideEffects;
+  @org.springframework.test.context.bean.override.mockito.MockitoSpyBean private AdaptiveAnswerSideEffects sideEffects;
+  @Autowired private interview.guide.modules.interview.agent.adaptive.memory.episode.EpisodeFactRepository episodes;
 
   @Test
   @DisplayName("相同回答可重放且最终事实与下一 Turn 只提交一次")
@@ -124,17 +123,16 @@ class AdaptiveAnswerProgressionTest {
     assertThat(assessments.findBySessionIdOrderByDimensionOrderAscTurnIndexAsc(SESSION_ID))
         .hasSize(1);
     assertThat(gaps.findSessionGaps(SESSION_ID)).hasSize(1);
-    assertThat(assessments.findBySessionIdOrderByDimensionOrderAscTurnIndexAsc(SESSION_ID)
-        .getFirst().budgetExhaustedFinal()).isTrue();
     assertThat(gaps.findSessionGaps(SESSION_ID).getFirst().closedByAssessmentId())
         .isNull();
     assertThat(evidences.findReportEvidence(SESSION_ID)).hasSize(1);
     var nextTurn = turns.findBySessionIdAndTurnIndex(SESSION_ID, 2).orElseThrow();
-    assertThat(nextTurn.sourceProbeGapId()).isPositive();
+    assertThat(nextTurn.toDomain().provenance().trigger().sourceProbeGapId()).isPositive();
     assertThat(nextTurn.workingMemory().focus().activeGapId()).isPositive();
     assertThat(nextTurn.workingMemory().deliberation().hypotheses().getFirst()
         .evidenceLinks().supportingEvidenceIds().getFirst()).isPositive();
     verify(sideEffects, times(1)).saveEpisode(any(), any(), any());
+    assertThat(episodes.countBySessionId(SESSION_ID)).isEqualTo(1);
     verify(sideEffects, times(1)).saveExposure(any());
   }
 
@@ -247,7 +245,9 @@ class AdaptiveAnswerProgressionTest {
     var decision = new AgentDecision(WorkingMemory.empty(), new AgentDecision.Finish("本场结束"));
     transactions.commit(new AdaptiveAnswerTransactionService.AnswerCommit(owner, interview,
         new AdaptiveAnswerTransactionService.CommitFacts(answer,
-            new AnswerProgressionDecision(assessed, decision, false)), "finish"));
+            new AnswerProgressionDecision(assessed, decision)), "finish"));
+    assertThat(episodes.findBySessionIdAndTurnIndex(SESSION_ID, answer.turnIndex()))
+        .isPresent();
     entityManager.flush();
     entityManager.clear();
     assertThat(sessions.findById(SESSION_ID).orElseThrow().status()).isEqualTo(AdaptiveSessionStatus.COMPLETED);
@@ -329,7 +329,7 @@ class AdaptiveAnswerProgressionTest {
         PendingAssessmentReferences.gapId(0),
         new AgentDecision.QuestionDraft("版本号如何推进？", "验证冲突细节", List.of())
     ));
-    return new AnswerProgressionDecision(assessed, decision, true);
+    return new AnswerProgressionDecision(assessed, decision);
   }
 
   private AgentDecision initialDecision() {

@@ -60,7 +60,7 @@ flowchart TB
     end
 
     subgraph 集成层
-        MCPClient["MCP Client（外部题库/知识库/代码分析）"]
+        MCPClient["MCP Client（外部题库/知识库）"]
     end
 
     Web --> Orch
@@ -184,10 +184,9 @@ loop:
 
 ### 7.1 作为 MCP 客户端
 
-第一批接入（按价值排序）：
+候选接入为**外部题库/知识库服务**：`question_bank_search` 的远端实现可走 MCP，平台按工具契约集成。当前内部工具扩展以 [39 号规格](./39-interview-agent-tools-spec.md) 为准，不以远端接入为前置。
 
-1. **外部题库/知识库服务**：`question_bank_search` 的远端实现走 MCP——题库独立部署、独立迭代，平台只认 MCP 工具契约；这是为后续企业集成 dogfooding MCP 客户端链路的最低成本场景；
-2. **项目代码分析服务**（Pi SDK 方案，见专项设计文档）：接口预留，实际接入仍排在评估体系之后——没有评估闭环，代码事实进不了结论，早接只是摆设。
+Java 业务代码改错题由现有 Planner / ASK 生成，见 [40 号规格](./40-java-code-repair-spec.md)，不属于 MCP 接入能力。
 
 技术选型：Spring AI MCP Client（`spring-ai-starter-mcp-client`）。只有经过显式 allowlist 的只读能力才能注册进 `ToolGateway`。远端超时或错误作为明确 Observation 返回模型；没有产品批准的本地等价实现时，不做静默 fallback。
 
@@ -275,6 +274,6 @@ M3 画像里有"已考察主题"，有人顺手拿"考察过=会了"做展示。
 ## 13. 与既有文档的关系
 
 - 平台设计文档：本文是其 M0~M5 落地视角，架构不变量全部继承；路线图以本文为准，平台文档第 11 节相应让位（保留为长期愿景视图）；
-- 代码分析专项设计：MCP 客户端预留其接口，接入排在 M5 后；
+- [Java 业务代码改错题规格](./40-java-code-repair-spec.md)：扩展 ASK 题型，与文字题混合，复用正式评估和答案事务；
 - 实施模块拆分：[Agent 重实现实施模块与交付切片](./20-implementation-modules.md) 将本文阶段映射为稳定代码边界与可验收纵切；实施顺序以本文 M0~M5 为准，package 不按阶段命名；
 - v1 相关文档（MVP 设计/实施计划）：均已标记历史，不再更新。

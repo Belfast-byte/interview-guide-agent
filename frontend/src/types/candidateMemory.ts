@@ -1,97 +1,46 @@
 import type { AdaptiveDepthLevel } from './adaptiveInterview';
 
-export type EvaluatedAbility = 'WEAK' | 'COMPETENT' | 'PROFICIENT';
-export type PracticeMastery = 'UNRESOLVED' | 'ASSISTED' | 'INDEPENDENT';
-export type TransferStatus = 'NOT_REEVALUATED' | 'CONFIRMED' | 'REGRESSED';
-export type PracticeOutcome = 'COMPLETED' | 'UNRESOLVED';
-export type EpisodeAssistanceLevel = 'NONE' | 'FOLLOW_UP' | 'HINT' | 'TOOL_ASSISTED';
-export type MemoryTagCategory = 'ERROR_PATTERN' | 'ANSWER_HABIT';
-export type CandidateMemoryTurnTriggerType =
-  | 'PLANNED'
-  | 'ASSESSMENT_GAP'
-  | 'TOOL_RESULT';
-export type EpisodeEnrichmentStatus =
-  | 'PENDING'
-  | 'PROCESSING'
-  | 'COMPLETED'
-  | 'FAILED'
-  | 'LEGACY_UNENRICHED';
-
-export interface CandidateMemoryStablePattern {
-  category: MemoryTagCategory;
-  tag: string;
-  episodeCount: number;
-}
-
-export interface SemanticTrackMetadata {
-  revision: number;
-  stablePatterns: CandidateMemoryStablePattern[];
-}
-
-export interface EvaluationMemoryTrack {
-  metadata: SemanticTrackMetadata;
-  ability: EvaluatedAbility;
-  statistics: { levelCounts: number[] };
-}
-
-export interface PracticeMemoryTrack {
-  metadata: SemanticTrackMetadata;
-  mastery: PracticeMastery;
-  details: {
-    statistics: {
-      completedByAssistance: Partial<Record<EpisodeAssistanceLevel, number>>;
-      unresolvedCount: number;
-    };
-    latest: {
-      episodeId: number;
-      result: {
-        outcome: PracticeOutcome;
-        assistance: EpisodeAssistanceLevel;
-        targetDepth: AdaptiveDepthLevel;
-      };
-    };
-    transfer: {
-      status: TransferStatus;
-      confirmedByEpisodeId: number | null;
-    };
-  };
-}
-
-export interface CapabilityBelief {
-  capabilityKey: string;
-  objective: string;
-  state: string;
-  needsVerification: boolean;
-  independentOpportunities: number;
-  revision: string;
-  evidenceRevisionIds: number[];
-  latestObservation: string;
-  updatedAt: string;
-}
-
-export interface CandidateMemoryTopic {
-  beliefs?: CapabilityBelief[];
-  skillId: string;
-  focusId: string;
-  evaluation: EvaluationMemoryTrack | null;
-  practice: PracticeMemoryTrack | null;
+export interface CandidateMemoryGap {
+  gapId: number;
+  anchor: string;
+  missingPoint: string;
+  closedByAssessmentId: number | null;
+  closureEvidenceQuote: string | null;
+  closureSummary: string | null;
 }
 
 export interface CandidateMemoryEpisode {
+  episodeId: number;
   sessionId: string;
   turnIndex: number;
-  parentTurnIndex: number | null;
-  triggerType: CandidateMemoryTurnTriggerType;
-  skillId: string;
-  focusId: string;
+  sessionMode: 'EVALUATION' | 'PRACTICE';
+  assessmentId: number;
+  topic: { skillId: string; focusId: string };
+  question: string;
+  answer: string;
   depthLevel: AdaptiveDepthLevel;
-  enrichmentStatus: EpisodeEnrichmentStatus;
+  expectedDepth: AdaptiveDepthLevel | null;
+  rationaleSummary: string;
+  gaps: CandidateMemoryGap[];
+  triggerType: 'PLANNED' | 'ASSESSMENT_GAP' | 'AGENT_DECISION';
+  priorTurns: { turnIndex: number; question: string; answer: string }[];
   createdAt: string;
+}
+
+export interface CandidateMemoryTopic {
+  focusId: string;
+  focusName: string;
+  latest: CandidateMemoryEpisode | null;
+}
+
+export interface CandidateMemorySkill {
+  skillId: string;
+  skillName: string;
+  topics: CandidateMemoryTopic[];
 }
 
 export interface CandidateMemoryEpisodePage {
   content: CandidateMemoryEpisode[];
-  ancestors: CandidateMemoryEpisode[];
   page: number;
   size: number;
   totalElements: number;
@@ -101,6 +50,6 @@ export interface CandidateMemoryEpisodePage {
 
 export interface CandidateMemoryResponse {
   candidateId: string;
-  topics: CandidateMemoryTopic[];
+  skills: CandidateMemorySkill[];
   episodes: CandidateMemoryEpisodePage;
 }

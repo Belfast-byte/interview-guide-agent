@@ -22,10 +22,10 @@ class AdaptiveAgentTurnEntityTest {
         TurnProvenance.assessmentGap(1, 42, 84)
     ));
 
-    assertThat(turn.parentTurnIndex()).isEqualTo(1);
-    assertThat(turn.triggerType()).isEqualTo(TurnTriggerType.ASSESSMENT_GAP);
-    assertThat(turn.sourceAssessmentId()).isEqualTo(42);
-    assertThat(turn.sourceProbeGapId()).isEqualTo(84);
+    assertThat(turn.toDomain().provenance().parentTurnIndex()).isEqualTo(1);
+    assertThat(turn.toDomain().provenance().trigger().type()).isEqualTo(TurnTriggerType.ASSESSMENT_GAP);
+    assertThat(turn.toDomain().provenance().trigger().sourceAssessmentId()).isEqualTo(42);
+    assertThat(turn.toDomain().provenance().trigger().sourceProbeGapId()).isEqualTo(84);
     assertThat(turn.toDomain().provenance())
         .isEqualTo(TurnProvenance.assessmentGap(1, 42, 84));
   }

@@ -19,6 +19,15 @@ public record WorkingMemory(
     );
   }
 
+  /** Episode 已由本轮工具按归属读取；只保留来源，不复制历史回答或能力状态。 */
+  public WorkingMemory withEpisodeReferences(List<String> sources) {
+    var references = java.util.stream.Stream.concat(
+        deliberation.adoptedObservationRefs().stream(), sources.stream())
+        .filter(ref -> ref.startsWith("episode:")).distinct().toList();
+    return new WorkingMemory(basedOnTurnIndex, focus,
+        new Deliberation(deliberation.hypotheses(), deliberation.nextProbeIntent(), references));
+  }
+
   public record Focus(
       String activeTargetId,
       Long activeGapId,

@@ -18,9 +18,7 @@ public class WorkingMemorySnapshotReader {
   public WorkingMemory latest(String sessionId) {
     return turns.findFirstBySessionIdAndWorkingMemoryIsNotNullOrderByTurnIndexDesc(sessionId)
         .map(AdaptiveAgentTurnEntity::workingMemory)
-        .map(memory -> new WorkingMemory(memory.basedOnTurnIndex(), memory.focus(),
-            new WorkingMemory.Deliberation(memory.deliberation().hypotheses(),
-                memory.deliberation().nextProbeIntent(), java.util.List.of())))
+        .map(memory -> memory.withEpisodeReferences(java.util.List.of()))
         .orElse(WorkingMemory.empty());
   }
 }

@@ -6,7 +6,7 @@
 >
 > 状态：**已实施历史票据，不得继续作为实现指令**
 >
-> 取代文档：[三层记忆 v5](./34-memory-three-layer-spec.md)、[Agent Loop 与 Working Memory 演进规格](./36-agent-loop-working-memory-spec.md)
+> 取代文档：[三层记忆业务复用规格](./38-memory-business-reuse-spec.md)、[Agent Loop 与 Working Memory 演进规格](./36-agent-loop-working-memory-spec.md)
 
 ## 0. 为什么停止执行本票据
 

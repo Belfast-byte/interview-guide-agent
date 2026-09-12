@@ -2,15 +2,15 @@
 
 > 维护：Agent；上游设计决策以 `docs/design/` 为准。
 >
-> 状态：实施基线，已按 2026-08-29 Agent 控制边界校准
+> 状态：实施基线，Agent 控制边界沿用 36；2026-09-12 将仓库分析专项替换为待实施的 Java 改错题
 >
-> 权威输入：[平台演进设计](../design/01-platform-design.md)、[Agent Loop 与 Working Memory 规格](./36-agent-loop-working-memory-spec.md)、[算法题面试设计](./11-algorithm-interview.md)、[代码分析服务设计](./12-code-analysis-service.md)
+> 权威输入：[平台演进设计](../design/01-platform-design.md)、[Agent Loop 与 Working Memory 规格](./36-agent-loop-working-memory-spec.md)、[算法题面试设计](./11-algorithm-interview.md)、[Java 业务代码改错题规格](./40-java-code-repair-spec.md)
 >
-> 最后更新：2026-08-29
+> 最后更新：2026-09-12
 
 ## 1. 文档目的
 
-本文把设计文档中的 M0～M5、A0～A3、CA-1～CA-4 转换为可独立实现、可独立验收、依赖明确的工程模块与交付切片。
+本文把设计文档中的 M0～M5、A0～A3、CR-1～CR-4 转换为可独立实现、可独立验收、依赖明确的工程模块与交付切片。
 
 这里的“阶段”和“模块”含义不同：
 
@@ -19,7 +19,7 @@
 - 一个阶段可以激活多个模块，一个模块也可能被多个阶段逐步扩展；
 - 禁止创建 `m0/`、`m1/` 这类阶段包。阶段结束后它们没有业务语义，还会迫使后续阶段跨包改写同一职责。
 
-当前唯一实施主线是 M0 → M5。算法面试和代码分析是挂接到主线的专项能力，不得复制编排器、工具网关、证据库或评估体系。
+当前唯一实施主线是 M0 → M5。算法面试和 Java 业务代码改错题是挂接到主线的专项能力，不得复制编排器、工具网关、证据库或评估体系。
 
 ## 2. 必须保持的业务不变量
 
@@ -30,7 +30,7 @@
 3. **评估可后置，用户可见事实和证据不可后置**：完整保存已展示问题、回答、正式评估、Evidence 和采用的 provenance；模型草稿、只读 Tool 调用与 Observation 不成为恢复状态。
 4. **外部调用不进入事务**：LLM、MCP、S3、HTTP 和沙箱调用在事务外执行；持久化由短事务命令完成。
 5. **同一事实源，多种投影视图**：候选人报告和企业报告只能投影同一组 assessment/evidence，不能各自生成结论。
-6. **不可信输入不能越权成为指令或证据**：JD、简历、回答和代码仓库都是数据；简历主张和代码分析产物不能直接变成能力结论。
+6. **不可信输入不能越权成为指令或证据**：JD、简历、回答和代码都是数据；简历主张和模型构造的题目不能直接变成能力结论。
 7. **旧 MVP 已删除**：`agent-loop-mvp-v1` 已于 2026-08-22 删除；只保留其 deadline、单问题校验、skill hash、乐观锁四项工程经验。
 
 ## 3. 代码边界
@@ -45,7 +45,7 @@ interview.guide.modules.interview.agent.adaptive
 
 `adaptive` 表达业务能力“自适应 Agent 面试”，不是临时版本号。旧 MVP 的根级 `runtime/`、`tool/`、`model/` 已于 2026-08-22 删除。
 
-第一阶段仍保留在现有 Gradle `:app` 模块内，以 package 边界和架构测试约束依赖。此时直接拆成多个 Gradle 子模块会增加 Spring 扫描、测试夹具、迁移脚本和配置装配成本，却还没有独立部署收益。真正需要独立扩缩容和安全边界的沙箱服务、代码分析服务从一开始就是独立部署单元。
+第一阶段仍保留在现有 Gradle `:app` 模块内，以 package 边界和架构测试约束依赖。此时直接拆成多个 Gradle 子模块会增加 Spring 扫描、测试夹具、迁移脚本和配置装配成本，却还没有独立部署收益。沙箱服务保留独立部署边界；Java 改错题复用现有模型调用与答案事务，不增加独立服务。
 
 ### 3.2 稳定模块
 
@@ -62,7 +62,7 @@ interview.guide.modules.interview.agent.adaptive
 | MCP 集成 | `adaptive.mcp` | MCP Client 适配器、MCP Server 接入、租户/scope/审计边界 | `application`、`tool` 端口 | M4 |
 | 评估与报告 | `adaptive.assessment` | 深度量规、评估 Agent、证据校验、确定性报告、历史回填 | `core`、自身只读端口 | M5 |
 | 算法面试 | `adaptive.algorithm` | 题目、Application 提交、SandboxExecution、异步判题和沙箱 Evidence | `application`、`core` 端口 | A0～A3 |
-| 代码分析接入 | `adaptive.codeanalysis` | 仓库任务、结构化产物、锚点校验、普通读取与 `code.trace` Tool 适配 | `mcp`、`tool`、`planning` 端口 | CA-1～CA-4 |
+| Java 业务代码改错题 | 复用 `planning`、`core`、`assessment`、`application`、`persistence` | 题型、任务与修订引用、代码答案、模型审阅和来源定位 | 现有各职责接口 | CR-1～CR-4 |
 | 可观测性 | `adaptive.observability` | 指标、审计字段、trace 关联；不得记录回答/代码等敏感原文 | 各模块发布的稳定事件 | M0 起 |
 
 大文件量模块内部按职责划二级子包（2026-08-16 落地，纯机械移动，不改变顶层依赖方向）：
@@ -75,9 +75,8 @@ interview.guide.modules.interview.agent.adaptive
 | `persistence` | `session`、`plan`、`memory`、`assessment`、`practice`、`algorithm`，按 §4 数据所有权分组 |
 | `assessment` | `depth`（深度评估）、`evidence`（证据校验）、`report`（双视图报告）、`practice`（练习推荐）、`backfill`（历史回填） |
 | `algorithm` | `problem`（题目选题）、`sandbox`（沙箱协议）、`judge`（异步判题流）、`evidence`（沙箱证据）；`api` 原有 |
-| `codeanalysis` | `job`（任务生命周期）、`repo`（仓库快照）、`claim`（主张核验）、`scenario`（场景卡）、`trace`（调用链）；入口服务留根包 |
 
-注意：`persistence.memory.CandidateMemoryClaimStatus`（候选人记忆 claim 状态，仅 `UNVERIFIED`）与 `codeanalysis.claim.ClaimVerificationStatus`（代码事实核验状态）是两个不同概念，不要混用。
+旧仓库分析包的现存代码与数据不因本次文档更新自动退役；须另行核对生产消费者和历史读取，不再按旧专项扩展。
 
 ### 3.3 依赖方向
 
@@ -99,8 +98,6 @@ flowchart LR
     ASSESS --> CORE
     PERSIST[persistence] --> CORE
     ALGO --> CORE
-    CODE[codeanalysis] --> MCP
-    CODE --> TOOL
 ```
 
 约束：
@@ -110,7 +107,7 @@ flowchart LR
 - `persistence` 不决定下一动作；它只保存最终领域事实和 Turn 边界的 Working Memory Snapshot。
 - 存储端口由需要数据的业务模块拥有（例如 `memory.port.MemoryStore`），`persistence` 提供实现；业务模块不得 import Entity 或 Repository。
 - `assessment` 不读取会影响公平性的候选人历史评级；长期记忆可影响选题，不影响同一回答的评级。
-- `algorithm` 和 `codeanalysis` 只能通过稳定端口接入主线，不能各自创建第二个 Agent loop。
+- `algorithm` 通过稳定端口接入主线；Java 改错题扩展现有 ASK / Assessment，不能创建第二个 Agent Loop。
 
 ## 4. 持久化所有权
 
@@ -125,9 +122,9 @@ flowchart LR
 | `memory` | Turn Snapshot、Episode/Semantic facts | M3 | Snapshot 只含引用与临时认知；不作为报告事实源 |
 | `assessment` | `agent_assessments`、`agent_evidences` | M5 | quote 原文子串；报告只引用已验证证据 |
 | `algorithm` | `algorithm_problems`、`sandbox_executions`、日志引用 | A0 | submissionSeq/codeHash；IE 非负面证据；迟到结果可识别 |
-| `codeanalysis` | repo/job/digest/claim/scenario | CA-1 | commitHash、稳定 ID、真实 file:line 锚点、保留期 |
+| 现有 Turn / Assessment / Evidence / gap 所有者 | 40 号规格中的新增字段 | CR-1～CR-2 | 原任务与各次提交分离；来源真实；评估参考不进入公开 DTO |
 
-所有写入通过 application 调用对应的短事务服务，禁止 Agent、Controller、只读 Tool executor 或 Stream producer 直接写业务状态。Stream consumer 只条件更新自己的 SandboxExecution/AnalysisJob 事实；后续 Agent Loop 从最新事实重新组装，不维护通用唤醒状态机。
+所有写入通过 application 调用对应的短事务服务，禁止 Agent、Controller、只读 Tool executor 或 Stream producer 直接写业务状态。算法 Stream consumer 只条件更新自己的 SandboxExecution 事实；后续 Agent Loop 从最新事实重新组装，不维护通用唤醒状态机。Java 改错题不引入任务队列。
 
 ## 5. 主线实施切片
 
@@ -173,18 +170,18 @@ M0 的完成定义不是“接口能返回下一题”，而是：外部失败�
 
 Agent Loop 不增加 Pending 或 ToolResult 事件类型。等待发生在 Loop 之外，结果成为领域事实，后续普通推进读取它。
 
-### 6.2 代码分析 CA-1～CA-4
+### 6.2 Java 业务代码改错题 CR-1～CR-4
 
-代码分析处理候选人既有仓库，算法沙箱执行候选人现场代码；两者安全模型、证据语义和部署边界不同，禁止合并。
+题目来自本场 JD / 简历，由模型生成并审阅修复结果。该能力扩展现有题目与答案契约，不依赖 MCP、仓库分析或算法执行。完整契约及验收以 40 号规格为准。
 
 | 阶段 | 模块改动 | 前置 |
 |---|---|---|
-| CA-1 | 独立分析服务、异步任务、MCP 薄协议、digest/claim/scenario 存储 | M4 + A0 + M5；按专项设计在评估闭环稳定后启用 |
-| CA-2 | ContextAssembler 普通读取 digest/claim/scenario；按需 `code.trace` Tool；锚点校验 | CA-1 + M1 + M5 |
-| CA-3 | PATCH 场景接入算法沙箱，执行结果回到统一证据链 | CA-2 + A3 |
-| CA-4 | Prompt 注入、超大仓库、显式超时失败、保留期与成本治理 | 与 CA-1～CA-3 同步加固，最终独立验收 |
+| CR-1 | 题型、任务与答案 schema、增量迁移、幂等恢复、公开 DTO | 现有会话与答案事务 |
+| CR-2 | 首题 / 后续出题、材料上下文、逐项审阅、Evidence / gap 来源定位 | CR-1 + 现有评估闭环 |
+| CR-3 | Java 编辑器、diff、练习修订、评估追问与历史读取 | CR-1 + CR-2 |
+| CR-4 | 并发恢复、参考保密、模式差异与真实模型场景验收 | CR-1～CR-3 |
 
-`CONTRADICTED` 只能触发核验问题，不能直接产生负面评估；`CODE_FACT` 只能说明问题来源或主张核验，能力结论仍来自候选人回答与实操结果。
+能力结论来自候选人正式提交的代码与说明。模型构造的初始代码和评估参考只是题目材料；静态审阅不得被描述为编译或测试结果。
 
 ## 7. 三个优先失败场景
 

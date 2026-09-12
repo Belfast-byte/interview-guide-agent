@@ -12,25 +12,29 @@ public record InitialQuestionProposal(
     int targetOrder,
     String content,
     String decisionSummary,
-    String nextProbeIntent
+    String nextProbeIntent,
+    List<String> adoptedEpisodeRefs
 ) {
 
-  public AgentDecision toDecision(InterviewPlan plan) {
+  public AgentDecision toDecision(InterviewPlan plan, List<String> availableEpisodeRefs) {
     boolean targetExists = plan.dimensions().stream()
         .anyMatch(dimension -> dimension.order() == targetOrder);
     if (!targetExists) {
       throw new BusinessException(ErrorCode.AI_SERVICE_ERROR, "首题 Target 不属于 Plan");
     }
+    if (adoptedEpisodeRefs == null || !availableEpisodeRefs.containsAll(adoptedEpisodeRefs)) {
+      throw new BusinessException(ErrorCode.AI_SERVICE_ERROR, "首题 Episode 引用不在提供的历史中");
+    }
     String targetId = CoverageProjector.targetId(targetOrder);
     WorkingMemory memory = new WorkingMemory(
         null,
         new WorkingMemory.Focus(targetId, null, List.of()),
-        new WorkingMemory.Deliberation(List.of(), nextProbeIntent, List.of())
+        new WorkingMemory.Deliberation(List.of(), nextProbeIntent, adoptedEpisodeRefs)
     );
     return new AgentDecision(memory, new AgentDecision.Ask(
         targetId,
         null,
-        new AgentDecision.QuestionDraft(content, decisionSummary, List.of())
+        new AgentDecision.QuestionDraft(content, decisionSummary, adoptedEpisodeRefs)
     ));
   }
 }

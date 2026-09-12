@@ -7,6 +7,7 @@
 > 状态：部分有效；Agent 策略部分已按 2026-08-29 新控制边界重写。
 >
 > Agent Loop、Coverage 与 Working Memory 的实施权威见 [36-agent-loop-working-memory-spec.md](./36-agent-loop-working-memory-spec.md)。安全、权限、输入大小和外部服务边界继续有效。
+> 2026-09-12 校准：旧仓库分析专项停止建设；新的 Java 业务代码改错题见 [40 号规格](./40-java-code-repair-spec.md)，不依赖分析服务或 MCP。
 
 ## 0. 前置校正
 
@@ -73,18 +74,9 @@ b. 前端提交改异步：
 
 **验收**：新增测试「SAMPLE 结果先于回答到达 → 不触发评估、事件 ACK、回答提交后正常评估」。
 
-### 1.4 Zip 解压与代码分析产物上限
+### 1.4 仓库分析专项撤回
 
-**问题**：
-- `S3ZipCodeAnchorCatalog.findMissing()` 对每个 entry `readAllBytes()`，只限压缩包总大小和文件数，存在 zip bomb 风险。
-- `CodeAnalysisResultAcceptanceService` 只校验 commitHash / token cost / 锚点存在，claims / scenarios 数量、单条文本长度、payload 总大小无硬限制。
-
-**方案**：
-- `CodeAnalysisProperties` 增加 `maxSnapshotFileBytes`（单文件解压上限，默认 1MB）；逐 entry 流式计数读取，超限抛 `BusinessException(BAD_REQUEST, ...)`。
-- `CodeAnalysisProperties` 增加 `maxClaims` / `maxScenarios` / `maxTextLength` / `maxPayloadBytes`；接收服务逐项校验，超限拒绝整个产物并返回明确错误。
-- 上限值与 `AdaptiveInputTokenBudget` 的 12k 输入预算对齐，保证「通过校验的产物一定塞得进上下文」。
-
-**验收**：zip bomb 样本、超大 claims 样本两个测试均被拒绝且错误信息可读。
+原仓库解压、分析产物和 worker 扩展不再作为本方案的建设任务。现存入口的安全约束仍需随其真实生命周期维护，权限说明见 [02 号规格](./02-auth-permission.md)；撤回路线不代表相关运行代码或历史数据已经清除。新业务代码改错题的输入与证据边界统一见 40 号规格。
 
 ### 1.5 DepthLevel 量规单一来源
 
@@ -160,7 +152,7 @@ Plan 保存初始化 Target 和硬上限，不在运行中维护 completed turns
 
 ### 4.2 上下文压缩与显式边界
 - JD / 简历：创建会话时生成一次会话级摘要，后续各轮注入摘要替代原文；原文仍持久化可查。
-- 项目上下文：`ProjectInterviewContext` 按全部合法 Target/Coverage 组装必要 claims/scenarios；可以优先当前 Snapshot 的关注点，但不得隐藏其他合法选择。
+- Java 改错题上下文：按 40 号规格装配本场 JD / 简历、任务和正式提交；不再依赖仓库 digest / claims / scenarios。
 - ContextAssembler 只使用已经存在且可追溯的导航摘要；不得在超限时临时生成摘要并静默替换原上下文。
 - 必要字段仍超出统一 token 边界时返回包含各部分 token 占用的明确错误；§1.2 的 enrichment 独立生成，不改变主链 correctness。
 
@@ -173,7 +165,7 @@ Plan 保存初始化 Target 和硬上限，不在运行中维护 completed turns
 ## 5. P2 运营配套（候选人侧）
 
 - **算法题录入**：新增管理端 `POST /admin/algorithm/problems`（复用 `saveProblem()`）+ 首批 seed 数据（Flyway 迁移或导入脚本）；前端算法维度改「题目选择」替代手输 `problemId`。
-- **部署配套**：`docker-compose.yml` 增加 `sandboxd` 与代码分析 Worker 服务定义，使算法判题与项目代码分析可随平台部署；管理端接口按 §3 的 token 机制隔离。
+- **部署配套**：`docker-compose.yml` 增加 `sandboxd` 服务定义，使算法判题可随平台部署；Java 改错题复用应用内模型调用，无独立分析 worker。管理端接口按 §3 的 token 机制隔离。
 
 ## 6. P3 合规闭环
 
@@ -189,7 +181,7 @@ Plan 保存初始化 Target 和硬上限，不在运行中维护 completed turns
 |---|---|
 | 动态轮次预算、按证据重新分配 | §2 落地后更新 `10-text-interview.md` 为已实现语义 |
 | 短期记忆用 Redis 热缓存 | 改文档：当前只读 DB，缓存为 §4.4 可选增强 |
-| 代码分析为平台作为 MCP Client 调 Pi SDK | 改 `12-code-analysis-service.md`：实际为内部 Worker HTTP API + 平台作 MCP Server 暴露 `code.*` |
+| 仓库分析服务作为后续面试能力 | 专项已撤回，新需求按 40 号规格实现 Java 业务代码改错题 |
 | 评估体系后置 M5、算法沙箱 Phase 2 推迟 | 改文档：assessment / 算法判题已实现，更新阶段状态 |
 | 企业可配置能力模型、权重、量规 | 改文档：标注为企业侧待立项，不在本方案范围 |
 | L4 可提前完成维度 | §2 落地后语义成真，更新 `10-text-interview.md` 与 `DepthLevel` 文案 |
@@ -198,9 +190,9 @@ Plan 保存初始化 Target 和硬上限，不在运行中维护 completed turns
 
 | 里程碑 | 内容 | 成功标准 |
 |---|---|---|
-| M-A（P0） | §1.1–§1.5 | 慢路径不超时；小结/声明失败不阻塞；SAMPLE 空回答安全；zip/产物上限生效；`./gradlew :app:test --no-daemon` 全绿 + `cd frontend && pnpm run build` 通过 |
+| M-A（P0） | §1.1–§1.3、§1.5 | 慢路径不超时；小结/声明失败不阻塞；SAMPLE 空回答安全；`./gradlew :app:test --no-daemon` 全绿 + `cd frontend && pnpm run build` 通过 |
 | M-B（P1） | §2 动态裁决 + §3 身份 | 四条裁决规则有集成测试；未授权访问全部拒绝；公平性契约测试不回归 |
-| M-C（P2） | §4 闭环与压缩 + §5 运营 | 练习可完成可复测；长 JD/大项目上下文不再打挂面试；算法题可录入可选择；compose 一键起全链路 |
+| M-C（P2） | §4 闭环与压缩 + §5 运营 | 练习可完成可复测；长 JD/简历上下文不再打挂面试；算法题可录入可选择；compose 一键起判题链路 |
 | M-D（P3） | §6 合规 + §7 文档 | 删除接口级联正确；文档与代码零已知差异 |
 
 每个里程碑的通用纪律（遵循 AGENTS.md）：
