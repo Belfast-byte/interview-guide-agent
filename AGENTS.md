@@ -52,3 +52,5 @@ docker compose -f docker-compose.dev.yml up -d
 - **首题来源与空引用（2026-09-12）**：创建校验接收当前 owner 规划历史的 `availableEpisodeRefs`，不信任模型自报来源；WorkingMemory 的可选单值可空，引用数组元素不可空，错误通过现有 Loop 回流模型，不在保存时过滤。
 
 - **Java 业务代码改错（2026-09-12）**：40 号规格已实施，验收见 41 号 tickets。原任务只存根 Turn，正式代码独立保存；练习修订新建轮次，评估提交冻结后文字追问。审阅只由模型完成，无运行或沙箱；私有 reviewGuide 不进入公开 DTO。SourceQuote 精确匹配当前原文，不能恢复旧归一化；进行中评估隐藏代码详细反馈，下一次评分只读候选人已经获得的前文。四个内部只读工具按 owner 与指定轮次查询，WorkingMemory 来源只保存本次 ASK 实际采用的引用。
+
+- **出题参考精简（2026-09-13）**：42 号规格、43 号 tickets 已实现精简 `decision.md` 与 `reference_search`，真实 RAG 验收状态见 tickets。Planner 不新增人格加载，Assessor 参考与 rubric 快照保持原样；专业参考只作出题背景，不恢复出题全量评估参考注入，不新增参考采用来源或记忆事实表。

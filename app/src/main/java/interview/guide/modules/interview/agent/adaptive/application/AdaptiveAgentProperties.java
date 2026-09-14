@@ -22,7 +22,7 @@ public class AdaptiveAgentProperties {
   private Duration claimDeadline = Duration.ofSeconds(20);
   private Duration assessmentDeadline = Duration.ofSeconds(20);
   private Duration actionIntentExecutionTimeout = Duration.ofMinutes(2);
-  private int maxInputTokens = 12_000;
+  private int maxInputTokens = 20_000;
   private int maxDecisionSteps = 8;
   private int maxReadToolCalls = 8;
   private int plannerMaxOutputTokens = 8_192;

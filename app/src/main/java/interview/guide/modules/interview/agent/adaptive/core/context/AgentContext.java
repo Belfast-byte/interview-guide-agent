@@ -26,16 +26,16 @@ public record AgentContext(
   public record Facts(
       CoverageView coverage,
       List<AdaptiveInterviewTurn> recentTurns,
-      List<SkillReference> fixedSkills,
+      List<SkillGuidance> skillGuidance,
       List<String> allowedReadTools
   ) {
 
     public Facts {
       recentTurns = List.copyOf(recentTurns);
-      fixedSkills = List.copyOf(fixedSkills);
+      skillGuidance = List.copyOf(skillGuidance);
       allowedReadTools = List.copyOf(allowedReadTools);
     }
   }
 
-  public record SkillReference(String skillId, String referenceText) {}
+  public record SkillGuidance(String skillId, String decisionInstructions) {}
 }

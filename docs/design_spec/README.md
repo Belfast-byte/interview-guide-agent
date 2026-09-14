@@ -38,3 +38,5 @@ Java 业务代码改错题以 [40-java-code-repair-spec.md](./40-java-code-repai
 | [39-interview-agent-tools-spec.md](./39-interview-agent-tools-spec.md) | 面试 Agent 内部工具扩展规格 | 已实施材料、题库、评估和代码任务四个只读工具；knowledge_search 仍为候选 |
 | [40-java-code-repair-spec.md](./40-java-code-repair-spec.md) | Java 业务代码改错题规格 | 已实施题型、模式、schema、编辑器、持久化及 39 号工具联动 |
 | [41-java-code-repair-tickets.md](./41-java-code-repair-tickets.md) | Java 改错题实施 tickets | 基线、提交、验收证据及真实模型抽样限制 |
+| [42-interview-context-reference-rag-spec.md](./42-interview-context-reference-rag-spec.md) | 出题上下文精简与专业参考 RAG | 代码已实现，真实 RAG 验收待完成；Planner 保持原样 |
+| [43-interview-context-reference-rag-tickets.md](./43-interview-context-reference-rag-tickets.md) | 出题上下文与参考 RAG tickets | 实施及验收进度 |

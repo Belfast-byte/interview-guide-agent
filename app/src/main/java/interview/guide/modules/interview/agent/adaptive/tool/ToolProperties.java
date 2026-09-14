@@ -19,7 +19,15 @@ import org.springframework.validation.annotation.Validated;
 public class ToolProperties {
 
   @Min(1)
-  private int maxResultChars = 8_000;
+  private int referenceMaxResultTokens = 2_000;
+
+  @Min(1)
+  @Max(10)
+  private int referenceSearchLimit = 3;
+
+  @DecimalMin("0.0")
+  @DecimalMax("1.0")
+  private double referenceMinScore = 0.3;
 
   @Min(1)
   @Max(20)

@@ -2,12 +2,18 @@ package interview.guide.modules.interview.agent.adaptive.memory;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.when;
+import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.never;
+import static org.mockito.ArgumentMatchers.anyString;
 
 import interview.guide.modules.interview.agent.adaptive.planning.PlannerContext;
 import interview.guide.modules.interview.agent.adaptive.planning.PlanningSkill;
 import interview.guide.modules.interview.agent.adaptive.core.session.CandidateLevel;
 import interview.guide.modules.interview.agent.adaptive.core.session.SessionMode;
 import interview.guide.modules.interview.skill.InterviewSkillService;
+import interview.guide.modules.interview.agent.adaptive.core.context.*;
+import interview.guide.modules.interview.agent.adaptive.planning.PlannedDimension;
 import java.util.List;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -15,6 +21,23 @@ import org.junit.jupiter.api.Test;
 class ContextAssemblerTest {
 
   private final ContextAssembler assembler = new ContextAssembler(mock(InterviewSkillService.class));
+
+  @Test
+  void decisionUsesShortInstructionsOncePerSkillWithoutLoadingAssessmentReference() {
+    var skills = mock(InterviewSkillService.class);
+    when(skills.decisionInstructions("java-backend")).thenReturn("岗位短策略");
+    var dimension = new PlannedDimension(new CapabilityTarget(new CapabilityTarget.Identity(
+        0, "Java", "并发", new TopicKey("java-backend", "JAVA")), new CapabilityTarget.Budget(2, 2),
+        new CapabilityTarget.Depth(DepthLevel.L2, DepthLevel.L4), List.of()));
+    var context = new ContextAssembler(skills).agent(new ContextAssembler.AgentContextInput(
+        new MemoryOwner(null, "candidate"), "session", "provider", SessionMode.EVALUATION, 12,
+        List.of(dimension, dimension), new CoverageView(0, 12, List.of(), List.of(), List.of()),
+        List.of(), WorkingMemory.empty()));
+    assertThat(context.facts().skillGuidance()).containsExactly(new AgentContext.SkillGuidance("java-backend", "岗位短策略"));
+    assertThat(context.facts().allowedReadTools()).contains("reference_search", "rubric_search");
+    verify(skills).decisionInstructions("java-backend");
+    verify(skills, never()).buildEvaluationReferenceSection(anyString());
+  }
 
   @Test
   @DisplayName("规划上下文只包含本次会话输入和稳定技能目录")

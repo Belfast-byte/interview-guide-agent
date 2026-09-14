@@ -21,7 +21,7 @@ final class DecisionContextProjection {
         .max(java.util.Comparator.comparingInt(AdaptiveInterviewTurn::turnIndex)).orElse(null);
     var facts = new LinkedHashMap<String, Object>();
     facts.put("coverage", context.facts().coverage());
-    facts.put("fixedSkills", context.facts().fixedSkills());
+    facts.put("skillGuidance", context.facts().skillGuidance());
     facts.put("allowedReadTools", context.facts().allowedReadTools());
     facts.put("recentTurns", turns.stream().map(turn -> turn(turn, new Window(rootIndex, latestCode, current))).toList());
     return Map.of("agentContext", Map.of("session", context.session(), "facts", facts,

@@ -12,8 +12,10 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
+import lombok.extern.slf4j.Slf4j;
 
 /** 在一次共享 deadline 内循环执行模型决策与请求级只读 Tool。 */
+@Slf4j
 public class InterviewAgentLoop {
 
   private final InterviewDecisionModel model;
@@ -52,6 +54,9 @@ public class InterviewAgentLoop {
     int toolCalls = 0;
     Set<ToolRequestKey> executed = new HashSet<>();
     for (int step = 0; step < properties.getMaxDecisionSteps(); step++) {
+      log.info("adaptive_decision_step sessionId={} turn={} step={}",
+          context.session().identity().sessionId(),
+          context.facts().recentTurns().stream().mapToInt(t -> t.turnIndex()).max().orElse(0), step);
       AgentDecision decision = decide(context, memory, observations, deadlineNanos);
       Optional<DecisionObservation> memoryRejection =
           validator.validateMemory(decision, context, observations);

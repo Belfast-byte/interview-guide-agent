@@ -146,6 +146,44 @@ public class InterviewSkillService {
         throw new BusinessException(ErrorCode.BAD_REQUEST, "未找到面试主题: " + skillId);
     }
 
+    /** 出题仅加载岗位策略；评估参考的既有截取和评分语义保持原样。 */
+    public String decisionInstructions(String skillId) {
+        getSkill(skillId);
+        return readRequiredResource("classpath:skills/" + skillId + "/decision.md");
+    }
+
+    /** 内置参考原文及真实资源位置，供可重建语义索引使用，不使用评分端截取缓存。 */
+    public List<ReferenceResource> referenceResources() {
+        List<ReferenceResource> resources = new ArrayList<>();
+        for (SkillDTO skill : getAllSkills()) {
+            decisionInstructions(skill.id());
+            for (SkillCategoryDTO category : skill.categories()) {
+                if (category.ref() == null || category.ref().isBlank()) continue;
+                if (!isSafeReferencePath(category.ref())) {
+                    throw new IllegalStateException("专业参考路径无效: " + skill.id() + "/" + category.key());
+                }
+                String location = resolveReferenceLocations(skill.id(), category.ref(), category.shared()).stream()
+                    .filter(candidate -> resourceLoader.getResource(candidate).exists()).findFirst()
+                    .orElseThrow(() -> new IllegalStateException("专业参考缺失: " + skill.id() + "/" + category.key()));
+                resources.add(new ReferenceResource(skill.id(), category.key(), location,
+                    readRequiredResource(location)));
+            }
+        }
+        return List.copyOf(resources);
+    }
+
+    private String readRequiredResource(String location) {
+        try {
+            String text = resourceLoader.getResource(location).getContentAsString(StandardCharsets.UTF_8).strip();
+            if (text.isBlank()) throw new IllegalStateException("Skill 资源为空: " + location);
+            return text;
+        } catch (IOException e) {
+            throw new IllegalStateException("Skill 资源读取失败: " + location, e);
+        }
+    }
+
+    public record ReferenceResource(String skillId, String focusId, String sourceId, String text) {}
+
     /**
      * 从 JD 解析结果构建自定义 SkillDTO。
      * 遍历 customCategories，尝试在 categoryRefIndex 中匹配参考文件。

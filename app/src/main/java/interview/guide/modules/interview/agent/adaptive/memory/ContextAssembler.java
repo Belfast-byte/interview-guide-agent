@@ -18,7 +18,7 @@ import org.springframework.stereotype.Component;
 @Component
 public class ContextAssembler {
   private static final List<String> ALLOWED_READ_TOOLS = List.of("rubric_search", "memory_recall",
-      "interview_material_read", "question_search", "code_task_read", "assessment_read");
+      "interview_material_read", "question_search", "code_task_read", "assessment_read", "reference_search");
 
   private final InterviewSkillService skillService;
 
@@ -28,11 +28,11 @@ public class ContextAssembler {
 
   /** 创建唯一的中性 AgentContext，并严格加载 Plan 固定 Skill。 */
   public AgentContext agent(AgentContextInput input) {
-    List<AgentContext.SkillReference> fixedSkills = input.dimensions().stream()
+    List<AgentContext.SkillGuidance> skillGuidance = input.dimensions().stream()
         .map(PlannedDimension::suggestedSkill)
         .distinct()
-        .map(skillId -> new AgentContext.SkillReference(
-            skillId, skillService.buildEvaluationReferenceSection(skillId)))
+        .map(skillId -> new AgentContext.SkillGuidance(
+            skillId, skillService.decisionInstructions(skillId)))
         .toList();
     return new AgentContext(
         new AgentContext.SessionWindow(
@@ -42,7 +42,7 @@ public class ContextAssembler {
             input.maxTurns()
         ),
         new AgentContext.Facts(
-            input.coverage(), input.recentTurns(), fixedSkills, ALLOWED_READ_TOOLS),
+            input.coverage(), input.recentTurns(), skillGuidance, ALLOWED_READ_TOOLS),
         input.workingMemory()
     );
   }
