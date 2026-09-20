@@ -75,7 +75,12 @@ public class SpringAiPlanningAgent implements PlanningAgent {
       String inputJson = serializeInput(request);
       String systemPrompt = systemPromptTemplate.render()
           + "\n\n"
-          + outputConverter.getFormat();
+          + outputConverter.getFormat()
+          + (request.codeRepairFirst()
+              ? "\n\n候选人面试流程以 Java 代码改错题作为首题：读取 JD 和简历后直接生成完整 Java 业务代码改错任务。"
+                  + "initialQuestion.questionType 必须为 CODE_REPAIR，codeTask 必须完整，codeTaskTurnIndex=null。"
+                  + "此首题要求优先于自主选择首题题型；具体场景和考察内容仍由你根据材料与练习范围决定。"
+              : "");
       String userPrompt = userPromptTemplate.render(Map.of("inputJson", inputJson));
       inputTokenBudget.verify("planner", systemPrompt, userPrompt);
       // 规划是无工具的结构化输出：使用 plain client，避免默认工具 advisor 引入隐藏的额外往返

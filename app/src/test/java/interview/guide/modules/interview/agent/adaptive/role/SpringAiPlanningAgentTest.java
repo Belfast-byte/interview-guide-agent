@@ -131,7 +131,8 @@ class SpringAiPlanningAgentTest {
         )
         .doesNotContain("semanticMemory");
     assertThat(systemPrompt.getValue())
-        .contains("Initial Question Contract", "initialQuestion.targetOrder");
+        .contains("Initial Question Contract", "initialQuestion.targetOrder")
+        .doesNotContain("候选人面试流程以 Java 代码改错题作为首题");
     verify(telemetry).modelCallSucceeded(eq("planner"), eq("PLAN"), anyLong());
   }
 
@@ -199,6 +200,17 @@ class SpringAiPlanningAgentTest {
     assertThatThrownBy(() -> boundedAgent.propose(request(), "provider-1"))
         .isInstanceOf(BusinessException.class)
         .hasMessageContaining("超时");
+  }
+
+  @Test
+  void shouldRequestCodeRepairForCandidateCreation() {
+    when(invoke()).thenReturn(new PlanProposal(List.of(dimension("专业基础", "并发"))));
+    PlanningRequest original = request();
+    planningAgent.propose(new PlanningRequest(original.sessionId(), original.context(), null, true), "provider-1");
+    ArgumentCaptor<String> prompt = ArgumentCaptor.forClass(String.class);
+    verify(structuredOutputInvoker).invokeOnce(eq(chatClient), prompt.capture(), anyString(), any(),
+        eq(ErrorCode.AI_SERVICE_ERROR), anyString(), eq("adaptive_agent_planning"), any(Logger.class));
+    assertThat(prompt.getValue()).contains("候选人面试流程以 Java 代码改错题作为首题", "必须为 CODE_REPAIR");
   }
 
   private PlanProposal invoke() {

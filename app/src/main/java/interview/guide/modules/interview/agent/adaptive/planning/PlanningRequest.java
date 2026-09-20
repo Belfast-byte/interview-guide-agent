@@ -9,8 +9,13 @@ import interview.guide.modules.interview.agent.adaptive.memory.semantic.Practice
 public record PlanningRequest(
     String sessionId,
     PlannerContext context,
-    PracticePlanningMemory practiceMemory
+    PracticePlanningMemory practiceMemory,
+    boolean codeRepairFirst
 ) {
+
+  public PlanningRequest(String sessionId, PlannerContext context, PracticePlanningMemory practiceMemory) {
+    this(sessionId, context, practiceMemory, false);
+  }
 
   public PlanningRequest {
     boolean practice = context.mode() == SessionMode.PRACTICE;

@@ -4,6 +4,7 @@ import interview.guide.common.exception.BusinessException;
 import interview.guide.common.exception.ErrorCode;
 import interview.guide.modules.interview.agent.adaptive.core.context.MemoryOwner;
 import interview.guide.modules.interview.agent.adaptive.core.event.CandidateAnswer;
+import interview.guide.modules.interview.agent.adaptive.core.session.CodeRepairTask.QuestionType;
 import interview.guide.modules.interview.agent.adaptive.core.session.InterviewSessionSettings;
 import interview.guide.modules.interview.agent.adaptive.core.session.SessionMode;
 import interview.guide.modules.interview.agent.adaptive.memory.ContextAssembler;
@@ -88,7 +89,8 @@ public class AdaptiveInterviewApplicationService {
         provider.id(),
         provider.displayName(),
         provider.model(),
-        command.settings()
+        command.settings(),
+        true
     );
   }
 
@@ -101,7 +103,8 @@ public class AdaptiveInterviewApplicationService {
         command.llmProvider(),
         null,
         null,
-        command.settings()
+        command.settings(),
+        false
     ));
   }
 
@@ -136,7 +139,7 @@ public class AdaptiveInterviewApplicationService {
             input.settings().candidateLevel(),
             input.settings().practiceScope().topics(),
             planningTaxonomy.catalog()
-        )), memory),
+        )), memory, input.codeRepairFirst()),
         input.llmProviderId()
     );
     try {
@@ -145,6 +148,9 @@ public class AdaptiveInterviewApplicationService {
       InitialQuestionProposal initialQuestion = proposal.initialQuestion();
       if (initialQuestion == null) {
         throw new BusinessException(ErrorCode.AI_SERVICE_ERROR, "创建 Agent 未返回首题提案");
+      }
+      if (input.codeRepairFirst() && initialQuestion.questionType() != QuestionType.CODE_REPAIR) {
+        throw new BusinessException(ErrorCode.AI_SERVICE_ERROR, "模型未生成要求的 Java 代码改错首题，请重新生成");
       }
       var references = memory == null ? java.util.List.<String>of() : memory.topics().stream()
           .flatMap(topic -> topic.episodes().stream()).map(episode -> episode.reference()).toList();
@@ -275,7 +281,8 @@ public class AdaptiveInterviewApplicationService {
       String llmProviderId,
       String llmProviderNameSnapshot,
       String llmModelSnapshot,
-      InterviewSessionSettings settings
+      InterviewSessionSettings settings,
+      boolean codeRepairFirst
   ) {
 
     AdaptiveSessionCreation toSessionCreation(String sessionId) {
