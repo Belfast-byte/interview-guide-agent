@@ -18,7 +18,7 @@ Java 业务代码改错题以 [40-java-code-repair-spec.md](./40-java-code-repai
 
 [44-native-tools-agent-runtime-spec.md](./44-native-tools-agent-runtime-spec.md) 记录原生工具迁移实现与验收边界（实现及离线验证完成）：保留自有 Runtime 和三个角色，使用 Spring AI 执行原生查询及出题/结束提案工具，删除自定义工具协议。其工具传输与执行实现更新 36、39、42 的对应部分；真实模型和原页面验收尚待环境。
 
-[46-question-quality-llm-judge-evaluation-spec.md](./46-question-quality-llm-judge-evaluation-spec.md) 定义 LLM-as-a-Judge 题目语义质量测评（规格草案，未实施）：以独立测评快照进行代码题盲审和私有标准核对，只记录观测，不阻断发布、不回注业务 Agent、不自动修订或影响候选人评分。
+[46-question-quality-llm-judge-evaluation-spec.md](./46-question-quality-llm-judge-evaluation-spec.md) 定义 LLM-as-a-Judge 题目语义质量测评（规格草案，未实施）：整体面向各类题目，首版以独立测评快照评价各岗位文本题的六维出题质量，只记录观测，不阻断发布、不回注业务 Agent、不自动修订或影响候选人评分。
 
 ## 文档索引
 
@@ -41,4 +41,4 @@ Java 业务代码改错题以 [40-java-code-repair-spec.md](./40-java-code-repai
 | [43-interview-context-reference-rag-tickets.md](./43-interview-context-reference-rag-tickets.md) | 出题上下文与参考 RAG tickets | 实施及验收进度 |
 | [44-native-tools-agent-runtime-spec.md](./44-native-tools-agent-runtime-spec.md) | Spring AI 原生工具与自有 Runtime 改进规格 | 原生迁移及离线回归完成；真实模型/页面验收待环境 |
 | [45-native-tools-agent-runtime-tickets.md](./45-native-tools-agent-runtime-tickets.md) | 原生工具迁移 tickets | 执行进度、验证及逐票推送记录 |
-| [46-question-quality-llm-judge-evaluation-spec.md](./46-question-quality-llm-judge-evaluation-spec.md) | LLM-as-a-Judge 题目质量测评规格 | 草案，未实施；独立测评观测，不影响出题与评分 |
+| [46-question-quality-llm-judge-evaluation-spec.md](./46-question-quality-llm-judge-evaluation-spec.md) | LLM-as-a-Judge 题目质量测评规格 | 草案，未实施；首版文本题质量观测，不影响出题与评分 |
