@@ -111,6 +111,9 @@ public final class QuestionReviewService {
                     .timeout(Duration.ofNanos(Math.max(1, ends - System.nanoTime())))
                     .maxTokens(options.maxOutputTokens()))
                 .defaultAdvisors(capture).build();
+            if (Thread.currentThread().isInterrupted() || System.nanoTime() >= ends) {
+              throw new BusinessException(ErrorCode.AI_SERVICE_TIMEOUT);
+            }
             return invoker.invokeOnce(telemetry.observeTokenUsage(client, "question_judge", "offline"),
                 system, user, converter, ErrorCode.AI_SERVICE_ERROR, "Judge: ", "question_judge", LOG);
           }, ends, "question_judge");

@@ -154,11 +154,29 @@ class QuestionReviewServiceTest {
       assertThat(fixture.requests).hasSize(2);
       assertThat(json.writeValueAsString(first)).doesNotContain("invalid secret");
     }
-    try (var fixture = new Endpoint(200, json.writeValueAsString(clean()), 1500)) {
-      var result = service(fixture).evaluate(sample(), options(Duration.ofMillis(200), 20000));
+    try (var fixture = new Endpoint(200, json.writeValueAsString(clean()), 3000)) {
+      var result = service(fixture).evaluate(sample(), options(Duration.ofMillis(1000), 20000));
       assertThat(result.status()).isEqualTo(QuestionReviewService.Status.FAILED);
       assertThat(result.observations()).isEmpty();
-      assertThat(result.durationMillis()).isLessThan(1400);
+      assertThat(result.durationMillis()).isLessThan(2500);
+    }
+  }
+
+  @Test
+  void batchDoesNotDispatchWhileTimedOutRemoteWorkMayStillBeRunning(
+      @org.junit.jupiter.api.io.TempDir java.nio.file.Path directory) throws Exception {
+    try (var fixture = new Endpoint(200, json.writeValueAsString(clean()), 0)) {
+      var service = service(fixture);
+      assertThat(service.evaluate(sample(), options(Duration.ofSeconds(8), 20000)).status())
+          .isEqualTo(QuestionReviewService.Status.COMPLETED);
+      fixture.requests.clear();
+      fixture.delayMillis = 3000;
+      var batch = new QuestionEvaluationBatch(service, json);
+      var output = batch.run(List.of(sample(), sample()), options(Duration.ofMillis(1000), 20000), 2, directory);
+      assertThat(fixture.requests).hasSize(1);
+      var summary = json.readTree(output.resolve("summary.json").toFile());
+      assertThat(summary.path("failed").asInt()).isEqualTo(1);
+      assertThat(summary.path("skipped").asInt()).isEqualTo(1);
     }
   }
 
@@ -186,15 +204,17 @@ class QuestionReviewServiceTest {
 
   private final class Endpoint implements AutoCloseable {
     final HttpServer server;
+    volatile long delayMillis;
     final List<JsonNode> requests = new CopyOnWriteArrayList<>();
     final java.util.concurrent.ExecutorService executor = Executors.newVirtualThreadPerTaskExecutor();
     Endpoint(int status, String content, long delay) throws Exception {
+      delayMillis = delay;
       server = HttpServer.create(new InetSocketAddress("127.0.0.1", 0), 0);
       server.setExecutor(executor);
       server.createContext("/", exchange -> {
         requests.add(json.readTree(exchange.getRequestBody().readAllBytes()));
-        if (delay > 0) {
-          try { Thread.sleep(delay); } catch (InterruptedException e) { Thread.currentThread().interrupt(); }
+        if (delayMillis > 0) {
+          try { Thread.sleep(delayMillis); } catch (InterruptedException e) { Thread.currentThread().interrupt(); }
         }
         byte[] body = status != 200 ? content.getBytes(StandardCharsets.UTF_8) : json.writeValueAsBytes(Map.of(
             "id", "judge", "object", "chat.completion", "created", 0, "model", "test-model",
