@@ -6,7 +6,6 @@ import interview.guide.modules.knowledgebase.model.KnowledgeBaseQuestionStatus;
 import interview.guide.modules.knowledgebase.repository.KnowledgeBaseQuestionRepository;
 import java.util.List;
 import java.util.Map;
-import java.util.Set;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
@@ -20,8 +19,7 @@ import interview.guide.modules.interview.agent.adaptive.runtime.DecisionObservat
 
 @Component
 @RequiredArgsConstructor
-public class QuestionSearchTool implements ReadOnlyAgentTool {
-  private static final Set<String> ARGUMENTS = Set.of("query", "difficulty");
+public class QuestionSearchTool {
   private static final int CANDIDATE_MULTIPLIER = 3;
   private final VectorStore vectorStore;
   private final KnowledgeBaseQuestionRepository questions;
@@ -33,29 +31,14 @@ public class QuestionSearchTool implements ReadOnlyAgentTool {
       @ToolParam(description = "可省略的难度过滤，提供时不能为空", required = false) String difficulty,
       ToolContext toolContext) {
     var scope = InterviewToolContext.from(toolContext);
-    var arguments = new java.util.LinkedHashMap<String, Object>();
-    arguments.put("query", query);
-    if (difficulty != null) arguments.put("difficulty", difficulty);
-    var request = new ReadToolRequest(scope.context(), arguments, scope.deadlineNanos());
-    validate(request);
-    return scope.observe("question_search", execute(request));
+    return scope.observe("question_search", read(query, difficulty));
   }
 
-  public String name() { return "question_search"; }
-
-  public void validate(ReadToolRequest request) {
-    if (!ARGUMENTS.containsAll(request.arguments().keySet())) {
-      throw new ReadToolValidationException("arguments", "只接受 query 和 difficulty");
-    }
-    requireText(request.arguments().get("query"), "query");
-    if (request.arguments().containsKey("difficulty")) {
-      requireText(request.arguments().get("difficulty"), "difficulty");
-    }
-  }
-
-  public ReadToolResult execute(ReadToolRequest request) {
+  ReadToolResult read(String query, String difficulty) {
+    requireText(query, "query");
+    if (difficulty != null) requireText(difficulty, "difficulty");
     var documents = vectorStore.similaritySearch(SearchRequest.builder()
-        .query((String) request.arguments().get("query"))
+        .query(query)
         .topK(properties.getQuestionBankLimit() * CANDIDATE_MULTIPLIER)
         .similarityThreshold(properties.getQuestionBankMinScore())
         .filterExpression("document_type == '" + QuestionBankVectorIndexer.DOCUMENT_TYPE + "'")
@@ -64,7 +47,6 @@ public class QuestionSearchTool implements ReadOnlyAgentTool {
         (String) document.getMetadata().get("question_id"))).distinct().toList();
     var available = questions.findAllById(ids).stream().collect(Collectors.toMap(
         KnowledgeBaseQuestionEntity::getId, Function.identity()));
-    Object difficulty = request.arguments().get("difficulty");
     var hits = ids.stream().map(available::get)
         .filter(question -> question != null && question.getStatus() == KnowledgeBaseQuestionStatus.ACTIVE)
         .filter(question -> difficulty == null || difficulty.equals(question.getDifficulty()))
@@ -80,8 +62,8 @@ public class QuestionSearchTool implements ReadOnlyAgentTool {
         question.getCategory(), question.getDifficulty());
   }
 
-  private void requireText(Object value, String field) {
-    if (!(value instanceof String text) || text.isBlank()) {
+  private void requireText(String value, String field) {
+    if (value == null || value.isBlank()) {
       throw new ReadToolValidationException("arguments." + field, "必须为非空字符串");
     }
   }

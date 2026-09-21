@@ -7,6 +7,7 @@ import java.util.List;
 import java.util.Map;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Component;
+import interview.guide.modules.interview.agent.adaptive.core.context.AgentContext;
 import org.springframework.ai.chat.model.ToolContext;
 import org.springframework.ai.tool.annotation.Tool;
 import org.springframework.ai.tool.annotation.ToolParam;
@@ -14,7 +15,7 @@ import interview.guide.modules.interview.agent.adaptive.runtime.DecisionObservat
 
 @Component
 @RequiredArgsConstructor
-public class CodeTaskReadTool implements ReadOnlyAgentTool {
+public class CodeTaskReadTool {
   private final AdaptiveAgentSessionRepository sessions;
   private final AdaptiveAgentTurnRepository turns;
 
@@ -23,20 +24,13 @@ public class CodeTaskReadTool implements ReadOnlyAgentTool {
       @ToolParam(description = "本场正整数轮次") int turnIndex,
       ToolContext toolContext) {
     var scope = InterviewToolContext.from(toolContext);
-    var arguments = new java.util.LinkedHashMap<String, Object>();
-    arguments.put("turnIndex", turnIndex);
-    var request = new ReadToolRequest(scope.context(), arguments, scope.deadlineNanos());
-    validate(request);
-    return scope.observe("code_task_read", execute(request));
+    return scope.observe("code_task_read", read(scope.context(), turnIndex));
   }
 
-  public String name() { return "code_task_read"; }
-
-  public void validate(ReadToolRequest request) { SessionReadBoundary.turnIndex(request); }
-
-  public ReadToolResult execute(ReadToolRequest request) {
-    var session = SessionReadBoundary.session(request, sessions);
-    int index = SessionReadBoundary.turnIndex(request);
+  ReadToolResult read(AgentContext context, int turnIndex) {
+    SessionReadBoundary.requireTurnIndex(turnIndex);
+    var session = SessionReadBoundary.session(context, sessions);
+    int index = turnIndex;
     var selected = turns.findBySessionIdAndTurnIndex(session.id(), index)
         .orElseThrow(() -> new ReadToolValidationException("arguments.turnIndex", "本场轮次不存在"));
     var code = selected.codeRepair();

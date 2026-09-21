@@ -20,15 +20,15 @@ class AssessmentReadToolTest {
 
   @Test
   void pendingAssessmentIsExplicitEmptyAndNeverQueriesTemporaryId() {
-    var request = request();
-    assertThat(tool.execute(request)).isInstanceOf(ReadToolResult.Empty.class);
+    var context = context();
+    assertThat(tool.read(context, 2)).isInstanceOf(ReadToolResult.Empty.class);
     verify(assessments).findBySessionIdAndTurnIndex("session", 2);
     verifyNoInteractions(evidences);
   }
 
   @Test
   void readsGradeReasonAndLocatedEvidenceFromExactlySelectedAssessment() {
-    var request = request();
+    var context = context();
     var fact = mock(AdaptiveAgentAssessmentEntity.class);
     when(fact.id()).thenReturn(19L);
     when(fact.turnIndex()).thenReturn(2);
@@ -40,7 +40,7 @@ class AssessmentReadToolTest {
     when(evidence.quoteText()).thenReturn("reserve()");
     when(evidence.quoteLocator()).thenReturn(new SourceQuote.Locator(SourceQuote.Source.SUBMITTED_CODE, 0, 9));
     when(evidences.findByAssessmentIdOrderById(19L)).thenReturn(List.of(evidence));
-    var result = (ReadToolResult.Success) tool.execute(request);
+    var result = (ReadToolResult.Success) tool.read(context, 2);
     assertThat(result.data()).containsEntry("assessmentId", 19L).containsEntry("depthLevel", DepthLevel.L2)
         .containsEntry("rationaleSummary", "同次理由").containsEntry("targetId", "target-0");
     var resultEvidence = (AssessmentReadTool.Evidence) ((List<?>) result.data().get("evidences")).getFirst();
@@ -49,7 +49,7 @@ class AssessmentReadToolTest {
     verify(assessments, never()).findTopBySessionIdAndDimensionOrderOrderByTurnIndexDesc(any(), anyInt());
   }
 
-  private ReadToolRequest request() {
+  private AgentContext context() {
     var context = mock(AgentContext.class, RETURNS_DEEP_STUBS);
     when(context.session().identity().sessionId()).thenReturn("session");
     when(context.session().identity().owner()).thenReturn(new MemoryOwner(null, "candidate"));
@@ -63,6 +63,6 @@ class AssessmentReadToolTest {
     when(turn.codeRepair().questionType()).thenReturn(CodeRepairTask.QuestionType.TEXT);
     when(turn.codeRepair().codeTaskTurnIndex()).thenReturn(null);
     when(turns.findBySessionIdAndTurnIndex("session", 2)).thenReturn(Optional.of(turn));
-    return new ReadToolRequest(context, Map.of("turnIndex", 2), Long.MAX_VALUE);
+    return context;
   }
 }

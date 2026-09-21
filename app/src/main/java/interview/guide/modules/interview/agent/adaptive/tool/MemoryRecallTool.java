@@ -7,10 +7,10 @@ import interview.guide.modules.interview.agent.adaptive.memory.semantic.Practice
 import interview.guide.modules.interview.agent.adaptive.runtime.DecisionObservation.AdoptableSource;
 import java.util.List;
 import java.util.Map;
-import java.util.Set;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.stereotype.Component;
+import interview.guide.modules.interview.agent.adaptive.core.context.AgentContext;
 import org.springframework.ai.chat.model.ToolContext;
 import org.springframework.ai.tool.annotation.Tool;
 import org.springframework.ai.tool.annotation.ToolParam;
@@ -19,7 +19,7 @@ import interview.guide.modules.interview.agent.adaptive.runtime.DecisionObservat
 /** 只按当前计划的知识点召回；如何换场景由 Agent 根据原问答决定。 */
 @Component
 @RequiredArgsConstructor
-public class MemoryRecallTool implements ReadOnlyAgentTool {
+public class MemoryRecallTool {
   private final EpisodeQueryService episodes;
   private final QuestionExposureRepository exposures;
 
@@ -28,38 +28,20 @@ public class MemoryRecallTool implements ReadOnlyAgentTool {
       @ToolParam(description = "当前计划的目标 ID") String targetId,
       ToolContext toolContext) {
     var scope = InterviewToolContext.from(toolContext);
-    var arguments = new java.util.LinkedHashMap<String, Object>();
-    arguments.put("targetId", targetId);
-    var request = new ReadToolRequest(scope.context(), arguments, scope.deadlineNanos());
-    validate(request);
-    return scope.observe("memory_recall", execute(request));
+    return scope.observe("memory_recall", read(scope.context(), targetId));
   }
 
-  public String name() {
-    return "memory_recall";
-  }
-
-  public void validate(ReadToolRequest request) {
-    if (!request.arguments().keySet().equals(Set.of("targetId"))) {
-      throw new ReadToolValidationException("arguments", "只需提供 targetId");
-    }
-    if (request.context().facts().coverage().targets().stream().noneMatch(target ->
-        target.targetId().equals(request.arguments().get("targetId")))) {
-      throw new ReadToolValidationException("arguments.targetId", "目标不属于当前计划");
-    }
-  }
-
-  public ReadToolResult execute(ReadToolRequest request) {
-    var owner = request.context().session().identity().owner();
-    var target = request.context().facts().coverage().targets().stream()
-        .filter(item -> item.targetId().equals(request.arguments().get("targetId")))
-        .findFirst().orElseThrow();
+  ReadToolResult read(AgentContext context, String targetId) {
+    var owner = context.session().identity().owner();
+    var target = context.facts().coverage().targets().stream()
+        .filter(item -> item.targetId().equals(targetId))
+        .findFirst().orElseThrow(() -> new ReadToolValidationException("targetId", "目标不属于当前计划"));
     var topic = target.target().identity().topic();
     var page = PageRequest.of(0, PracticeMemoryService.RECALL_SIZE);
     var questions = exposures.findByOwnerAndTopic(owner, topic, page).stream()
         .map(exposure -> exposure.toDomain().questionText()).toList();
     // 评估模式只看曝光题目防止原题重复，不能读取历史回答和能力结论。
-    if (request.context().session().mode() == SessionMode.EVALUATION) {
+    if (context.session().mode() == SessionMode.EVALUATION) {
       return new ReadToolResult.Success(Map.of("recentQuestions", questions), List.of());
     }
     var history = episodes.recent(owner, topic, page);

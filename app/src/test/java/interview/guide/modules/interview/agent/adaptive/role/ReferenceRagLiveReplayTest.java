@@ -74,9 +74,17 @@ class ReferenceRagLiveReplayTest {
       assertThat(app.getBean(SkillReferenceIndex.class).ready()).isTrue();
       var referenceTarget = context.facts().coverage().targets().stream()
           .filter(t -> t.target().identity().topic().focusId().equals("RAG")).findFirst().orElseThrow();
-      var observations = app.getBean(ReadToolExecutor.class).execute(new ReadToolBatch(context,
-          List.of(new ReadToolCall("reference_search", Map.of("targetId", referenceTarget.targetId(),
-              "query", "RAG 检索质量 召回率 延迟 向量检索与重排"), "验证参考进入出题上下文")), System.nanoTime() + Duration.ofSeconds(60).toNanos(), 0));
+      List<DecisionObservation> observations;
+      // 显式补充回放事实：仍经真实原生工具边界，不恢复旧 Gateway 协议。
+      try (var scope = new interview.guide.modules.interview.agent.adaptive.tool.InterviewToolContext(
+          context, System.nanoTime() + Duration.ofSeconds(60).toNanos(), 1)) {
+        var callback = app.getBean(AdaptiveAgentRuntimeConfiguration.QueryTools.class).callbacks().stream()
+            .filter(tool -> tool.getToolDefinition().name().equals("reference_search")).findFirst().orElseThrow();
+        callback.call(new tools.jackson.databind.ObjectMapper().writeValueAsString(Map.of(
+            "targetId", referenceTarget.targetId(), "query", "RAG 检索质量 召回率 延迟 向量检索与重排")),
+            new org.springframework.ai.chat.model.ToolContext(scope.values()));
+        observations = scope.observations();
+      }
       assertThat(observations).singleElement().satisfies(observation -> {
         assertThat(observation.kind()).isEqualTo(DecisionObservation.Kind.TOOL_SUCCESS);
         assertThat((List<?>) observation.data().get("hits")).isNotEmpty();

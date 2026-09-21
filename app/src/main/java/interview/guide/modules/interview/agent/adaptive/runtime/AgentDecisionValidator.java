@@ -46,38 +46,10 @@ public class AgentDecisionValidator {
     if (decision.action() instanceof AgentDecision.Finish finish) {
       return requireText(finish.decisionSummary(), "action.decisionSummary");
     }
-    if (decision.action() instanceof AgentDecision.CallReadTools call) {
-      return validateCalls(call);
-    }
     if (decision.action() instanceof AgentDecision.Ask ask) {
       return validateAsk(ask, context, observations);
     }
-    return rejection("action", "必须返回 ASK、CALL_READ_TOOLS 或 FINISH");
-  }
-
-  private Optional<DecisionObservation> validateCalls(AgentDecision.CallReadTools action) {
-    if (action.calls() == null || action.calls().isEmpty()) {
-      return rejection("action.callReadTools.calls", "至少需要一个只读工具调用");
-    }
-    for (int index = 0; index < action.calls().size(); index++) {
-      ReadToolCall call = action.calls().get(index);
-      String field = "action.callReadTools.calls[" + index + "]";
-      if (call == null) {
-        return rejection(field, "调用不能为空");
-      }
-      Optional<DecisionObservation> name = requireText(call.toolName(), field + ".toolName");
-      if (name.isPresent()) {
-        return name;
-      }
-      Optional<DecisionObservation> reason = requireText(call.reason(), field + ".reason");
-      if (reason.isPresent()) {
-        return reason;
-      }
-      if (call.arguments() == null) {
-        return rejection(field + ".arguments", "字段不能为空");
-      }
-    }
-    return Optional.empty();
+    return rejection("action", "必须提交问题或结束提案");
   }
 
   private Optional<DecisionObservation> validateAsk(

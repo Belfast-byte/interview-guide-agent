@@ -6,11 +6,9 @@ import interview.guide.modules.knowledgebase.model.KnowledgeBaseQuestionEntity;
 import interview.guide.modules.knowledgebase.model.KnowledgeBaseQuestionStatus;
 import interview.guide.modules.knowledgebase.repository.KnowledgeBaseQuestionRepository;
 import java.util.ArrayList;
-import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.Set;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 import org.springframework.ai.document.Document;
@@ -24,10 +22,9 @@ import interview.guide.modules.interview.agent.adaptive.runtime.DecisionObservat
 
 /** 模型按需检索全局 ACTIVE 审核 rubric 目录。 */
 @Component
-public class RubricSearchTool implements ReadOnlyAgentTool {
+public class RubricSearchTool {
 
   public static final String NAME = "rubric_search";
-  private static final Set<String> ARGUMENTS = Set.of("query", "intent", "levelHints");
   private static final int CANDIDATE_MULTIPLIER = 3;
 
   private final VectorStore vectorStore;
@@ -51,36 +48,20 @@ public class RubricSearchTool implements ReadOnlyAgentTool {
       @ToolParam(description = "等级提示，可为空数组") List<String> levelHints,
       ToolContext toolContext) {
     var scope = InterviewToolContext.from(toolContext);
-    var arguments = new java.util.LinkedHashMap<String, Object>();
-    arguments.put("query", query);
-    arguments.put("intent", intent);
-    arguments.put("levelHints", levelHints);
-    var request = new ReadToolRequest(scope.context(), arguments, scope.deadlineNanos());
-    validate(request);
-    return scope.observe("rubric_search", execute(request));
+    return scope.observe("rubric_search", read(query, intent, levelHints));
   }
 
-  @Override
-  public String name() {
-    return NAME;
-  }
-
-  @Override
-  public void validate(ReadToolRequest request) {
-    Set<String> unknown = new HashSet<>(request.arguments().keySet());
-    unknown.removeAll(ARGUMENTS);
-    if (!unknown.isEmpty()) {
-      throw new ReadToolValidationException(
-          "arguments." + unknown.iterator().next(), "不支持的参数");
+  ReadToolResult read(String query, String intent, List<String> levelHints) {
+    requireText(query, "query");
+    requireText(intent, "intent");
+    if (levelHints == null || levelHints.stream().anyMatch(java.util.Objects::isNull)) {
+      throw new ReadToolValidationException("levelHints", "必须为字符串数组");
     }
-    requireText(request.arguments().get("query"), "arguments.query");
-    requireText(request.arguments().get("intent"), "arguments.intent");
-    levelHints(request.arguments().get("levelHints"));
-  }
-
-  @Override
-  public ReadToolResult execute(ReadToolRequest request) {
-    String queryText = semanticQuery(request.arguments());
+    var parts = new ArrayList<String>();
+    parts.add(query);
+    parts.add(intent);
+    parts.addAll(levelHints);
+    String queryText = String.join("\n", parts);
     List<Document> documents = vectorStore.similaritySearch(SearchRequest.builder()
         .query(queryText)
         .topK(properties.getRubricSearchLimit() * CANDIDATE_MULTIPLIER)
@@ -146,32 +127,8 @@ public class RubricSearchTool implements ReadOnlyAgentTool {
     );
   }
 
-  private String semanticQuery(Map<String, Object> arguments) {
-    List<String> parts = new ArrayList<>();
-    parts.add((String) arguments.get("query"));
-    parts.add((String) arguments.get("intent"));
-    parts.addAll(levelHints(arguments.get("levelHints")));
-    return String.join("\n", parts);
-  }
-
-  private List<String> levelHints(Object value) {
-    if (!(value instanceof List<?> values)) {
-      throw new ReadToolValidationException("arguments.levelHints", "必须为字符串数组");
-    }
-    List<String> hints = new ArrayList<>();
-    for (int index = 0; index < values.size(); index++) {
-      Object item = values.get(index);
-      if (!(item instanceof String text)) {
-        throw new ReadToolValidationException(
-            "arguments.levelHints[" + index + "]", "必须为字符串");
-      }
-      hints.add(text);
-    }
-    return List.copyOf(hints);
-  }
-
-  private void requireText(Object value, String field) {
-    if (!(value instanceof String text) || text.isBlank()) {
+  private void requireText(String value, String field) {
+    if (value == null || value.isBlank()) {
       throw new ReadToolValidationException(field, "必须为非空字符串");
     }
   }

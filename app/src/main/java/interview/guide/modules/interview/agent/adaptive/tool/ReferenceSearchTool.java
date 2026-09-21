@@ -12,6 +12,7 @@ import org.springframework.ai.vectorstore.SearchRequest;
 import org.springframework.ai.vectorstore.VectorStore;
 import org.springframework.ai.vectorstore.filter.FilterExpressionBuilder;
 import org.springframework.stereotype.Component;
+import interview.guide.modules.interview.agent.adaptive.core.context.AgentContext;
 import org.springframework.ai.chat.model.ToolContext;
 import org.springframework.ai.tool.annotation.Tool;
 import org.springframework.ai.tool.annotation.ToolParam;
@@ -21,7 +22,7 @@ import tools.jackson.databind.ObjectMapper;
 /** 专业背景检索不产生 rubric 采用来源，也不进入正式评分快照。 */
 @Component
 @RequiredArgsConstructor
-public class ReferenceSearchTool implements ReadOnlyAgentTool {
+public class ReferenceSearchTool {
   public static final String NAME = "reference_search";
   private static final String USAGE = "仅为出题背景，不是评分量规或候选人能力证据";
   private final SkillReferenceIndex index;
@@ -36,34 +37,20 @@ public class ReferenceSearchTool implements ReadOnlyAgentTool {
       @ToolParam(description = "1 到 1000 字符的非空查询") String query,
       ToolContext toolContext) {
     var scope = InterviewToolContext.from(toolContext);
-    var arguments = new java.util.LinkedHashMap<String, Object>();
-    arguments.put("targetId", targetId);
-    arguments.put("query", query);
-    var request = new ReadToolRequest(scope.context(), arguments, scope.deadlineNanos());
-    validate(request);
-    return scope.observe("reference_search", execute(request));
+    return scope.observe("reference_search", read(scope.context(), targetId, query));
   }
 
-  public String name() { return NAME; }
-
-  public void validate(ReadToolRequest request) {
-    if (!request.arguments().keySet().equals(Set.of("targetId", "query"))) {
-      throw new ReadToolValidationException("arguments", "只接受 targetId 和 query");
+  ReadToolResult read(AgentContext context, String targetId, String query) {
+    if (query == null || query.isBlank() || query.length() > 1000) {
+      throw new ReadToolValidationException("query", "必须为 1 到 1000 字符的非空查询");
     }
-    if (!(request.arguments().get("query") instanceof String query) || query.isBlank() || query.length() > 1000) {
-      throw new ReadToolValidationException("arguments.query", "必须为 1 到 1000 字符的非空查询");
-    }
-    target(request);
-  }
-
-  public ReadToolResult execute(ReadToolRequest request) {
-    var topic = target(request).target().identity().topic();
+    var topic = target(context, targetId).target().identity().topic();
     if (!index.ready()) return new ReadToolResult.Error("专业参考索引不可用，请勿将其视为没有资料");
     Set<String> sources = index.sources(topic);
     if (sources.isEmpty()) return new ReadToolResult.Empty("该目标未配置专业参考");
     var filter = new FilterExpressionBuilder();
     var documents = vectors.similaritySearch(SearchRequest.builder()
-        .query((String) request.arguments().get("query"))
+        .query(query)
         .topK(properties.getReferenceSearchLimit() * 3)
         .similarityThreshold(properties.getReferenceMinScore())
         .filterExpression(filter.and(filter.eq("document_type", SkillReferenceIndex.DOCUMENT_TYPE),
@@ -94,9 +81,8 @@ public class ReferenceSearchTool implements ReadOnlyAgentTool {
         "usage", USAGE), List.of());
   }
 
-  private TargetCoverage target(ReadToolRequest request) {
-    Object id = request.arguments().get("targetId");
-    return request.context().facts().coverage().targets().stream().filter(t -> t.targetId().equals(id))
+  private TargetCoverage target(AgentContext context, String targetId) {
+    return context.facts().coverage().targets().stream().filter(t -> t.targetId().equals(targetId))
         .findFirst().orElseThrow(() -> new ReadToolValidationException("arguments.targetId", "目标不属于当前计划"));
   }
 }

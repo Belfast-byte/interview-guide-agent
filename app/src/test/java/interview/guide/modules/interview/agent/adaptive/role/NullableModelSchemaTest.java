@@ -15,7 +15,7 @@ class NullableModelSchemaTest {
 
   @Test
   void initialAndNextQuestionsAllowNullTaskAndRootWithoutRelaxingQuestionType() {
-    for (Class<?> type : List.of(PlanProposal.class, InterviewDecisionOutput.class, AgentDecision.QuestionDraft.class)) {
+    for (Class<?> type : List.of(PlanProposal.class, AgentDecision.QuestionDraft.class)) {
       var schema = schema(type);
       optionalNullable(schema, "codeTask");
       optionalNullable(schema, "codeTaskTurnIndex");
@@ -26,8 +26,9 @@ class NullableModelSchemaTest {
 
   @Test
   void decisionBranchesAndWorkingMemoryOptionalScalarsAdmitNullOrOmission() {
-    var schema = schema(InterviewDecisionOutput.class);
-    for (String name : List.of("ask", "callReadTools", "finish", "sourceGapId", "basedOnTurnIndex",
+    optionalNullable(schema(AgentDecision.Ask.class), "sourceGapId");
+    var schema = schema(interview.guide.modules.interview.agent.adaptive.core.context.WorkingMemory.class);
+    for (String name : List.of("basedOnTurnIndex",
         "activeTargetId", "activeGapId", "nextProbeIntent")) {
       optionalNullable(schema, name);
     }

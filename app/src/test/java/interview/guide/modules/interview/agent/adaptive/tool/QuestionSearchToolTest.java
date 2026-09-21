@@ -26,9 +26,7 @@ class QuestionSearchToolTest {
     var easier = question(2, "easy", KnowledgeBaseQuestionStatus.ACTIVE);
     var draft = question(3, "hard", KnowledgeBaseQuestionStatus.DRAFT);
     when(questions.findAllById(List.of(3L, 1L, 2L, 4L))).thenReturn(List.of(active, easier, draft));
-    var request = request(Map.of("query", "库存预留", "difficulty", "hard"));
-    tool.validate(request);
-    var result = (ReadToolResult.Success) tool.execute(request);
+    var result = (ReadToolResult.Success) tool.read("库存预留", "hard");
     assertThat(result.adoptableSources()).singleElement().satisfies(source ->
         assertThat(source.reference()).isEqualTo("question:1"));
     assertThat(new ObjectMapper().writeValueAsString(result)).doesNotContain("referenceAnswer", "scoringRubric");
@@ -40,18 +38,16 @@ class QuestionSearchToolTest {
   @Test
   void noAuthoritativeHitIsEmptyAndVectorFailureStaysFailure() {
     when(vectors.similaritySearch(any(SearchRequest.class))).thenReturn(List.of());
-    assertThat(tool.execute(request(Map.of("query", "query")))).isInstanceOf(ReadToolResult.Empty.class);
+    assertThat(tool.read("query", null)).isInstanceOf(ReadToolResult.Empty.class);
     when(vectors.similaritySearch(any(SearchRequest.class))).thenThrow(new IllegalStateException("vector down"));
-    assertThatThrownBy(() -> tool.execute(request(Map.of("query", "query"))))
+    assertThatThrownBy(() -> tool.read("query", null))
         .isInstanceOf(IllegalStateException.class).hasMessage("vector down");
   }
 
   @Test
-  void rejectsUnsupportedFiltersAndBlankDifficulty() {
-    assertThatThrownBy(() -> tool.validate(request(Map.of("query", "q", "skillId", "java"))))
-        .isInstanceOf(ReadToolValidationException.class);
-    assertThatThrownBy(() -> tool.validate(request(Map.of("query", "q", "difficulty", " "))))
-        .isInstanceOf(ReadToolValidationException.class);
+  void rejectsBlankQueryAndDifficulty() {
+    assertThatThrownBy(() -> tool.read(" ", null)).isInstanceOf(ReadToolValidationException.class);
+    assertThatThrownBy(() -> tool.read("q", " ")).isInstanceOf(ReadToolValidationException.class);
   }
 
   private Document doc(long id) {
@@ -67,7 +63,4 @@ class QuestionSearchToolTest {
     return question;
   }
 
-  private ReadToolRequest request(Map<String, Object> arguments) {
-    return new ReadToolRequest(null, arguments, Long.MAX_VALUE);
-  }
 }

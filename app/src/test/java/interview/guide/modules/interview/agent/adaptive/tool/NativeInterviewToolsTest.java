@@ -142,6 +142,71 @@ class NativeInterviewToolsTest {
     }
   }
 
+  @Test
+  void allSevenNativeDefinitionsRejectCallerSuppliedIdentityBeforeBusinessReads() {
+    var vectors = mock(org.springframework.ai.vectorstore.VectorStore.class);
+    var questions = mock(interview.guide.modules.knowledgebase.repository.KnowledgeBaseQuestionRepository.class);
+    var episodes = mock(EpisodeQueryService.class);
+    var exposures = mock(QuestionExposureRepository.class);
+    var assessments = mock(interview.guide.modules.interview.agent.adaptive.persistence.assessment.AdaptiveAgentAssessmentRepository.class);
+    var evidences = mock(interview.guide.modules.interview.agent.adaptive.persistence.assessment.AdaptiveAgentEvidenceRepository.class);
+    var index = mock(SkillReferenceIndex.class);
+    var estimator = mock(org.springframework.ai.tokenizer.TokenCountEstimator.class);
+    var cases = Map.of(
+        new InterviewMaterialReadTool(sessions), "{\"source\":\"resume\",\"owner\":\"forged\"}",
+        new CodeTaskReadTool(sessions, turns), "{\"turnIndex\":1,\"owner\":\"forged\"}",
+        new AssessmentReadTool(sessions, turns, assessments, evidences), "{\"turnIndex\":1,\"owner\":\"forged\"}",
+        new MemoryRecallTool(episodes, exposures), "{\"targetId\":\"target-0\",\"owner\":\"forged\"}",
+        new QuestionSearchTool(vectors, questions, new ToolProperties()), "{\"query\":\"q\",\"owner\":\"forged\"}",
+        new RubricSearchTool(vectors, questions, new ToolProperties()), "{\"query\":\"q\",\"intent\":\"probe\",\"levelHints\":[],\"owner\":\"forged\"}",
+        new ReferenceSearchTool(index, vectors, new ToolProperties(), estimator, new tools.jackson.databind.ObjectMapper()),
+        "{\"query\":\"q\",\"targetId\":\"target-0\",\"owner\":\"forged\"}");
+    cases.forEach((tool, arguments) -> {
+      var callback = callback(tool);
+      String name = callback.getToolDefinition().name();
+      assertThat(callback.call(arguments, new ToolContext(scope(name).values())))
+          .as(name).contains("VALIDATION_REJECTION");
+    });
+    verifyNoInteractions(sessions, turns, vectors, questions, episodes, exposures, assessments, evidences, index, estimator);
+  }
+
+  @Test
+  void nativeManagerPreservesFourBusinessOutcomesAndSourceProvenanceInOrder() {
+    var scope = new InterviewToolContext(context("outcome"), Long.MAX_VALUE, 4);
+    var calls = List.of("success", "empty", "timeout", "error").stream().map(mode ->
+        new org.springframework.ai.chat.messages.AssistantMessage.ToolCall(mode, "function", "outcome",
+            "{\"mode\":\"" + mode + "\"}")).toList();
+    var response = new org.springframework.ai.chat.model.ChatResponse(List.of(new org.springframework.ai.chat.model.Generation(
+        org.springframework.ai.chat.messages.AssistantMessage.builder().content("").toolCalls(calls).build())));
+    var options = org.springframework.ai.model.tool.ToolCallingChatOptions.builder()
+        .toolCallbacks(callback(new Outcome())).toolContext(scope.values()).build();
+    var result = org.springframework.ai.model.tool.ToolCallingManager.builder().toolCallbackResolver(name -> null).build()
+        .executeToolCalls(new org.springframework.ai.chat.prompt.Prompt(List.of(), options), response);
+    assertThat(scope.observations()).extracting(item -> item.kind().name())
+        .containsExactly("TOOL_SUCCESS", "TOOL_EMPTY", "TOOL_TIMEOUT", "TOOL_ERROR");
+    assertThat(scope.observations().getFirst().adoptableSources()).singleElement()
+        .satisfies(source -> assertThat(source.reference()).isEqualTo("question:1"));
+    assertThat(scope.observations().subList(1, 4)).allMatch(item -> item.adoptableSources().isEmpty());
+    var replies = (org.springframework.ai.chat.messages.ToolResponseMessage) result.conversationHistory().getLast();
+    assertThat(replies.getResponses()).extracting(org.springframework.ai.chat.messages.ToolResponseMessage.ToolResponse::id)
+        .containsExactly("success", "empty", "timeout", "error");
+  }
+
+  static class Outcome {
+    @org.springframework.ai.tool.annotation.Tool(name = "outcome", description = "test outcome")
+    public interview.guide.modules.interview.agent.adaptive.runtime.DecisionObservation read(String mode, ToolContext context) {
+      ReadToolResult result = switch (mode) {
+        case "success" -> new ReadToolResult.Success(Map.of("text", "real source"), List.of(
+            new interview.guide.modules.interview.agent.adaptive.runtime.DecisionObservation.AdoptableSource(
+                "question:1", "question", "1", null)));
+        case "empty" -> new ReadToolResult.Empty("no match");
+        case "timeout" -> new ReadToolResult.Timeout("read timed out");
+        default -> new ReadToolResult.Error("read failed");
+      };
+      return InterviewToolContext.from(context).observe("outcome", result);
+    }
+  }
+
   private ToolCallback callback(Object tool) {
     return new InterviewToolCallback(ToolCallbacks.from(tool)[0], true);
   }

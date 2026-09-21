@@ -27,9 +27,8 @@ class MemoryRecallToolTest {
     when(episode.episodeId()).thenReturn(7L);
     when(episode.reference()).thenReturn("episode:7");
     when(episodes.recent(eq(owner), eq(topic), any())).thenReturn(List.of(episode));
-    var request = request(SessionMode.PRACTICE, Map.of("targetId", "target-0"));
-    tool.validate(request);
-    var result = (ReadToolResult.Success) tool.execute(request);
+    var context = context(SessionMode.PRACTICE);
+    var result = (ReadToolResult.Success) tool.read(context, "target-0");
     assertThat(result.data().get("episodes")).isEqualTo(List.of(episode));
     assertThat(result.adoptableSources()).singleElement().satisfies(source -> {
       assertThat(source.reference()).isEqualTo("episode:7");
@@ -39,19 +38,15 @@ class MemoryRecallToolTest {
   }
 
   @Test
-  void rejectsModelSuppliedOwnerAndUnknownTargetAtToolBoundary() {
-    assertThatThrownBy(() -> tool.validate(request(SessionMode.PRACTICE,
-        Map.of("targetId", "target-0", "owner", "other"))))
+  void rejectsUnknownTargetAtToolBoundary() {
+    assertThatThrownBy(() -> tool.read(context(SessionMode.PRACTICE), "other"))
         .isInstanceOf(ReadToolValidationException.class);
-    assertThatThrownBy(() -> tool.validate(request(SessionMode.PRACTICE,
-        Map.of("targetId", "other")))).isInstanceOf(ReadToolValidationException.class);
     verifyNoInteractions(episodes, exposures);
   }
 
   @Test
   void evaluationReadsOnlyExposedQuestionsAndNeverHistoricalAbility() {
-    var result = (ReadToolResult.Success) tool.execute(
-        request(SessionMode.EVALUATION, Map.of("targetId", "target-0")));
+    var result = (ReadToolResult.Success) tool.read(context(SessionMode.EVALUATION), "target-0");
     assertThat(result.data()).containsOnlyKeys("recentQuestions");
     assertThat(result.adoptableSources()).isEmpty();
     verifyNoInteractions(episodes);
@@ -61,11 +56,10 @@ class MemoryRecallToolTest {
   void databaseFailureIsNotReportedAsEmptyMemory() {
     var failure = new IllegalStateException("database unavailable");
     when(episodes.recent(any(), any(), any())).thenThrow(failure);
-    assertThatThrownBy(() -> tool.execute(request(SessionMode.PRACTICE,
-        Map.of("targetId", "target-0")))).isSameAs(failure);
+    assertThatThrownBy(() -> tool.read(context(SessionMode.PRACTICE), "target-0")).isSameAs(failure);
   }
 
-  private ReadToolRequest request(SessionMode mode, Map<String, Object> args) {
+  private AgentContext context(SessionMode mode) {
     var context = mock(AgentContext.class, RETURNS_DEEP_STUBS);
     var target = mock(CoverageView.TargetCoverage.class, RETURNS_DEEP_STUBS);
     when(context.session().mode()).thenReturn(mode);
@@ -73,6 +67,6 @@ class MemoryRecallToolTest {
     when(context.facts().coverage().targets()).thenReturn(List.of(target));
     when(target.targetId()).thenReturn("target-0");
     when(target.target().identity().topic()).thenReturn(topic);
-    return new ReadToolRequest(context, args, Long.MAX_VALUE);
+    return context;
   }
 }

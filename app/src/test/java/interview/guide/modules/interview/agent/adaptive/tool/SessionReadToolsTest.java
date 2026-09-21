@@ -25,28 +25,24 @@ class SessionReadToolsTest {
     var session = session();
     String original = "原文\r\n".repeat(4000);
     when(session.resume()).thenReturn(original);
-    var result = (ReadToolResult.Success) material.execute(request(Map.of("source", "resume")));
+    var result = (ReadToolResult.Success) material.read(context(), "resume");
     assertThat(result.data()).containsEntry("text", original).containsOnlyKeys("source", "text");
     verify(sessions).findByIdAndCandidateIdAndTenantId("session", "candidate", "tenant");
     assertThat(result.adoptableSources()).isEmpty();
   }
 
   @Test
-  void rejectsUnknownIdentityArgumentsAndInvalidTurnNumbers() {
-    assertThatThrownBy(() -> material.validate(request(Map.of("source", "jd", "sessionId", "other"))))
-        .isInstanceOf(ReadToolValidationException.class);
-    assertThatThrownBy(() -> material.validate(request(Map.of("source", "JD"))))
-        .isInstanceOf(ReadToolValidationException.class);
-    for (Object value : List.of(0, -1, 1.5, "1", 1e30)) {
-      assertThatThrownBy(() -> code.validate(request(Map.of("turnIndex", value))))
-          .isInstanceOf(ReadToolValidationException.class);
+  void rejectsInvalidSourceAndTurnNumbersBeforeRepositoryReads() {
+    assertThatThrownBy(() -> material.read(context(), "JD")).isInstanceOf(ReadToolValidationException.class);
+    for (int value : List.of(0, -1)) {
+      assertThatThrownBy(() -> code.read(context(), value)).isInstanceOf(ReadToolValidationException.class);
     }
     verifyNoInteractions(sessions, turns);
   }
 
   @Test
   void ownerMismatchStopsBeforeReadingTurns() {
-    assertThatThrownBy(() -> code.execute(request(Map.of("turnIndex", 1))))
+    assertThatThrownBy(() -> code.read(context(), 1))
         .isInstanceOf(BusinessException.class);
     verifyNoInteractions(turns);
   }
@@ -54,12 +50,12 @@ class SessionReadToolsTest {
   @Test
   void distinguishesMissingMaterialsAndMissingTurnsFromReadFailure() {
     session();
-    assertThat(material.execute(request(Map.of("source", "jd")))).isInstanceOf(ReadToolResult.Empty.class);
-    assertThatThrownBy(() -> code.execute(request(Map.of("turnIndex", 1))))
+    assertThat(material.read(context(), "jd")).isInstanceOf(ReadToolResult.Empty.class);
+    assertThatThrownBy(() -> code.read(context(), 1))
         .isInstanceOf(ReadToolValidationException.class);
     when(sessions.findByIdAndCandidateIdAndTenantId(any(), any(), any()))
         .thenThrow(new IllegalStateException("database unavailable"));
-    assertThatThrownBy(() -> material.execute(request(Map.of("source", "jd"))))
+    assertThatThrownBy(() -> material.read(context(), "jd"))
         .isInstanceOf(IllegalStateException.class).hasMessage("database unavailable");
   }
 
@@ -82,7 +78,7 @@ class SessionReadToolsTest {
     when(selected.toDomain().answer()).thenReturn("说明");
     when(selected.workingMemory()).thenReturn(WorkingMemory.empty()
         .withAdoptedSources(List.of("question:1", "question:2")));
-    var result = (ReadToolResult.Success) code.execute(request(Map.of("turnIndex", 3)));
+    var result = (ReadToolResult.Success) code.read(context(), 3);
     var turn = (CodeTaskReadTool.SelectedTurn) result.data().get("turn");
     assertThat(turn.turnIndex()).isEqualTo(3);
     assertThat(result.data().get("adoptedSourceRefs")).isEqualTo(List.of("question:1", "question:2"));
@@ -99,10 +95,10 @@ class SessionReadToolsTest {
     return session;
   }
 
-  private ReadToolRequest request(Map<String, Object> arguments) {
+  private AgentContext context() {
     var context = mock(AgentContext.class, RETURNS_DEEP_STUBS);
     when(context.session().identity().sessionId()).thenReturn("session");
     when(context.session().identity().owner()).thenReturn(new MemoryOwner("tenant", "candidate"));
-    return new ReadToolRequest(context, arguments, Long.MAX_VALUE);
+    return context;
   }
 }

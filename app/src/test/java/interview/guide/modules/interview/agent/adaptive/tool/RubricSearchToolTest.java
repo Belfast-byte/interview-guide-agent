@@ -38,11 +38,7 @@ class RubricSearchToolTest {
         .thenReturn(List.of(document(7L)));
     when(repository.findAllById(List.of(7L))).thenReturn(List.of(question(7L)));
 
-    ReadToolResult result = tool.execute(new ReadToolRequest(
-        context(),
-        Map.of("query", "并发更新", "intent", "校准追问", "levelHints", List.of("L3")),
-        System.nanoTime() + 1_000_000_000L
-    ));
+    ReadToolResult result = tool.read("并发更新", "校准追问", List.of("L3"));
 
     ArgumentCaptor<SearchRequest> request = ArgumentCaptor.forClass(SearchRequest.class);
     verify(vectorStore).similaritySearch(request.capture());

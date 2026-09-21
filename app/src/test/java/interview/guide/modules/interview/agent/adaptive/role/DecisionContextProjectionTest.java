@@ -32,13 +32,13 @@ class DecisionContextProjectionTest {
   @Test
   void plannerAndDecisionSchemasBothExposeMandatoryCodeContractWithoutTextFallback() {
     String planner = new BeanOutputConverter<>(InitialQuestionProposal.class).getJsonSchema();
-    String decision = new BeanOutputConverter<>(InterviewDecisionOutput.class).getJsonSchema();
+    String decision = new BeanOutputConverter<>(AgentDecision.QuestionDraft.class).getJsonSchema();
     for (String schema : List.of(planner, decision)) {
       assertThat(schema).contains("questionType", "CODE_REPAIR", "TEXT", "codeTask", "reviewGuide", "codeTaskTurnIndex");
     }
-    var output = new InterviewDecisionOutput.QuestionOutput("question", "reason", List.of(), null, null, null);
-    assertThat(output.toDomain().questionType()).isNull();
-    assertThatThrownBy(() -> CodeQuestionValidator.validateShape(output.toDomain()))
+    var output = new AgentDecision.QuestionDraft("question", "reason", List.of(), null, null, null);
+    assertThat(output.questionType()).isNull();
+    assertThatThrownBy(() -> CodeQuestionValidator.validateShape(output))
         .isInstanceOf(IllegalArgumentException.class).hasMessageContaining("questionType");
   }
 

@@ -16,7 +16,7 @@ class PlanningContractTest {
   void shouldKeepPlanningContextIndependentFromAssessment() {
     assertThat(Arrays.stream(PlanningRequest.class.getRecordComponents())
         .map(component -> component.getName()))
-        .containsExactly("sessionId", "context", "practiceMemory");
+        .containsExactly("sessionId", "context", "practiceMemory", "codeRepairFirst");
     assertThat(Arrays.stream(PlannerContext.class.getRecordComponents())
         .map(component -> component.getName()))
         .containsExactly(

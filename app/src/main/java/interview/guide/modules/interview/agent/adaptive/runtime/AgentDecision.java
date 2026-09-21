@@ -15,23 +15,13 @@ public record AgentDecision(
     Action action
 ) {
 
-  public sealed interface Action permits Ask, CallReadTools, Finish {}
+  public sealed interface Action permits Ask, Finish {}
 
   public record Ask(
       String targetId,
       @Schema(nullable = true, requiredMode = Schema.RequiredMode.NOT_REQUIRED) Long sourceGapId,
       QuestionDraft question
   ) implements Action {}
-  public record CallReadTools(List<ReadToolCall> calls) implements Action {
-
-    public CallReadTools {
-      if (calls != null) {
-        calls = calls == null ? null : Collections.unmodifiableList(new ArrayList<>(calls));
-      }
-    }
-  }
-
-
   public record QuestionDraft(
       String content,
       String decisionSummary,

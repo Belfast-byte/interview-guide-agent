@@ -9,7 +9,7 @@
 | NATIVE-1 | 核对框架真实 API，建立原生执行合约测试 | 单步执行、消息历史、绑定差异、顺序 | DONE |
 | NATIVE-2 | 七个查询工具原生定义与安全上下文 | 查询真实业务边界、原生参数契约 | DONE |
 | NATIVE-3 | Runtime 原生循环和两个最终提案工具 | 拒绝回流、来源、预算、冲突提案 | DONE |
-| NATIVE-4 | 删除旧协议，贯通持久化和对外入口 | 并发幂等、正式事实恢复、历史隔离 | TODO |
+| NATIVE-4 | 删除旧协议，贯通持久化和对外入口 | 并发幂等、正式事实恢复、历史隔离 | DONE |
 | NATIVE-5 | 回归及真实环境验收，更新规格现状 | 编译、相关完整回归；真实环境限制单列 | TODO |
 
 ## 执行记录
@@ -38,3 +38,11 @@
 - subagent `review_native3` 确认通用 ToolCallbackProvider Bean 会被 MCP 自动发布；已改为具体 QueryTools 集合并用 Spring context 测试锁定外部隔离。该具体集合用于保护 MCP 发布边界，不执行工具或分派名称。
 - 补充 CODE_REPAIR 嵌套绑定、冲突提案、同批来源拒绝、未知工具纠错、提案不占查询预算，以及实际 ChatClient 不执行工具/不自动循环的合约测试。
 - 本票最终针对 Runtime/模型/上下文/原生工具的 37 项测试全部通过。旧协议和 Map 兼容代码留待 NATIVE-4 删除。
+
+### NATIVE-4
+
+- NATIVE-3 已推送 `6747a01`。删除旧 Gateway、工具调用 DTO/接口、CallReadTools、Interviewer 动作 JSON 输出，以及全部 Map 参数解析入口；业务 Ask/Finish 仅保留为正式提交类型。
+- 七个原生方法使用类型化参数，业务读取继续验证归属、Plan、模式与来源；没有数据库迁移或 HTTP/SSE/MCP 字段变更。
+- subagent `review_native4` 无阻塞发现；按建议补齐原生 manager 的四种终态、顺序、来源映射测试，并核对所有七个工具拒绝模型传入身份。
+- `:app:test --offline --tests 'interview.guide.modules.interview.agent.adaptive.*'`：376 项，374 通过，2 个真实环境测试按条件跳过；包含持久化并发幂等、租约、旧执行者、代码任务、公开 DTO 和评估历史隔离。
+- 完整回归发现首题代码标志 codeRepairFirst 的旧反射契约未同步，已修正该断言；不改变 Planner 行为。
