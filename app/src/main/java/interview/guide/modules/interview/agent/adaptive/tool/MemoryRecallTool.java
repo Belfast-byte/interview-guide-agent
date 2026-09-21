@@ -11,6 +11,10 @@ import java.util.Set;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.stereotype.Component;
+import org.springframework.ai.chat.model.ToolContext;
+import org.springframework.ai.tool.annotation.Tool;
+import org.springframework.ai.tool.annotation.ToolParam;
+import interview.guide.modules.interview.agent.adaptive.runtime.DecisionObservation;
 
 /** 只按当前计划的知识点召回；如何换场景由 Agent 根据原问答决定。 */
 @Component
@@ -18,6 +22,18 @@ import org.springframework.stereotype.Component;
 public class MemoryRecallTool implements ReadOnlyAgentTool {
   private final EpisodeQueryService episodes;
   private final QuestionExposureRepository exposures;
+
+  @Tool(name = "memory_recall", description = "按当前计划目标读取练习历史及原题曝光。评估模式仅返回曝光题目，历史评级不能用于当前评分。")
+  public DecisionObservation query(
+      @ToolParam(description = "当前计划的目标 ID") String targetId,
+      ToolContext toolContext) {
+    var scope = InterviewToolContext.from(toolContext);
+    var arguments = new java.util.LinkedHashMap<String, Object>();
+    arguments.put("targetId", targetId);
+    var request = new ReadToolRequest(scope.context(), arguments, scope.deadlineNanos());
+    validate(request);
+    return scope.observe("memory_recall", execute(request));
+  }
 
   public String name() {
     return "memory_recall";

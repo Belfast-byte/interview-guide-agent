@@ -13,6 +13,10 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.ai.vectorstore.SearchRequest;
 import org.springframework.ai.vectorstore.VectorStore;
 import org.springframework.stereotype.Component;
+import org.springframework.ai.chat.model.ToolContext;
+import org.springframework.ai.tool.annotation.Tool;
+import org.springframework.ai.tool.annotation.ToolParam;
+import interview.guide.modules.interview.agent.adaptive.runtime.DecisionObservation;
 
 @Component
 @RequiredArgsConstructor
@@ -22,6 +26,20 @@ public class QuestionSearchTool implements ReadOnlyAgentTool {
   private final VectorStore vectorStore;
   private final KnowledgeBaseQuestionRepository questions;
   private final ToolProperties properties;
+
+  @Tool(name = "question_search", description = "检索 ACTIVE 题库题目，返回可采用的 question 来源。用于换场景出题。")
+  public DecisionObservation query(
+      @ToolParam(description = "非空检索内容") String query,
+      @ToolParam(description = "可省略的难度过滤，提供时不能为空", required = false) String difficulty,
+      ToolContext toolContext) {
+    var scope = InterviewToolContext.from(toolContext);
+    var arguments = new java.util.LinkedHashMap<String, Object>();
+    arguments.put("query", query);
+    if (difficulty != null) arguments.put("difficulty", difficulty);
+    var request = new ReadToolRequest(scope.context(), arguments, scope.deadlineNanos());
+    validate(request);
+    return scope.observe("question_search", execute(request));
+  }
 
   public String name() { return "question_search"; }
 

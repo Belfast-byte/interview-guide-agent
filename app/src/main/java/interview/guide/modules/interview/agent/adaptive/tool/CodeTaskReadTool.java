@@ -7,12 +7,28 @@ import java.util.List;
 import java.util.Map;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Component;
+import org.springframework.ai.chat.model.ToolContext;
+import org.springframework.ai.tool.annotation.Tool;
+import org.springframework.ai.tool.annotation.ToolParam;
+import interview.guide.modules.interview.agent.adaptive.runtime.DecisionObservation;
 
 @Component
 @RequiredArgsConstructor
 public class CodeTaskReadTool implements ReadOnlyAgentTool {
   private final AdaptiveAgentSessionRepository sessions;
   private final AdaptiveAgentTurnRepository turns;
+
+  @Tool(name = "code_task_read", description = "读取本场指定轮次的代码任务、回答和提交代码；不公开私有审阅指南。")
+  public DecisionObservation query(
+      @ToolParam(description = "本场正整数轮次") int turnIndex,
+      ToolContext toolContext) {
+    var scope = InterviewToolContext.from(toolContext);
+    var arguments = new java.util.LinkedHashMap<String, Object>();
+    arguments.put("turnIndex", turnIndex);
+    var request = new ReadToolRequest(scope.context(), arguments, scope.deadlineNanos());
+    validate(request);
+    return scope.observe("code_task_read", execute(request));
+  }
 
   public String name() { return "code_task_read"; }
 

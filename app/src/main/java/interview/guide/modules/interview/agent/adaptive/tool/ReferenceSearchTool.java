@@ -12,6 +12,10 @@ import org.springframework.ai.vectorstore.SearchRequest;
 import org.springframework.ai.vectorstore.VectorStore;
 import org.springframework.ai.vectorstore.filter.FilterExpressionBuilder;
 import org.springframework.stereotype.Component;
+import org.springframework.ai.chat.model.ToolContext;
+import org.springframework.ai.tool.annotation.Tool;
+import org.springframework.ai.tool.annotation.ToolParam;
+import interview.guide.modules.interview.agent.adaptive.runtime.DecisionObservation;
 import tools.jackson.databind.ObjectMapper;
 
 /** 专业背景检索不产生 rubric 采用来源，也不进入正式评分快照。 */
@@ -25,6 +29,20 @@ public class ReferenceSearchTool implements ReadOnlyAgentTool {
   private final ToolProperties properties;
   private final TokenCountEstimator estimator;
   private final ObjectMapper mapper;
+
+  @Tool(name = "reference_search", description = "检索当前目标允许的专业参考。仅供出题背景，不是评分量规或候选人能力证据。")
+  public DecisionObservation query(
+      @ToolParam(description = "当前计划的目标 ID") String targetId,
+      @ToolParam(description = "1 到 1000 字符的非空查询") String query,
+      ToolContext toolContext) {
+    var scope = InterviewToolContext.from(toolContext);
+    var arguments = new java.util.LinkedHashMap<String, Object>();
+    arguments.put("targetId", targetId);
+    arguments.put("query", query);
+    var request = new ReadToolRequest(scope.context(), arguments, scope.deadlineNanos());
+    validate(request);
+    return scope.observe("reference_search", execute(request));
+  }
 
   public String name() { return NAME; }
 

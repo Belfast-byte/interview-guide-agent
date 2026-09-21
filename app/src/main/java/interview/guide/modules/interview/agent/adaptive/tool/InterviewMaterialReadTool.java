@@ -6,11 +6,27 @@ import java.util.Map;
 import java.util.Set;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Component;
+import org.springframework.ai.chat.model.ToolContext;
+import org.springframework.ai.tool.annotation.Tool;
+import org.springframework.ai.tool.annotation.ToolParam;
+import interview.guide.modules.interview.agent.adaptive.runtime.DecisionObservation;
 
 @Component
 @RequiredArgsConstructor
 public class InterviewMaterialReadTool implements ReadOnlyAgentTool {
   private final AdaptiveAgentSessionRepository sessions;
+
+  @Tool(name = "interview_material_read", description = "读取本场已保存的简历或 JD 原文。用于核对背景；结果不是候选人回答证据。")
+  public DecisionObservation query(
+      @ToolParam(description = "resume 或 jd") String source,
+      ToolContext toolContext) {
+    var scope = InterviewToolContext.from(toolContext);
+    var arguments = new java.util.LinkedHashMap<String, Object>();
+    arguments.put("source", source);
+    var request = new ReadToolRequest(scope.context(), arguments, scope.deadlineNanos());
+    validate(request);
+    return scope.observe("interview_material_read", execute(request));
+  }
 
   public String name() { return "interview_material_read"; }
 

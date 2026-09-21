@@ -17,6 +17,10 @@ import org.springframework.ai.document.Document;
 import org.springframework.ai.vectorstore.SearchRequest;
 import org.springframework.ai.vectorstore.VectorStore;
 import org.springframework.stereotype.Component;
+import org.springframework.ai.chat.model.ToolContext;
+import org.springframework.ai.tool.annotation.Tool;
+import org.springframework.ai.tool.annotation.ToolParam;
+import interview.guide.modules.interview.agent.adaptive.runtime.DecisionObservation;
 
 /** 模型按需检索全局 ACTIVE 审核 rubric 目录。 */
 @Component
@@ -38,6 +42,22 @@ public class RubricSearchTool implements ReadOnlyAgentTool {
     this.vectorStore = vectorStore;
     this.questionRepository = questionRepository;
     this.properties = properties;
+  }
+
+  @Tool(name = "rubric_search", description = "检索 ACTIVE 量规，返回正文、版本和真实 rubric 来源；采用后才形成正式量规快照。")
+  public DecisionObservation query(
+      @ToolParam(description = "非空检索内容") String query,
+      @ToolParam(description = "非空检索目的") String intent,
+      @ToolParam(description = "等级提示，可为空数组") List<String> levelHints,
+      ToolContext toolContext) {
+    var scope = InterviewToolContext.from(toolContext);
+    var arguments = new java.util.LinkedHashMap<String, Object>();
+    arguments.put("query", query);
+    arguments.put("intent", intent);
+    arguments.put("levelHints", levelHints);
+    var request = new ReadToolRequest(scope.context(), arguments, scope.deadlineNanos());
+    validate(request);
+    return scope.observe("rubric_search", execute(request));
   }
 
   @Override

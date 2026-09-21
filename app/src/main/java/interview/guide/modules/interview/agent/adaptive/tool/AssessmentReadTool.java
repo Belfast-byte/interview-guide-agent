@@ -12,6 +12,10 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Component;
+import org.springframework.ai.chat.model.ToolContext;
+import org.springframework.ai.tool.annotation.Tool;
+import org.springframework.ai.tool.annotation.ToolParam;
+import interview.guide.modules.interview.agent.adaptive.runtime.DecisionObservation;
 
 @Component
 @RequiredArgsConstructor
@@ -20,6 +24,18 @@ public class AssessmentReadTool implements ReadOnlyAgentTool {
   private final AdaptiveAgentTurnRepository turns;
   private final AdaptiveAgentAssessmentRepository assessments;
   private final AdaptiveAgentEvidenceRepository evidences;
+
+  @Tool(name = "assessment_read", description = "读取本场指定轮次已提交的正式评估和证据。尚未提交返回空，不能读取其他会话。")
+  public DecisionObservation query(
+      @ToolParam(description = "本场正整数轮次") int turnIndex,
+      ToolContext toolContext) {
+    var scope = InterviewToolContext.from(toolContext);
+    var arguments = new java.util.LinkedHashMap<String, Object>();
+    arguments.put("turnIndex", turnIndex);
+    var request = new ReadToolRequest(scope.context(), arguments, scope.deadlineNanos());
+    validate(request);
+    return scope.observe("assessment_read", execute(request));
+  }
 
   public String name() { return "assessment_read"; }
 
