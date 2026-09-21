@@ -29,10 +29,6 @@ public class AdaptiveAgentProperties {
   private int interviewerMaxOutputTokens = 8_192;
   private int structuredMaxOutputTokens = 8_192;
   private String reasoningEffort = "low";
-  private String systemPromptPath =
-      "classpath:prompts/adaptive-agent-interviewer-system.st";
-  private String userPromptPath =
-      "classpath:prompts/adaptive-agent-interviewer-user.st";
   private String decisionSystemPromptPath =
       "classpath:prompts/adaptive-agent-decision-system.st";
   private String decisionUserPromptPath =
