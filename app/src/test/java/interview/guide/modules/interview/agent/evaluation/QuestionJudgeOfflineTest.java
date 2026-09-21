@@ -19,6 +19,7 @@ import java.nio.file.Path;
 import java.time.Duration;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 import java.util.UUID;
 import javax.sql.DataSource;
 import org.junit.jupiter.api.Test;
@@ -33,7 +34,7 @@ import org.springframework.boot.hibernate.autoconfigure.HibernateJpaAutoConfigur
 import org.springframework.boot.jdbc.autoconfigure.DataSourceAutoConfiguration;
 import org.springframework.boot.persistence.autoconfigure.EntityScan;
 import org.springframework.boot.transaction.autoconfigure.TransactionAutoConfiguration;
-import org.springframework.context.annotation.Configuration;
+import org.springframework.boot.test.context.TestConfiguration;
 import org.springframework.context.annotation.Import;
 import org.springframework.core.io.DefaultResourceLoader;
 import org.springframework.data.jpa.repository.config.EnableJpaRepositories;
@@ -44,7 +45,7 @@ import tools.jackson.databind.ObjectMapper;
 /** 显式启用的离线入口；最小上下文不扫描 App，不启动 HTTP、队列、调度、Flyway 或生产 Agent。 */
 @EnabledIfEnvironmentVariable(named = "QUESTION_JUDGE_LIVE", matches = "true")
 class QuestionJudgeOfflineTest {
-  @Configuration(proxyBeanMethods = false)
+  @TestConfiguration(proxyBeanMethods = false)
   @ImportAutoConfiguration({DataSourceAutoConfiguration.class, HibernateJpaAutoConfiguration.class,
       TransactionAutoConfiguration.class})
   @EnableConfigurationProperties(LlmProviderProperties.class)
@@ -96,11 +97,29 @@ class QuestionJudgeOfflineTest {
           samples.add(reader.read(owner, null, session, Integer.parseInt(turn.trim())));
         }
       }
+      if (!app.getBeansOfType(interview.guide.modules.interview.agent.adaptive.runtime.InterviewAgentLoop.class).isEmpty()) {
+        throw new IllegalStateException("Production Agent must not be started");
+      }
+      var before = session == null ? Map.of() : fingerprint(jdbc, session);
       var output = batch.run(samples, options, limit, Path.of(required("QUESTION_JUDGE_OUTPUT")));
+      if (session != null && !before.equals(fingerprint(jdbc, session))) {
+        throw new IllegalStateException("Published interview facts changed during isolated evaluation");
+      }
+      if (session != null) System.out.println("QUESTION_JUDGE_BUSINESS_FACTS_UNCHANGED");
       // Only path/status is printed; reports are private local artifacts requiring explicit review.
       System.out.println("QUESTION_JUDGE_REPORT " + output);
       System.out.println("QUESTION_JUDGE_SUMMARY " + json.readTree(output.resolve("summary.json").toFile()));
     }
+  }
+
+  private static Map<String, Object> fingerprint(JdbcTemplate jdbc, String session) {
+    // Hash full rows rather than only counts; includes answers, memory, leases and assessment contents.
+    return jdbc.queryForMap("select "
+        + "(select md5(coalesce(string_agg(to_jsonb(s)::text, '' order by s.id), '')) from agent_sessions s where s.id=?) as session, "
+        + "(select md5(coalesce(string_agg(to_jsonb(t)::text, '' order by t.id), '')) from agent_turns t where t.session_id=?) as turns, "
+        + "(select md5(coalesce(string_agg(to_jsonb(a)::text, '' order by a.id), '')) from agent_assessments a where a.session_id=?) as assessments, "
+        + "(select md5(coalesce(string_agg(to_jsonb(p)::text, '' order by p.id), '')) from agent_plans p where p.session_id=?) as plans",
+        session, session, session, session);
   }
 
   private static String required(String key) {

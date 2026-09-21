@@ -1,6 +1,6 @@
 # 题目质量测评：LLM-as-a-Judge
 
-日期：2026-09-21。状态：规格草案，未实施。本次仅定义 Agent 测评方案，不修改出题或发布代码。
+日期：2026-09-21。状态：首版离线测评已实现；验收进度和局限见 [47 实施记录](./47-question-quality-evaluation-tickets.md)。测评不接入正式出题或发布链路。
 
 关联：[40 Java 代码改错题](./40-java-code-repair-spec.md)、[44 原生工具与 Runtime](./44-native-tools-agent-runtime-spec.md)、[45 实施与验收记录](./45-native-tools-agent-runtime-tickets.md)。本规格以用户最新的“暂时只作为 Agent 测评观测，不直接影响出题”要求为准，取代此前讨论的发布前审题门禁与自动修订方案。
 

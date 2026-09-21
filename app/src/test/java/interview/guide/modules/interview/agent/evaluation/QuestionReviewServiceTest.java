@@ -101,6 +101,7 @@ class QuestionReviewServiceTest {
       assertThat(fixture.requests).hasSize(1);
       var request = fixture.requests.getFirst();
       assertThat(request.has("tools")).isFalse();
+      assertThat(request.path("response_format").path("type").asText()).isEqualTo("json_object");
       assertThat(request.path("max_tokens").asInt()).isEqualTo(2000);
       assertThat(request.path("messages")).hasSize(2);
       assertThat(request.path("messages").get(1).path("content").asText())
@@ -150,6 +151,7 @@ class QuestionReviewServiceTest {
       var first = service.evaluate(sample(), options(Duration.ofSeconds(8), 20000));
       var second = service.evaluate(sample(), options(Duration.ofSeconds(8), 20000));
       assertThat(first.status()).isEqualTo(QuestionReviewService.Status.FAILED);
+      assertThat(first.reason()).isEqualTo("RESPONSE_PARSE_FAILED");
       assertThat(second.attempt()).isNotEqualTo(first.attempt());
       assertThat(fixture.requests).hasSize(2);
       assertThat(json.writeValueAsString(first)).doesNotContain("invalid secret");
@@ -159,6 +161,16 @@ class QuestionReviewServiceTest {
       assertThat(result.status()).isEqualTo(QuestionReviewService.Status.FAILED);
       assertThat(result.observations()).isEmpty();
       assertThat(result.durationMillis()).isLessThan(2500);
+    }
+  }
+
+  @Test
+  void validJsonWithMissingDimensionsIsValidationFailure() throws Exception {
+    try (var fixture = new Endpoint(200, "{\"observations\":[]}", 0)) {
+      var report = service(fixture).evaluate(sample(), options(Duration.ofSeconds(8), 20000));
+      assertThat(report.status()).isEqualTo(QuestionReviewService.Status.FAILED);
+      assertThat(report.reason()).isEqualTo("OUTPUT_VALIDATION_FAILED");
+      assertThat(fixture.requests).hasSize(1);
     }
   }
 

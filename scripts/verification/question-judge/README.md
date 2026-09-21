@@ -34,7 +34,7 @@ export QUESTION_JUDGE_FIXTURES=/tmp/question-judge-fixtures/fixtures.json
 ./gradlew :app:test --tests '*QuestionJudgeOfflineTest' --rerun-tasks --no-daemon
 ```
 
-`--rerun-tasks` 防止环境参数变更后 Gradle 复用之前的跳过结果。一次运行串行执行，最多 30 个已选样例且配置 timeout × maxSamples 不超过 480 秒，测试总超时 600 秒；生产答题预算不受影响。若样例超过 deadline，后续样例标为 PREVIOUS_CALL_TIMEOUT 并停止派发，防止迟到请求与下一请求重叠。每样例最多一次实际 Provider 请求（SDK 重试关闭），输入超限不截断为伪完整题面，记录 SKIPPED。
+`--rerun-tasks` 防止环境参数变更后 Gradle 复用之前的跳过结果。一次运行串行执行，最多 30 个已选样例且配置 timeout × maxSamples 不超过 480 秒，测试总超时 600 秒；生产答题预算不受影响。若样例超过 deadline，后续样例标为 PREVIOUS_CALL_TIMEOUT 并停止派发，防止迟到请求与下一请求重叠。每样例最多一次实际 Provider 请求（SDK 重试关闭，显式使用 Provider JSON object 输出模式；不支持时明确失败），输入超限不截断为伪完整题面，记录 SKIPPED。
 
 读取已发布个人面试快照时，取消 `QUESTION_JUDGE_FIXTURES`，改用：
 

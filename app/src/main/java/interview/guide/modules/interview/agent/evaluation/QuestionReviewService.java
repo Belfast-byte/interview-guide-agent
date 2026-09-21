@@ -25,6 +25,7 @@ import org.springframework.ai.chat.client.ChatClientResponse;
 import org.springframework.ai.chat.client.advisor.api.CallAdvisor;
 import org.springframework.ai.chat.client.advisor.api.CallAdvisorChain;
 import org.springframework.ai.openai.OpenAiChatOptions;
+import org.springframework.ai.openai.OpenAiChatModel.ResponseFormat;
 import tools.jackson.databind.ObjectMapper;
 
 /** 仅由离线入口显式构造；无 Spring Bean、生产调用者或持久化副作用。 */
@@ -84,6 +85,7 @@ public final class QuestionReviewService {
     Instant at = Instant.now();
     var capture = new Capture();
     Status status = Status.SKIPPED;
+    String phase = "SETUP";
     String reason = !options.enabled() ? "DISABLED" : "OUT_OF_SCOPE";
     List<Observation> observations = List.of();
     List<LocatedIssue> locations = List.of();
@@ -105,11 +107,13 @@ public final class QuestionReviewService {
         } else if (System.nanoTime() >= ends) {
           reason = "DEADLINE_BEFORE_REQUEST";
         } else {
+          phase = "RESPONSE_PARSE";
           JudgeOutput output = deadline.invoke(() -> {
             var client = providers.getSingleRequestPlainChatClient(options.providerId()).mutate()
                 .defaultOptions(OpenAiChatOptions.builder().model(options.model()).maxRetries(0)
                     .timeout(Duration.ofNanos(Math.max(1, ends - System.nanoTime())))
-                    .maxTokens(options.maxOutputTokens()))
+                    .maxTokens(options.maxOutputTokens())
+                    .responseFormat(ResponseFormat.builder().type(ResponseFormat.Type.JSON_OBJECT).build()))
                 .defaultAdvisors(capture).build();
             if (Thread.currentThread().isInterrupted() || System.nanoTime() >= ends) {
               throw new BusinessException(ErrorCode.AI_SERVICE_TIMEOUT);
@@ -117,6 +121,7 @@ public final class QuestionReviewService {
             return invoker.invokeOnce(telemetry.observeTokenUsage(client, "question_judge", "offline"),
                 system, user, converter, ErrorCode.AI_SERVICE_ERROR, "Judge: ", "question_judge", LOG);
           }, ends, "question_judge");
+          phase = "OUTPUT_VALIDATION";
           locations = validate(snapshot, output);
           observations = output.observations().stream().map(o -> new Observation(o.dimension(),
               o.finding(), o.rationale(), List.copyOf(o.issues()))).toList();
@@ -127,7 +132,7 @@ public final class QuestionReviewService {
         status = Status.FAILED;
         reason = error instanceof BusinessException business && business.getCode() == ErrorCode.AI_SERVICE_TIMEOUT.getCode()
             ? "TIMEOUT" : capture.failure.get() != null ? capture.failure.get()
-            : capture.tokens.get() != null ? "INVALID_OUTPUT" : "REQUEST_SETUP_FAILED";
+            : capture.tokens.get() != null ? phase + "_FAILED" : "REQUEST_SETUP_FAILED";
         // Do not persist exception messages that may contain private model output.
         LOG.warn("question_judge_failed type={} stack={}", reason, java.util.Arrays.toString(error.getStackTrace()));
       }
