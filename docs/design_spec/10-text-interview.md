@@ -129,7 +129,7 @@ loop:
 
 ## 5. 记忆系统
 
-> Working Memory 以 [36-agent-loop-working-memory-spec.md](./36-agent-loop-working-memory-spec.md) 为准；Episodic/Semantic Memory 以 [34-memory-three-layer-spec.md](./34-memory-three-layer-spec.md) 为准。
+> Working Memory 以 [36-agent-loop-working-memory-spec.md](./36-agent-loop-working-memory-spec.md) 为准；Episodic/Semantic Memory 以 [38-memory-business-reuse-spec.md](./38-memory-business-reuse-spec.md) 为准。
 
 ### 5.1 短期记忆（会话内，M0 起步、M3 完整）
 
@@ -143,7 +143,7 @@ loop:
 
 ### 5.2 长期记忆（跨会话，M3）
 
-新分类下长期记忆拆为 **Episodic Memory** 与 **Semantic Memory**；具体不可变事实、模式投影和双轨画像边界以 34 号 v4 规格为准。
+长期记忆分为 **Episodic Memory** 与 **Semantic Memory**；事实复用、模式隔离和能力画像以 [38 号业务复用规格](./38-memory-business-reuse-spec.md) 为准，旧双轨贡献与整理链路不再作为实施目标。
 
 评估后置决定了长期记忆**分两批填充**：
 

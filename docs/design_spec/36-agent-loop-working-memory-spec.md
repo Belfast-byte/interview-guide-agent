@@ -5,7 +5,7 @@
 > 依据：[2026-08-29 架构审计](../review/adaptive-agent-complexity-audit-2026-08-29.md)。
 > 最后更新：2026-09-12
 
-本规格取代 34 号 v4 中 WorkState/Patch/ActionIntent 和固定 NextActionPolicy，取代 35 号旧 T02/T03，并校准 10/11/13/14/20 中的模型/Java、Tool 和恢复边界。三层记忆的当前目标见 [38-memory-business-reuse-spec.md](./38-memory-business-reuse-spec.md)；Java 改错题的新增契约见 [40 号规格](./40-java-code-repair-spec.md)，尚未实施。
+本规格取代旧版记忆方案中的 WorkState/Patch/ActionIntent、固定 NextActionPolicy 及对应历史票据，并校准 10/11/13/14/20 中的模型/Java、Tool 和恢复边界。三层记忆的当前目标见 [38-memory-business-reuse-spec.md](./38-memory-business-reuse-spec.md)；Java 改错题的新增契约见 [40 号规格](./40-java-code-repair-spec.md)，尚未实施。
 
 ## 0. 目标与非目标
 

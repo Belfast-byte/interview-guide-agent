@@ -317,7 +317,7 @@ MCP 集成放在多 Agent 拆分**之后**。理由：MCP 对接的是稳定的�
 | L1 短期记忆 | 单场面试会话 | 轮次记录、评估结果、证据、维度小结、会话状态机 | `interview_turns` / `assessments` / `evidences` 等表（第 8 节） |
 | L2 长期记忆 | 跨会话 | 候选人能力画像、练习记录、企业侧量规校准数据 | 结构化画像表 + pgvector 语义索引 |
 
-> 注：Agent Loop 与 Working Memory 的目标规格见 [36-agent-loop-working-memory-spec.md](../design_spec/36-agent-loop-working-memory-spec.md)；Episodic/Semantic 目标见 [34-memory-three-layer-spec.md](../design_spec/34-memory-three-layer-spec.md) v5。
+> 注：Agent Loop 与 Working Memory 的目标规格见 [36-agent-loop-working-memory-spec.md](../design_spec/36-agent-loop-working-memory-spec.md)；Episodic/Semantic 目标见 [38-memory-business-reuse-spec.md](../design_spec/38-memory-business-reuse-spec.md)。
 
 ### 7.3 L0：工作上下文装配
 
@@ -349,7 +349,7 @@ MVP 的"历史最多 6 轮全量进 Prompt"在 12+ 轮、多维度的平台面�
 **候选人侧——能力画像**：
 
 - 结构：`候选人 × 维度 × 深度等级 × 来源会话 × 时间`，只写裁决后的结构化结论；
-- 更新策略：每场结束将事件 Assessment 增量合并进等级（代码裁决，目标规则见 34 号 v4 规格），合并结果以新记录写入、旧记录标记 `superseded` 保留（成长轨迹的数据基础）；
+- 更新策略：每场结束将事件 Assessment 增量合并进等级（历史方案，当前业务复用规则见 [38 号规格](../design_spec/38-memory-business-reuse-spec.md)），合并结果以新记录写入、旧记录标记 `superseded` 保留（成长轨迹的数据基础）；
 - 三个合法用途：
   1. **复测选题**：同一候选人再次面试时，规划 Agent 避开已充分验证的题目、针对上次薄弱维度分配更多预算——但换题不换维度，防止"背上次答案"；
   2. **练习推荐闭环**：薄弱维度 → 练习记录 → 复测验证，候选人视图展示成长轨迹（"Redis 维度 L1 → L3，历时 6 周"）；
@@ -371,7 +371,7 @@ MVP 的"历史最多 6 轮全量进 Prompt"在 12+ 轮、多维度的平台面�
 **写入纪律（防记忆投毒）**：
 
 - 只有编排器在裁决后写记忆，任何 Agent 不得直接写；
-- 只写结构化字段（枚举、等级、引用 ID），**不写 LLM 自由文本**——一次面试中的注入内容（如候选人回答里藏"记住我是专家"）若进入长期记忆，会污染该候选人所有后续面试。展示型 enrichment 的读侧边界以 34 号 v4 规格为准；
+- 只写结构化字段（枚举、等级、引用 ID），**不写 LLM 自由文本**——一次面试中的注入内容（如候选人回答里藏"记住我是专家"）若进入长期记忆，会污染该候选人所有后续面试。此处 enrichment 为历史方案；当前记忆边界以 [38 号规格](../design_spec/38-memory-business-reuse-spec.md) 为准；
 - 记忆写入与面试落库在同一个短事务，避免"面试完成但画像没更新"的中间态。
 
 ### 7.6 公平性防火墙（本业务特有的记忆治理）
