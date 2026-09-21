@@ -39,26 +39,7 @@ class ReferenceRagLiveReplayTest {
           .orElseThrow().id().toString();
       var persistence = app.getBean(AdaptiveInterviewPersistenceService.class);
       persistence.requireCandidateSession(owner, sessionId);
-      String credentialProvider = System.getenv("REFERENCE_RAG_EMBEDDING_CREDENTIAL_PROVIDER");
-      if (credentialProvider != null && !credentialProvider.isBlank()) {
-        // 仅在显式回归配置中借用同站点账号客户端；模型、维度与向量空间沿用全局配置。
-        var providers = app.getBean(LlmProviderRepository.class);
-        var candidate = providers.findByIdAndCandidateId(credentialProvider, UUID.fromString(owner)).orElseThrow();
-        var registry = app.getBean(LlmProviderRegistry.class);
-        String defaultId = ReflectionTestUtils.invokeMethod(registry, "resolveDefaultEmbeddingProviderId");
-        var global = providers.findById(defaultId).orElseThrow();
-        assertThat(candidate.getBaseUrl()).isEqualTo(global.getBaseUrl());
-        var original = (OpenAiEmbeddingModel) registry.getDefaultEmbeddingModel();
-        var credentialModel = (OpenAiEmbeddingModel) registry.getEmbeddingModel(credentialProvider);
-        var model = OpenAiEmbeddingModel.builder()
-            .openAiClient((OpenAIClient) ReflectionTestUtils.getField(credentialModel, "openAiClient"))
-            .metadataMode(MetadataMode.EMBED).options(original.getOptions()).build();
-        @SuppressWarnings("unchecked")
-        var cache = (Map<String, EmbeddingModel>) ReflectionTestUtils.getField(registry, "embeddingModelCache");
-        cache.put(defaultId, model);
-        app.getBean(SkillReferenceIndex.class).sync();
-        System.out.println("LIVE_EMBEDDING_SAME_MODEL_WITH_ACCOUNT_CREDENTIAL model=" + original.getOptions().getModel());
-      }
+      configureReplayEmbedding(app, owner);
       var interview = persistence.get(sessionId);
       var answer = persistence.answerForCandidate(owner, sessionId, turn);
       assertThat(answer.codeSubmission()).isNull();
@@ -114,6 +95,72 @@ class ReferenceRagLiveReplayTest {
       assertThat(counts(jdbc, sessionId)).isEqualTo(before);
       assertThat(persistence.get(sessionId).history().session()).isEqualTo(interview.history().session());
       System.out.println("LIVE_NO_COMMIT_VERIFIED " + before);
+    }
+  }
+
+  @Test
+  void queryNativeReferenceToolWithoutAssessmentPrerequisite() {
+    String sessionId = required("REFERENCE_RAG_SESSION");
+    try (var app = new SpringApplicationBuilder(App.class).run("--server.port=0")) {
+      var owner = app.getBean(UserRepository.class).findByEmail(required("REFERENCE_RAG_EMAIL"))
+          .orElseThrow().id().toString();
+      var persistence = app.getBean(AdaptiveInterviewPersistenceService.class);
+      persistence.requireCandidateSession(owner, sessionId);
+      configureReplayEmbedding(app, owner);
+      var interview = persistence.get(sessionId);
+      var history = interview.history();
+      var jdbc = app.getBean(JdbcTemplate.class);
+      var before = counts(jdbc, sessionId);
+      var context = new AgentContext(new AgentContext.SessionWindow(
+          new AgentContext.SessionIdentity(sessionId, history.llmProvider(), new MemoryOwner(null, owner)),
+          history.session().settings().mode(), history.session().maxTurns()),
+          new AgentContext.Facts(interview.coverage(), List.of(), List.of(), List.of("reference_search")),
+          WorkingMemory.empty());
+      var target = context.facts().coverage().targets().stream()
+          .filter(t -> t.target().identity().topic().focusId().equals("RAG")).findFirst().orElseThrow();
+      var callback = app.getBean(AdaptiveAgentRuntimeConfiguration.QueryTools.class).callbacks().stream()
+          .filter(tool -> tool.getToolDefinition().name().equals("reference_search")).findFirst().orElseThrow();
+      try (var scope = new interview.guide.modules.interview.agent.adaptive.tool.InterviewToolContext(
+          context, System.nanoTime() + Duration.ofSeconds(60).toNanos(), 1)) {
+        callback.call(new tools.jackson.databind.ObjectMapper().writeValueAsString(Map.of(
+            "targetId", target.targetId(), "query", "RAG 检索质量 召回率 延迟 向量检索与重排")),
+            new org.springframework.ai.chat.model.ToolContext(scope.values()));
+        assertThat(scope.observations()).singleElement().satisfies(observation -> {
+          assertThat(observation.kind()).isEqualTo(DecisionObservation.Kind.TOOL_SUCCESS);
+          assertThat((List<?>) observation.data().get("hits")).isNotEmpty();
+          assertThat(observation.adoptableSources()).isEmpty();
+          System.out.println("LIVE_NATIVE_REFERENCE_HITS count="
+              + ((List<?>) observation.data().get("hits")).size());
+        });
+      }
+      assertThat(counts(jdbc, sessionId)).isEqualTo(before);
+      assertThat(persistence.get(sessionId).history().session()).isEqualTo(history.session());
+      System.out.println("LIVE_NATIVE_REFERENCE_NO_COMMIT_VERIFIED");
+    }
+  }
+
+  private void configureReplayEmbedding(
+      org.springframework.context.ConfigurableApplicationContext app, String owner
+  ) {
+    String credentialProvider = System.getenv("REFERENCE_RAG_EMBEDDING_CREDENTIAL_PROVIDER");
+    if (credentialProvider != null && !credentialProvider.isBlank()) {
+      // 仅在显式回归配置中借用同站点账号客户端；模型、维度与向量空间沿用全局配置。
+      var providers = app.getBean(LlmProviderRepository.class);
+      var candidate = providers.findByIdAndCandidateId(credentialProvider, UUID.fromString(owner)).orElseThrow();
+      var registry = app.getBean(LlmProviderRegistry.class);
+      String defaultId = ReflectionTestUtils.invokeMethod(registry, "resolveDefaultEmbeddingProviderId");
+      var global = providers.findById(defaultId).orElseThrow();
+      assertThat(candidate.getBaseUrl()).isEqualTo(global.getBaseUrl());
+      var original = (OpenAiEmbeddingModel) registry.getDefaultEmbeddingModel();
+      var credentialModel = (OpenAiEmbeddingModel) registry.getEmbeddingModel(credentialProvider);
+      var model = OpenAiEmbeddingModel.builder()
+          .openAiClient((OpenAIClient) ReflectionTestUtils.getField(credentialModel, "openAiClient"))
+          .metadataMode(MetadataMode.EMBED).options(original.getOptions()).build();
+      @SuppressWarnings("unchecked")
+      var cache = (Map<String, EmbeddingModel>) ReflectionTestUtils.getField(registry, "embeddingModelCache");
+      cache.put(defaultId, model);
+      app.getBean(SkillReferenceIndex.class).sync();
+      System.out.println("LIVE_EMBEDDING_SAME_MODEL_WITH_ACCOUNT_CREDENTIAL model=" + original.getOptions().getModel());
     }
   }
 

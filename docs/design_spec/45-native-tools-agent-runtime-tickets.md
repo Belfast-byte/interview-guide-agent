@@ -62,7 +62,16 @@
 - 较长历史会话第 11 轮重试：Assessor 成功（11608/592 tokens），Loop step 0 的输入估计 23155 超过 20000，在 Interviewer 模型请求前明确拒绝。事实投影未改、原生 schema 开销已计入；没有同事实旧版预算对比，不能直接归因为迁移回归。该样例 Interviewer 实际请求 0 次。
 - 较短已有会话第 1 轮：从原页面提交标注为验收的文字回答，Assessor（6107/489 tokens）成功；真实 Interviewer 请求 2 次，usage 为 6661/41、7253/499 tokens，约 0.83s、3.12s（预算日志至 usage）。Loop step 0～1 完成并接受原生问题提案，页面成功进入第 2 轮。日志未记录逐项工具名称，不能据两次请求推断具体查询工具及数量，所有查询工具的真实线上覆盖仍未证明。
 - 成功样例刷新后第 2 题恢复；正式快照第 1 轮 COMPLETED、第 2 轮 WAITING，评估模式未暴露 assessmentFeedback。通过 HTTP 重放第 1 轮完全相同答案返回 200，仍为 2 轮，没有新增模型 usage 日志。此次仅验证顺序重放幂等，不能代替并发验证。
-- **未完成**：代码判题成功反馈、该代码会话后续真实原生查询/提案及完整流程、全部查询工具的真实覆盖。NATIVE-5 保持 PARTIAL；现有 PostgreSQL 迁移条件测试、真实 RAG 回放测试仍未运行。本次无前端实现改动，页面已实际打开和操作，未以构建替代交互验收。
+- **未完成**：代码判题成功反馈、该代码会话后续真实原生查询/提案及完整流程、全部查询工具的真实覆盖。NATIVE-5 保持 PARTIAL；PostgreSQL 迁移与独立真实 RAG 查询已运行，结果见下；完整 RAG 回放仍被评估校验阻断。本次无前端实现改动，页面已实际打开和操作，未以构建替代交互验收。
+
+### NATIVE-5 / 隔离 RAG 与数据库验收补充
+
+- 用户明确授权仅在隔离验收中复用测试账号已保存的硅基流动配置。环境使用 PostgreSQL 副本 15432、独立 Redis 16379；凭据通过测试进程内 Embedding 客户端缓存复用，不改全局配置、不提交凭据。维持 `Qwen/Qwen3-Embedding-0.6B` 与原 1024 维配置，同站点及账号归属均由测试校验。
+- 真实 Embedding 索引同步成功：186 个参考片段；首次更新 186，随后更新 0。索引写入隔离数据库，不等于完全只读。
+- 完整 `ReferenceRagLiveReplayTest.replaySavedAnswerAndReferenceAugmentedDecisionWithoutCommit` 实际运行两次，均在 Assessor 的“引用未命中指定来源的原文位置”失败，尚未执行后续查询/合成上下文断言。失败不能记成通过。
+- 为独立验证检索基础设施，新增 `queryNativeReferenceToolWithoutAssessmentPrerequisite`，复用同一凭据辅助方法；依据已授权会话的正式 coverage 选择 RAG 目标，使用实际原生 callback。该测试 1 项通过，14.042s，真实命中 3 个片段；验证真实查询非空命中、无评分采用来源、正式轮次/评估数量及 session 未变。它不证明模型自主选择 RAG、全部原生工具覆盖或完整连续答题。
+- `PostgresAgentSchemaMigrationTest` 实际启用运行：1 项通过，7.302s；在隔离 PostgreSQL 上分别创建临时数据库验证空库和旧基线迁移、Flyway validate 与 JPA validate，结束清理自建数据库。
+- subagent `review_rag_acceptance` 已审查新增独立测试及凭据复用边界，无阻塞发现。本次仅增加验收测试与记录，不修改业务运行逻辑；NATIVE-5 仍为 PARTIAL。
 
 ## 远端回滚节点
 
