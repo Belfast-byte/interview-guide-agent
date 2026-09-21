@@ -136,6 +136,16 @@ public class LlmProviderRegistry {
         return clientCache.computeIfAbsent(id + ":plain", key -> createPlainChatClient(id));
     }
 
+    /** 离线测评专用：无工具、无记忆，SDK 禁止网络重试，不改变业务 client。 */
+    public ChatClient getSingleRequestPlainChatClient(String providerId) {
+        String id = resolveProviderId(providerId);
+        return clientCache.computeIfAbsent(id + ":single-request", key -> {
+            var builder = ChatClient.builder(buildChatModel(id, true));
+            buildSafeGuardAdvisor().ifPresent(advisor -> builder.defaultAdvisors(List.of(advisor)));
+            return builder.build();
+        });
+    }
+
     /**
      * 获取语音面试专用 ChatClient：SkillsTool + ToolCallAdvisor（流式）。
      * 不加 Memory Advisor（语音面试手动管理对话历史）。
@@ -218,11 +228,16 @@ public class LlmProviderRegistry {
     }
 
     private OpenAiChatModel buildChatModel(String providerId) {
+        return buildChatModel(providerId, false);
+    }
+
+    private OpenAiChatModel buildChatModel(String providerId, boolean singleRequest) {
         ProviderSnapshot config = loadProviderOrThrow(providerId);
         log.info("[LlmProviderRegistry] Building ChatModel - Provider: {}, BaseUrl: {}, Model: {}",
                  providerId, config.baseUrl(), config.model());
 
         OpenAIClient openAiClient = ApiPathResolver.buildOpenAiClient(config.baseUrl(), config.apiKey());
+        if (singleRequest) openAiClient = openAiClient.withOptions(options -> options.maxRetries(0));
 
         OpenAiChatOptions.Builder optionsBuilder = OpenAiChatOptions.builder()
             .model(config.model())
