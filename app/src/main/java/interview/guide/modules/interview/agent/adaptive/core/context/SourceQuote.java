@@ -2,7 +2,12 @@ package interview.guide.modules.interview.agent.adaptive.core.context;
 
 import io.swagger.v3.oas.annotations.media.Schema;
 /** 当前答案中的逐字引用；偏移量以 UTF-16 单元计数。 */
-public record SourceQuote(Source source, String quote, @Schema(nullable = true, requiredMode = Schema.RequiredMode.NOT_REQUIRED) Integer startOffset) {
+public record SourceQuote(
+    Source source,
+    String quote,
+    @Schema(description = "唯一逐字引用必须返回 null，由服务端计算 UTF-16 位置；仅重复片段且能确定位置时填写，不得估算。",
+        nullable = true, requiredMode = Schema.RequiredMode.NOT_REQUIRED) Integer startOffset
+) {
   public enum Source { ANSWER_TEXT, SUBMITTED_CODE }
 
   public record Locator(Source source, int startOffset, int endOffset) {}
@@ -25,7 +30,8 @@ public record SourceQuote(Source source, String quote, @Schema(nullable = true, 
     int offset = startOffset == null ? uniqueOffset(original) : startOffset;
     if (offset < 0 || offset > original.length() - quote.length()
         || !original.regionMatches(offset, quote, 0, quote.length())) {
-      throw new IllegalArgumentException("引用未命中指定来源的原文位置");
+      throw new IllegalArgumentException("引用未命中指定来源的原文位置：source=" + source
+          + ", suppliedOffset=" + startOffset + ", firstExactMatch=" + original.indexOf(quote));
     }
     return new SourceQuote(source, quote, offset);
   }

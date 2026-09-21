@@ -21,6 +21,19 @@ class AssessmentEvidenceValidatorTest {
   }
 
   @Test
+  void resolvesUniqueQuoteWithoutTrustingAnEstimatedOffset() {
+    var sources = new AnswerSources("前文😀。模型调用在事务外执行，提交时核对令牌。", null);
+    String quote = "模型调用在事务外执行";
+    var evidence = validator.validate(sources, List.of(candidate(Source.ANSWER_TEXT, quote, null)));
+    assertThat(evidence.getFirst().quoteLocator())
+        .isEqualTo(new SourceQuote.Locator(Source.ANSWER_TEXT, 5, 5 + quote.length()));
+    assertThatThrownBy(() -> validator.validate(sources,
+        List.of(candidate(Source.ANSWER_TEXT, quote, 4))))
+        .hasMessageContaining("suppliedOffset=4", "firstExactMatch=5")
+        .hasMessageNotContaining(quote);
+  }
+
+  @Test
   void rejectsWhitespaceAndWidthNormalization() {
     var sources = new AnswerSources("使用 Ｒｅｄｉｓ", "return  reserve();");
     assertThatThrownBy(() -> validator.validate(sources,

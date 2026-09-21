@@ -19,14 +19,16 @@
   "evidenceQuotes": [
     {
       "source": "ANSWER_TEXT",
-      "quote": "用布隆过滤器就行"
+      "quote": "用布隆过滤器就行",
+      "startOffset": null
     }
   ],
   "probeGaps": [
     {
       "anchor": {
         "source": "ANSWER_TEXT",
-        "quote": "布隆过滤器"
+        "quote": "布隆过滤器",
+        "startOffset": null
       },
       "missingPoint": "未说明如何判断 key 不存在、误判率来源与数据删除场景"
     }
@@ -51,18 +53,21 @@
   "evidenceQuotes": [
     {
       "source": "ANSWER_TEXT",
-      "quote": "先更新数据库再删除缓存"
+      "quote": "先更新数据库再删除缓存",
+      "startOffset": null
     },
     {
       "source": "ANSWER_TEXT",
-      "quote": "删除失败就重试"
+      "quote": "删除失败就重试",
+      "startOffset": null
     }
   ],
   "probeGaps": [
     {
       "anchor": {
         "source": "ANSWER_TEXT",
-        "quote": "删除失败就重试"
+        "quote": "删除失败就重试",
+        "startOffset": null
       },
       "missingPoint": "未说明重试队列可靠性，以及删除成功前的读写不一致窗口"
     }
@@ -87,11 +92,13 @@
   "evidenceQuotes": [
     {
       "source": "ANSWER_TEXT",
-      "quote": "删除失败进 MQ 重试"
+      "quote": "删除失败进 MQ 重试",
+      "startOffset": null
     },
     {
       "source": "ANSWER_TEXT",
-      "quote": "我们业务允许秒级不一致"
+      "quote": "我们业务允许秒级不一致",
+      "startOffset": null
     }
   ],
   "probeGaps": [],
@@ -107,3 +114,14 @@
 - probeGaps 只描述缺失的机制、证据、代价或边界，不得出现 L0-L4、深浅、好坏、分数等评级语言。
 - 评级词只允许出现在 rationaleSummary。
 - 回答覆盖充分时，probeGaps 可以为空。
+
+## 引用定位示例（仅展示 SourceQuote，不是完整评估输出）
+
+若 submittedCode 是 `// 😀\nreturn  reserve();`，引用必须保留两个空格：
+
+```json
+{"source":"SUBMITTED_CODE","quote":"return  reserve();","startOffset":null}
+```
+
+该片段唯一，由服务端计算 UTF-16 起点 6；模型不填写按可见字符计数得到的 5，也不把换行转义字符算进偏移。
+此规则同样适用于 evidenceQuotes、probeGaps[].anchor 与 resolvedGaps[].evidenceQuote。

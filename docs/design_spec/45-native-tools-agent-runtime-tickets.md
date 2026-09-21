@@ -73,6 +73,15 @@
 - `PostgresAgentSchemaMigrationTest` 实际启用运行：1 项通过，7.302s；在隔离 PostgreSQL 上分别创建临时数据库验证空库和旧基线迁移、Flyway validate 与 JPA validate，结束清理自建数据库。
 - subagent `review_rag_acceptance` 已审查新增独立测试及凭据复用边界，无阻塞发现。本次仅增加验收测试与记录，不修改业务运行逻辑；NATIVE-5 仍为 PARTIAL。
 
+### NATIVE-5 / Assessor 引用偏移修复
+
+- 真实诊断复现：`source=ANSWER_TEXT, suppliedOffset=44, firstExactMatch=45`。引用原句确实存在，失败来自模型估算偏移，而非缺少原文或服务端 UTF-16 定位错误。
+- 唯一引用明确要求 `startOffset: null`，由现有 Java 逐字匹配定位；同步系统提示、schema 描述及文字/代码校准示例。重复片段仍须消歧，显式错误偏移继续拒绝，未增加模糊匹配、自动纠偏或静默重试。错误诊断只包含来源枚举与位置数字，不输出引用或候选人原文。
+- 增加唯一片段/emoji UTF-16 定位及错误显式偏移拒绝回归，验证生成提示中 schema 与示例的约定一致。全部 adaptive 回归：379 项，376 通过，3 项真实环境条件跳过；33s。
+- 单独启用真实 `ReferenceRagLiveReplayTest`：2 项全部通过，35.398s。完整回放成功执行 Assessor → 原生出题，再注入真实 RAG 查询结果继续出题及 3 轮合成上下文检查；正式轮次/评估数量和 session 未变化。独立原生查询亦通过。此前两次失败作为历史记录保留，本次引用阻塞已由成功回放验证解除；合成轮次不等于真实连续提交。
+- 原页面 Java CODE_REPAIR 失败样例使用同一份 1491 字符已保存代码重试成功：第 1 轮 COMPLETED、第 2 轮 TEXT / WAITING，数据库恰有该轮正式评估且 code_review_json 非空。Assessor usage 8195/643 tokens，随后原生 Loop 4 次 Interviewer 请求完成推进；公开快照没有提前暴露 assessmentFeedback 或 reviewGuide。该样例是未修复代码的负例，不代表修复正确性或所有代码题质量已通过。
+- subagent `review_assessor_quote_fix` 已审查实现，确认未放宽精确引用校验；本票仅修复模型引用契约和增加脱敏诊断。此前引用错误条目为历史验收结果，当前剩余项为练习规划、长上下文预算及其余未覆盖工具/完整产品验收，不能据本票标为全部完成。
+
 ## 远端回滚节点
 
 | 模块 | 提交 |
