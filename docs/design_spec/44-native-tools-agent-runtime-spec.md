@@ -1,6 +1,6 @@
 # Spring AI 原生工具与自有 Agent Runtime 改进规格
 
-日期：2026-09-21。状态：方案已记录，待实施；本文不表示代码已迁移或真实模型已验收。
+日期：2026-09-21。状态：NATIVE-1～4 实现已完成并推送；NATIVE-5 离线回归与本地 HTTP 集成已通过，真实模型及原页面验收待环境。详见 [实施票据](./45-native-tools-agent-runtime-tickets.md)。
 
 ## 1. 依据与裁决
 
@@ -31,7 +31,7 @@
 - 不把 Java 改错题改成沙箱执行，不改仍在使用的算法执行 Application Command。
 - 不因迁移提高预算、放宽权限或新增静默降级。
 
-## 3. 当前实现与问题
+## 3. 迁移前实现与问题（历史）
 
 | 位置 | 当前职责 | 本次处理 |
 | --- | --- | --- |
@@ -43,7 +43,7 @@
 | 各 `ReadOnlyAgentTool` | Map 参数校验和业务查询 | 类型化原生工具方法，保留业务校验与数据投影 |
 | `AdaptiveAnswerProgressionService` | 领取答案、事务外推理、最终提交与失败记账 | 保持执行令牌、租约和短事务路径 |
 
-现有代码没有将这些工具注册给 Interviewer 的原生工具调用请求。只在方法上增加 `@Tool` 不会完成迁移。
+迁移前没有将这些工具注册给 Interviewer 的原生工具调用请求。现已通过显式 callbacks 接入；只在方法上增加 `@Tool` 并不足以完成迁移。
 
 ## 4. 多 Agent 与工序边界
 
@@ -234,3 +234,12 @@ Episode/Question/Rubric 的真实采用来源仍需严格校验并沿现有链�
 - [Spring AI Tool Calling](https://docs.spring.io/spring-ai/reference/api/tools.html)：原生工具定义、参数及服务端上下文。
 - [ChatModel Tool Calling](https://docs.spring.io/spring-ai/reference/api/tools/chatmodel-tool-calling.html)：应用持有循环、ToolCallingManager 执行和框架消息历史。
 - [ToolCallingAdvisor](https://docs.spring.io/spring-ai/reference/api/tools/tool-calling-advisor.html)：框架自动循环；本方案不与自有 Runtime 重叠启用。
+
+## 15. 实施结果与验收边界（2026-09-21）
+
+- 七个原生查询及 `propose_question` / `propose_finish` 已贯通。Spring AI 执行绑定、名称解析与 call/result 配对，自有 Loop 控制每次模型调用、deadline、读取预算和最终提案。
+- 旧 Gateway、ReadToolCall/Batch/Executor、ReadOnlyAgentTool、ReadToolRequest、CallReadTools 和 InterviewDecisionOutput 已删除，无旧协议回退。保留的 AgentDecision 是正式业务提交提案，不再作为模型动作 JSON。
+- schema 校验适配补足 Spring AI 2.0.0 默认宽松绑定；请求级上下文登记真实来源并拒绝迟到结果。具体 QueryTools 集合防止内部 callbacks 被 MCP 自动发布。
+- 用户/系统提示词统一原生协议，保留并计入防注入指令；旧未消费的 interviewer 提示词及配置删除。Provider 及遥测路径复用。
+- 所有票据均经过独立 subagent 审查（NATIVE-1 补审），审查发现及测试结果见票据。没有数据库迁移、公开 API 变更或部署。
+- 真实模型质量、真实 Provider 工具兼容及原页面完整流程仍未验收；本地 HTTP fixture 不能替代这些结论。当前本机应用、数据库和 Redis 未启动，真实回放账号/会话参数未配置，且无可用浏览器工具。
