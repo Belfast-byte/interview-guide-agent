@@ -8,7 +8,7 @@
 | NATIVE-0 | 保存规格、过时文档清理和本票据；建立远端分支 | 本地链接和 diff 检查；推送成功 | DONE |
 | NATIVE-1 | 核对框架真实 API，建立原生执行合约测试 | 单步执行、消息历史、绑定差异、顺序 | DONE |
 | NATIVE-2 | 七个查询工具原生定义与安全上下文 | 查询真实业务边界、原生参数契约 | DONE |
-| NATIVE-3 | Runtime 原生循环和两个最终提案工具 | 拒绝回流、来源、预算、冲突提案 | TODO |
+| NATIVE-3 | Runtime 原生循环和两个最终提案工具 | 拒绝回流、来源、预算、冲突提案 | DONE |
 | NATIVE-4 | 删除旧协议，贯通持久化和对外入口 | 并发幂等、正式事实恢复、历史隔离 | TODO |
 | NATIVE-5 | 回归及真实环境验收，更新规格现状 | 编译、相关完整回归；真实环境限制单列 | TODO |
 
@@ -30,3 +30,11 @@
 - 原生整数溢出会由框架抛 InputCoercionException，已转为参数拒绝；未知字段、null、类型强转、额外 JSON 被 schema/解析边界拒绝。
 - subagent `review_native2` 审查无阻塞问题；按建议补齐执行中关闭、迟到错误、重复调用、预算和故障语义测试。NATIVE-1 也已由独立 subagent 补审。
 - 本次工具模块测试 37 项通过；`:app:compileJava` 通过。尚未切换生产 Loop，不能宣称完整迁移已验收。
+
+### NATIVE-3
+
+- NATIVE-2 已推送 `cb3c4ac`。本票切换唯一 Loop：单步 ChatClient + Spring AI ToolCallingManager；原生提案仅登记请求内决定，正式提交服务不变。
+- 工具白名单来自实际定义；输入预算包含 schema、工具参数及完整原生消息，参考按完整片段裁剪并保留调用 ID 配对。
+- subagent `review_native3` 确认通用 ToolCallbackProvider Bean 会被 MCP 自动发布；已改为具体 QueryTools 集合并用 Spring context 测试锁定外部隔离。该具体集合用于保护 MCP 发布边界，不执行工具或分派名称。
+- 补充 CODE_REPAIR 嵌套绑定、冲突提案、同批来源拒绝、未知工具纠错、提案不占查询预算，以及实际 ChatClient 不执行工具/不自动循环的合约测试。
+- 本票最终针对 Runtime/模型/上下文/原生工具的 37 项测试全部通过。旧协议和 Map 兼容代码留待 NATIVE-4 删除。

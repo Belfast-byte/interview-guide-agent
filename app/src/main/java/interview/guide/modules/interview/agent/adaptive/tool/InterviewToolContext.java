@@ -51,14 +51,14 @@ public final class InterviewToolContext implements AutoCloseable {
 
   synchronized void admitRead(String name, JsonNode arguments) {
     requireActive();
-    if (!context.facts().allowedReadTools().contains(name)) {
-      throw new ReadToolValidationException("toolName", "工具不在当前会话白名单中");
-    }
     if (!executed.add(new RequestKey(name, arguments))) {
       throw new ReadToolValidationException("arguments", "相同工具和参数已执行，请使用已有结果或调整请求");
     }
     if (++readCalls > maxReadCalls) {
       throw new BusinessException(ErrorCode.AI_SERVICE_ERROR, "本轮工具调用次数已达上限，请重试");
+    }
+    if (!context.facts().allowedReadTools().contains(name)) {
+      throw new ReadToolValidationException("toolName", "工具不在当前会话白名单中");
     }
   }
 
@@ -78,7 +78,7 @@ public final class InterviewToolContext implements AutoCloseable {
     return observation;
   }
 
-  synchronized DecisionObservation reject(String name, String field, String message) {
+  public synchronized DecisionObservation reject(String name, String field, String message) {
     requireActive();
     var result = observation(name, DecisionObservation.Kind.VALIDATION_REJECTION,
         field, message, Map.of(), List.of());

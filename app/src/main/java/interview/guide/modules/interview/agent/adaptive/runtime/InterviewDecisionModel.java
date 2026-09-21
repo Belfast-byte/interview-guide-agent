@@ -1,8 +1,9 @@
 package interview.guide.modules.interview.agent.adaptive.runtime;
 
-/** InterviewAgentLoop 使用的结构化模型边界。 */
+import org.springframework.ai.chat.model.ChatResponse;
+
+/** 只调用模型一次，不在此边界内执行工具或自动循环。 */
 @FunctionalInterface
 public interface InterviewDecisionModel {
-
-  AgentDecision decide(DecisionModelContext context);
+  ChatResponse decide(DecisionModelContext context);
 }

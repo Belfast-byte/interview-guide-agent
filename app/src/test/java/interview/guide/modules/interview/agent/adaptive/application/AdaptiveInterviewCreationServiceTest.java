@@ -47,7 +47,7 @@ class AdaptiveInterviewCreationServiceTest {
     service = new AdaptiveInterviewCreationService(
         transactions,
         persistence,
-        new ContextAssembler(skillService),
+        new ContextAssembler(skillService, new interview.guide.modules.interview.agent.adaptive.runtime.AdaptiveAgentRuntimeConfiguration.QueryTools(List.of())),
         new AgentDecisionValidator(new WorkingMemoryValidator())
     );
   }

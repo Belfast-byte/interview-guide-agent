@@ -161,7 +161,7 @@ class PracticeCreationHistoryTest {
     var persistence = mock(AdaptiveInterviewPersistenceService.class);
     var skills = mock(InterviewSkillService.class);
     when(skills.buildEvaluationReferenceSection(anyString())).thenReturn("评估参考");
-    var assembler = new ContextAssembler(skills);
+    var assembler = new ContextAssembler(skills, new interview.guide.modules.interview.agent.adaptive.runtime.AdaptiveAgentRuntimeConfiguration.QueryTools(List.of()));
     var creation = new AdaptiveInterviewCreationService(transactions, persistence, assembler,
         new AgentDecisionValidator(new WorkingMemoryValidator()));
     return new AdaptiveInterviewApplicationService(persistence, mock(AdaptiveAgentTelemetry.class),

@@ -1,61 +1,51 @@
 package interview.guide.modules.interview.agent.adaptive.role;
 
 import interview.guide.common.ai.LlmProviderRegistry;
-import interview.guide.common.ai.StructuredOutputInvoker;
-import interview.guide.common.exception.ErrorCode;
 import interview.guide.modules.interview.agent.adaptive.observability.AdaptiveInputTokenBudget;
-import interview.guide.modules.interview.agent.adaptive.runtime.AgentDecision;
 import interview.guide.modules.interview.agent.adaptive.runtime.DecisionModelContext;
 import interview.guide.modules.interview.agent.adaptive.runtime.InterviewDecisionModel;
-import java.util.List;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.ai.chat.client.ChatClient;
+import org.springframework.ai.chat.client.AdvisorParams;
+import org.springframework.ai.chat.model.ChatResponse;
 import org.springframework.stereotype.Component;
 
-/** 使用候选人选定模型生成 AgentDecision；语义拒绝由外层 Loop 统一处理。 */
+/** 使用候选人选定模型返回单次原生响应；工具执行与语义拒绝由 Loop 控制。 */
 @Slf4j
 @Component
 public class SpringAiInterviewDecisionModel implements InterviewDecisionModel {
 
   private final LlmProviderRegistry providerRegistry;
-  private final StructuredOutputInvoker outputInvoker;
   private final InterviewDecisionPrompt prompt;
   private final AdaptiveModelOptionsFactory modelOptionsFactory;
   private final AdaptiveInputTokenBudget inputTokenBudget;
 
   public SpringAiInterviewDecisionModel(
       LlmProviderRegistry providerRegistry,
-      StructuredOutputInvoker outputInvoker,
       InterviewDecisionPrompt prompt,
       AdaptiveModelOptionsFactory modelOptionsFactory,
       AdaptiveInputTokenBudget inputTokenBudget
   ) {
     this.providerRegistry = providerRegistry;
-    this.outputInvoker = outputInvoker;
     this.prompt = prompt;
     this.modelOptionsFactory = modelOptionsFactory;
     this.inputTokenBudget = inputTokenBudget;
   }
 
   @Override
-  public AgentDecision decide(DecisionModelContext context) {
+  public ChatResponse decide(DecisionModelContext context) {
     var identity = context.agentContext().session().identity();
     InterviewDecisionPrompt.PreparedPrompt prepared = prompt.prepare(context);
-    inputTokenBudget.verify("interview_agent", prepared.system(), prepared.user());
+    inputTokenBudget.verify("interview_agent", prepared.system(), prepared.budgetInput());
     ChatClient client = providerRegistry.getPlainChatClient(identity.llmProvider())
         .mutate()
-        .defaultOptions(modelOptionsFactory.interviewer(List.of()))
+        .defaultOptions(modelOptionsFactory.interviewer(context.tools()))
         .build();
-    InterviewDecisionOutput output = outputInvoker.invokeOnce(
-        client,
-        prepared.system(),
-        prepared.user(),
-        prepared.converter(),
-        ErrorCode.AI_SERVICE_ERROR,
-        "Interview Agent 决策解析失败: ",
-        "interview_agent_decision",
-        log
-    );
-    return output.toDomain();
+    return client.prompt()
+        .advisors(AdvisorParams.toolCallingAdvisorAutoRegister(false))
+        .system(prepared.system())
+        .user(prepared.user())
+        .messages(prepared.history())
+        .call().chatResponse();
   }
 }

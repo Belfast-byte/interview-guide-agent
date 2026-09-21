@@ -26,145 +26,207 @@ import java.util.concurrent.atomic.AtomicInteger;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
+import interview.guide.modules.interview.agent.adaptive.application.AdaptiveAgentProperties;
+import interview.guide.modules.interview.agent.adaptive.tool.InterviewToolCallback;
+import interview.guide.modules.interview.agent.adaptive.tool.InterviewToolContext;
+import interview.guide.modules.interview.agent.adaptive.tool.ReadToolResult;
+import org.springframework.ai.chat.messages.AssistantMessage;
+import org.springframework.ai.chat.messages.ToolResponseMessage;
+import org.springframework.ai.chat.model.ChatResponse;
+import org.springframework.ai.chat.model.Generation;
+import org.springframework.ai.chat.model.ToolContext;
+import org.springframework.ai.support.ToolCallbacks;
+import org.springframework.ai.tool.ToolCallback;
+import org.springframework.ai.tool.annotation.Tool;
+import java.util.Map;
+import tools.jackson.databind.json.JsonMapper;
+
 class InterviewAgentLoopTest {
+  private final JsonMapper json = new JsonMapper();
 
   @Test
-  @DisplayName("模型可选择非首 Target 的 Gap 且不受 expectedDepth 策略限制")
-  void shouldAcceptModelSelectedTargetAndGap() {
-    AgentDecision expected = ask("target-1", 12L, memory("target-1", 12L));
-    InterviewAgentLoop loop = loop(context -> expected);
-
-    AgentDecision actual = loop.run(context(), Duration.ofSeconds(1));
-
-    assertThat(actual).isEqualTo(expected);
+  void acceptsModelSelectedTargetAndGap() {
+    var expected = ask("target-1", 12L, memory("target-1", 12L));
+    assertThat(loop(request -> proposal(expected)).run(context(), Duration.ofSeconds(5))).isEqualTo(expected);
   }
 
   @Test
-  @DisplayName("非法 Target 和伪造引用作为结构化 Observation 返回模型后允许重新决策")
-  void shouldReturnRejectionToModel() {
-    AtomicInteger calls = new AtomicInteger();
-    List<DecisionModelContext> requests = new ArrayList<>();
-    InterviewAgentLoop loop = loop(context -> {
-      requests.add(context);
-      return switch (calls.getAndIncrement()) {
-        case 0 -> ask("missing-target", null, memory("target-0", null));
-        case 1 -> askWithSourceRef("forged-observation");
-        default -> ask("target-1", 12L, memory("target-1", 12L));
+  void invalidTargetAndForgedSourceReturnNativeRejectionsWithoutAdoptingInvalidMemory() {
+    var requests = new ArrayList<DecisionModelContext>();
+    var loop = loop(request -> {
+      requests.add(request);
+      return switch (requests.size()) {
+        case 1 -> proposal(ask("missing", null, memory("target-0", null)));
+        case 2 -> proposal(askWithSourceRef("forged"));
+        default -> proposal(ask("target-1", 12L, memory("target-1", 12L)));
       };
     });
-
-    AgentDecision decision = loop.run(context(), Duration.ofSeconds(1));
-
-    assertThat(decision.action()).isInstanceOf(AgentDecision.Ask.class);
+    assertThat(loop.run(context(), Duration.ofSeconds(5)).action()).isInstanceOf(AgentDecision.Ask.class);
     assertThat(requests).hasSize(3);
-    assertThat(requests.get(1).agentContext().workingMemory()).isEqualTo(memory("target-0", null));
-    assertThat(requests.get(2).agentContext().workingMemory()).isEqualTo(memory("target-1", 12L));
-    var json = new tools.jackson.databind.ObjectMapper().valueToTree(requests.get(2));
-    assertThat(json.has("workingMemory")).isFalse();
-    assertThat(json.path("agentContext").path("workingMemory").isObject()).isTrue();
-    assertThat(requests.get(1).observations()).containsExactly(
-        new DecisionObservation(
-            "validation-0",
-            DecisionObservation.Kind.VALIDATION_REJECTION,
-            "action.ask.targetId",
-            "Target 不属于当前 Plan",
-            null,
-            java.util.Map.of(),
-            List.of()
-        )
-    );
-    assertThat(requests.get(2).observations().get(1))
-        .isEqualTo(new DecisionObservation(
-            "validation-1",
-            DecisionObservation.Kind.VALIDATION_REJECTION,
-            "action.ask.question.adoptedSourceRefs",
-            "引用不在成功工具结果或已保存的采用来源中",
-            null,
-            java.util.Map.of(),
-            List.of()
-        ));
+    assertThat(requests.get(1).observations()).isEmpty();
+    assertThat(json.writeValueAsString(requests.get(1).history())).contains("VALIDATION_REJECTION", "Target");
+    assertThat(json.writeValueAsString(requests.get(2).history())).contains("采用来源");
+    assertThat(requests.get(2).agentContext().workingMemory()).isEqualTo(context().workingMemory());
   }
 
   @Test
-  @DisplayName("模型 FINISH 决定原样结束循环")
-  void shouldReturnFinishDecision() {
-    AgentDecision expected = new AgentDecision(
-        memory("target-1", 12L),
-        new AgentDecision.Finish("已有信息足够形成结论")
-    );
-
-    assertThat(loop(context -> expected).run(context(), Duration.ofSeconds(1)))
-        .isEqualTo(expected);
-  }
-
-  @Test
-  @DisplayName("预算 Observation 在第一次模型决策前直接注入")
-  void shouldInjectInitialBudgetObservation() {
-    List<DecisionModelContext> requests = new ArrayList<>();
-    DecisionObservation observation = new DecisionObservation(
-        "budget-exhausted-target-0",
-        DecisionObservation.Kind.BUDGET_EXHAUSTED,
-        "coverage.targets[target-0]",
-        "请切换 Target",
-        null,
-        java.util.Map.of("targetId", "target-0"),
-        List.of()
-    );
-    InterviewAgentLoop loop = loop(context -> {
-      requests.add(context);
-      return ask("target-1", 12L, memory("target-1", 12L));
+  void nativeProposalBindsCompleteCodeRepairTaskAndRejectsUnknownNestedFields() {
+    var task = new interview.guide.modules.interview.agent.adaptive.core.session.CodeRepairTask(
+        "class Account { int balance; }", List.of("原子扣款"), List.of("多线程"),
+        new interview.guide.modules.interview.agent.adaptive.core.session.CodeRepairTask.ReviewGuide(List.of(
+            new interview.guide.modules.interview.agent.adaptive.core.session.CodeRepairTask.Check(
+                "C1", "并发更新丢失", "同时扣款", "扣款一致"))));
+    var expected = new AgentDecision(memory("target-1", 12L), new AgentDecision.Ask("target-1", 12L,
+        new AgentDecision.QuestionDraft("修复账户并发扣款", "检查并发边界", List.of(), QuestionType.CODE_REPAIR, task, null)));
+    var requests = new ArrayList<DecisionModelContext>();
+    var loop = loop(request -> {
+      requests.add(request);
+      if (requests.size() > 1) return proposal(expected);
+      var call = proposal(expected).getResult().getOutput().getToolCalls().getFirst();
+      var args = (tools.jackson.databind.node.ObjectNode) json.readTree(call.arguments());
+      ((tools.jackson.databind.node.ObjectNode) args.path("question").path("codeTask")).put("owner", "forged");
+      return response(call("bad", call.name(), json.writeValueAsString(args)));
     });
-
-    loop.run(context(), List.of(observation), Duration.ofSeconds(1));
-
-    assertThat(requests.getFirst().observations()).containsExactly(observation);
+    assertThat(loop.run(context(), Duration.ofSeconds(5))).isEqualTo(expected);
+    assertThat(requests).hasSize(2);
+    assertThat(json.writeValueAsString(requests.get(1).history())).contains("VALIDATION_REJECTION");
   }
 
   @Test
-  @DisplayName("共享 deadline 耗尽时明确失败")
-  void shouldFailWhenDeadlineExhausted() {
-    InterviewAgentLoop loop = loop(context -> {
-      throw new AssertionError("deadline 耗尽后不应调用模型");
-    });
+  void finishIsARequestLocalProposal() {
+    var expected = new AgentDecision(memory("target-1", 12L), new AgentDecision.Finish("事实充分"));
+    assertThat(loop(request -> proposal(expected)).run(context(), Duration.ofSeconds(5))).isEqualTo(expected);
+  }
 
+  @Test
+  void initialBudgetObservationIsPresentBeforeFirstModelCall() {
+    var observation = new DecisionObservation("budget", DecisionObservation.Kind.BUDGET_EXHAUSTED,
+        "target", "切换目标", null, Map.of(), List.of());
+    var loop = loop(request -> {
+      assertThat(request.observations()).containsExactly(observation);
+      return proposal(ask("target-1", 12L, memory("target-1", 12L)));
+    });
+    loop.run(context(), List.of(observation), Duration.ofSeconds(5));
+  }
+
+  @Test
+  void rejectsMultipleFinalProposalsEvenIfOneIsMalformed() {
+    var requests = new ArrayList<DecisionModelContext>();
+    var valid = proposal(ask("target-1", 12L, memory("target-1", 12L)));
+    var loop = loop(request -> {
+      requests.add(request);
+      if (requests.size() > 1) return valid;
+      var first = valid.getResult().getOutput().getToolCalls().getFirst();
+      return response(first, call("conflict", "propose_finish", "{}"));
+    });
+    loop.run(context(), Duration.ofSeconds(5));
+    assertThat(requests).hasSize(2);
+    assertThat(json.writeValueAsString(requests.get(1).history())).contains("多个最终提案");
+    var result = (ToolResponseMessage) requests.get(1).history().getLast();
+    assertThat(result.getResponses()).hasSize(2);
+  }
+
+  @Test
+  void unknownToolAndPlainTextAreCorrectableInTheSameLoop() {
+    var requests = new ArrayList<DecisionModelContext>();
+    var loop = loop(request -> {
+      requests.add(request);
+      return switch (requests.size()) {
+        case 1 -> response(call("unknown", "delete_database", "{}"));
+        case 2 -> new ChatResponse(List.of(new Generation(new AssistantMessage("结束吧"))));
+        default -> proposal(new AgentDecision(WorkingMemory.empty(), new AgentDecision.Finish("足够")));
+      };
+    });
+    loop.run(context(), Duration.ofSeconds(5));
+    assertThat(requests).hasSize(3);
+    assertThat(json.writeValueAsString(requests.get(1).history())).contains("白名单", "unknown");
+    assertThat(json.writeValueAsString(requests.get(2).history())).contains("缺少最终提案");
+  }
+
+  @Test
+  void queryResultsAreSeenBeforeTheirSourcesCanBeAdoptedAndProposalDoesNotSpendReadBudget() {
+    var requests = new ArrayList<DecisionModelContext>();
+    var properties = new AdaptiveAgentProperties();
+    properties.setMaxReadToolCalls(1);
+    var read = new Read();
+    var callbacks = java.util.Arrays.stream(ToolCallbacks.from(read))
+        .map(callback -> new InterviewToolCallback(callback, true)).toArray(ToolCallback[]::new);
+    var expected = askWithSourceRef("question:1");
+    var loop = new InterviewAgentLoop(request -> {
+      requests.add(request);
+      var finalCall = proposal(expected).getResult().getOutput().getToolCalls().getFirst();
+      return requests.size() == 1 ? response(call("read", "read", "{}"), finalCall) : response(finalCall);
+    }, new AgentDecisionValidator(new WorkingMemoryValidator()), () -> callbacks,
+        new DeadlineExecutor(), properties);
+    var base = context();
+    var context = new AgentContext(base.session(), new AgentContext.Facts(base.facts().coverage(),
+        base.facts().recentTurns(), List.of(), List.of("read")), base.workingMemory());
+    assertThat(loop.run(context, Duration.ofSeconds(5))).isEqualTo(expected);
+    assertThat(requests).hasSize(2);
+    assertThat(requests.get(1).observations()).isEmpty();
+    assertThat(json.writeValueAsString(requests.get(1).history())).contains("TOOL_SUCCESS", "采用来源");
+    assertThat(read.calls).isEqualTo(1);
+  }
+
+  @Test
+  void boundedStepsAndSharedDeadlineFailExplicitly() {
+    var loop = loop(request -> new ChatResponse(List.of(new Generation(new AssistantMessage("text")))));
+    assertThatThrownBy(() -> loop.run(context(), Duration.ofSeconds(5)))
+        .isInstanceOf(BusinessException.class).hasMessageContaining("决策次数");
     assertThatThrownBy(() -> loop.run(context(), Duration.ZERO))
-        .isInstanceOf(BusinessException.class)
-        .hasMessageContaining("超时");
+        .isInstanceOf(BusinessException.class).hasMessageContaining("超时");
+  }
+
+  @Test
+  void invalidMemoryCannotEnterFinalSnapshot() {
+    var invalidMemory = new WorkingMemory(null, WorkingMemory.empty().focus(),
+        new WorkingMemory.Deliberation(List.of(), null, java.util.Collections.singletonList(null)));
+    var expected = ask("target-1", 12L, memory("target-1", 12L));
+    var requests = new ArrayList<DecisionModelContext>();
+    var loop = loop(request -> {
+      requests.add(request);
+      return proposal(requests.size() == 1 ? ask("target-1", 12L, invalidMemory) : expected);
+    });
+    assertThat(loop.run(context(), Duration.ofSeconds(5))).isEqualTo(expected);
+    assertThat(requests).hasSize(2);
+    assertThat(json.writeValueAsString(requests.get(1).history())).contains("VALIDATION_REJECTION");
+  }
+
+  static class Read {
+    int calls;
+    @Tool(name = "read", description = "test query")
+    public DecisionObservation read(ToolContext context) {
+      calls++;
+      return InterviewToolContext.from(context).observe("read", new ReadToolResult.Success(Map.of("question", "真实题目"),
+          List.of(new DecisionObservation.AdoptableSource("question:1", "question", "1", null))));
+    }
+  }
+
+  private ChatResponse proposal(AgentDecision decision) {
+    var args = new java.util.LinkedHashMap<String, Object>();
+    args.put("workingMemory", decision.workingMemory());
+    if (decision.action() instanceof AgentDecision.Ask ask) {
+      args.put("targetId", ask.targetId());
+      if (ask.sourceGapId() != null) args.put("sourceGapId", ask.sourceGapId());
+      args.put("question", ask.question());
+      return response(call("proposal", "propose_question", json.writeValueAsString(args)));
+    }
+    args.put("decisionSummary", ((AgentDecision.Finish) decision.action()).decisionSummary());
+    return response(call("proposal", "propose_finish", json.writeValueAsString(args)));
+  }
+
+  private AssistantMessage.ToolCall call(String id, String name, String arguments) {
+    return new AssistantMessage.ToolCall(id, "function", name, arguments);
+  }
+
+  private ChatResponse response(AssistantMessage.ToolCall... calls) {
+    return new ChatResponse(List.of(new Generation(AssistantMessage.builder().content("")
+        .toolCalls(List.of(calls)).build())));
   }
 
   private InterviewAgentLoop loop(InterviewDecisionModel model) {
-    return new InterviewAgentLoop(
-        model,
-        new AgentDecisionValidator(new WorkingMemoryValidator()),
-        batch -> List.of(),
-        new DeadlineExecutor(), new interview.guide.modules.interview.agent.adaptive.application.AdaptiveAgentProperties()
-    );
-  }
-
-  @Test
-  @DisplayName("空记忆引用反馈给模型纠正，非法记忆不进入下一步或最终快照")
-  void shouldRecoverFromNullMemoryReference() {
-    var invalidMemory = new WorkingMemory(null, WorkingMemory.empty().focus(),
-        new WorkingMemory.Deliberation(List.of(), null,
-            java.util.Collections.singletonList(null)));
-    var expected = ask("target-1", 12L, memory("target-1", 12L));
-    List<DecisionModelContext> requests = new ArrayList<>();
-    var loop = loop(request -> {
-      requests.add(request);
-      return requests.size() == 1 ? ask("target-1", 12L, invalidMemory) : expected;
-    });
-
-    var actual = loop.run(context(), Duration.ofSeconds(1));
-
-    assertThat(actual).isEqualTo(expected);
-    assertThat(requests).hasSize(2);
-    assertThat(requests.getLast().agentContext().workingMemory()).isEqualTo(context().workingMemory());
-    assertThat(requests.getLast().observations()).singleElement().satisfies(rejection -> {
-      assertThat(rejection.kind()).isEqualTo(DecisionObservation.Kind.VALIDATION_REJECTION);
-      assertThat(rejection.field()).isEqualTo("workingMemory");
-      assertThat(rejection.message()).contains("引用数组元素不能为空");
-    });
-    assertThat(actual.workingMemory().withAdoptedSources(List.of())).isEqualTo(expected.workingMemory());
+    return new InterviewAgentLoop(model, new AgentDecisionValidator(new WorkingMemoryValidator()),
+        () -> new ToolCallback[0], new DeadlineExecutor(), new AdaptiveAgentProperties());
   }
 
   private AgentDecision ask(String targetId, Long gapId, WorkingMemory memory) {

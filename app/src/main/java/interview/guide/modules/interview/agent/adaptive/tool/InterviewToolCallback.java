@@ -46,12 +46,13 @@ public final class InterviewToolCallback implements ToolCallback {
       try {
         arguments = JSON.readTree(input);
       } catch (JacksonException e) {
+        if (query) scope.admitRead(name, JSON.getNodeFactory().textNode(input));
         throw new ReadToolValidationException("arguments", "参数必须是单个合法 JSON 对象");
       }
+      if (query) scope.admitRead(name, arguments);
       if (arguments == null || !arguments.isObject() || !schema.validate(arguments).isEmpty()) {
         throw new ReadToolValidationException("arguments", "参数不符合工具定义，请检查未知字段、必填字段和类型");
       }
-      if (query) scope.admitRead(name, arguments);
       String result = delegate.call(input, context);
       scope.requireActive();
       return result;

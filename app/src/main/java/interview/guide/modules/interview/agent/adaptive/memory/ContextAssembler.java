@@ -10,6 +10,7 @@ import interview.guide.modules.interview.skill.InterviewSkillService;
 import interview.guide.modules.interview.agent.adaptive.core.session.AdaptiveInterviewTurn;
 import interview.guide.modules.interview.agent.adaptive.planning.PlannerContext;
 import java.util.List;
+import interview.guide.modules.interview.agent.adaptive.runtime.AdaptiveAgentRuntimeConfiguration.QueryTools;
 import org.springframework.stereotype.Component;
 
 /**
@@ -17,13 +18,14 @@ import org.springframework.stereotype.Component;
  */
 @Component
 public class ContextAssembler {
-  private static final List<String> ALLOWED_READ_TOOLS = List.of("rubric_search", "memory_recall",
-      "interview_material_read", "question_search", "code_task_read", "assessment_read", "reference_search");
-
   private final InterviewSkillService skillService;
+  private final List<String> allowedReadTools;
 
-  public ContextAssembler(InterviewSkillService skillService) {
+  public ContextAssembler(InterviewSkillService skillService,
+      QueryTools tools) {
     this.skillService = skillService;
+    this.allowedReadTools = tools.callbacks().stream()
+        .map(tool -> tool.getToolDefinition().name()).toList();
   }
 
   /** 创建唯一的中性 AgentContext，并严格加载 Plan 固定 Skill。 */
@@ -42,7 +44,7 @@ public class ContextAssembler {
             input.maxTurns()
         ),
         new AgentContext.Facts(
-            input.coverage(), input.recentTurns(), skillGuidance, ALLOWED_READ_TOOLS),
+            input.coverage(), input.recentTurns(), skillGuidance, allowedReadTools),
         input.workingMemory()
     );
   }

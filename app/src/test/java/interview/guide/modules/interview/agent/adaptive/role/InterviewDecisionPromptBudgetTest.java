@@ -51,6 +51,44 @@ class InterviewDecisionPromptBudgetTest {
         .hasMessageContaining("输入超过");
   }
 
+  @Test
+  void nativeHistoryIsBudgetedOnceAndTrimmingPreservesCallResultPairs() {
+    var json = new ObjectMapper();
+    var value = reference("one", "NATIVE_REFERENCE_TEXT".repeat(800));
+    var call = org.springframework.ai.chat.messages.AssistantMessage.builder().content("")
+        .toolCalls(List.of(new org.springframework.ai.chat.messages.AssistantMessage.ToolCall(
+            "call-one", "function", "reference_search", "{\"query\":\"background\"}"))).build();
+    var result = org.springframework.ai.chat.messages.ToolResponseMessage.builder().responses(List.of(
+        new org.springframework.ai.chat.messages.ToolResponseMessage.ToolResponse("call-one", "reference_search",
+            json.writeValueAsString(value)))).build();
+    var original = context(List.of());
+    var nativeContext = new DecisionModelContext(original.agentContext(), List.of(), List.of(call, result), List.of());
+    var base = prompt.prepare(original);
+    properties.setMaxInputTokens(budget.estimate(base.system() + base.user()) + 1000);
+    var prepared = prompt.prepare(nativeContext);
+    assertThat(prepared.user()).doesNotContain("NATIVE_REFERENCE_TEXT", "TOOL_SUCCESS");
+    assertThat(prepared.budgetInput()).contains("budgetOmitted", "call-one").doesNotContain("NATIVE_REFERENCE_TEXT");
+    assertThat(prepared.history()).hasSize(2);
+    assertThat(prepared.history().getFirst()).isEqualTo(call);
+    assertThat(((org.springframework.ai.chat.messages.ToolResponseMessage) prepared.history().getLast())
+        .getResponses().getFirst().id()).isEqualTo("call-one");
+    assertThat(result.getResponses().getFirst().responseData()).contains("NATIVE_REFERENCE_TEXT");
+    assertThatCode(() -> budget.verify("interview_agent", prepared.system(), prepared.budgetInput())).doesNotThrowAnyException();
+  }
+
+  @Test
+  void schemasAndToolArgumentsCountTowardTheSameInputLimit() {
+    var original = context(List.of());
+    var callback = org.springframework.ai.tool.function.FunctionToolCallback.builder("test_query", (String value) -> value)
+        .description("SCHEMA_DESCRIPTION".repeat(1000)).inputType(String.class).build();
+    var base = prompt.prepare(original);
+    properties.setMaxInputTokens(budget.estimate(base.system() + base.user()) + 1000);
+    var prepared = prompt.prepare(new DecisionModelContext(original.agentContext(), List.of(), List.of(), List.of(callback)));
+    assertThat(prepared.budgetInput()).contains("SCHEMA_DESCRIPTION");
+    assertThatThrownBy(() -> budget.verify("interview_agent", prepared.system(), prepared.budgetInput()))
+        .hasMessageContaining("输入超过");
+  }
+
   private DecisionObservation reference(String id, String text) {
     return new DecisionObservation("ref-" + id, DecisionObservation.Kind.TOOL_SUCCESS, null, null,
         "reference_search", Map.of("hits", List.of(Map.of("chunkId", id, "sourceId", "resource", "text", text))), List.of());

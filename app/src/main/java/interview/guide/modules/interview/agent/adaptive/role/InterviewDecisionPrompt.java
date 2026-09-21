@@ -13,7 +13,8 @@ import java.util.List;
 import java.util.Map;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.ai.chat.prompt.PromptTemplate;
-import org.springframework.ai.converter.BeanOutputConverter;
+import org.springframework.ai.chat.messages.Message;
+import org.springframework.ai.chat.messages.ToolResponseMessage;
 import org.springframework.stereotype.Component;
 import tools.jackson.core.JacksonException;
 import tools.jackson.databind.ObjectMapper;
@@ -21,7 +22,7 @@ import tools.jackson.databind.JsonNode;
 import tools.jackson.databind.node.ArrayNode;
 import tools.jackson.databind.node.ObjectNode;
 
-/** 新 Agent Loop 的 Prompt 与结构化输出契约。 */
+/** 事实投影、原生工具消息与输入总预算。 */
 @Component
 @Slf4j
 class InterviewDecisionPrompt {
@@ -29,7 +30,6 @@ class InterviewDecisionPrompt {
   private final ObjectMapper objectMapper;
   private final PromptTemplate systemTemplate;
   private final PromptTemplate userTemplate;
-  private final BeanOutputConverter<InterviewDecisionOutput> outputConverter;
   private final AdaptiveInputTokenBudget budget;
 
   InterviewDecisionPrompt(
@@ -44,18 +44,39 @@ class InterviewDecisionPrompt {
         properties.getDecisionSystemPromptPath());
     this.userTemplate = promptLoader.loadTemplate(
         properties.getDecisionUserPromptPath());
-    this.outputConverter = interview.guide.common.ai.StructuredOutputInvoker.strictConverter(InterviewDecisionOutput.class);
   }
 
   PreparedPrompt prepare(DecisionModelContext context) {
-    String system = systemTemplate.render() + "\n\n" + outputConverter.getFormat();
+    String system = systemTemplate.render();
     ObjectNode projected = objectMapper.valueToTree(DecisionContextProjection.project(context));
     List<ObjectNode> references = referenceResults(projected);
+    List<Message> history = new ArrayList<>(context.history());
+    var nativeResults = new java.util.LinkedHashMap<String, ObjectNode>();
+    for (Message message : history) {
+      if (!(message instanceof ToolResponseMessage results)) continue;
+      for (var result : results.getResponses()) {
+        if (!ReferenceSearchTool.NAME.equals(result.name())) continue;
+        var value = objectMapper.readTree(result.responseData());
+        if (value instanceof ObjectNode observation
+            && "TOOL_SUCCESS".equals(observation.path("kind").asText())
+            && observation.path("data") instanceof ObjectNode data
+            && data.path("hits") instanceof ArrayNode) {
+          nativeResults.put(result.id(), observation);
+          references.add(data);
+        }
+      }
+    }
+    deduplicate(references);
+    history = referenceHistory(history, nativeResults);
+    String schemas = objectMapper.writeValueAsString(context.tools().stream()
+        .map(tool -> tool.getToolDefinition()).toList());
     String user = render(projected);
     // 只移除可选参考的完整片段，给协议提示留余量；不能裁剪当前答案、源码或正式量规。
     int target = Math.max(0, budget.limit() - 256);
-    while (budget.estimate(system + "\n" + user) > target && removeLastReference(references)) {
+    while (budget.estimate(system + "\n" + user + schemas + objectMapper.writeValueAsString(history)) > target
+        && removeLastReference(references)) {
       user = render(projected);
+      history = referenceHistory(history, nativeResults);
     }
     var facts = projected.path("agentContext").path("facts");
     log.info("adaptive_decision_context sessionId={} turn={} observations={} skillTokens={} historyTokens={} coverageTokens={} toolTokens={}",
@@ -63,7 +84,7 @@ class InterviewDecisionPrompt {
         context.agentContext().facts().recentTurns().stream().mapToInt(t -> t.turnIndex()).max().orElse(0),
         context.observations().size(), tokens(facts.path("skillGuidance")), tokens(facts.path("recentTurns")),
         tokens(facts.path("coverage")), tokens(projected.path("observations")));
-    return new PreparedPrompt(system, user, outputConverter);
+    return new PreparedPrompt(system, user, history, user + schemas + objectMapper.writeValueAsString(history));
   }
 
   private String render(ObjectNode context) {
@@ -78,13 +99,19 @@ class InterviewDecisionPrompt {
 
   private List<ObjectNode> referenceResults(ObjectNode context) {
     var results = new ArrayList<ObjectNode>();
-    var seen = new HashSet<String>();
     for (JsonNode observation : context.path("observations")) {
-      if (!ReferenceSearchTool.NAME.equals(observation.path("toolName").asText())
-          || !"TOOL_SUCCESS".equals(observation.path("kind").asText())) continue;
-      ObjectNode data = (ObjectNode) observation.path("data");
-      if (!(data.path("hits") instanceof ArrayNode hits)) continue;
-      results.add(data);
+      if (ReferenceSearchTool.NAME.equals(observation.path("toolName").asText())
+          && "TOOL_SUCCESS".equals(observation.path("kind").asText())
+          && observation.path("data") instanceof ObjectNode data
+          && data.path("hits") instanceof ArrayNode) results.add(data);
+    }
+    return results;
+  }
+
+  private void deduplicate(List<ObjectNode> results) {
+    var seen = new HashSet<String>();
+    for (var data : results) {
+      var hits = (ArrayNode) data.path("hits");
       for (int i = 0; i < hits.size();) {
         if (seen.add(hits.get(i).path("chunkId").asText())) { i++; continue; }
         hits.remove(i);
@@ -92,7 +119,16 @@ class InterviewDecisionPrompt {
         data.put("message", "重复参考正文已省略，请使用本次已有片段；不代表没有命中");
       }
     }
-    return results;
+  }
+
+  private List<Message> referenceHistory(List<Message> history, Map<String, ObjectNode> results) {
+    return history.stream().map(message -> {
+      if (!(message instanceof ToolResponseMessage tools)) return message;
+      return (Message) ToolResponseMessage.builder().metadata(tools.getMetadata())
+          .responses(tools.getResponses().stream().map(result -> results.containsKey(result.id())
+              ? new ToolResponseMessage.ToolResponse(result.id(), result.name(),
+                  objectMapper.writeValueAsString(results.get(result.id()))) : result).toList()).build();
+    }).toList();
   }
 
   private boolean removeLastReference(List<ObjectNode> results) {
@@ -111,6 +147,7 @@ class InterviewDecisionPrompt {
   record PreparedPrompt(
       String system,
       String user,
-      BeanOutputConverter<InterviewDecisionOutput> converter
+      List<Message> history,
+      String budgetInput
   ) {}
 }

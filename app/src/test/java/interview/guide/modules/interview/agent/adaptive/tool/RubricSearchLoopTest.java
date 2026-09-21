@@ -16,7 +16,13 @@ import interview.guide.modules.interview.agent.adaptive.runtime.DeadlineExecutor
 import interview.guide.modules.interview.agent.adaptive.runtime.DecisionObservation;
 import interview.guide.modules.interview.agent.adaptive.runtime.DecisionObservation.AdoptableSource;
 import interview.guide.modules.interview.agent.adaptive.runtime.InterviewAgentLoop;
-import interview.guide.modules.interview.agent.adaptive.runtime.ReadToolCall;
+import org.springframework.ai.chat.messages.AssistantMessage;
+import org.springframework.ai.chat.model.ChatResponse;
+import org.springframework.ai.chat.model.Generation;
+import org.springframework.ai.chat.model.ToolContext;
+import org.springframework.ai.support.ToolCallbacks;
+import org.springframework.ai.tool.ToolCallback;
+import org.springframework.ai.tool.annotation.Tool;
 import java.time.Duration;
 import java.util.ArrayList;
 import java.util.List;
@@ -35,17 +41,16 @@ class RubricSearchLoopTest {
         new ArrayList<>();
     InterviewAgentLoop loop = loop(requests);
 
-    AgentDecision decision = loop.run(context(), Duration.ofSeconds(1));
+    AgentDecision decision = loop.run(context(), Duration.ofSeconds(5));
 
     assertThat(requests).hasSize(2);
-    assertThat(requests.get(1).observations()).singleElement().satisfies(observation -> {
-      assertThat(observation.kind()).isEqualTo(DecisionObservation.Kind.TOOL_SUCCESS);
-      assertThat(observation.reference()).isEqualTo("tool-0-0");
-    });
+    assertThat(requests.get(1).observations()).isEmpty();
+    assertThat(new tools.jackson.databind.ObjectMapper().writeValueAsString(requests.get(1).history()))
+        .contains("TOOL_SUCCESS", "tool-0");
     AgentDecision.Ask ask = (AgentDecision.Ask) decision.action();
     assertThat(ask.question().adoptedSourceRefs()).containsExactly(SOURCE_REF);
     assertThat(decision.workingMemory().deliberation().adoptedObservationRefs())
-        .containsExactly("tool-0-0");
+        .containsExactly("tool-0");
   }
 
   private InterviewAgentLoop loop(
@@ -54,15 +59,7 @@ class RubricSearchLoopTest {
     return new InterviewAgentLoop(
         model(requests),
         new AgentDecisionValidator(new WorkingMemoryValidator()),
-        batch -> List.of(new DecisionObservation(
-            "tool-0-0",
-            DecisionObservation.Kind.TOOL_SUCCESS,
-            null,
-            null,
-            RubricSearchTool.NAME,
-            Map.of("rubric", "按边界事实评分"),
-            List.of(new AdoptableSource(
-                SOURCE_REF, "rubric", "question:1:rubric", "v1")))),
+        () -> new ToolCallback[] {new InterviewToolCallback(ToolCallbacks.from(new Rubric())[0], true)},
         new DeadlineExecutor(), new interview.guide.modules.interview.agent.adaptive.application.AdaptiveAgentProperties()
     );
   }
@@ -72,24 +69,32 @@ class RubricSearchLoopTest {
   ) {
     return request -> {
       requests.add(request);
-      if (request.observations().isEmpty()) {
-        return new AgentDecision(
-            WorkingMemory.empty(),
-            new AgentDecision.CallReadTools(List.of(new ReadToolCall(
-                RubricSearchTool.NAME,
-                Map.of("query", "并发冲突", "intent", "校准追问", "levelHints", List.of("L3")),
-                "需要评分边界"))));
+      if (requests.size() == 1) {
+        return response("rubric_search", "{}");
       }
       WorkingMemory memory = new WorkingMemory(
           null,
           new WorkingMemory.Focus("target-0", null, List.of()),
-          new WorkingMemory.Deliberation(List.of(), "验证并发边界", List.of("tool-0-0")));
-      return new AgentDecision(memory, new AgentDecision.Ask(
-          "target-0",
-          null,
-          new AgentDecision.QuestionDraft("发生写冲突时如何处理？", "验证并发边界", List.of(SOURCE_REF), QuestionType.TEXT, null, null)
-      ));
+          new WorkingMemory.Deliberation(List.of(), "验证并发边界", List.of("tool-0")));
+      var question = new AgentDecision.QuestionDraft("发生写冲突时如何处理？", "验证并发边界",
+          List.of(SOURCE_REF), QuestionType.TEXT, null, null);
+      return response("propose_question", new tools.jackson.databind.ObjectMapper().writeValueAsString(
+          Map.of("workingMemory", memory, "targetId", "target-0", "question", question)));
+
     };
+  }
+
+  private static ChatResponse response(String name, String arguments) {
+    return new ChatResponse(List.of(new Generation(AssistantMessage.builder().content("")
+        .toolCalls(List.of(new AssistantMessage.ToolCall(name, "function", name, arguments))).build())));
+  }
+
+  static class Rubric {
+    @Tool(name = "rubric_search", description = "test rubric")
+    public DecisionObservation read(ToolContext context) {
+      return InterviewToolContext.from(context).observe("rubric_search", new ReadToolResult.Success(
+          Map.of("rubric", "按边界事实评分"), List.of(new AdoptableSource(SOURCE_REF, "rubric", "question:1:rubric", "v1"))));
+    }
   }
 
   private AgentContext context() {

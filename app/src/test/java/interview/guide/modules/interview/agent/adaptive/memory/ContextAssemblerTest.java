@@ -20,7 +20,7 @@ import org.junit.jupiter.api.Test;
 
 class ContextAssemblerTest {
 
-  private final ContextAssembler assembler = new ContextAssembler(mock(InterviewSkillService.class));
+  private final ContextAssembler assembler = new ContextAssembler(mock(InterviewSkillService.class), new interview.guide.modules.interview.agent.adaptive.runtime.AdaptiveAgentRuntimeConfiguration.QueryTools(List.of()));
 
   @Test
   void decisionUsesShortInstructionsOncePerSkillWithoutLoadingAssessmentReference() {
@@ -29,14 +29,19 @@ class ContextAssemblerTest {
     var dimension = new PlannedDimension(new CapabilityTarget(new CapabilityTarget.Identity(
         0, "Java", "并发", new TopicKey("java-backend", "JAVA")), new CapabilityTarget.Budget(2, 2),
         new CapabilityTarget.Depth(DepthLevel.L2, DepthLevel.L4), List.of()));
-    var context = new ContextAssembler(skills).agent(new ContextAssembler.AgentContextInput(
+    var context = new ContextAssembler(skills, new interview.guide.modules.interview.agent.adaptive.runtime.AdaptiveAgentRuntimeConfiguration.QueryTools(List.of(org.springframework.ai.support.ToolCallbacks.from(new Queries())))).agent(new ContextAssembler.AgentContextInput(
         new MemoryOwner(null, "candidate"), "session", "provider", SessionMode.EVALUATION, 12,
         List.of(dimension, dimension), new CoverageView(0, 12, List.of(), List.of(), List.of()),
         List.of(), WorkingMemory.empty()));
     assertThat(context.facts().skillGuidance()).containsExactly(new AgentContext.SkillGuidance("java-backend", "岗位短策略"));
-    assertThat(context.facts().allowedReadTools()).contains("reference_search", "rubric_search");
+    assertThat(context.facts().allowedReadTools()).containsExactly("test_query");
     verify(skills).decisionInstructions("java-backend");
     verify(skills, never()).buildEvaluationReferenceSection(anyString());
+  }
+
+  static class Queries {
+    @org.springframework.ai.tool.annotation.Tool(name = "test_query", description = "test")
+    public String read() { return "unused"; }
   }
 
   @Test
