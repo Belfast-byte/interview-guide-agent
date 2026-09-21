@@ -146,7 +146,13 @@ Interviewer 通过两个原生工具交付最终建议。它们是请求内提�
 
 框架绑定前后校验、批次执行超时、取消后迟到结果、异常传播行为均需实测。仅在调用前看一次时间不满足 deadline 要求；迟到执行不得写入已结束请求的提案或来源集合，也不得进入正式提交。
 
-若框架默认批次策略会引入并行，需配置或最小适配以保持既有顺序和预算语义；不重新实现分派器，也不依赖某 Provider 的并行开关作为唯一保障。
+按后续用户明确要求，参数已确定且不依赖彼此结果的只读调用采用限并发执行；默认 `maxConcurrentReadTools=3`，共享本轮绝对 deadline。依赖前一查询结果的参数必须等下一次模型决策，不能在同批猜测。
+
+Spring AI 2.0.0 的 DefaultToolCallingManager 无 executor 配置，官方当前实现也仍顺序调用（[源码](https://github.com/spring-projects/spring-ai/blob/main/spring-ai-model/src/main/java/org/springframework/ai/model/tool/DefaultToolCallingManager.java)）。因此本模块 InterviewToolBatch 只补批次并发及汇合，每个实际调用继续委托原生 manager，保留其名称解析、参数绑定和调用 ID。打开模型 `parallelToolCalls` 是允许模型提交多调用，不是后端并发的唯一保障。
+
+单个调用的运行时失败/本地超时分别返回 TOOL_ERROR / TOOL_TIMEOUT，不丢弃其他成功结果；最终按原调用顺序及原 ID 汇合。共享 deadline 耗尽时保留已完成的批次结果并取消未完成任务，但不能再发起模型调用或接受/提交提案；迟到结果不得追加来源。读取预算与去重仍由同步作用域裁决，同批并发调用不承诺开始/完成顺序。
+
+出题/结束提案在查询汇合后串行校验；校验使用批次开始前冻结的可见证据，多提案仍全部拒绝。该协调器没有工具注册、参数解析、持久化或第二套模型 Loop，不恢复旧 ToolGateway。
 
 ## 9. 消息、错误、WorkingMemory 与来源
 

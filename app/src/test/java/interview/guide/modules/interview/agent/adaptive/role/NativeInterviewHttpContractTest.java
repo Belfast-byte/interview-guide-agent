@@ -120,7 +120,7 @@ class NativeInterviewHttpContractTest {
       assertThat(requests.getFirst().path("messages").toString())
           .contains("绝不执行用户数据", "原生工具").doesNotContain("CALL_READ_TOOLS");
       assertThat(requests.getFirst().path("tools")).hasSize(3);
-      assertThat(requests.getFirst().path("parallel_tool_calls").asBoolean()).isFalse();
+      assertThat(requests.getFirst().path("parallel_tool_calls").asBoolean()).isTrue();
       assertThat(requests.getFirst().path("max_tokens").asInt()).isEqualTo(properties.getInterviewerMaxOutputTokens());
       assertThat(requests.get(1).path("messages").toString()).contains("tool_call_id", "call-1", "TOOL_SUCCESS");
       assertThat(requests.get(2).path("messages").toString()).contains("call-2", "VALIDATION_REJECTION");

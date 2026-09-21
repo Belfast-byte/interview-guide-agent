@@ -25,6 +25,7 @@ public class AdaptiveAgentProperties {
   private int maxInputTokens = 20_000;
   private int maxDecisionSteps = 8;
   private int maxReadToolCalls = 8;
+  private int maxConcurrentReadTools = 3;
   private int plannerMaxOutputTokens = 8_192;
   private int interviewerMaxOutputTokens = 8_192;
   private int structuredMaxOutputTokens = 8_192;

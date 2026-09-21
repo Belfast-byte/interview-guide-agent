@@ -38,12 +38,12 @@ class AdaptiveModelOptionsFactoryTest {
   }
 
   @Test
-  @DisplayName("面试官应限制输出并关闭并行工具调用")
+  @DisplayName("面试官应限制输出并允许独立工具批次并行调用")
   void interviewerShouldApplyBoundedOptions() {
     OpenAiChatOptions options = factory.interviewer(List.of()).build();
 
     assertThat(options.getMaxTokens()).isEqualTo(INTERVIEWER_MAX_TOKENS);
     assertThat(options.getReasoningEffort()).isEqualTo(REASONING_EFFORT);
-    assertThat(options.getParallelToolCalls()).isFalse();
+    assertThat(options.getParallelToolCalls()).isTrue();
   }
 }

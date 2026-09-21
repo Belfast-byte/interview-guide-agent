@@ -93,7 +93,7 @@ class AdaptiveModelOptionsHttpContractTest {
   private void assertInterviewerRequest(JsonNode request) {
     assertThat(request.path("max_tokens").asInt()).isEqualTo(INTERVIEWER_MAX_TOKENS);
     assertThat(request.path("reasoning_effort").asText()).isEqualTo(REASONING_EFFORT);
-    assertThat(request.path("parallel_tool_calls").asBoolean()).isFalse();
+    assertThat(request.path("parallel_tool_calls").asBoolean()).isTrue();
     assertRequestFields(request);
   }
 

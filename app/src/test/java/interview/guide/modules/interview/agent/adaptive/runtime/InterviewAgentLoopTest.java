@@ -169,6 +169,38 @@ class InterviewAgentLoopTest {
   }
 
   @Test
+  void isolatedQueryFailureStillReturnsSuccessfulSiblingToTheNextModelCall() {
+    var requests = new ArrayList<DecisionModelContext>();
+    var callbacks = java.util.Arrays.stream(ToolCallbacks.from(new Read(), new FailingRead()))
+        .map(callback -> new InterviewToolCallback(callback, true)).toArray(ToolCallback[]::new);
+    var expected = askWithSourceRef("question:1");
+    var loop = new InterviewAgentLoop(request -> {
+      requests.add(request);
+      return requests.size() == 1
+          ? response(call("failed-id", "fail", "{}"), call("successful-id", "read", "{}"))
+          : proposal(expected);
+    }, new AgentDecisionValidator(new WorkingMemoryValidator()), () -> callbacks,
+        new DeadlineExecutor(), new AdaptiveAgentProperties());
+    var base = context();
+    var context = new AgentContext(base.session(), new AgentContext.Facts(base.facts().coverage(),
+        base.facts().recentTurns(), List.of(), List.of("read", "fail")), base.workingMemory());
+    assertThat(loop.run(context, Duration.ofSeconds(5))).isEqualTo(expected);
+    assertThat(requests).hasSize(2);
+    var results = ((ToolResponseMessage) requests.get(1).history().getLast()).getResponses();
+    assertThat(results).extracting(ToolResponseMessage.ToolResponse::id)
+        .containsExactly("failed-id", "successful-id");
+    assertThat(results.getFirst().responseData()).contains("TOOL_ERROR").doesNotContain("private failure");
+    assertThat(results.getLast().responseData()).contains("TOOL_SUCCESS", "question:1");
+  }
+
+  static class FailingRead {
+    @Tool(name = "fail", description = "failing query")
+    public String fail() {
+      throw new BusinessException(interview.guide.common.exception.ErrorCode.AI_SERVICE_ERROR, "private failure");
+    }
+  }
+
+  @Test
   void boundedStepsAndSharedDeadlineFailExplicitly() {
     var loop = loop(request -> new ChatResponse(List.of(new Generation(new AssistantMessage("text")))));
     assertThatThrownBy(() -> loop.run(context(), Duration.ofSeconds(5)))

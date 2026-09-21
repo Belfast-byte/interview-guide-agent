@@ -35,7 +35,7 @@ public class InterviewAgentLoop {
   private final ToolCallbackProvider queryTools;
   private final DeadlineExecutor deadlineExecutor;
   private final AdaptiveAgentProperties properties;
-  private final ToolCallingManager manager;
+  private final InterviewToolBatch toolBatch;
 
   public InterviewAgentLoop(InterviewDecisionModel model, AgentDecisionValidator validator,
       ToolCallbackProvider queryTools, DeadlineExecutor deadlineExecutor,
@@ -46,8 +46,9 @@ public class InterviewAgentLoop {
     this.deadlineExecutor = deadlineExecutor;
     this.properties = properties;
     // 未注册名称只有拒绝 callback，绝不回落到全局 Spring Bean resolver。
-    this.manager = ToolCallingManager.builder().toolCallbackResolver(name -> new InterviewToolCallback(new RejectedTool(name), true))
+    var manager = ToolCallingManager.builder().toolCallbackResolver(name -> new InterviewToolCallback(new RejectedTool(name), true))
         .toolExecutionExceptionProcessor(exception -> { throw exception; }).build();
+    this.toolBatch = new InterviewToolBatch(manager, properties.getMaxConcurrentReadTools());
   }
 
   public AgentDecision run(AgentContext context, Duration timeout) {
@@ -89,10 +90,9 @@ public class InterviewAgentLoop {
         var options = ToolCallingChatOptions.builder().toolCallbacks(callbacks)
             .toolContext(scope.values()).build();
         var prompt = new Prompt(history, options);
-        var result = deadlineExecutor.invoke(() -> manager.executeToolCalls(prompt, response),
-            deadline, "Interview Agent 工具执行");
+        var result = toolBatch.execute(prompt, response, scope);
         scope.requireActive();
-        history = new ArrayList<>(result.conversationHistory());
+        history = new ArrayList<>(result);
         if (proposals.accepted != null) return proposals.accepted;
       }
       throw new BusinessException(ErrorCode.AI_SERVICE_ERROR, "本轮模型决策次数已达上限，请重试");

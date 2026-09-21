@@ -20,7 +20,7 @@ public class AdaptiveModelOptionsFactory {
 
   public OpenAiChatOptions.Builder interviewer(List<ToolCallback> callbacks) {
     return bounded(properties.getInterviewerMaxOutputTokens())
-        .parallelToolCalls(false)
+        .parallelToolCalls(true)
         .toolCallbacks(callbacks);
   }
 
