@@ -54,7 +54,8 @@ class SpringAiInterviewDecisionModelTest {
         new JTokkitTokenCountEstimator());
     var prompt = new InterviewDecisionPrompt(new ObjectMapper(),
         new PromptLoader(new DefaultResourceLoader()), properties, budget);
-    var model = new SpringAiInterviewDecisionModel(registry, prompt, new AdaptiveModelOptionsFactory(properties), budget);
+    var model = new SpringAiInterviewDecisionModel(registry, prompt, new AdaptiveModelOptionsFactory(properties), budget,
+          new AdaptiveAgentTelemetry(new io.micrometer.core.instrument.simple.SimpleMeterRegistry()));
     var context = new AgentContext(new AgentContext.SessionWindow(new AgentContext.SessionIdentity(
         "session-1", "provider-1", new MemoryOwner(null, "candidate-1")), SessionMode.EVALUATION, 3),
         new AgentContext.Facts(new CoverageView(0, 3, List.of(), List.of(), List.of()),

@@ -44,7 +44,7 @@ public class AgentDecisionValidator {
       List<DecisionObservation> observations
   ) {
     if (decision.action() instanceof AgentDecision.Finish finish) {
-      return requireText(finish.decisionSummary(), "action.decisionSummary");
+      return requireText(finish.decisionSummary(), "decisionSummary");
     }
     if (decision.action() instanceof AgentDecision.Ask ask) {
       return validateAsk(ask, context, observations);
@@ -62,22 +62,22 @@ public class AgentDecisionValidator {
       return target;
     }
     if (ask.question() == null) {
-      return rejection("action.ask.question", "字段不能为空");
+      return rejection("question", "字段不能为空");
     }
     Optional<DecisionObservation> content = requireText(
-        ask.question().content(), "action.ask.question.content");
+        ask.question().content(), "question.content");
     if (content.isPresent()) {
       return content;
     }
     Optional<DecisionObservation> summary = requireText(
-        ask.question().decisionSummary(), "action.ask.question.decisionSummary");
+        ask.question().decisionSummary(), "question.decisionSummary");
     if (summary.isPresent()) {
       return summary;
     }
     try {
       CodeQuestionValidator.validate(ask, context);
     } catch (IllegalArgumentException e) {
-      return rejection("action.ask.question", e.getMessage());
+      return rejection("question", e.getMessage());
     }
     return validateAdoptedSources(ask.question().adoptedSourceRefs(), context, observations);
   }
@@ -88,7 +88,7 @@ public class AgentDecisionValidator {
       List<DecisionObservation> observations
   ) {
     if (adoptedRefs == null) {
-      return rejection("action.ask.question.adoptedSourceRefs", "字段不能为空");
+      return rejection("question.adoptedSourceRefs", "字段不能为空");
     }
     Set<String> available = observations.stream()
         .filter(observation -> observation.kind() == DecisionObservation.Kind.TOOL_SUCCESS)
@@ -99,7 +99,7 @@ public class AgentDecisionValidator {
         .filter(this::stableSource).forEach(available::add);
     return available.containsAll(adoptedRefs)
         ? Optional.empty()
-        : rejection("action.ask.question.adoptedSourceRefs", "引用不在成功工具结果或已保存的采用来源中");
+        : rejection("question.adoptedSourceRefs", "引用不在成功工具结果或已保存的采用来源中");
   }
 
   private Optional<DecisionObservation> validateTarget(
@@ -109,7 +109,7 @@ public class AgentDecisionValidator {
     boolean targetExists = coverage.targets().stream()
         .anyMatch(target -> target.targetId().equals(ask.targetId()));
     if (!targetExists) {
-      return rejection("action.ask.targetId", "Target 不属于当前 Plan");
+      return rejection("targetId", "Target 不属于当前 Plan");
     }
     if (ask.sourceGapId() == null) {
       return Optional.empty();
@@ -119,7 +119,7 @@ public class AgentDecisionValidator {
             && gap.targetId().equals(ask.targetId()));
     return gapMatches
         ? Optional.empty()
-        : rejection("action.ask.sourceGapId", "Gap 不属于所选 Target 的开放事实");
+        : rejection("sourceGapId", "Gap 不属于所选 Target 的开放事实");
   }
 
   private WorkingMemoryReferences references(

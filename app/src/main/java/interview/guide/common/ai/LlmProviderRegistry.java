@@ -128,8 +128,8 @@ public class LlmProviderRegistry {
     }
 
     /**
-     * 获取不带 SkillsTool 的 ChatClient，用于结构化输出场景（出题、简历评分等）。
-     * 这些场景要求模型一次性返回可解析 JSON，不应混入工具调用消息。
+     * 获取不预装 SkillsTool 的 ChatClient，用于结构化输出或显式注册请求级工具。
+     * 工具调用场景由调用方明确配置是否开启框架自动循环。
      */
     public ChatClient getPlainChatClient(String providerId) {
         String id = resolveProviderId(providerId);
@@ -187,7 +187,7 @@ public class LlmProviderRegistry {
         OpenAiChatModel chatModel = getChatModel(providerId);
         ChatClient.Builder builder = ChatClient.builder(chatModel);
         buildSafeGuardAdvisor().ifPresent(advisor -> builder.defaultAdvisors(List.of(advisor)));
-        log.info("[LlmProviderRegistry] Created plain ChatClient (no tools) for {}", providerId);
+        log.info("[LlmProviderRegistry] Created plain ChatClient (no default tools) for {}", providerId);
         return builder.build();
     }
 

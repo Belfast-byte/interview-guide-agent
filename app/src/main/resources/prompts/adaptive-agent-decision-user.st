@@ -4,4 +4,4 @@
 {contextJson}
 </data-boundary>
 
-请返回 CALL_READ_TOOLS、ASK 或 FINISH 决策；若 observations 中存在工具结果或拒绝原因，请据此继续决定。
+请使用已提供的原生工具继续查询或提交唯一最终提案。结合本场事实、原生工具消息及拒绝原因决定下一步；不要输出动作 JSON。

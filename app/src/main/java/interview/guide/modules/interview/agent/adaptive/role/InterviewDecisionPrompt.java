@@ -1,6 +1,7 @@
 package interview.guide.modules.interview.agent.adaptive.role;
 
 import interview.guide.common.ai.PromptLoader;
+import interview.guide.common.ai.PromptSecurityConstants;
 import interview.guide.common.exception.BusinessException;
 import interview.guide.common.exception.ErrorCode;
 import interview.guide.modules.interview.agent.adaptive.application.AdaptiveAgentProperties;
@@ -47,7 +48,7 @@ class InterviewDecisionPrompt {
   }
 
   PreparedPrompt prepare(DecisionModelContext context) {
-    String system = systemTemplate.render();
+    String system = systemTemplate.render() + PromptSecurityConstants.ANTI_INJECTION_INSTRUCTION;
     ObjectNode projected = objectMapper.valueToTree(DecisionContextProjection.project(context));
     List<ObjectNode> references = referenceResults(projected);
     List<Message> history = new ArrayList<>(context.history());

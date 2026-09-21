@@ -79,7 +79,7 @@ class AdaptiveInterviewCreationServiceTest {
 
     assertThatThrownBy(() -> service.create(run))
         .isInstanceOf(BusinessException.class)
-        .hasMessageContaining("action.ask.question.content");
+        .hasMessageContaining("question.content");
     verify(transactions, never()).create(run.creation(), run.plan(), run.decision());
   }
 
