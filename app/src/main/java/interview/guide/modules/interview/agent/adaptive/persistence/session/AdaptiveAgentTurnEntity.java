@@ -168,11 +168,6 @@ public class AdaptiveAgentTurnEntity {
       questionSourceId = questionAction.questionProvenance().stableId();
       questionDifficulty = questionAction.questionProvenance().difficulty();
     }
-    if (questionAction.codeProvenance() != null) {
-      codeSourceId = questionAction.codeProvenance().sourceId();
-      codeAnchor = questionAction.codeProvenance().anchor();
-      codeFactUsage = questionAction.codeProvenance().usage();
-    }
   }
 
   public void recordAnswer(CandidateAnswer candidateAnswer) {

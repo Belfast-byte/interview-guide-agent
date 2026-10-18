@@ -86,8 +86,7 @@ export interface SubmitAdaptiveAnswerRequest {
   answer?: string | null;
   codeRepair?: { code: string };
   codeSubmission?: {
-    problemId?: string;
-    scenarioId?: string;
+    problemId: string;
     language: SandboxLanguage;
     runMode: SandboxRunMode;
   };

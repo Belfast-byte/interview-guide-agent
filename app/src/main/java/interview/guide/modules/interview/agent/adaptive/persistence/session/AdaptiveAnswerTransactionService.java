@@ -1,5 +1,7 @@
 package interview.guide.modules.interview.agent.adaptive.persistence.session;
 
+import interview.guide.modules.interview.agent.adaptive.observability.AssessmentObservationLog;
+import interview.guide.modules.interview.agent.adaptive.observability.WorkingMemorySnapshotLog;
 import interview.guide.common.exception.BusinessException;
 import interview.guide.common.exception.ErrorCode;
 import interview.guide.modules.interview.agent.adaptive.application.AdaptiveAnswerAssessmentService.AnswerAssessment;
@@ -58,7 +60,6 @@ public class AdaptiveAnswerTransactionService {
     answeredTurn.requireExecution(commit.executionToken());
     SavedAssessment saved = saveAssessmentFacts(
         sessionId, answer, commit.facts().progression());
-    saveCodeFact(saved.assessment(), answeredTurn, sessionId);
     AnswerAssessment assessment = commit.facts().progression().assessment();
     String answeredTargetId = CoverageProjector.targetId(assessment.dimension().order());
     sideEffects.saveEpisode(session, answeredTurn, new EpisodeAssessment(
@@ -68,6 +69,8 @@ public class AdaptiveAnswerTransactionService {
       rubricGeneration.enqueue(sessionId, answer.turnIndex(),
           assessment.dimension().dimension(), assessment.dimension().focus(), answeredTurn.question());
     }
+    AssessmentObservationLog.committed(sessionId, answeredTurn.toDomain(), answer,
+        assessment.decision(), commit.executionToken());
     applyDecision(new DecisionCommit(
         commit,
         new LockedFacts(session, answeredTurn),
@@ -128,21 +131,6 @@ public class AdaptiveAnswerTransactionService {
     );
   }
 
-  private void saveCodeFact(
-      AdaptiveAgentAssessmentEntity assessment,
-      AdaptiveAgentTurnEntity turn,
-      String sessionId
-  ) {
-    AdaptiveAgentEvidenceEntity.codeFact(
-        assessment,
-        sessionId,
-        turn.turnIndex(),
-        turn.codeSourceId(),
-        turn.codeAnchor(),
-        turn.codeFactUsage()
-    ).ifPresent(evidence -> assessments.saveEvidences(List.of(evidence)));
-  }
-
   private void applyDecision(DecisionCommit commit) {
     AgentDecision decision = commit.commit().facts().progression().agentDecision();
     CandidateAnswer answer = commit.commit().facts().answer();
@@ -185,6 +173,9 @@ public class AdaptiveAnswerTransactionService {
                 .filter(ref -> ref.startsWith("rubric:")).toList())
         ))
     );
+    AssessmentObservationLog.published(interview.history().session().id(), nextTurn.toDomain());
+    WorkingMemorySnapshotLog.published(
+        interview.history().session().id(), nextTurn.turnIndex(), nextTurn.workingMemory());
     sideEffects.saveExposure(new QuestionExposureInput(
         commit.locked().session(), nextTurn, new QuestionTarget(target, action)));
   }

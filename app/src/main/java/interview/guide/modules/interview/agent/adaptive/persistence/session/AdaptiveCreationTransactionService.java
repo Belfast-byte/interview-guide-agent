@@ -1,5 +1,7 @@
 package interview.guide.modules.interview.agent.adaptive.persistence.session;
 
+import interview.guide.modules.interview.agent.adaptive.observability.AssessmentObservationLog;
+import interview.guide.modules.interview.agent.adaptive.observability.WorkingMemorySnapshotLog;
 import interview.guide.common.exception.BusinessException;
 import interview.guide.common.exception.ErrorCode;
 import interview.guide.modules.interview.agent.adaptive.core.action.RespondAction;
@@ -75,6 +77,8 @@ public class AdaptiveCreationTransactionService {
                 .filter(ref -> ref.startsWith("rubric:")).toList())
         ))
     );
+    AssessmentObservationLog.published(commit.sessionId(), turn.toDomain());
+    WorkingMemorySnapshotLog.published(commit.sessionId(), turn.turnIndex(), turn.workingMemory());
     exposurePersistence.save(session, turn, new QuestionPublication(
         action, QuestionIdentity.from(target.target()), null, null));
   }

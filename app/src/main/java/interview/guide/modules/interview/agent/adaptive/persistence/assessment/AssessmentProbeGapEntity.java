@@ -49,7 +49,7 @@ public class AssessmentProbeGapEntity {
   @Column(name = "gap_code", nullable = false, length = 32)
   private String gapCode;
 
-  @Column(nullable = false, columnDefinition = "TEXT")
+  @Column(columnDefinition = "TEXT")
   private String anchor;
 
   @JdbcTypeCode(SqlTypes.JSON)
@@ -90,8 +90,8 @@ public class AssessmentProbeGapEntity {
     this.assessment = assessment;
     this.gapOrder = gapOrder;
     this.gapCode = GAP_CODE_PREFIX + gapOrder;
-    this.anchor = gap.anchor().quote();
-    this.anchorLocator = gap.anchor().locator();
+    this.anchor = gap.anchor() == null ? null : gap.anchor().quote();
+    this.anchorLocator = gap.anchor() == null ? null : gap.anchor().locator();
     this.description = gap.missingPoint();
   }
 
@@ -125,7 +125,7 @@ public class AssessmentProbeGapEntity {
   }
 
   public ProbeGap toDomain() {
-    return new ProbeGap(SourceQuote.fromStored(anchor, anchorLocator), description);
+    return new ProbeGap(anchor == null ? null : SourceQuote.fromStored(anchor, anchorLocator), description);
   }
 
   public Long closedByAssessmentId() {
@@ -153,9 +153,9 @@ public class AssessmentProbeGapEntity {
   public void closeByEvidence(AdaptiveAgentAssessmentEntity assessment, SourceQuote quote, String reason) {
     if (closedByAssessment != null) throw new IllegalStateException("缺口已关闭");
     closedByAssessment = assessment;
-    closureReason = ProbeGapClosureReason.EVIDENCE_RESOLVED;
-    closureEvidenceQuote = quote.quote();
-    closureEvidenceLocator = quote.locator();
+    closureReason = quote == null ? ProbeGapClosureReason.MODEL_ASSESSED : ProbeGapClosureReason.EVIDENCE_RESOLVED;
+    closureEvidenceQuote = quote == null ? null : quote.quote();
+    closureEvidenceLocator = quote == null ? null : quote.locator();
     closureSummary = reason;
   }
 

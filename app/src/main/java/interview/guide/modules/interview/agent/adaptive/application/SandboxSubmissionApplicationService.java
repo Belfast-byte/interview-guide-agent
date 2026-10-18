@@ -1,11 +1,11 @@
 package interview.guide.modules.interview.agent.adaptive.application;
 
+import interview.guide.common.exception.BusinessException;
+import interview.guide.common.exception.ErrorCode;
 import interview.guide.modules.interview.agent.adaptive.algorithm.judge.AlgorithmSubmissionService;
 import interview.guide.modules.interview.agent.adaptive.algorithm.judge.SubmitAlgorithmCode;
 import interview.guide.modules.interview.agent.adaptive.algorithm.sandbox.SandboxLanguage;
 import interview.guide.modules.interview.agent.adaptive.algorithm.sandbox.SandboxRunMode;
-import interview.guide.modules.interview.agent.adaptive.codeanalysis.scenario.CodePatchSubmissionService;
-import interview.guide.modules.interview.agent.adaptive.codeanalysis.scenario.PatchCodeSubmission;
 import interview.guide.modules.interview.agent.adaptive.core.event.CandidateAnswer;
 import org.springframework.stereotype.Service;
 
@@ -14,14 +14,8 @@ import org.springframework.stereotype.Service;
 public class SandboxSubmissionApplicationService {
 
   private final AlgorithmSubmissionService algorithmSubmissions;
-  private final CodePatchSubmissionService patchSubmissions;
-
-  public SandboxSubmissionApplicationService(
-      AlgorithmSubmissionService algorithmSubmissions,
-      CodePatchSubmissionService patchSubmissions
-  ) {
+  public SandboxSubmissionApplicationService(AlgorithmSubmissionService algorithmSubmissions) {
     this.algorithmSubmissions = algorithmSubmissions;
-    this.patchSubmissions = patchSubmissions;
   }
 
   public void submit(String sessionId, CandidateAnswer answer) {
@@ -30,14 +24,8 @@ public class SandboxSubmissionApplicationService {
       return;
     }
     if (submission.patch()) {
-      patchSubmissions.submit(new PatchCodeSubmission(
-          sessionId,
-          answer.turnIndex(),
-          submission.scenarioId(),
-          SandboxLanguage.valueOf(submission.language()),
-          answer.content()
-      ));
-      return;
+      // 历史回答可恢复旧场景引用，但不能重新创建已退役的仓库补丁任务。
+      throw new BusinessException(ErrorCode.BAD_REQUEST, "项目仓库补丁提交已停用");
     }
     algorithmSubmissions.submit(new SubmitAlgorithmCode(
         sessionId,

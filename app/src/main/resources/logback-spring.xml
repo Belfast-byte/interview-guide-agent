@@ -7,4 +7,27 @@
     <property name="CONSOLE_LOG_CHARSET" value="UTF-8"/>
     <property name="FILE_LOG_CHARSET" value="UTF-8"/>
     <include resource="org/springframework/boot/logging/logback/base.xml"/>
+    <!-- 私有题目/回答/验收指南只进入此文件，不向控制台或普通日志传播。 -->
+    <appender name="ASSESSMENT_OBSERVATIONS" class="ch.qos.logback.core.rolling.RollingFileAppender">
+        <file>${ASSESSMENT_OBSERVATION_LOG_DIR:-logs}/assessment-observations.jsonl</file>
+        <encoder><charset>UTF-8</charset><pattern>%msg%n</pattern></encoder>
+        <rollingPolicy class="ch.qos.logback.core.rolling.SizeAndTimeBasedRollingPolicy">
+            <fileNamePattern>${ASSESSMENT_OBSERVATION_LOG_DIR:-logs}/assessment-observations.%d{yyyy-MM-dd}.%i.jsonl.gz</fileNamePattern>
+            <maxFileSize>100MB</maxFileSize>
+            <maxHistory>14</maxHistory>
+            <totalSizeCap>1GB</totalSizeCap>
+        </rollingPolicy>
+    </appender>
+    <logger name="interview.assessment.observation" level="INFO" additivity="false">
+        <appender-ref ref="ASSESSMENT_OBSERVATIONS"/>
+    </logger>
+    <!-- 工作记忆单独输出，便于按场次和轮次查看，不传播到普通日志。 -->
+    <appender name="WORKING_MEMORY_SNAPSHOTS" class="ch.qos.logback.core.FileAppender">
+        <file>${WORKING_MEMORY_LOG_DIR:-logs}/working-memory.jsonl</file>
+        <append>true</append>
+        <encoder><charset>UTF-8</charset><pattern>%msg%n</pattern></encoder>
+    </appender>
+    <logger name="interview.working-memory.snapshot" level="INFO" additivity="false">
+        <appender-ref ref="WORKING_MEMORY_SNAPSHOTS"/>
+    </logger>
 </configuration>

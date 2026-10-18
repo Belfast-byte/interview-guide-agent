@@ -199,13 +199,4 @@ public final class AsyncTaskStreamConstants {
 
     public static final String FIELD_EXECUTION_ID = "executionId";
 
-    // ========== 代码分析 Stream 配置 ==========
-
-    public static final String CODE_ANALYSIS_STREAM_KEY = "interview:code-analysis:stream";
-
-    public static final String CODE_ANALYSIS_GROUP_NAME = "code-analysis-group";
-
-    public static final String CODE_ANALYSIS_CONSUMER_PREFIX = "code-analysis-consumer-";
-
-    public static final String FIELD_ANALYSIS_JOB_ID = "analysisJobId";
 }

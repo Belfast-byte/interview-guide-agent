@@ -48,14 +48,6 @@ public class AdaptiveInterviewPersistenceService {
     return plannedInterview(session, plan(session));
   }
 
-  @Transactional(readOnly = true)
-  public PlannedInterview getForTenant(String tenantId, String sessionId) {
-    AdaptiveAgentSessionEntity session = sessionRepository
-        .findByIdAndTenantId(sessionId, tenantId)
-        .orElseThrow(this::notFound);
-    return plannedInterview(session, plan(session));
-  }
-
   private InterviewPlan plan(AdaptiveAgentSessionEntity session) {
     return new InterviewPlan(
         session.id(),

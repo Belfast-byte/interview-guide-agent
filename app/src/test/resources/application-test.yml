@@ -83,9 +83,6 @@ app:
     follow-up-count: 1
     evaluation:
       batch-size: 8
-    code-analysis:
-      worker-enabled: true
-      worker-token: test-worker-token
   resume:
     upload-dir: ${java.io.tmpdir}/ai-interview/resumes
     allowed-types:

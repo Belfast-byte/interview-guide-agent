@@ -10,7 +10,6 @@ public record RespondAction(
     String content,
     String reason,
     QuestionProvenance questionProvenance,
-    CodeQuestionProvenance codeProvenance,
     interview.guide.modules.interview.agent.adaptive.core.session.CodeRepairTask.QuestionType questionType,
     interview.guide.modules.interview.agent.adaptive.core.session.CodeRepairTask codeTask,
     Integer codeTaskTurnIndex
@@ -18,12 +17,12 @@ public record RespondAction(
 
   public RespondAction withCodeTask(QuestionType questionType,
       interview.guide.modules.interview.agent.adaptive.core.session.CodeRepairTask task, Integer root) {
-    return new RespondAction(type, content, reason, questionProvenance, codeProvenance,
+    return new RespondAction(type, content, reason, questionProvenance,
         questionType, task, root);
   }
 
   public static RespondAction ask(String question, String reason) {
-    return new RespondAction(AgentResponseType.ASK, question, reason, null, null, QuestionType.TEXT, null, null);
+    return new RespondAction(AgentResponseType.ASK, question, reason, null, QuestionType.TEXT, null, null);
   }
 
   public static RespondAction ask(
@@ -31,18 +30,10 @@ public record RespondAction(
       String reason,
       QuestionProvenance provenance
   ) {
-    return new RespondAction(AgentResponseType.ASK, question, reason, provenance, null, QuestionType.TEXT, null, null);
-  }
-
-  public static RespondAction askFromCode(
-      String question,
-      String reason,
-      CodeQuestionProvenance provenance
-  ) {
-    return new RespondAction(AgentResponseType.ASK, question, reason, null, provenance, QuestionType.TEXT, null, null);
+    return new RespondAction(AgentResponseType.ASK, question, reason, provenance, QuestionType.TEXT, null, null);
   }
 
   public static RespondAction finish(String message, String reason) {
-    return new RespondAction(AgentResponseType.FINISH, message, reason, null, null, QuestionType.TEXT, null, null);
+    return new RespondAction(AgentResponseType.FINISH, message, reason, null, QuestionType.TEXT, null, null);
   }
 }

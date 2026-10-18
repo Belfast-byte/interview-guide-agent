@@ -42,6 +42,9 @@ class NullableModelSchemaTest {
   void textualAssessmentsAllowNoCodeReviewAndUniqueQuotesNeedNoOffset() {
     var schema = schema(AssessmentProposal.class);
     optionalNullable(schema, "codeReview");
+    optionalNullable(schema, "evidenceQuotes");
+    optionalNullable(schema, "anchor");
+    optionalNullable(schema, "evidenceQuote");
     optionalNullable(schema, "startOffset");
     assertThat(schema.findValues("quote")).isNotEmpty().allSatisfy(field ->
         assertThat(nullable(field)).isFalse());
@@ -53,7 +56,7 @@ class NullableModelSchemaTest {
 
   private void optionalNullable(JsonNode schema, String name) {
     assertThat(schema.findValues(name)).as(name).isNotEmpty().allSatisfy(field ->
-        assertThat(nullable(field)).as(name + " accepts explicit null").isTrue());
+        assertThat(nullable(field.has("$ref") ? schema.at(field.path("$ref").asText().substring(1)) : field)).as(name + " accepts explicit null").isTrue());
     for (var required : schema.findValues("required")) {
       for (var field : required) assertThat(field.asText()).isNotEqualTo(name);
     }

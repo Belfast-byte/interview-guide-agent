@@ -20,8 +20,16 @@ public record AssessmentDecision(
     List<SourceQuote> evidenceQuotes,
     List<ProbeGap> probeGaps,
     List<GapResolution> resolvedGaps,
-    CodeRepairReview codeReview
+    CodeRepairReview codeReview,
+    String observationId
 ) {
+
+  public AssessmentDecision(String sessionId, int turnIndex, DepthLevel depthLevel, double confidence,
+      String rationaleSummary, List<SourceQuote> evidenceQuotes, List<ProbeGap> probeGaps,
+      List<GapResolution> resolvedGaps, CodeRepairReview codeReview) {
+    this(sessionId, turnIndex, depthLevel, confidence, rationaleSummary, evidenceQuotes,
+        probeGaps, resolvedGaps, codeReview, null);
+  }
 
   public AssessmentDecision {
     evidenceQuotes = List.copyOf(evidenceQuotes);

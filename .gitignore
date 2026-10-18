@@ -4,8 +4,6 @@
 # Ignore Gradle build output directory
 build
 /.claude/*
-!/.claude/rules/
-!/.claude/rules/**
 /.idea
 /app/bin
 # Environment variables
@@ -37,3 +35,10 @@ GEMINI.md
 !/.agents/skills/mentor-engineering/
 !/.agents/skills/mentor-engineering/**
 skills-lock.json
+
+# Private assessment observation logs
+**/assessment-observations*.jsonl
+**/assessment-observations*.jsonl.gz
+
+# Working memory debug snapshots
+**/working-memory.jsonl

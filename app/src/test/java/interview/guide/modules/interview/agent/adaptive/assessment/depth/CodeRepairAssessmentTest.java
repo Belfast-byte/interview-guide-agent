@@ -57,8 +57,25 @@ class CodeRepairAssessmentTest {
     var proposal = new AssessmentProposal(DepthLevel.L2, 0.8, "修复说明", 
         List.of(new SourceQuote(Source.SUBMITTED_CODE, "stock--", null)), List.of(), List.of(),
         review(Result.SATISFIED, Result.NOT_SATISFIED));
-    assertThatThrownBy(() -> agent(proposal).assess(request(CODE), "model"))
-        .isInstanceOf(BusinessException.class).hasMessageContaining("未命中");
+    var decision = agent(proposal).assess(request(CODE), "model");
+    assertThat(decision.evidenceQuotes()).isEmpty();
+    assertThat(decision.codeReview()).isEqualTo(proposal.codeReview());
+  }
+
+  @Test
+  void repeatedCodeDoesNotBlockReviewGapOrClosure() {
+    var quote = new SourceQuote(Source.SUBMITTED_CODE, "reserve()", null);
+    var proposal = new AssessmentProposal(DepthLevel.L2, 0.8, "已修复原子性", List.of(quote),
+        List.of(new ProbeGap(quote, "未说明异常边界")),
+        List.of(new GapResolution(7, quote, "模型确认原子扣减")), review(Result.SATISFIED, Result.UNDETERMINED));
+    var decision = agent(proposal).assess(request(CODE + "\n" + CODE), "model");
+    assertThat(decision.codeReview()).isEqualTo(proposal.codeReview());
+    assertThat(decision.evidenceQuotes()).isEmpty();
+    assertThat(decision.probeGaps().getFirst().anchor()).isNull();
+    assertThat(decision.resolvedGaps()).singleElement().satisfies(gap -> {
+      assertThat(gap.gapId()).isEqualTo(7);
+      assertThat(gap.evidenceQuote()).isNull();
+    });
   }
 
   private AssessmentProposal proposal(CodeRepairReview review) {

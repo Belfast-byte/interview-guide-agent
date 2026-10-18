@@ -13,8 +13,8 @@
 ## Constraints
 
 - Spring Boot 4.1.0、Java 21、Spring AI 2.0.0，沿用现有 PostgreSQL 与 pgvector。
-- 代码遵循项目 `AGENTS.md` 和 `.claude/rules/`；函数不超过 50 行，文件不超过 300 行。
-- 每个子任务独立验证并按主题提交；后端测试最长 60 秒。
+- 代码遵循项目 `AGENTS.md`；结构指标按其中的审阅指引判断，不为行数机械拆分。
+- 每个子任务独立验证并按主题提交；后端测试使用与规模相称的有限超时，具体遵循 `AGENTS.md`。
 - 失败显式暴露，不加入 mock、静默 fallback 或无真实使用者的配置项。
 
 ## Risk Assessment

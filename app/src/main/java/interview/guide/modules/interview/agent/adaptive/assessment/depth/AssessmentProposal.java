@@ -16,14 +16,14 @@ public record AssessmentProposal(
     DepthLevel depthLevel,
     double confidence,
     String rationaleSummary,
-    List<SourceQuote> evidenceQuotes,
+    @Schema(nullable = true, requiredMode = Schema.RequiredMode.NOT_REQUIRED) List<SourceQuote> evidenceQuotes,
     List<ProbeGap> probeGaps,
     List<GapResolution> resolvedGaps,
     @Schema(nullable = true, requiredMode = Schema.RequiredMode.NOT_REQUIRED) CodeRepairReview codeReview
 ) {
 
   public AssessmentProposal {
-    evidenceQuotes = immutable(evidenceQuotes);
+    evidenceQuotes = evidenceQuotes == null ? List.of() : immutable(evidenceQuotes);
     probeGaps = immutable(probeGaps);
     resolvedGaps = resolvedGaps == null ? List.of() : immutable(resolvedGaps);
   }

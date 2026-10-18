@@ -23,6 +23,7 @@ import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.setup.MockMvcBuilders;
 import org.springframework.web.context.WebApplicationContext;
+import org.springframework.web.servlet.mvc.method.annotation.RequestMappingHandlerMapping;
 import org.redisson.api.RedissonClient;
 
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
@@ -31,6 +32,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.when;
+import static org.assertj.core.api.Assertions.assertThat;
 
 @SpringBootTest(
     webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT,
@@ -79,6 +81,23 @@ class SecurityBoundaryIntegrationTest {
     mockMvc.perform(get("/api/resumes/health"))
         .andExpect(status().isUnauthorized())
         .andExpect(jsonPath("$.code").value(401));
+  }
+
+  @Test
+  void retiredMcpAndRepositoryWorkerEndpointsAreNotPublished() throws Exception {
+    mockMvc.perform(post("/mcp").contentType(MediaType.APPLICATION_JSON).content("{}"))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.code").value(404))
+        .andExpect(jsonPath("$.message").value("API 接口不存在"));
+    mockMvc.perform(post("/internal/code-analysis/jobs/old-job/result")
+            .contentType(MediaType.APPLICATION_JSON).content("{}"))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.code").value(404))
+        .andExpect(jsonPath("$.message").value("API 接口不存在"));
+    assertThat(context.getBean("requestMappingHandlerMapping", RequestMappingHandlerMapping.class)
+        .getHandlerMethods().values())
+        .noneMatch(handler -> handler.getBeanType().getPackageName().contains(".mcp")
+            || handler.getBeanType().getPackageName().contains(".codeanalysis"));
   }
 
   @Test

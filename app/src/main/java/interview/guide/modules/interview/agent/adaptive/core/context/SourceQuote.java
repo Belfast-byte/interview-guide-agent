@@ -5,7 +5,7 @@ import io.swagger.v3.oas.annotations.media.Schema;
 public record SourceQuote(
     Source source,
     String quote,
-    @Schema(description = "唯一逐字引用必须返回 null，由服务端计算 UTF-16 位置；仅重复片段且能确定位置时填写，不得估算。",
+    @Schema(description = "辅助引用偏移量；返回 null，由服务端尝试定位。无法定位仅记录观测，不阻断评判。",
         nullable = true, requiredMode = Schema.RequiredMode.NOT_REQUIRED) Integer startOffset
 ) {
   public enum Source { ANSWER_TEXT, SUBMITTED_CODE }

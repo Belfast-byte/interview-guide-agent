@@ -1,5 +1,6 @@
 package interview.guide.modules.interview.agent.adaptive.planning;
 
+import interview.guide.common.ai.StructuredOutputInvoker;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
@@ -10,6 +11,22 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 class PlanningContractTest {
+
+  @Test
+  @DisplayName("首题必须显式选择目标，缺失或 null 不得默认为第零个维度")
+  void initialQuestionRequiresExplicitTargetEvenWhenZero() {
+    var converter = StructuredOutputInvoker.strictConverter(InitialQuestionProposal.class);
+    String question = """
+        {"targetOrder":0,"content":"解释共享状态的并发更新","decisionSummary":"验证基础",
+         "nextProbeIntent":"检查边界","adoptedEpisodeRefs":[],"questionType":"TEXT",
+         "codeTask":null,"codeTaskTurnIndex":null}
+        """;
+    assertThat(converter.convert(question).targetOrder()).isZero();
+    assertThatThrownBy(() -> converter.convert(question.replace("\"targetOrder\":0,", "")))
+        .isInstanceOf(tools.jackson.databind.exc.MismatchedInputException.class);
+    assertThatThrownBy(() -> converter.convert(question.replace("\"targetOrder\":0", "\"targetOrder\":null")))
+        .isInstanceOf(tools.jackson.databind.exc.MismatchedInputException.class);
+  }
 
   @Test
   @DisplayName("规划请求只携带面试上下文，不携带评估结论")

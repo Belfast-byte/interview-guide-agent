@@ -21,7 +21,6 @@ import jakarta.persistence.PrePersist;
 import jakarta.persistence.Table;
 import jakarta.persistence.UniqueConstraint;
 import java.time.LocalDateTime;
-import java.util.Optional;
 
 /**
  * AdaptiveAgentEvidenceEntity JPA 实体，对应数据库中的相关表。
@@ -94,47 +93,6 @@ public class AdaptiveAgentEvidenceEntity {
     this.quoteText = evidence.quote();
     this.quoteLocator = evidence.quoteLocator();
     this.sandboxExecutionId = evidence.sandboxExecutionId();
-  }
-
-  public AdaptiveAgentEvidenceEntity(
-      AdaptiveAgentAssessmentEntity assessment,
-      String sessionId,
-      int turnIndex,
-      String codeSourceId,
-      String codeAnchor,
-      CodeFactUsage codeFactUsage
-  ) {
-    this.assessment = assessment;
-    this.evidenceType = EvidenceType.CODE_FACT;
-    this.sourceSessionId = sessionId;
-    this.sourceTurnIndex = turnIndex;
-    this.codeSourceId = codeSourceId;
-    this.codeAnchor = codeAnchor;
-    this.codeFactUsage = codeFactUsage;
-  }
-
-  /**
-   * 构建代码事实证据；轮次不含代码事实时返回空。
-   */
-  public static Optional<AdaptiveAgentEvidenceEntity> codeFact(
-      AdaptiveAgentAssessmentEntity assessment,
-      String sessionId,
-      int turnIndex,
-      String codeSourceId,
-      String codeAnchor,
-      CodeFactUsage codeFactUsage
-  ) {
-    if (codeFactUsage == null) {
-      return Optional.empty();
-    }
-    return Optional.of(new AdaptiveAgentEvidenceEntity(
-        assessment,
-        sessionId,
-        turnIndex,
-        codeSourceId,
-        codeAnchor,
-        codeFactUsage
-    ));
   }
 
   @PrePersist

@@ -80,8 +80,8 @@ class DepthAssessmentAgentTest {
   }
 
   @Test
-  @DisplayName("追问点锚定内容不在回答原文时明确失败且不静默重调模型")
-  void shouldRejectMissingProbeGapAnchor() {
+  @DisplayName("追问引用不在原文时保留追问但不登记虚假证据")
+  void shouldKeepGapWithoutUnverifiedAnchor() {
     AtomicInteger calls = new AtomicInteger();
     DepthAssessmentAgent agent = new DepthAssessmentAgent((request, provider) -> {
       calls.incrementAndGet();
@@ -94,9 +94,11 @@ class DepthAssessmentAgentTest {
       );
     });
 
-    assertThatThrownBy(() -> agent.assess(request(), null))
-        .isInstanceOf(BusinessException.class)
-        .hasMessageContaining("未命中");
+    var decision = agent.assess(request(), null);
+    assertThat(decision.probeGaps()).singleElement().satisfies(gap -> {
+      assertThat(gap.anchor()).isNull();
+      assertThat(gap.missingPoint()).isEqualTo("未说明误判率");
+    });
 
     assertThat(calls.get()).isEqualTo(1);
   }
@@ -182,8 +184,9 @@ class DepthAssessmentAgentTest {
         )
     );
 
-    assertThatThrownBy(() -> agent.assess(request, null))
-        .isInstanceOf(BusinessException.class).hasMessageContaining("未命中");
+    var decision = agent.assess(request, null);
+    assertThat(decision.evidenceQuotes()).isEmpty();
+    assertThat(decision.probeGaps()).singleElement().satisfies(gap -> assertThat(gap.anchor()).isNull());
   }
 
   @Test
@@ -222,6 +225,24 @@ class DepthAssessmentAgentTest {
         .isInstanceOf(BusinessException.class)
         .hasMessageContaining("不完整");
     assertThat(calls.get()).isEqualTo(1);
+  }
+
+  @Test
+  void repeatedIncorrectAndAbsentReferencesNeverBlockTextAssessment() {
+    for (SourceQuote quote : List.of(new SourceQuote(SourceQuote.Source.ANSWER_TEXT, "CAS", null),
+        new SourceQuote(SourceQuote.Source.ANSWER_TEXT, "CAS", 99),
+        new SourceQuote(SourceQuote.Source.SUBMITTED_CODE, "CAS", null))) {
+      var agent = new DepthAssessmentAgent((request, provider) -> new AssessmentProposal(
+          DepthLevel.L3, 0.8, "说明了并发机制", List.of(quote), List.of(new ProbeGap(quote, "需解释边界"))));
+      var decision = agent.assess(new AssessmentRequest("session", 1,
+          AssessmentContext.currentAnswer("Java", "并发", "说明 CAS", "CAS 成功；CAS 失败")), "model");
+      assertThat(decision.depthLevel()).isEqualTo(DepthLevel.L3);
+      assertThat(decision.evidenceQuotes()).isEmpty();
+      assertThat(decision.probeGaps().getFirst().anchor()).isNull();
+    }
+    var agent = new DepthAssessmentAgent((request, provider) -> new AssessmentProposal(
+        DepthLevel.L4, 0.9, "完整说明边界", null));
+    assertThat(agent.assess(request(), "model").depthLevel()).isEqualTo(DepthLevel.L4);
   }
 
   private AssessmentRequest request() {

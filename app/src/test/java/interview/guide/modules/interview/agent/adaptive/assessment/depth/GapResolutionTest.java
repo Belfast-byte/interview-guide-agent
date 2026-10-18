@@ -8,13 +8,16 @@ import org.junit.jupiter.api.Test;
 import static org.assertj.core.api.Assertions.*;
 
 class GapResolutionTest {
-  @Test void acceptsOnlyKnownGapWithCurrentAnswerQuote() {
+  @Test void acceptsOnlyKnownGapAndDoesNotInventUnverifiedQuote() {
     var request=request();
     assertThat(agent(new GapResolution(7,new SourceQuote(SourceQuote.Source.ANSWER_TEXT, "CAS 重试", null),"补足更新机制")).assess(request,"model").resolvedGaps()).hasSize(1);
     assertThatThrownBy(() -> agent(new GapResolution(8,new SourceQuote(SourceQuote.Source.ANSWER_TEXT, "CAS 重试", null),"补足更新机制")).assess(request,"model"))
         .hasMessageContaining("缺口关闭");
-    assertThatThrownBy(() -> agent(new GapResolution(7,new SourceQuote(SourceQuote.Source.ANSWER_TEXT, "未出现的证据", null),"补足更新机制")).assess(request,"model"))
-        .hasMessageContaining("未命中");
+    var decision = agent(new GapResolution(7,new SourceQuote(SourceQuote.Source.ANSWER_TEXT, "未出现的证据", null),"补足更新机制")).assess(request,"model");
+    assertThat(decision.resolvedGaps()).singleElement().satisfies(gap -> {
+      assertThat(gap.evidenceQuote()).isNull();
+      assertThat(gap.reason()).isEqualTo("补足更新机制");
+    });
   }
   @Test void noNewGapDoesNotResolveOldGap() {
     var agent=new DepthAssessmentAgent((r,p) -> new AssessmentProposal(DepthLevel.L1,0.7,"只复述概念",List.of(new SourceQuote(SourceQuote.Source.ANSWER_TEXT, "CAS", null))));

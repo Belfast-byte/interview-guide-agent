@@ -51,7 +51,8 @@ import static org.mockito.Mockito.when;
 class PracticeCreationHistoryTest {
 
   private static final TopicKey TOPIC = new TopicKey("java-backend", "CONCURRENCY");
-  private static final MemoryOwner OWNER = new MemoryOwner("tenant-a", "candidate-1");
+  private static final UUID CANDIDATE_ID = UUID.fromString("00000000-0000-0000-0000-000000000001");
+  private static final MemoryOwner OWNER = new MemoryOwner(null, CANDIDATE_ID.toString());
   private static final PracticeScope SCOPE = new PracticeScope(List.of(TOPIC));
   private static final String AVAILABLE_EPISODE = "episode:7";
   private final CandidateLlmProviderService providers = mock(CandidateLlmProviderService.class);
@@ -63,6 +64,8 @@ class PracticeCreationHistoryTest {
   @ValueSource(booleans = {true, false})
   @DisplayName("练习入口将 owner 历史贯穿规划与创建校验，只发布合法历史来源")
   void shouldCarryPlanningHistoryThroughCreation(boolean trusted) {
+    when(providers.resolveChatProvider(CANDIDATE_ID, "provider-1")).thenReturn(
+        new CandidateChatProvider("provider-1", "Provider", "model"));
     var episode = mock(EpisodeView.class);
     when(episode.reference()).thenReturn(AVAILABLE_EPISODE);
     var history = new PracticePlanningMemory(List.of(
@@ -73,20 +76,25 @@ class PracticeCreationHistoryTest {
       var request = invocation.getArgument(0,
           PlanningRequest.class);
       assertThat(request.practiceMemory()).isEqualTo(history);
-      return proposal(adopted);
+      var task = new CodeRepairTask("void reserve() {}", List.of("不能超卖"), List.of("共享数据库"),
+          new CodeRepairTask.ReviewGuide(List.of(
+              new CodeRepairTask.Check("C1", "未扣库存", "下单", "原子扣减"))));
+      return new PlanProposal(proposal(adopted).dimensions(),
+          new InitialQuestionProposal(0, "换场景验证并发", "参考原回答", "验证边界", List.of(adopted),
+              QuestionType.CODE_REPAIR, task, null));
     });
     var application = application();
-    var command = new TenantInterviewCreationCommand(OWNER.tenantId(), OWNER.candidateId(),
+    var command = new CandidateInterviewCreationCommand(CANDIDATE_ID,
         "JD", "Resume", "provider-1",
         new InterviewSessionSettings(SessionMode.PRACTICE, CandidateLevel.CAMPUS, SCOPE));
 
     if (!trusted) {
-      assertThatThrownBy(() -> application.createForTenant(command))
+      assertThatThrownBy(() -> application.createForCandidate(command))
           .isInstanceOf(BusinessException.class).hasMessageContaining("Episode 引用不在提供的历史中");
       verifyNoInteractions(transactions);
       return;
     }
-    application.createForTenant(command);
+    application.createForCandidate(command);
     verify(memory).planning(OWNER, SCOPE);
     var decision = ArgumentCaptor.forClass(AgentDecision.class);
     verify(transactions).create(any(), any(), decision.capture());

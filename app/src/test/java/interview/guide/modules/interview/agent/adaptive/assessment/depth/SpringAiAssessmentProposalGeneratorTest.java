@@ -158,7 +158,7 @@ class SpringAiAssessmentProposalGeneratorTest {
     );
     assertThat(systemPrompt.getValue())
         .contains("评估 Agent 校准示例", "用布隆过滤器就行")
-        .contains("唯一片段的 startOffset 必须返回 null", "唯一逐字引用必须返回 null", "\"startOffset\": null")
+        .contains("startOffset 返回 null", "无法定位仅记录观测，不阻断评判", "\"startOffset\": null")
         .contains("### Redis (REDIS)", "缓存穿透")
         .doesNotContain("private-session-id");
   }

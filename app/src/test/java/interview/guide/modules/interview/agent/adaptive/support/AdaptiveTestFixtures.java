@@ -8,7 +8,6 @@ import interview.guide.modules.interview.agent.adaptive.core.session.CandidateLe
 import interview.guide.modules.interview.agent.adaptive.core.session.InterviewSessionSettings;
 import interview.guide.modules.interview.agent.adaptive.core.session.PracticeScope;
 import interview.guide.modules.interview.agent.adaptive.core.session.SessionMode;
-import interview.guide.modules.interview.agent.adaptive.application.TenantInterviewCreationCommand;
 import interview.guide.modules.interview.agent.adaptive.planning.InterviewPlan;
 import interview.guide.modules.interview.agent.adaptive.planning.DimensionProposal;
 import interview.guide.modules.interview.agent.adaptive.planning.PlanProposal;
@@ -33,17 +32,6 @@ public final class AdaptiveTestFixtures {
 
   public static InterviewPlan testPlan(String sessionId, PlanProposal proposal) {
     return InterviewPlan.decide(sessionId, proposal, EVALUATION_SETTINGS);
-  }
-
-  public static TenantInterviewCreationCommand testCreation(String candidateId) {
-    return new TenantInterviewCreationCommand(
-        null,
-        candidateId,
-        "JD",
-        "Resume",
-        null,
-        EVALUATION_SETTINGS
-    );
   }
 
   public static PlannedDimension testDimension(

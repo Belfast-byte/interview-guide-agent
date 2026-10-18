@@ -32,7 +32,7 @@ public class AdaptiveAgentRuntimeConfiguration {
     return new QueryTools(callbacks);
   }
 
-  /** 具体面试工具集合；不能暴露为通用 provider Bean，MCP 会自动发布此类 Bean。 */
+  /** 本场 Loop 使用的具体工具集合，避免注册为全局工具回调。 */
   public record QueryTools(List<ToolCallback> callbacks) {
     public QueryTools { callbacks = List.copyOf(callbacks); }
   }

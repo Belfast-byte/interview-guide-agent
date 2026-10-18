@@ -49,7 +49,6 @@ public class SecurityConfiguration {
             .dispatcherTypeMatchers(DispatcherType.ASYNC).permitAll()
             .requestMatchers(HttpMethod.OPTIONS, "/**").permitAll()
             .requestMatchers("/api/auth/register", "/api/auth/login").permitAll()
-            .requestMatchers("/internal/code-analysis/jobs/**", "/mcp/**").permitAll()
             .requestMatchers("/swagger-ui/**", "/swagger-ui.html", "/v3/api-docs/**")
             .hasRole("ADMIN")
             .requestMatchers(

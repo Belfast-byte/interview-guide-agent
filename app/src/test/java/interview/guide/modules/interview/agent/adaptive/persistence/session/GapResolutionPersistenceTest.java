@@ -17,6 +17,25 @@ class GapResolutionPersistenceTest {
   @Autowired AdaptiveAssessmentRepositories store;
   @Autowired AssessmentProbeGapRepository gaps;
   @Autowired jakarta.persistence.EntityManager em;
+  @Test void modelJudgmentWithoutQuoteSurvivesReloadWithoutInventingEvidence() {
+    var first = store.saveAssessment(new AdaptiveAgentAssessmentEntity(0,
+        new AssessmentDecision("optional", 1, DepthLevel.L2, 0.8, "待说明边界", List.of())));
+    var gap = store.saveGaps(List.of(new AssessmentProbeGapEntity(first, 1,
+        new ProbeGap(null, "未说明并发边界")))).getFirst();
+    var second = store.saveAssessment(new AdaptiveAgentAssessmentEntity(0,
+        new AssessmentDecision("optional", 2, DepthLevel.L3, 0.8, "已补足并发边界", List.of())));
+    store.resolveGaps("optional", 0, second, List.of(new GapResolution(gap.id(), null, "提交已满足原子更新要求")));
+    em.flush(); em.clear();
+    var restored = gaps.findById(gap.id()).orElseThrow();
+    assertThat(restored.toDomain().anchor()).isNull();
+    assertThat(restored.closureEvidenceQuote()).isNull();
+    assertThat(restored.closureEvidenceLocator()).isNull();
+    assertThat(restored.closedByAssessmentId()).isEqualTo(second.id());
+    assertThat(restored.closureSummary()).isEqualTo("提交已满足原子更新要求");
+    assertThat(em.createNativeQuery("select closure_reason from agent_assessment_probe_gaps where id = :id", String.class)
+        .setParameter("id", gap.id()).getSingleResult()).isEqualTo("MODEL_ASSESSED");
+  }
+
   @Test void closurePersistsOnlySpecifiedGapWithCurrentAssessment() {
     var first=store.saveAssessment(new AdaptiveAgentAssessmentEntity(0,
         new AssessmentDecision("session",1,DepthLevel.L1,0.8,"概念复述",List.of(new SourceQuote(SourceQuote.Source.ANSWER_TEXT, "CAS", null)))));

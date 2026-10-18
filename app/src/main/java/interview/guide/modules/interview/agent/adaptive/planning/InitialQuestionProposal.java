@@ -13,6 +13,8 @@ import java.util.List;
 
 /** 创建 Agent 在规划同一次模型调用中提出的首题。 */
 public record InitialQuestionProposal(
+    @Schema(description = "必填：首题选择的 dimensions 零基索引。只有一个维度时也必须显式填写 0，不可省略或返回 null。",
+        requiredMode = Schema.RequiredMode.REQUIRED, minimum = "0")
     int targetOrder,
     String content,
     String decisionSummary,

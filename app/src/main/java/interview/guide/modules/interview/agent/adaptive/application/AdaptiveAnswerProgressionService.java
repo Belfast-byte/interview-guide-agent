@@ -1,5 +1,6 @@
 package interview.guide.modules.interview.agent.adaptive.application;
 
+import interview.guide.modules.interview.agent.adaptive.observability.AssessmentObservationLog;
 import interview.guide.common.exception.BusinessException;
 import interview.guide.common.exception.ErrorCode;
 import interview.guide.modules.interview.agent.adaptive.application.AdaptiveAnswerDecisionService.AnswerProgressionDecision;
@@ -56,6 +57,7 @@ public class AdaptiveAnswerProgressionService {
           ErrorCode.AI_SERVICE_TIMEOUT, "答题处理超时，请重试");
       transactions.commit(new AnswerCommit(command.owner(), interview, new CommitFacts(answer, decision), token));
     } catch (RuntimeException error) {
+      AssessmentObservationLog.progressionFailed(sessionId, answer.turnIndex(), token, error);
       claims.fail(sessionId, command.owner(), answer.turnIndex(), token, "回答处理失败，请重试原答案");
       throw error;
     }

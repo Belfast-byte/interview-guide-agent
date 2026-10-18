@@ -63,7 +63,7 @@ public class AdaptiveAnswerAssessmentService {
         new interview.guide.modules.interview.agent.adaptive.core.context.SourceQuote.AnswerSources(
             answer.content(), answer.codeRepair() == null ? null : answer.codeRepair().code()),
         java.util.stream.Stream.concat(decision.evidenceQuotes().stream(),
-            decision.resolvedGaps().stream().map(r -> r.evidenceQuote())).distinct().map(AssessmentEvidenceCandidate::quote).toList()
+            decision.resolvedGaps().stream().map(r -> r.evidenceQuote())).filter(java.util.Objects::nonNull).distinct().map(AssessmentEvidenceCandidate::quote).toList()
     );
     return new AnswerAssessment(dimension, decision, evidences);
   }

@@ -86,7 +86,7 @@ public class EpisodeQueryService {
     boolean visible = closingTurn == null || fact.getSessionMode() == SessionMode.PRACTICE
         || fact.getSessionStatus() == AdaptiveSessionStatus.COMPLETED
         || !codeRelated(closingTurn, turns);
-    return new Gap(gap.id(), gap.toDomain().anchor().quote(), gap.toDomain().missingPoint(),
+    return new Gap(gap.id(), gap.toDomain().anchor() == null ? "" : gap.toDomain().anchor().quote(), gap.toDomain().missingPoint(),
         gap.closedByAssessmentId(), visible ? gap.closureEvidenceQuote() : null,
         visible ? gap.closureSummary() : null, gap.anchorLocator(), visible ? gap.closureEvidenceLocator() : null);
   }

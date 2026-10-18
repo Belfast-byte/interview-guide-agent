@@ -60,13 +60,29 @@ class AdaptiveInterviewControllerTest {
           .containsExactly("practiceScope[0].focusId");
       var answer = mapper.readValue("""
           {"turnIndex":1,"answer":"代码","codeSubmission":{
-           "problemId":"two-sum","scenarioId":null,"language":null,"runMode":"FULL"}}
+           "problemId":"two-sum","language":null,"runMode":"FULL"}}
           """, SubmitAdaptiveAnswerRequest.class);
       assertThat(factory.getValidator().validate(answer))
           .extracting(v -> v.getPropertyPath().toString())
           .contains("codeSubmission.language");
       assertThat(mapper.valueToTree(answer).path("codeSubmission").path("problemId").asText())
           .isEqualTo("two-sum");
+    }
+  }
+
+  @Test
+  void rejectsRetiredRepositoryScenarioInsteadOfTreatingItAsAlgorithmSubmission() {
+    var mapper = new tools.jackson.databind.ObjectMapper();
+    assertThatThrownBy(() -> mapper.readValue("""
+        {"turnIndex":1,"answer":"patch","codeSubmission":{
+         "problemId":"two-sum","scenarioId":"old-scenario","language":"JAVA","runMode":"FULL"}}
+        """, SubmitAdaptiveAnswerRequest.class))
+        .hasMessageContaining("codeSubmission 不支持字段：scenarioId");
+    try (var factory = jakarta.validation.Validation.buildDefaultValidatorFactory()) {
+      var request = new CandidateCodeSubmissionRequest("", SandboxLanguage.JAVA, SandboxRunMode.FULL);
+      assertThat(factory.getValidator().validate(request))
+          .extracting(violation -> violation.getPropertyPath().toString())
+          .containsExactly("problemId");
     }
   }
 
@@ -106,7 +122,6 @@ class AdaptiveInterviewControllerTest {
         "class Main {}",
         new CandidateCodeSubmissionRequest(
             "two-sum",
-            null,
             SandboxLanguage.JAVA,
             SandboxRunMode.FULL
         ), null

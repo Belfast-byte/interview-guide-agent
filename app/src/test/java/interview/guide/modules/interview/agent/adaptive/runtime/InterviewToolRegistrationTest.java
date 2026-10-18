@@ -18,7 +18,7 @@ import org.springframework.context.annotation.AnnotationConfigApplicationContext
 
 class InterviewToolRegistrationTest {
   @Test
-  void internalQueriesAreNotPublishedAsGlobalMcpCallbackBeans() {
+  void internalQueriesRemainScopedToInterviewLoop() {
     try (var context = new AnnotationConfigApplicationContext()) {
       context.register(AdaptiveAgentRuntimeConfiguration.class);
       context.registerBean(InterviewMaterialReadTool.class, () -> mock(InterviewMaterialReadTool.class));

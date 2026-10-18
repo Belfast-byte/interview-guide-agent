@@ -110,14 +110,14 @@
 ## 这些示例确立的规则
 
 - 好答案 = 正确机制 + 具体场景 + 取舍 + 边界条件。
-- probeGaps 必须锚定回答中的原词，不得凭空发明候选人没提到的内容。
+- probeGaps 根据本轮真实回答判断缺口，不得凭空发明候选人表现；anchor 仅是可选辅助引用。
 - probeGaps 只描述缺失的机制、证据、代价或边界，不得出现 L0-L4、深浅、好坏、分数等评级语言。
 - 评级词只允许出现在 rationaleSummary。
 - 回答覆盖充分时，probeGaps 可以为空。
 
 ## 引用定位示例（仅展示 SourceQuote，不是完整评估输出）
 
-若 submittedCode 是 `// 😀\nreturn  reserve();`，引用必须保留两个空格：
+若 submittedCode 是 `// 😀\nreturn  reserve();`，如果提供辅助引用，应保留两个空格，以便服务端定位：
 
 ```json
 {"source":"SUBMITTED_CODE","quote":"return  reserve();","startOffset":null}
@@ -125,3 +125,5 @@
 
 该片段唯一，由服务端计算 UTF-16 起点 6；模型不填写按可见字符计数得到的 5，也不把换行转义字符算进偏移。
 此规则同样适用于 evidenceQuotes、probeGaps[].anchor 与 resolvedGaps[].evidenceQuote。
+
+引用重复、无法匹配或没有合适片段时，不影响评判：evidenceQuotes 可为空，追问 anchor 和关闭缺口的 evidenceQuote 可为 null。模型仍须给出明确判定及理由。

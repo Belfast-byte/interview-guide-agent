@@ -94,20 +94,6 @@ public class AdaptiveInterviewApplicationService {
     );
   }
 
-  public PlannedInterview createForTenant(TenantInterviewCreationCommand command) {
-    return create(new InterviewCreationInput(
-        command.tenantId(),
-        command.candidateId(),
-        command.jd(),
-        command.resume(),
-        command.llmProvider(),
-        null,
-        null,
-        command.settings(),
-        false
-    ));
-  }
-
   private PlannedInterview create(InterviewCreationInput input) {
     String sessionId = UUID.randomUUID().toString();
     return creationService.create(initializeCreation(sessionId, input));
@@ -184,7 +170,6 @@ public class AdaptiveInterviewApplicationService {
 
   public PlannedInterview submitAnswer(String sessionId, CandidateAnswer answer) {
     return submitAnswer(new AnswerSubmissionInput(
-        null,
         sessionId,
         answer,
         AnswerEventSink.noop()
@@ -198,7 +183,7 @@ public class AdaptiveInterviewApplicationService {
       AnswerEventSink sink
   ) {
     persistenceService.requireCandidateSession(candidateId, sessionId);
-    return submitAnswer(new AnswerSubmissionInput(null, sessionId, answer, sink));
+    return submitAnswer(new AnswerSubmissionInput(sessionId, answer, sink));
   }
 
   public PlannedInterview retryAnswerStreaming(String candidateId, String sessionId, int turnIndex,
@@ -209,11 +194,9 @@ public class AdaptiveInterviewApplicationService {
 
   private PlannedInterview submitAnswer(AnswerSubmissionInput input) {
     String sessionId = input.sessionId();
-    PlannedInterview interview = input.tenantId() == null
-        ? persistenceService.get(sessionId)
-        : persistenceService.getForTenant(input.tenantId(), sessionId);
+    PlannedInterview interview = persistenceService.get(sessionId);
     algorithmTelemetry.interviewTurnSubmitted(sessionId);
-    MemoryOwner owner = new MemoryOwner(input.tenantId(), interview.history().candidateId());
+    MemoryOwner owner = new MemoryOwner(null, interview.history().candidateId());
     answerProgressionService.advance(
         new AdaptiveAnswerProgressionService.AnswerProgressionCommand(
             owner,
@@ -222,9 +205,7 @@ public class AdaptiveInterviewApplicationService {
                 input.answer(), input.sink(), properties.getDeadline())
         )
     );
-    return input.tenantId() == null
-        ? persistenceService.get(sessionId)
-        : persistenceService.getForTenant(input.tenantId(), sessionId);
+    return persistenceService.get(sessionId);
   }
 
   public PlannedInterview submitAnswerForCandidate(
@@ -234,19 +215,6 @@ public class AdaptiveInterviewApplicationService {
   ) {
     persistenceService.requireCandidateSession(candidateId, sessionId);
     return submitAnswer(sessionId, answer);
-  }
-
-  public PlannedInterview submitAnswerForTenant(
-      String tenantId,
-      String sessionId,
-      CandidateAnswer answer
-  ) {
-    return submitAnswer(new AnswerSubmissionInput(
-        tenantId,
-        sessionId,
-        answer,
-        AnswerEventSink.noop()
-    ));
   }
 
   public PlannedInterview get(String sessionId) {
@@ -262,12 +230,7 @@ public class AdaptiveInterviewApplicationService {
     persistenceService.requireCandidateSession(candidateId, sessionId);
   }
 
-  public PlannedInterview getForTenant(String tenantId, String sessionId) {
-    return persistenceService.getForTenant(tenantId, sessionId);
-  }
-
   private record AnswerSubmissionInput(
-      String tenantId,
       String sessionId,
       CandidateAnswer answer,
       AnswerEventSink sink
